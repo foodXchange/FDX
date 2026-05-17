@@ -8,9 +8,9 @@ type Lang = 'en' | 'he';
 
 interface ContactFormProps {
   lang?: Lang;
-  leadType?: LeadType;          // initial type from page
-  hideTitle?: boolean;          // if page already has a title
-  allowSwitch?: boolean;        // allow user to switch buyer/supplier
+  leadType?: LeadType;
+  hideTitle?: boolean;
+  allowSwitch?: boolean;
 }
 
 const translations = {
@@ -36,15 +36,12 @@ const translations = {
     companyPlaceholder: 'Company name',
 
     messageLabel: 'Message',
-    messagePlaceholder:
-      'Briefly describe your needs: category, volumes, must-haves.',
+    messagePlaceholder: 'Briefly describe your needs: category, volumes, must-haves.',
 
     resetTemplate: 'Reset template',
 
     trustLineA: 'We respond within 24 hours (business days).',
     trustLineB: 'Confidential & partnership-first. No spam.',
-    whatsappAlt: 'Prefer WhatsApp? Tap here',
-    emailAlt: 'Prefer email? Click here',
 
     submit: 'Start the Conversation',
     required: 'This field is required',
@@ -76,15 +73,12 @@ const translations = {
     companyPlaceholder: 'שם החברה',
 
     messageLabel: 'הודעה',
-    messagePlaceholder:
-      'תארו בקצרה: קטגוריה, היקפים, דרישות חובה.',
+    messagePlaceholder: 'תארו בקצרה: קטגוריה, היקפים, דרישות חובה.',
 
     resetTemplate: 'איפוס תבנית',
 
     trustLineA: 'אנחנו חוזרים בתוך 24 שעות (ימי עסקים).',
     trustLineB: 'דיסקרטי, ממוקד ומקצועי. ללא ספאם.',
-    whatsappAlt: 'מעדיפים וואטסאפ? לחצו כאן',
-    emailAlt: 'מעדיפים מייל? לחצו כאן',
 
     submit: 'בואו נתקדם',
     required: 'שדה זה הוא חובה',
@@ -95,50 +89,41 @@ const translations = {
   },
 } as const;
 
-/** ✅ Your EXACT short templates (copy-ready) */
-function buyerTemplateEN() {
-  return `Hi, I’m a buyer/importer.
+/** Templates */
+const buyerTemplateEN = `Hi, I’m a buyer/importer.
 Category:
 Target volumes:
 Must-haves (kosher/halal/format/price):
 Goal:`;
-}
 
-function supplierTemplateEN() {
-  return `Hi, I’m a manufacturer/supplier.
+const supplierTemplateEN = `Hi, I’m a manufacturer/supplier.
 Products/categories:
 Private label/OEM:
 Certifications:
 Capacity & lead time:
 Export markets:
 Kosher/Halal:`;
-}
 
-// Optional: short Hebrew equivalents (keeps UX consistent on /he/contact)
-function buyerTemplateHE() {
-  return `שלום, אני קניין/יבואן.
+const buyerTemplateHE = `שלום, אני קניין/יבואן.
 קטגוריה:
 היקפים:
 דרישות חובה (כשרות/הלל/אריזה/מחיר):
 מטרה:`;
-}
 
-function supplierTemplateHE() {
-  return `שלום, אני יצרן/ספק.
+const supplierTemplateHE = `שלום, אני יצרן/ספק.
 מוצרים/קטגוריות:
 Private label/OEM:
 תקנים:
 קיבולת ו‑Lead time:
 שוקי יעד:
 כשרות/הלל:`;
-}
 
 function getTemplate(type: LeadType, lang: Lang) {
-  if (lang === 'he') return type === 'buyer' ? buyerTemplateHE() : supplierTemplateHE();
-  return type === 'buyer' ? buyerTemplateEN() : supplierTemplateEN();
+  if (lang === 'he') return type === 'buyer' ? buyerTemplateHE : supplierTemplateHE;
+  return type === 'buyer' ? buyerTemplateEN : supplierTemplateEN;
 }
 
-async function submitContactForm(payload: {
+async function insertToSupabase(payload: {
   name: string;
   email: string;
   company?: string;
@@ -150,6 +135,26 @@ async function submitContactForm(payload: {
   if (error) throw new Error(error.message);
 }
 
+async function notifyByEmail(payload: {
+  name: string;
+  email: string;
+  company?: string;
+  message: string;
+  lead_type: LeadType;
+  lang: Lang;
+}) {
+  const res = await fetch('/api/contact', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data?.error || 'Contact email failed');
+  }
+}
+
 export default function ContactForm({
   lang = 'en',
   leadType = 'buyer',
@@ -159,7 +164,6 @@ export default function ContactForm({
   const t = translations[lang];
   const isHe = lang === 'he';
 
-  // Qualification selection (can switch if allowSwitch)
   const [selectedLeadType, setSelectedLeadType] = useState<LeadType>(leadType);
 
   const [formData, setFormData] = useState({
@@ -174,15 +178,12 @@ export default function ContactForm({
   const [errorMsg, setErrorMsg] = useState('');
   const [loading, setLoading] = useState(false);
 
-  // Track whether user has edited the message (so we don't overwrite their text)
+  // important: track if user typed in message
   const messageTouchedRef = useRef(false);
 
-  // Auto-prefill template on first load OR when switching type (only if user hasn't edited message)
+  // Prefill only when message is empty OR user hasn't typed anything yet
   useEffect(() => {
-    const shouldFill =
-      !formData.message.trim() || (formData.message.trim() && !messageTouchedRef.current);
-
-    if (!shouldFill) return;
+    if (messageTouchedRef.current && formData.message.trim()) return;
 
     setFormData((prev) => ({
       ...prev,
@@ -193,7 +194,6 @@ export default function ContactForm({
 
   const roleText = selectedLeadType === 'buyer' ? t.buyer : t.supplier;
 
-  // WhatsApp prefill uses current form values (higher conversion)
   const whatsappUrl = useMemo(() => {
     const phone = '972525222291';
     const header =
@@ -209,9 +209,8 @@ Email: ${formData.email || ''}
 ${formData.message || ''}`;
 
     return `https://wa.me/${phone}?text=${encodeURIComponent(msg.trim())}`;
-  }, [selectedLeadType, formData.name, formData.company, formData.email, formData.message]);
+  }, [selectedLeadType, formData]);
 
-  // Email fallback (mailto)
   const emailFallback = useMemo(() => {
     const to = 'info@foodz-x.com';
     const subject =
@@ -226,18 +225,14 @@ Email: ${formData.email || ''}
 ${formData.message || ''}`;
 
     return `mailto:${to}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-  }, [selectedLeadType, formData.name, formData.company, formData.email, formData.message]);
+  }, [selectedLeadType, formData]);
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
-
     if (!formData.name.trim()) newErrors.name = t.required;
 
-    if (!formData.email.trim()) {
-      newErrors.email = t.required;
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-      newErrors.email = t.invalidEmail;
-    }
+    if (!formData.email.trim()) newErrors.email = t.required;
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) newErrors.email = t.invalidEmail;
 
     if (!formData.message.trim()) newErrors.message = t.required;
 
@@ -245,36 +240,25 @@ ${formData.message || ''}`;
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
-  ) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
-
-    // Mark message as touched so we don't overwrite it on type switch
     if (name === 'message') messageTouchedRef.current = true;
 
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value, // ✅ correct computed property
-    }));
+    setFormData((prev) => ({ ...prev, [name]: value }));
 
     if (errors[name]) setErrors((prev) => ({ ...prev, [name]: '' }));
     if (errorMsg) setErrorMsg('');
   };
 
+  // ✅ Reset template MUST override any typed content
   const handleResetTemplate = () => {
-    messageTouchedRef.current = false;
+    messageTouchedRef.current = false; // allow template to be restored
     setFormData((prev) => ({
       ...prev,
       message: getTemplate(selectedLeadType, lang),
     }));
-    if (errors.message) setErrors((prev) => ({ ...prev, message: '' }));
-    if (errorMsg) setErrorMsg('');
-  };
-
-  const handleSwitch = (nextType: LeadType) => {
-    setSelectedLeadType(nextType);
-    // if user hasn't edited message, it will auto-update via useEffect
+    setErrors((prev) => ({ ...prev, message: '' }));
+    setErrorMsg('');
   };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -284,30 +268,34 @@ ${formData.message || ''}`;
     setLoading(true);
     setErrorMsg('');
 
+    const payload = {
+      name: formData.name.trim(),
+      email: formData.email.trim(),
+      company: formData.company.trim() || undefined,
+      message: formData.message.trim(),
+      lead_type: selectedLeadType,
+      lang,
+    };
+
     try {
-      await submitContactForm({
-        name: formData.name.trim(),
-        email: formData.email.trim(),
-        company: formData.company.trim() || undefined,
-        message: formData.message.trim(),
-        lead_type: selectedLeadType,
-        lang,
-      });
+      // 1) Save to DB
+      await insertToSupabase(payload);
+
+      // 2) Notify via email (Resend)
+      await notifyByEmail(payload);
 
       setSubmitted(true);
       messageTouchedRef.current = false;
       setFormData({ name: '', email: '', company: '', message: '' });
-
       setTimeout(() => setSubmitted(false), 5000);
     } catch (err) {
-      console.error('Error submitting form:', err);
+      console.error('Contact submit error:', err);
       setErrorMsg(t.error);
     } finally {
       setLoading(false);
     }
   };
 
-  // Brand-aligned styles
   const labelClass = 'block text-sm font-semibold text-slate-800';
 
   const baseInput =
@@ -315,11 +303,8 @@ ${formData.message || ''}`;
     'placeholder:text-slate-500 bg-white caret-orange-600 ' +
     'outline-none transition disabled:bg-slate-100 disabled:text-slate-700';
 
-  const okInput =
-    'border-slate-300 focus:border-orange-500 focus:ring-2 focus:ring-orange-200';
-
-  const errInput =
-    'border-red-500 bg-red-50 focus:border-red-600 focus:ring-2 focus:ring-red-200';
+  const okInput = 'border-slate-300 focus:border-orange-500 focus:ring-2 focus:ring-orange-200';
+  const errInput = 'border-red-500 bg-red-50 focus:border-red-600 focus:ring-2 focus:ring-red-200';
 
   const toggleBtn = (active: boolean) =>
     `px-3 py-1.5 rounded-full text-xs font-semibold transition ${
@@ -333,17 +318,11 @@ ${formData.message || ''}`;
     >
       {!hideTitle && (
         <div className="mb-5">
-          <h2 className="text-2xl font-bold tracking-tight text-slate-900">
-            {t.title}
-          </h2>
+          <h2 className="text-2xl font-bold tracking-tight text-slate-900">{t.title}</h2>
           <p className="mt-2 text-sm text-slate-600 leading-relaxed">{t.intro}</p>
 
-          {/* Type badge + optional switch */}
           <div className="mt-4 flex flex-wrap items-center gap-3">
-            <span className="text-xs font-semibold text-slate-500">
-              {t.handledAs}:
-            </span>
-
+            <span className="text-xs font-semibold text-slate-500">{t.handledAs}:</span>
             <span className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-800">
               {roleText}
             </span>
@@ -351,31 +330,21 @@ ${formData.message || ''}`;
             {allowSwitch && (
               <div className="flex items-center gap-2 ml-0 sm:ml-auto">
                 <span className="text-xs text-slate-500">{t.switchLabel}</span>
-                <button
-                  type="button"
-                  onClick={() => handleSwitch('buyer')}
-                  className={toggleBtn(selectedLeadType === 'buyer')}
-                >
+                <button type="button" onClick={() => setSelectedLeadType('buyer')} className={toggleBtn(selectedLeadType === 'buyer')}>
                   {t.switchBuyer}
                 </button>
-                <button
-                  type="button"
-                  onClick={() => handleSwitch('supplier')}
-                  className={toggleBtn(selectedLeadType === 'supplier')}
-                >
+                <button type="button" onClick={() => setSelectedLeadType('supplier')} className={toggleBtn(selectedLeadType === 'supplier')}>
                   {t.switchSupplier}
                 </button>
               </div>
             )}
           </div>
 
-          {/* Trust signals */}
           <div className="mt-4 grid gap-1 text-xs text-slate-500">
             <div>✓ {t.trustLineA}</div>
             <div>✓ {t.trustLineB}</div>
           </div>
 
-          {/* WhatsApp + Email fallback */}
           <div className="mt-4 flex flex-wrap gap-3">
             <a
               href={whatsappUrl}

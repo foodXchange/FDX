@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+
 import "./globals.css";
-import Header from "../components/Header";
+import Header from "@/components/Header";
 import Footer from "@/components/Footer";
+import FloatingActionStack from "@/components/FloatingActionStack"; // ✅ unified stack
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -16,7 +18,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "FoodXchange",
-  description: "Connecting buyers and manufacturers",
+  description: "Connecting buyers and manufacturers in the Israeli market",
 };
 
 export default function RootLayout({
@@ -27,12 +29,24 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${geistSans.variable} ${geistMono.variable} h-full`}
     >
-      <body className="min-h-full flex flex-col">
+      <body className="min-h-screen flex flex-col font-sans antialiased">
+
+        {/* ✅ HEADER */}
         <Header />
-        {children}
+
+        {/* ✅ MAIN */}
+        <main className="flex-1">
+          {children}
+        </main>
+
+        {/* ✅ FOOTER */}
         <Footer />
+
+        {/* ✅ ✅ UNIFIED FLOATING STACK (WhatsApp + Accessibility) */}
+        <FloatingActionStack />
+
       </body>
     </html>
   );

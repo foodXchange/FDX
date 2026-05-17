@@ -1,5 +1,8 @@
 @import "tailwindcss";
 
+/* ---------------------------------- */
+/* Theme variables */
+/* ---------------------------------- */
 :root {
   --background: #ffffff;
   --foreground: #171717;
@@ -19,8 +22,155 @@
   }
 }
 
+/* ---------------------------------- */
+/* Base styles */
+/* ---------------------------------- */
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-geist-sans), system-ui, -apple-system, sans-serif;
+}
+
+/* ---------------------------------- */
+/* Base layer */
+/* ---------------------------------- */
+@layer base {
+  html {
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  :focus-visible {
+    outline: none;
+  }
+}
+
+/* ---------------------------------- */
+/* Utilities (SAFE FOR TAILWIND) */
+/* ---------------------------------- */
+@layer utilities {
+
+  /* ✅ Hover interaction */
+  .hover-lift {
+    @apply transition duration-300 ease-out;
+  }
+
+  .hover-lift:hover {
+    @apply -translate-y-0.5 shadow-md;
+  }
+
+  /* ✅ Reduced motion support */
+  @media (prefers-reduced-motion: reduce) {
+    .hover-lift {
+      transition: none !important;
+    }
+  }
+
+  /* ✅ Card */
+  .card {
+    @apply rounded-2xl border border-slate-200 bg-white shadow-sm;
+  }
+
+  /* ✅ Surface */
+  .surface {
+    @apply bg-slate-50 border border-slate-200 rounded-2xl;
+  }
+
+  /* ✅ Buttons */
+  .btn {
+    @apply inline-flex items-center justify-center rounded-md font-semibold transition duration-300 ease-out;
+  }
+
+  .btn-primary {
+    @apply inline-flex items-center justify-center rounded-md font-semibold transition duration-300 ease-out bg-orange-500 text-white shadow-sm;
+  }
+
+  .btn-primary:hover {
+    @apply bg-orange-600;
+  }
+
+  .btn-primary:focus-visible {
+    @apply ring-2 ring-orange-300 ring-offset-2;
+  }
+
+  .btn-secondary {
+    @apply inline-flex items-center justify-center rounded-md font-semibold transition duration-300 ease-out border border-slate-300 text-slate-800;
+  }
+
+  .btn-secondary:hover {
+    @apply bg-slate-50;
+  }
+
+  .btn-secondary:focus-visible {
+    @apply ring-2 ring-orange-300 ring-offset-2;
+  }
+
+  /* ✅ Links */
+  .link {
+    @apply underline underline-offset-4 decoration-slate-300;
+  }
+
+  .link:hover {
+    @apply decoration-orange-400;
+  }
+
+  /* ✅ Typography */
+  .h1 {
+    @apply font-semibold tracking-tight;
+    font-size: 2.25rem;
+    line-height: 2.5rem;
+  }
+
+  .h2 {
+    @apply font-semibold tracking-tight;
+    font-size: 1.5rem;
+    line-height: 2rem;
+  }
+
+  /* ✅ Responsive typography */
+  @media (min-width: 768px) {
+    .h1 {
+      font-size: 3rem;
+      line-height: 1.1;
+    }
+
+    .h2 {
+      font-size: 1.875rem;
+      line-height: 2.25rem;
+    }
+  }
+
+  .body {
+    @apply text-slate-600 leading-relaxed;
+  }
+
+  .muted {
+    @apply text-slate-500 text-sm;
+  }
+}
+/* ✅ High contrast mode */
+.high-contrast {
+  background: black !important;
+  color: white !important;
+}
+
+.high-contrast * {
+  background: black !important;
+  color: yellow !important;
+  border-color: yellow !important;
+}
+.high-contrast,
+.high-contrast body {
+  background: #000 !important;
+  color: #fff !important;
+}
+
+.high-contrast * {
+  border-color: #ffd400 !important;
+}
+
+.high-contrast a,
+.high-contrast button {
+  color: #ffd400 !important;
 }
