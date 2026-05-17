@@ -1,0 +1,354 @@
+'use client';
+
+import { useMemo, useState } from 'react';
+import { supabase } from '@/lib/supabase';
+
+interface ContactFormProps {
+  lang?: 'en' | 'he';
+  leadType?: 'buyer' | 'supplier';
+  hideTitle?: boolean;
+}
+
+const translations = {
+  en: {
+    title: 'Let’s Start a Conversation',
+    intro:
+      'Share a few details and we’ll respond personally. The more specific you are, the faster we can help.',
+    handledAs: 'This request will be handled as',
+    buyer: 'Buyer / Importer',
+    supplier: 'Manufacturer / Supplier',
+
+    nameLabel: 'Full Name',
+    namePlaceholder: 'Your full name',
+
+    emailLabel: 'Email',
+    emailPlaceholder: 'you@company.com',
+
+    companyLabel: 'Company (optional)',
+    companyPlaceholder: 'Company name',
+
+    messageLabel: 'Message',
+    messagePlaceholder:
+      'Briefly describe your needs: product/category, target volumes, and any must-have requirements.',
+
+    trustNote: 'We review every request carefully and respond personally.',
+    whatsappAlt: 'Prefer WhatsApp? Tap here',
+    submit: 'Start the Conversation',
+
+    required: 'This field is required',
+    invalidEmail: 'Please enter a valid email address',
+    success: 'We received your message — we’ll review it and get back to you shortly.',
+    error: 'Something went wrong. Please try again.',
+    sending: 'Sending...',
+  },
+
+  he: {
+    title: 'בואו נתחיל שיחה',
+    intro:
+      'שתפו כמה פרטים קצרים ונחזור אליכם אישית. ככל שתהיו מדויקים יותר — נוכל לעזור מהר יותר.',
+    handledAs: 'הפנייה תטופל כ',
+    buyer: 'קניין / יבואן',
+    supplier: 'יצרן / ספק',
+
+    nameLabel: 'שם מלא',
+    namePlaceholder: 'השם המלא שלך',
+
+    emailLabel: 'דוא״ל',
+    emailPlaceholder: 'name@company.com',
+
+    companyLabel: 'חברה (אופציונלי)',
+    companyPlaceholder: 'שם החברה',
+
+    messageLabel: 'הודעה',
+    messagePlaceholder:
+      'תארו בקצרה את הצורך: קטגוריה / היקפים / דרישות חובה / כל פרט חשוב.',
+
+    trustNote: 'אנחנו קוראים כל פנייה וחוזרים באופן אישי.',
+    whatsappAlt: 'מעדיפים וואטסאפ? לחצו כאן',
+    submit: 'בואו נתקדם',
+
+    required: 'שדה זה הוא חובה',
+    invalidEmail: 'אנא הזן כתובת דוא״ל תקינה',
+    success: 'קיבלנו את ההודעה — נבדוק ונחזור אליכם בקרוב.',
+    error: 'משהו השתבש. אנא נסו שוב.',
+    sending: 'שולח...',
+  },
+} as const;
+
+async function submitContactForm(payload: {
+  name: string;
+  email: string;
+  company?: string;
+  message: string;
+  lead_type: 'buyer' | 'supplier';
+  lang: 'en' | 'he';
+}) {
+  const { error } = await supabase.from('contacts').insert([payload]);
+  if (error) throw new Error(error.message);
+}
+
+export default function ContactForm({
+  lang = 'en',
+  leadType = 'buyer',
+  hideTitle = false,
+}: ContactFormProps) {
+  const t = translations[lang];
+  const isHe = lang === 'he';
+
+  const [formData, setFormData] = useState({
+    name: '',
+    email: '',
+    company: '',
+    message: '',
+  });
+
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [submitted, setSubmitted] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  // ✅ Lead type display (NOT clickable on purpose)
+  const roleText = leadType === 'buyer' ? t.buyer : t.supplier;
+
+  // ✅ WhatsApp fallback (pre-fills user input)
+  const whatsapp = useMemo(() => {
+    const phone = '972525222291';
+    const msg =
+      leadType === 'buyer'
+        ? `Hi, I’m a buyer/importer. Name: ${formData.name || ''}. Company: ${
+            formData.company || ''
+          }. Request: ${formData.message || ''}`
+        : `Hi, I’m a manufacturer/supplier. Name: ${formData.name || ''}. Company: ${
+            formData.company || ''
+          }. Offer: ${formData.message || ''}`;
+
+    return `https://wa.me/${phone}?text=${encodeURIComponent(msg.trim())}`;
+  }, [leadType, formData.name, formData.company, formData.message]);
+
+  const validateForm = () => {
+    const newErrors: Record<string, string> = {};
+
+    if (!formData.name.trim()) newErrors.name = t.required;
+
+    if (!formData.email.trim()) {
+      newErrors.email = t.required;
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+      newErrors.email = t.invalidEmail;
+    }
+
+    if (!formData.message.trim()) newErrors.message = t.required;
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+  ) => {
+    const { name, value } = e.target;
+
+    setFormData((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+
+    // clear field error as user types
+    if (errors[name]) {
+      setErrors((prev) => ({
+        ...prev,
+        [name]: '',
+      }));
+    }
+
+    // clear global error if exists
+    if (errorMsg) setErrorMsg('');
+  };
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!validateForm()) return;
+
+    setLoading(true);
+    setErrorMsg('');
+
+    try {
+      await submitContactForm({
+        name: formData.name.trim(),
+        email: formData.email.trim(),
+        company: formData.company.trim() || undefined,
+        message: formData.message.trim(),
+        lead_type: leadType,
+        lang,
+      });
+
+      setSubmitted(true);
+      setFormData({ name: '', email: '', company: '', message: '' });
+
+      setTimeout(() => setSubmitted(false), 5000);
+    } catch (err) {
+      console.error('Error submitting form:', err);
+      setErrorMsg(t.error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Brand-aligned styling (slate trust + orange action)
+  const labelClass = 'block text-sm font-semibold text-slate-800';
+
+  const baseInput =
+    'mt-2 w-full rounded-md border px-4 py-2.5 text-sm font-semibold text-slate-900 ' +
+    'placeholder:text-slate-500 bg-white caret-orange-600 ' +
+    'outline-none transition disabled:bg-slate-100 disabled:text-slate-700';
+
+  const okInput =
+    'border-slate-300 focus:border-orange-500 focus:ring-2 focus:ring-orange-200';
+
+  const errInput =
+    'border-red-500 bg-red-50 focus:border-red-600 focus:ring-2 focus:ring-red-200';
+
+  return (
+    <div
+      dir={isHe ? 'rtl' : 'ltr'}
+      className="w-full max-w-lg rounded-xl border border-slate-200 bg-white p-5 sm:p-6 shadow-md border-t-4 border-t-orange-500"
+    >
+      {!hideTitle && (
+        <div className="mb-5">
+          <h2 className="text-2xl font-bold tracking-tight text-slate-900">
+            {t.title}
+          </h2>
+
+          <p className="mt-2 text-sm text-slate-600 leading-relaxed">
+            {t.intro}
+          </p>
+
+          {/* ✅ NOT CLICKABLE: clear wording so user won't expect interaction */}
+          <div className="mt-4 flex flex-wrap items-center gap-2">
+            <span className="text-xs font-semibold text-slate-500">
+              {t.handledAs}:
+            </span>
+            <span className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-800">
+              {roleText}
+            </span>
+          </div>
+        </div>
+      )}
+
+      {submitted && (
+        <div className="mb-5 rounded-lg border border-green-200 bg-green-50 p-4 text-green-900 font-medium">
+          {t.success}
+        </div>
+      )}
+
+      {errorMsg && (
+        <div className="mb-5 rounded-lg border border-red-200 bg-red-50 p-4 text-red-900 font-medium">
+          {errorMsg}
+        </div>
+      )}
+
+      <form onSubmit={handleSubmit} className="space-y-5 sm:space-y-6">
+        {/* Name */}
+        <div>
+          <label htmlFor="name" className={labelClass}>
+            {t.nameLabel}
+          </label>
+          <input
+            id="name"
+            name="name"
+            type="text"
+            placeholder={t.namePlaceholder}
+            value={formData.name}
+            onChange={handleChange}
+            disabled={loading}
+            className={`${baseInput} ${errors.name ? errInput : okInput}`}
+            autoComplete="name"
+          />
+          {errors.name && (
+            <p className="mt-1 text-sm text-red-700 font-medium">{errors.name}</p>
+          )}
+        </div>
+
+        {/* Email */}
+        <div>
+          <label htmlFor="email" className={labelClass}>
+            {t.emailLabel}
+          </label>
+          <input
+            id="email"
+            name="email"
+            type="email"
+            placeholder={t.emailPlaceholder}
+            value={formData.email}
+            onChange={handleChange}
+            disabled={loading}
+            className={`${baseInput} ${errors.email ? errInput : okInput}`}
+            autoComplete="email"
+          />
+          {errors.email && (
+            <p className="mt-1 text-sm text-red-700 font-medium">{errors.email}</p>
+          )}
+        </div>
+
+        {/* Company */}
+        <div>
+          <label htmlFor="company" className={labelClass}>
+            {t.companyLabel}
+          </label>
+          <input
+            id="company"
+            name="company"
+            type="text"
+            placeholder={t.companyPlaceholder}
+            value={formData.company}
+            onChange={handleChange}
+            disabled={loading}
+            className={`${baseInput} ${okInput}`}
+            autoComplete="organization"
+          />
+        </div>
+
+        {/* Message */}
+        <div>
+          <label htmlFor="message" className={labelClass}>
+            {t.messageLabel}
+          </label>
+          <textarea
+            id="message"
+            name="message"
+            placeholder={t.messagePlaceholder}
+            rows={5}
+            value={formData.message}
+            onChange={handleChange}
+            disabled={loading}
+            className={`${baseInput} resize-none ${errors.message ? errInput : okInput}`}
+          />
+          {errors.message && (
+            <p className="mt-1 text-sm text-red-700 font-medium">{errors.message}</p>
+          )}
+        </div>
+
+        {/* Trust + WhatsApp fallback */}
+        <div className="flex flex-col gap-2">
+          <p className="text-xs text-slate-500">{t.trustNote}</p>
+          <a
+            href={whatsapp}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-xs font-semibold text-slate-700 hover:text-orange-600 transition"
+          >
+            {t.whatsappAlt} →
+          </a>
+        </div>
+
+        {/* Submit */}
+        <button
+          type="submit"
+          disabled={loading}
+          className="w-full rounded-md bg-orange-500 px-4 py-3 text-sm font-bold text-white shadow transition hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
+        >
+          {loading ? t.sending : t.submit}
+        </button>
+      </form>
+    </div>
+  );
+}
