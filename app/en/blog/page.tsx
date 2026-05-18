@@ -1,100 +1,54 @@
-import Link from 'next/link';
-import { supabase } from '@/lib/supabase';
+import type { Metadata } from "next";
+import { createClient } from "@supabase/supabase-js";
+import BlogIndexClient from "@/components/BlogIndexClient";
 
-interface BlogPost {
-  id: string;
+export const metadata: Metadata = {
+  title: "Blog | FoodXchange",
+  description:
+    "Insights on importing food to Israel, private label sourcing, and supplier partnerships.",
+};
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+);
+
+export type BlogPost = {
   title: string;
   slug: string;
-  excerpt: string;
+  excerpt: string | null;
   created_at: string;
-}
+  cover_image: string | null;
+  tags: string[] | null;
+};
 
-async function getBlogPosts(): Promise<BlogPost[]> {
+async function getPosts(): Promise<BlogPost[]> {
   const { data, error } = await supabase
-    .from('blog_posts')
-    .select('id, title, slug, excerpt, created_at')
-    .eq('published', true)
-    .eq('lang', 'en')
-    .order('created_at', { ascending: false });
+    .from("blog_posts")
+    .select("title, slug, excerpt, created_at, cover_image, tags")
+    .eq("published", true)
+    .eq("lang", "en")
+    .order("created_at", { ascending: false });
 
   if (error) {
-    console.error('Error fetching blog posts:', error);
+    console.error("Blog fetch error:", JSON.stringify(error, null, 2));
     return [];
   }
 
-  return data || [];
+  return (data || []) as BlogPost[];
 }
 
-function formatDate(dateString: string): string {
-  const date = new Date(dateString);
-  return new Intl.DateTimeFormat('en-US', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  }).format(date);
+export default async function BlogPage({
+  searchParams,
+}: {
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const posts = await getPosts();
+
+  // Next.js dynamic APIs: searchParams can be async in recent versions.
+  const sp = (await searchParams) || {};
+  const tag = typeof sp.tag === "string" ? sp.tag : null;
+
+  return <BlogIndexClient posts={posts} initialTag={tag} />;
 }
-
-export default async function EnglishBlogPage() {
-  const posts = await getBlogPosts();
-
-  return (
-    <main className="flex flex-col bg-white">
-      {/* Hero Section */}
-      <section className="bg-gradient-to-b from-slate-900 via-slate-800 to-white px-6 py-20">
-        <div className="mx-auto max-w-3xl text-center">
-          <h1 className="mb-6 text-5xl md:text-6xl font-bold tracking-tight text-white">
-            Blog
-          </h1>
-
-          <p className="mb-12 text-lg md:text-xl leading-relaxed text-slate-200">
-            Insights, tips, and stories from the world of food partnerships between Israel and Europe.
-            Learn from success stories, market trends, and how to build lasting commercial relationships.
-          </p>
-        </div>
-      </section>
-
-      {/* Blog Posts */}
-      <section className="px-6 py-20 bg-white">
-        <div className="mx-auto max-w-4xl">
-          {posts.length === 0 ? (
-            <div className="text-center py-20">
-              <p className="text-lg text-slate-600">
-                No published posts yet. Check back soon!
-              </p>
-            </div>
-          ) : (
-            <div className="space-y-8">
-              {posts.map((post) => (
-                <article
-                  key={post.id}
-                  className="border-b border-slate-200 pb-8 last:border-b-0"
-                >
-                  <div className="mb-2 text-sm text-slate-500">
-                    {formatDate(post.created_at)}
-                  </div>
-                  <h2 className="mb-3 text-3xl font-bold text-slate-900">
-                    <Link
-                      href={`/en/blog/${post.slug}`}
-                      className="hover:text-blue-600 transition"
-                    >
-                      {post.title}
-                    </Link>
-                  </h2>
-                  <p className="mb-4 text-slate-700 leading-relaxed">
-                    {post.excerpt}
-                  </p>
-                  <Link
-                    href={`/en/blog/${post.slug}`}
-                    className="inline-flex items-center text-blue-600 hover:text-blue-700 font-medium transition"
-                  >
-                    Read more →
-                  </Link>
-                </article>
-              ))}
-            </div>
-          )}
-        </div>
-      </section>
-    </main>
-  );
-}
+``
