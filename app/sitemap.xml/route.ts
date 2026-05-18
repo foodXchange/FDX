@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
+import { supabaseServer } from "@/lib/supabase-server";
 
-export const dynamic = "force-dynamic"; // ✅ prevent caching of GET route handler [1](https://nextjs.org/docs/14/app/building-your-application/routing/route-handlers)
+export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 function esc(s: string) {
@@ -9,50 +9,51 @@ function esc(s: string) {
 }
 
 export async function GET() {
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  );
-
   const baseUrl = "https://fdx.trading";
 
-  const { data: posts, error } = await supabase
+  const { data: posts, error } = await supabaseServer
     .from("blog_posts")
     .select("slug, created_at")
-    .eq("published", true)
-    .eq("lang", "en")
+    .in("published", [true, "true"])
+    .in("lang", ["en", "EN"])
     .order("created_at", { ascending: false });
 
+  if (error) {
+    console.error("Sitemap Supabase error:", error);
+  }
+
+  const today = new Date().toISOString().split("T")[0];
+
   const staticUrls = [
-    `${baseUrl}/en`,
-    `${baseUrl}/en/about`,
-    `${baseUrl}/en/buyers`,
-    `${baseUrl}/en/manufacturers`,
-    `${baseUrl}/en/blog`,
-    `${baseUrl}/en/contact`,
-    `${baseUrl}/he/blog`,
+    { loc: `${baseUrl}/en`, lastmod: today },
+    { loc: `${baseUrl}/en/about`, lastmod: today },
+    { loc: `${baseUrl}/en/buyers`, lastmod: today },
+    { loc: `${baseUrl}/en/manufacturers`, lastmod: today },
+    { loc: `${baseUrl}/en/blog`, lastmod: today },
+    { loc: `${baseUrl}/en/contact`, lastmod: today },
+    { loc: `${baseUrl}/he/blog`, lastmod: today },
   ];
 
-  const blogUrls =
-    !error && posts?.length
-      ? posts.map((p) => ({
-          loc: `${baseUrl}/en/blog/${p.slug}`,
-          lastmod: new Date(p.created_at).toISOString(),
-        }))
-      : [];
+  const blogUrls = (posts || []).map((post) => ({
+    loc: `${baseUrl}/en/blog/${post.slug}`,
+    lastmod: new Date(post.created_at).toISOString().split("T")[0],
+  }));
 
-  const now = new Date().toISOString();
+  const allUrls = [...staticUrls, ...blogUrls];
 
-  const xml =
-    `<?xml version="1.0" encoding="UTF-8"?>` +
+  const xml = `<?xml version="1.0" encoding="UTF-8"?>` +
     `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">` +
-    staticUrls
-      .map((u) => `<url><loc>${esc(u)}</loc><lastmod>${now}</lastmod></url>`)
+    allUrls
+      .map(
+        (entry) => `
+  <url>
+    <loc>${esc(entry.loc)}</loc>
+    <lastmod>${entry.lastmod.split("T")[0]}</lastmod>
+  </url>`
+      )
       .join("") +
-    blogUrls
-      .map((u) => `<url><loc>${esc(u.loc)}</loc><lastmod>${u.lastmod}</lastmod></url>`)
-      .join("") +
-    `</urlset>`;
+    `
+</urlset>`;
 
   return new NextResponse(xml, {
     headers: {
@@ -61,4 +62,3 @@ export async function GET() {
     },
   });
 }
-``
