@@ -13,6 +13,7 @@ export default async function sitemap() {
     .eq("published", true)
     .eq("lang", "en");
 
+  // ✅ Convert to sitemap format
   const blogUrls =
     posts?.map((post) => ({
       url: `https://fdx.trading/en/blog/${post.slug}`,
@@ -28,8 +29,7 @@ export default async function sitemap() {
     { url: "https://fdx.trading/en/blog", lastModified: new Date() },
     { url: "https://fdx.trading/en/contact", lastModified: new Date() },
 
-    // ✅ Dynamic blog pages
+    // ✅ Dynamic blog posts
     ...blogUrls,
   ];
 }
-``
