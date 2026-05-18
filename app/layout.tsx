@@ -19,6 +19,7 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "FoodXchange",
   description: "Connecting buyers and manufacturers in the Israeli market",
+  metadataBase: new URL("https://fdx.trading"), // ✅ IMPORTANT
 };
 
 export default function RootLayout({
