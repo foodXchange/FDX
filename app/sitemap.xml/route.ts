@@ -1,12 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
-export const runtime = "nodejs";
-
-function xmlEscape(s: string) {
-  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-}
-
 export async function GET() {
   const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -15,49 +9,46 @@ export async function GET() {
 
   const baseUrl = "https://fdx.trading";
 
-  const { data: posts, error } = await supabase
+  const { data: posts } = await supabase
     .from("blog_posts")
     .select("slug, created_at")
     .eq("published", true)
-    .eq("lang", "en")
-    .order("created_at", { ascending: false });
+    .eq("lang", "en");
 
-  // Static pages
-  const urls: { loc: string; lastmod: string }[] = [
-    { loc: `${baseUrl}/en`, lastmod: new Date().toISOString() },
-    { loc: `${baseUrl}/en/about`, lastmod: new Date().toISOString() },
-    { loc: `${baseUrl}/en/buyers`, lastmod: new Date().toISOString() },
-    { loc: `${baseUrl}/en/manufacturers`, lastmod: new Date().toISOString() },
-    { loc: `${baseUrl}/en/blog`, lastmod: new Date().toISOString() },
-    { loc: `${baseUrl}/en/contact`, lastmod: new Date().toISOString() },
+  const urls = [
+    `${baseUrl}/en`,
+    `${baseUrl}/en/about`,
+    `${baseUrl}/en/buyers`,
+    `${baseUrl}/en/manufacturers`,
+    `${baseUrl}/en/blog`,
+    `${baseUrl}/en/contact`,
   ];
 
-  // Dynamic blog posts
-  if (!error && posts?.length) {
-    for (const p of posts) {
-      urls.push({
-        loc: `${baseUrl}/en/blog/${p.slug}`,
-        lastmod: new Date(p.created_at).toISOString(),
-      });
-    }
-  }
+  const blogUrls =
+    posts?.map(
+      (post) => `${baseUrl}/en/blog/${post.slug}`
+    ) || [];
 
-  const xml =
-    `<?xml version="1.0" encoding="UTF-8"?>` +
-    `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">` +
-    urls
+  const allUrls = [...urls, ...blogUrls];
+
+  const xml = `<?xml version="1.0" encoding="UTF-8"?>
+  <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+    ${allUrls
       .map(
-        (u) =>
-          `<url><loc>${xmlEscape(u.loc)}</loc><lastmod>${u.lastmod}</lastmod></url>`
+        (url) => `
+      <url>
+        <loc>${url}</loc>
+        <lastmod>${new Date().toISOString()}</lastmod>
+      </url>`
       )
-      .join("") +
-    `</urlset>`;
+      .join("")}
+  </urlset>`;
 
   return new NextResponse(xml, {
     headers: {
-      "Content-Type": "application/xml; charset=utf-8",
-      // ✅ prevents stale sitemap caches
-      "Cache-Control": "no-store, max-age=0",
+      "Content-Type": "application/xml",
+      "Cache-Control": "no-store",
     },
   });
 }
+``
