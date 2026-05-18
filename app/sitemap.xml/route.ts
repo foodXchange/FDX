@@ -5,7 +5,10 @@ export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 function esc(s: string) {
-  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
 }
 
 export async function GET() {
@@ -21,6 +24,8 @@ export async function GET() {
   if (error) {
     console.error("Sitemap Supabase error:", error);
   }
+
+  console.log("SITEMAP POSTS:", posts);
 
   const today = new Date().toISOString().split("T")[0];
 
@@ -41,24 +46,24 @@ export async function GET() {
 
   const allUrls = [...staticUrls, ...blogUrls];
 
-  const xml = `<?xml version="1.0" encoding="UTF-8"?>` +
-    `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">` +
-    allUrls
-      .map(
-        (entry) => `
+  const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+${allUrls
+  .map(
+    (entry) => `
   <url>
     <loc>${esc(entry.loc)}</loc>
-    <lastmod>${entry.lastmod.split("T")[0]}</lastmod>
+    <lastmod>${entry.lastmod}</lastmod>
   </url>`
-      )
-      .join("") +
-    `
+  )
+  .join("")}
 </urlset>`;
 
   return new NextResponse(xml, {
     headers: {
-      "Content-Type": "application/xml; charset=utf-8",
-      "Cache-Control": "no-store, max-age=0",
+      "Content-Type": "application/xml",
+      "Cache-Control": "no-store",
     },
   });
 }
+``
