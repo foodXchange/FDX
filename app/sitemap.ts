@@ -1,33 +1,35 @@
-import { MetadataRoute } from "next";
-import { supabase } from "@/lib/supabase";
+import { createClient } from "@supabase/supabase-js";
 
-export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const baseUrl = "https://fdx.trading";
+export default async function sitemap() {
+  const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  );
 
   // ✅ Fetch blog posts
   const { data: posts } = await supabase
     .from("blog_posts")
-    .select("slug, updated_at")
-    .eq("published", true);
+    .select("slug, created_at")
+    .eq("published", true)
+    .eq("lang", "en");
 
   const blogUrls =
     posts?.map((post) => ({
-      url: `${baseUrl}/he/blog/${post.slug}`,
-      lastModified: post.updated_at || new Date(),
+      url: `https://fdx.trading/en/blog/${post.slug}`,
+      lastModified: new Date(post.created_at),
     })) || [];
 
   return [
     // ✅ Static pages
-    { url: `${baseUrl}/en`, lastModified: new Date() },
-    { url: `${baseUrl}/en/about`, lastModified: new Date() },
-    { url: `${baseUrl}/en/buyers`, lastModified: new Date() },
-    { url: `${baseUrl}/en/manufacturers`, lastModified: new Date() },
-    { url: `${baseUrl}/en/blog`, lastModified: new Date() },
-    { url: `${baseUrl}/en/contact`, lastModified: new Date() },
+    { url: "https://fdx.trading/en", lastModified: new Date() },
+    { url: "https://fdx.trading/en/about", lastModified: new Date() },
+    { url: "https://fdx.trading/en/buyers", lastModified: new Date() },
+    { url: "https://fdx.trading/en/manufacturers", lastModified: new Date() },
+    { url: "https://fdx.trading/en/blog", lastModified: new Date() },
+    { url: "https://fdx.trading/en/contact", lastModified: new Date() },
 
-    { url: `${baseUrl}/he/blog`, lastModified: new Date() },
-
-    // ✅ Dynamic blog
+    // ✅ Dynamic blog pages
     ...blogUrls,
   ];
 }
+``
