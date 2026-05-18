@@ -2,18 +2,25 @@ import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
 export async function GET() {
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  );
+  try {
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    );
 
-  const baseUrl = "https://fdx.trading";
+    const baseUrl = "https://fdx.trading";
 
-  const { data: posts } = await supabase
-    .from("blog_posts")
-    .select("slug, created_at")
-    .eq("published", true)
-    .eq("lang", "en");
+    const { data: posts, error } = await supabase
+      .from("blog_posts")
+      .select("slug, created_at, published, lang")
+      .eq("published", true)
+      .eq("lang", "en");
+
+    if (error) {
+      console.error("Supabase error:", error);
+    }
+
+    console.log("Blog posts found:", posts?.length || 0, posts);
 
   const staticUrls = [
     { loc: `${baseUrl}/en`, lastmod: new Date().toISOString() },
@@ -53,4 +60,8 @@ ${allUrls
       "Cache-Control": "no-store",
     },
   });
+  } catch (error) {
+    console.error("Sitemap generation error:", error);
+    return new NextResponse("Error generating sitemap", { status: 500 });
+  }
 }
