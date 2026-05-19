@@ -15,40 +15,39 @@ interface ContactFormProps {
 
 const translations = {
   en: {
-    title: 'Let’s Start a Conversation',
-    intro:
-      'Share a few details and we’ll respond personally. The more specific you are, the faster we can help.',
-    handledAs: 'This request will be handled as',
-    buyer: 'Buyer / Importer',
-    supplier: 'Manufacturer / Supplier',
+    title: "What are you looking for?",
+    intro: "Tell us in a sentence or two and we’ll take it from there. No long forms, no commitment — just a conversation.",
+    handledAs: "Handling this as",
+    buyer: "Buyer / Importer",
+    supplier: "Manufacturer / Supplier",
 
-    switchLabel: 'Not you?',
-    switchBuyer: 'I’m a Buyer',
-    switchSupplier: 'I’m a Manufacturer',
+    switchLabel: "Not you?",
+    switchBuyer: "I’m a Buyer",
+    switchSupplier: "I’m a Manufacturer",
 
-    nameLabel: 'Full Name',
-    namePlaceholder: 'Your full name',
+    nameLabel: "Your name",
+    namePlaceholder: "First name + company name is enough",
 
-    emailLabel: 'Email',
-    emailPlaceholder: 'you@company.com',
+    emailLabel: "Email address",
+    emailPlaceholder: "you@company.com",
 
-    companyLabel: 'Company (optional)',
-    companyPlaceholder: 'Company name',
+    companyLabel: "Company (optional)",
+    companyPlaceholder: "Company name",
 
-    messageLabel: 'Message',
-    messagePlaceholder: 'Briefly describe your needs: category, volumes, must-haves.',
+    messageLabel: "What are you looking for?",
+    messagePlaceholder: "e.g. a frozen food supplier for private label, or a buyer for our pasta range in Israel",
 
-    resetTemplate: 'Reset template',
+    resetTemplate: "Reset template",
 
-    trustLineA: 'We respond within 24 hours (business days).',
-    trustLineB: 'Confidential & partnership-first. No spam.',
+    trustLineA: "Confidential — we never share your details.",
+    trustLineB: "No obligation — just a conversation.",
 
-    submit: 'Start the Conversation',
-    required: 'This field is required',
-    invalidEmail: 'Please enter a valid email address',
-    success: 'We received your message — we’ll review it and get back to you shortly.',
-    error: 'Something went wrong. Please try again.',
-    sending: 'Sending...',
+    submit: "Start the Conversation →",
+    required: "This field is required",
+    invalidEmail: "Please enter a valid email address",
+    success: "We received your message and we’ll reply personally within 24 hours.",
+    error: "Something went wrong. Please try again.",
+    sending: "Sending...",
   },
 
   he: {
@@ -181,16 +180,12 @@ export default function ContactForm({
   // important: track if user typed in message
   const messageTouchedRef = useRef(false);
 
-  // Prefill only when message is empty OR user hasn't typed anything yet
+  // Reset message field when lead type switches (but don't pre-fill a template)
   useEffect(() => {
     if (messageTouchedRef.current && formData.message.trim()) return;
-
-    setFormData((prev) => ({
-      ...prev,
-      message: getTemplate(selectedLeadType, lang),
-    }));
+    setFormData((prev) => ({ ...prev, message: '' }));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedLeadType, lang]);
+  }, [selectedLeadType]);
 
   const roleText = selectedLeadType === 'buyer' ? t.buyer : t.supplier;
 
@@ -426,15 +421,8 @@ ${formData.message || ''}`;
         </div>
 
         <div>
-          <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
             <label htmlFor="message" className={labelClass}>{t.messageLabel}</label>
-            <button
-              type="button"
-              onClick={handleResetTemplate}
-              className="text-xs font-semibold text-slate-600 hover:text-orange-600 transition"
-            >
-              {t.resetTemplate}
-            </button>
           </div>
 
           <textarea
@@ -457,6 +445,11 @@ ${formData.message || ''}`;
         >
           {loading ? t.sending : t.submit}
         </button>
+
+        <div className="pt-1 grid gap-1 text-xs text-slate-400">
+          <div>✓ {t.trustLineA}</div>
+          <div>✓ {t.trustLineB}</div>
+        </div>
       </form>
     </div>
   );

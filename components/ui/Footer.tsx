@@ -114,16 +114,16 @@ export default function Footer() {
 
         {/* LINKS */}
         <div className="mt-2 flex justify-center gap-4 flex-wrap">
-          <span>Privacy</span>
-          <span>Terms</span>
-          <span>Accessibility</span>
-          <span>Cookies</span>
-          <span>Marketing</span>
+          <Link href="/en/privacy" className="hover:text-white transition">Privacy</Link>
+          <Link href="/en/terms" className="hover:text-white transition">Terms</Link>
+          <Link href="/en/accessibility" className="hover:text-white transition">Accessibility</Link>
+          <Link href="/en/cookies" className="hover:text-white transition">Cookies</Link>
+          <Link href="/en/marketing" className="hover:text-white transition">Marketing</Link>
 
-          {/* ✅ INTERNAL ACCESS LINK (DISCREET) */}
+          {/* INTERNAL ACCESS LINK (DISCREET) */}
           <Link
             href="/en/admin/upload"
-            className="text-slate-400 hover:text-slate-300"
+            className="text-slate-400 hover:text-slate-300 transition"
           >
             Internal
           </Link>

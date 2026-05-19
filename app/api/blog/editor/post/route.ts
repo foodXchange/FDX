@@ -1,3 +1,5 @@
+// FILE: app/api/blog/editor/post/route.ts
+
 import { createClient } from "@supabase/supabase-js";
 
 function normalizeStatus(status: string) {
@@ -46,8 +48,15 @@ export async function POST(req: Request) {
 
   const meta_title = String(body.meta_title || "").trim();
   const meta_description = String(body.meta_description || "").trim();
-
   const published_at = body.published_at ? String(body.published_at) : null;
+
+  // ── Images — accept null to clear, undefined to leave unchanged ──
+  const cover_image = body.cover_image !== undefined
+    ? (body.cover_image ? String(body.cover_image).trim() : null)
+    : null;
+  const hero_image = body.hero_image !== undefined
+    ? (body.hero_image ? String(body.hero_image).trim() : null)
+    : null;
 
   if (!title) return Response.json({ error: "Missing title" }, { status: 400 });
   if (!slug) return Response.json({ error: "Missing slug" }, { status: 400 });
@@ -59,7 +68,6 @@ export async function POST(req: Request) {
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   );
 
-  // Upsert by slug+lang (you may already have unique slug; this keeps it stable)
   const payload: any = {
     title,
     slug,
@@ -71,7 +79,16 @@ export async function POST(req: Request) {
     tags,
     meta_title,
     meta_description,
-    published_at: published ? (published_at || new Date().toISOString()) : published_at,
+    published_at: published
+      ? (published_at || new Date().toISOString())
+      : published_at,
+    // ── Images now included ──
+    cover_image,
+    hero_image,
+    cover_alt: body.cover_alt ? String(body.cover_alt).trim() : null,
+    hero_alt: body.hero_alt ? String(body.hero_alt).trim() : null,
+    cover_position: body.cover_position ? String(body.cover_position).trim() : null,
+    hero_position: body.hero_position ? String(body.hero_position).trim() : null,
   };
 
   const { data, error } = await supabase

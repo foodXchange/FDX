@@ -1,321 +1,394 @@
 import Link from "next/link";
+import type { Metadata } from "next";
+import Reveal from "@/components/Reveal";
+
+export const metadata: Metadata = {
+  title: "Food Sourcing for the Israeli Market | FoodXchange",
+  description:
+    "FoodXchange connects Israeli food retailers with international manufacturers. Private label, frozen foods, ambient grocery — real partnerships, not just introductions.",
+  keywords: [
+    "food sourcing Israel",
+    "Israeli food import",
+    "private label Israel",
+    "food manufacturer Israel",
+    "kosher supplier",
+    "frozen food Israel",
+  ],
+  openGraph: {
+    title: "Food Sourcing for the Israeli Market | FoodXchange",
+    description:
+      "Real sourcing partnerships for Israeli retailers and international food manufacturers. Container-level volumes, private label, and long-term supply.",
+    type: "website",
+  },
+};
 
 export default function HomePage() {
   const phone = "972525222291";
 
   const buyerMessage = encodeURIComponent(
-    "Hi, I’m a buyer/importer interested in sourcing products through FoodXchange. Could you share relevant options?"
+    "Hi, I'm a buyer/importer interested in sourcing products through FoodXchange. Could you share relevant options?"
   );
 
   const manufacturerMessage = encodeURIComponent(
-    "Hi, I’m a manufacturer interested in entering the Israeli market through FoodXchange. Let’s discuss collaboration."
+    "Hi, I'm a manufacturer interested in entering the Israeli market through FoodXchange. Let's discuss collaboration."
   );
 
   return (
     <main className="bg-white text-slate-800">
 
-      {/* HERO */}
+      {/* ── HERO ── */}
       <section className="flex flex-col items-center justify-center text-center px-6 py-28 bg-gradient-to-b from-slate-900 to-slate-800">
-        <h1 className="text-4xl md:text-5xl font-bold mb-6 text-white leading-tight">
-          Strategic Food Sourcing for the{" "}
-          <span className="text-orange-500">Israeli Market</span>
-        </h1>
+        <Reveal>
+          <h1 className="text-4xl md:text-5xl font-bold text-white leading-tight max-w-3xl mx-auto">
+            Find the Right Food Supplier for the{" "}
+            <span className="text-orange-500">Israeli Market</span>
+          </h1>
 
-        <p className="max-w-2xl text-lg text-slate-200 mb-8">
-          We help international food manufacturers and Israeli retailers build reliable,
-          scalable sourcing partnerships — with commercial alignment and long‑term execution.
-        </p>
-
-        {/* TRUST LINE (fast response + trust signal) */}
-        <p className="text-sm text-slate-300 mb-10">
-          Typical response time: <span className="font-semibold text-white">within 24 hours</span>{" "}
-          (business days) • Private label • Long‑term supply flow
-        </p>
-
-        <div className="flex gap-4 flex-wrap justify-center">
-          {/* Buyer */}
-          <a
-            href={`https://wa.me/${phone}?text=${buyerMessage}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center justify-center bg-orange-500 hover:bg-orange-600 text-white px-6 py-3 rounded-md font-semibold shadow transition transform hover:scale-105"
-            aria-label="WhatsApp buyers"
-          >
-            I’m a Buyer
-          </a>
-
-          {/* Manufacturer */}
-          <a
-            href={`https://wa.me/${phone}?text=${manufacturerMessage}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center justify-center border border-white text-white px-6 py-3 rounded-md font-semibold hover:bg-white hover:text-slate-900 transition"
-            aria-label="WhatsApp manufacturers"
-          >
-            I’m a Manufacturer
-          </a>
-        </div>
-      </section>
-
-      {/* CASE STUDY (CORE PROOF) */}
-      <section className="px-6 py-20 bg-slate-50">
-        <div className="max-w-5xl mx-auto">
-          <div className="text-center mb-14">
-            <h2 className="text-3xl font-bold text-slate-900 mb-2">How We Helped</h2>
-            <p className="text-slate-500">
-              Real sourcing partnerships — built for scale and long‑term success
-            </p>
-          </div>
-
-          <div className="grid md:grid-cols-2 gap-8 items-start">
-            {/* LEFT – RESULT CARD */}
-            <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm">
-              <span className="text-xs font-semibold text-orange-500 uppercase tracking-wide">
-                Private Label Supply
-              </span>
-
-              <h3 className="text-lg font-semibold text-slate-900 mt-2 mb-4">
-                Frozen Vegetables & Fruits
-              </h3>
-
-              <ul className="space-y-2 text-sm text-slate-600">
-                <li>✔ Belgium → Israel sourcing</li>
-                <li>✔ Long-term commercial cooperation</li>
-              </ul>
-
-              <div className="mt-6 border-t border-slate-100 pt-4">
-                <p className="text-3xl font-bold text-orange-500">🚢 3–4 Containers</p>
-                <p className="text-sm text-slate-500">per month — growing steadily</p>
-              </div>
-            </div>
-
-            {/* RIGHT – STORY */}
-            <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm">
-              <h4 className="text-xs font-semibold text-slate-400 uppercase mb-2">Challenge</h4>
-              <p className="text-slate-600 mb-4 text-sm leading-relaxed">
-                A major Israeli supermarket chain sought to expand its private label frozen category,
-                but lacked a reliable European supplier aligned with its operational and commercial needs.
-              </p>
-
-              <h4 className="text-xs font-semibold text-slate-400 uppercase mb-2">Action</h4>
-              <ul className="text-slate-600 mb-4 text-sm space-y-1">
-                <li>• Identified a Belgian manufacturer aligned with requirements</li>
-                <li>• Structured product and commercial alignment</li>
-                <li>• Facilitated partnership development</li>
-              </ul>
-
-              <h4 className="text-xs font-semibold text-slate-400 uppercase mb-2">Result</h4>
-              <ul className="text-slate-600 text-sm space-y-1">
-                <li>• Long-term supply relationship established</li>
-                <li>• Gradual scaling of volumes over time</li>
-                <li>• Consistent multi-container monthly shipments</li>
-              </ul>
-
-              <p className="text-xs text-slate-400 mt-6">
-                Major Israeli Retail Chain | European Manufacturer
-              </p>
-            </div>
-          </div>
-
-          <p className="text-center text-sm text-slate-500 mt-12">
-            We regularly support similar sourcing partnerships across multiple categories and markets.
+          <p className="max-w-2xl mx-auto text-lg text-slate-300 mt-6 leading-relaxed">
+            We connect Israeli retailers and international food manufacturers — not just introductions,
+            but real partnerships built on making sure you're the right match before anyone wastes time.
           </p>
+
+          {/* Trust bar */}
+          <div className="mt-8 flex items-center justify-center gap-0 flex-wrap">
+            <div className="px-6 py-3 text-center">
+              <div className="text-2xl font-bold text-orange-400">15+</div>
+              <div className="text-xs text-slate-400 mt-0.5">Years in food sourcing</div>
+            </div>
+            <div className="w-px h-10 bg-slate-700" />
+            <div className="px-6 py-3 text-center">
+              <div className="text-2xl font-bold text-orange-400">Multi-category</div>
+              <div className="text-xs text-slate-400 mt-0.5">Frozen, ambient, specialty</div>
+            </div>
+            <div className="w-px h-10 bg-slate-700" />
+            <div className="px-6 py-3 text-center">
+              <div className="text-2xl font-bold text-orange-400">24h</div>
+              <div className="text-xs text-slate-400 mt-0.5">Typical response time</div>
+            </div>
+          </div>
+
+          <p className="text-xs text-slate-500 mt-2">
+            We respond personally — not with an auto-reply.
+          </p>
+
+          <div className="flex gap-4 flex-wrap justify-center mt-10">
+            <a
+              href={`https://wa.me/${phone}?text=${buyerMessage}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center justify-center bg-orange-500 hover:bg-orange-600 text-white px-7 py-3.5 rounded-md font-semibold shadow transition"
+            >
+              I&apos;m a Buyer →
+            </a>
+            <a
+              href={`https://wa.me/${phone}?text=${manufacturerMessage}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center justify-center border border-white/40 text-white px-7 py-3.5 rounded-md font-semibold hover:bg-white/10 transition"
+            >
+              I&apos;m a Manufacturer →
+            </a>
+          </div>
+        </Reveal>
+      </section>
+
+      {/* ── RESULTS THAT SPEAK ── */}
+      <section className="px-6 py-20 bg-white border-t border-slate-100">
+        <div className="max-w-5xl mx-auto">
+          <Reveal>
+            <div className="text-center mb-12">
+              <p className="text-xs font-semibold text-orange-500 uppercase tracking-widest mb-3">
+                Proof of work
+              </p>
+              <h2 className="text-3xl font-bold text-slate-900">
+                Food Sourcing That Actually Works
+              </h2>
+              <p className="text-slate-500 mt-3 max-w-xl mx-auto">
+                Here&apos;s what a real partnership looks like — not a one-off introduction, but a supply flow that grew over time.
+              </p>
+            </div>
+          </Reveal>
+
+          <div className="grid md:grid-cols-2 gap-8 items-center">
+            <Reveal>
+              <div className="bg-slate-900 text-white rounded-2xl p-8">
+                <p className="text-xs font-semibold text-orange-400 uppercase tracking-widest mb-4">
+                  Frozen Private Label · Belgium → Israel
+                </p>
+                <div className="text-6xl font-black text-orange-400 leading-none">
+                  3–4
+                </div>
+                <div className="text-2xl font-bold text-white mt-1">
+                  containers per month
+                </div>
+                <p className="text-slate-400 text-sm mt-3">
+                  Growing steadily — started with one trial shipment.
+                </p>
+                <div className="mt-6 pt-6 border-t border-slate-800 grid grid-cols-3 gap-4 text-center">
+                  <div>
+                    <div className="text-lg font-bold text-orange-400">1</div>
+                    <div className="text-xs text-slate-500 mt-0.5">Retailer matched</div>
+                  </div>
+                  <div>
+                    <div className="text-lg font-bold text-orange-400">Long-term</div>
+                    <div className="text-xs text-slate-500 mt-0.5">Supply contract</div>
+                  </div>
+                  <div>
+                    <div className="text-lg font-bold text-orange-400">Private label</div>
+                    <div className="text-xs text-slate-500 mt-0.5">Own brand range</div>
+                  </div>
+                </div>
+              </div>
+            </Reveal>
+
+            <Reveal>
+              {/* Image placeholder */}
+              <div
+                className="w-full rounded-2xl bg-slate-100 border-2 border-dashed border-slate-300 flex flex-col items-center justify-center text-slate-400 text-sm"
+                style={{ minHeight: "240px" }}
+              >
+                <span className="text-2xl mb-2">📷</span>
+                <span className="font-medium">[AI IMAGE: shipping containers at Ashdod port, golden hour, aerial view]</span>
+                <span className="text-xs mt-1 text-slate-300">Replace with generated image</span>
+              </div>
+            </Reveal>
+          </div>
         </div>
       </section>
 
-      {/* MARKET OPPORTUNITY */}
+      {/* ── HOW WE HELPED (full case study) ── */}
+      <section className="px-6 py-20 bg-slate-50 border-t border-slate-100">
+        <div className="max-w-5xl mx-auto">
+          <Reveal>
+            <div className="text-center mb-12">
+              <h2 className="text-3xl font-bold text-slate-900">How We Made It Happen</h2>
+              <p className="text-slate-500 mt-3">
+                Every partnership starts with understanding what each side actually needs.
+              </p>
+            </div>
+          </Reveal>
+
+          <div className="grid md:grid-cols-2 gap-8">
+            <Reveal>
+              <div className="bg-white border border-slate-200 rounded-2xl p-7 shadow-sm h-full">
+                <span className="text-xs font-semibold text-orange-500 uppercase tracking-widest">
+                  OUTCOME
+                </span>
+                <h3 className="text-xl font-bold text-slate-900 mt-3 mb-2">
+                  3–4 Containers per Month
+                </h3>
+                <p className="text-sm text-slate-500 mb-5">
+                  Frozen vegetables &amp; fruits, private label, Belgium → Israel
+                </p>
+                <div className="border-t border-slate-100 pt-5 space-y-3">
+                  <div>
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Long-term supply</span>
+                    <p className="text-sm text-slate-600 mt-0.5">Commercial cooperation still growing — from first trial to consistent monthly volume.</p>
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Private label</span>
+                    <p className="text-sm text-slate-600 mt-0.5">Full retailer own-brand range with aligned specs and kosher certification.</p>
+                  </div>
+                </div>
+                <p className="text-xs text-slate-400 mt-6">Major Israeli Retail Chain · European Manufacturer</p>
+              </div>
+            </Reveal>
+
+            <Reveal>
+              <div className="bg-white border border-slate-200 rounded-2xl p-7 shadow-sm h-full">
+                <div className="space-y-5 text-sm">
+                  <div>
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Challenge</span>
+                    <p className="text-slate-600 mt-2 leading-relaxed">
+                      A major Israeli supermarket chain needed to expand its private label frozen range
+                      but had no reliable European supplier aligned with its commercial and operational requirements.
+                    </p>
+                  </div>
+                  <div className="border-t border-slate-100 pt-4">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">What we did</span>
+                    <ul className="text-slate-600 mt-2 space-y-1.5">
+                      <li className="flex gap-2"><span className="text-orange-500 font-bold">→</span> Found a Belgian manufacturer that actually fit — specs, capacity, and price point</li>
+                      <li className="flex gap-2"><span className="text-orange-500 font-bold">→</span> Made sure both sides were aligned before any introduction happened</li>
+                      <li className="flex gap-2"><span className="text-orange-500 font-bold">→</span> Supported the commercial discussion through to first order</li>
+                    </ul>
+                  </div>
+                  <div className="border-t border-slate-100 pt-4">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Result</span>
+                    <ul className="text-slate-600 mt-2 space-y-1.5">
+                      <li className="flex gap-2"><span className="text-orange-500 font-bold">→</span> Long-term supply relationship with consistent monthly shipments</li>
+                      <li className="flex gap-2"><span className="text-orange-500 font-bold">→</span> Volume scaled from trial to 3–4 containers per month</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            </Reveal>
+          </div>
+
+          <Reveal>
+            <p className="text-center text-sm text-slate-500 mt-10">
+              We run similar partnerships across multiple categories. Tell us what you need.
+            </p>
+          </Reveal>
+        </div>
+      </section>
+
+      {/* ── MARKET OPPORTUNITY ── */}
       <section className="px-6 py-24 bg-white border-t border-slate-100">
         <div className="max-w-5xl mx-auto text-center">
-          <h2 className="text-3xl font-bold text-slate-900 mb-6">
-            A High‑Opportunity Import Market
-          </h2>
-
-          <p className="text-slate-600 max-w-3xl mx-auto mb-12">
-            Israel presents a unique opportunity for international food manufacturers — combining strong demand,
-            diverse consumer segments, and continuous reliance on imported products.
-          </p>
+          <Reveal>
+            <h2 className="text-3xl font-bold text-slate-900 mb-5">
+              A High-Opportunity Import Market
+            </h2>
+            <p className="text-slate-600 max-w-3xl mx-auto mb-12">
+              Israel imports over 70% of its food products. For manufacturers, that&apos;s consistent demand.
+              For buyers, that means a wide supplier base — if you know where to look.
+            </p>
+          </Reveal>
 
           <div className="grid md:grid-cols-3 gap-8 text-left">
-            <div className="bg-slate-50 border border-slate-200 p-6 rounded-xl">
-              <h3 className="font-semibold text-slate-900 mb-2">Strong Import Dependence</h3>
-              <p className="text-sm text-slate-600">
-                Limited domestic production and high consumption create consistent demand for imported food products.
-              </p>
-            </div>
-
-            <div className="bg-slate-50 border border-slate-200 p-6 rounded-xl">
-              <h3 className="font-semibold text-slate-900 mb-2">Diverse Consumer Segments</h3>
-              <p className="text-sm text-slate-600">
-                Multiple dietary and cultural segments: kosher (standard and high-level), halal,
-                and broad international flavor preferences.
-              </p>
-            </div>
-
-            <div className="bg-slate-50 border border-slate-200 p-6 rounded-xl">
-              <h3 className="font-semibold text-slate-900 mb-2">Ongoing Growth in Demand</h3>
-              <p className="text-sm text-slate-600">
-                A young and growing population, combined with retail expansion, drives continuous sourcing demand.
-              </p>
-            </div>
+            {[
+              {
+                title: "Strong Import Dependence",
+                body: "Limited domestic production and high consumption create consistent, year-round demand for imported food across all categories.",
+              },
+              {
+                title: "Diverse Consumer Segments",
+                body: "Kosher (standard and premium), halal, and broad international flavor preferences — a market that rewards quality and specificity.",
+              },
+              {
+                title: "Growing Demand",
+                body: "A young, growing population combined with retail expansion means this isn&apos;t a static opportunity — it&apos;s a growing one.",
+              },
+            ].map((item, i) => (
+              <Reveal key={i}>
+                <div className="bg-slate-50 border border-slate-200 p-6 rounded-2xl h-full">
+                  <h3 className="font-semibold text-slate-900 mb-2">{item.title}</h3>
+                  <p className="text-sm text-slate-600 leading-relaxed">{item.body}</p>
+                </div>
+              </Reveal>
+            ))}
           </div>
-
-          <p className="text-sm text-slate-500 mt-12 max-w-2xl mx-auto">
-            This combination creates long-term opportunity for manufacturers who align with market expectations and execution needs.
-          </p>
         </div>
       </section>
 
-      {/* WHO WE WORK WITH (ANONYMIZED) */}
+      {/* ── WHO WE WORK WITH ── */}
       <section className="px-6 py-20 bg-slate-50 border-t border-slate-100">
         <div className="max-w-5xl mx-auto text-center">
-          <h2 className="text-3xl font-bold text-slate-900 mb-4">Who We Work With</h2>
-
-          <p className="text-slate-600 max-w-2xl mx-auto mb-10">
-            We collaborate with retailers and manufacturers across Europe and Israel,
-            building long-term sourcing partnerships based on real demand and execution.
-          </p>
+          <Reveal>
+            <h2 className="text-3xl font-bold text-slate-900 mb-4">Who We Work With</h2>
+            <p className="text-slate-600 max-w-2xl mx-auto mb-10">
+              Israeli retailers looking for the right supplier. European manufacturers ready to export.
+              We&apos;re the bridge that makes sure both sides are actually ready for each other.
+            </p>
+          </Reveal>
 
           <div className="grid md:grid-cols-3 gap-6 text-left">
-            <div className="bg-white border border-slate-200 rounded-xl p-6">
-              <h3 className="font-semibold text-slate-900 mb-2">Major Israeli Retail Chains</h3>
-              <p className="text-sm text-slate-500">
-                Private label and sourcing programs across frozen, ambient, and grocery categories.
-              </p>
-              <p className="text-xs text-slate-400 mt-3">
-                Example: National multi-format retailer with multi-store coverage
-              </p>
-            </div>
-
-            <div className="bg-white border border-slate-200 rounded-xl p-6">
-              <h3 className="font-semibold text-slate-900 mb-2">European Manufacturers</h3>
-              <p className="text-sm text-slate-500">
-                Export-ready producers across Italy, Belgium, Spain, and Central Europe.
-              </p>
-              <p className="text-xs text-slate-400 mt-3">
-                Example: Private label capability + scalable production
-              </p>
-            </div>
-
-            <div className="bg-white border border-slate-200 rounded-xl p-6">
-              <h3 className="font-semibold text-slate-900 mb-2">Private Label Programs</h3>
-              <p className="text-sm text-slate-500">
-                Structured supply partnerships with consistent container-level volumes.
-              </p>
-              <p className="text-xs text-slate-400 mt-3">
-                Example: Long-term supply relationships with growing demand
-              </p>
-            </div>
+            {[
+              {
+                title: "Major Israeli Retail Chains",
+                body: "Private label and sourcing programs across frozen, ambient, and grocery categories.",
+                note: "National multi-format retailers with consistent volume requirements",
+              },
+              {
+                title: "European Manufacturers",
+                body: "Export-ready producers across Italy, Belgium, Spain, and Central Europe — with private label capability.",
+                note: "Scalable production, competitive pricing, real export capacity",
+              },
+              {
+                title: "Private Label Programs",
+                body: "Structured supply partnerships with container-level volumes and growing demand over time.",
+                note: "Long-term relationships — not one-off transactions",
+              },
+            ].map((item, i) => (
+              <Reveal key={i}>
+                <div className="bg-white border border-slate-200 rounded-2xl p-6 h-full flex flex-col">
+                  <h3 className="font-semibold text-slate-900 mb-2">{item.title}</h3>
+                  <p className="text-sm text-slate-600 leading-relaxed flex-1">{item.body}</p>
+                  <p className="text-xs text-slate-400 mt-4 pt-4 border-t border-slate-100">{item.note}</p>
+                </div>
+              </Reveal>
+            ))}
           </div>
-
-          <p className="text-sm text-slate-500 mt-10">
-            Partnerships are built around commercial alignment, operational reliability, and sustainable volume growth.
-          </p>
         </div>
       </section>
 
-      {/* WHY CHOOSE FOODXCHANGE (DIFFERENTIATION) */}
+      {/* ── WHY CHOOSE FOODXCHANGE ── */}
       <section className="px-6 py-20 bg-white border-t border-slate-100">
-        <div className="max-w-5xl mx-auto text-center">
-          <h2 className="text-3xl font-bold text-slate-900 mb-6">Why Choose FoodXchange</h2>
-
-          <div className="grid md:grid-cols-2 gap-8 text-left">
-            <div>
-              <h3 className="font-semibold text-slate-900 mb-2">Fit Over Volume</h3>
-              <p className="text-sm text-slate-600">
-                We focus on the right match — not just any supplier. Every introduction is grounded in real commercial fit.
+        <div className="max-w-5xl mx-auto">
+          <Reveal>
+            <div className="text-center mb-12">
+              <h2 className="text-3xl font-bold text-slate-900">Why Choose FoodXchange</h2>
+              <p className="text-slate-500 mt-3 max-w-xl mx-auto">
+                There are a lot of directories and databases. We&apos;re not one of them.
+                Here&apos;s the actual difference.
               </p>
             </div>
+          </Reveal>
 
-            <div>
-              <h3 className="font-semibold text-slate-900 mb-2">Structured Process</h3>
-              <p className="text-sm text-slate-600">
-                We guide alignment from requirements to commercial terms — reducing friction and uncertainty.
-              </p>
-            </div>
-
-            <div>
-              <h3 className="font-semibold text-slate-900 mb-2">Market Access + Execution</h3>
-              <p className="text-sm text-slate-600">
-                We operate with buyer demand in mind and help move discussions into actionable next steps.
-              </p>
-            </div>
-
-            <div>
-              <h3 className="font-semibold text-slate-900 mb-2">Built for Long‑Term Supply</h3>
-              <p className="text-sm text-slate-600">
-                We optimize for continuity and scaling volumes — not one‑off transactions.
-              </p>
-            </div>
+          <div className="grid md:grid-cols-2 gap-8 mb-12">
+            {[
+              {
+                title: "Fit over volume",
+                body: "We focus on the right match — not any match. Every introduction is grounded in real commercial fit, not just geographic availability.",
+              },
+              {
+                title: "Honest feedback, both ways",
+                body: "If we don&apos;t think it&apos;s the right fit, we&apos;ll tell you — and explain why. We don&apos;t waste your time or ours.",
+              },
+              {
+                title: "No surprises on specs or price",
+                body: "We work to surface requirements early — kosher path, MOQ, packaging, pricing — so there are no late-stage deal-breakers.",
+              },
+              {
+                title: "Built for long-term supply",
+                body: "We optimize for continuity and scaling volumes — not closing a single deal. If it&apos;s not going to last, it&apos;s not the right introduction.",
+              },
+            ].map((item, i) => (
+              <Reveal key={i}>
+                <div className="flex gap-4">
+                  <span className="text-orange-500 font-black text-xl mt-0.5 flex-shrink-0">→</span>
+                  <div>
+                    <h3 className="font-semibold text-slate-900 mb-1">{item.title}</h3>
+                    <p className="text-sm text-slate-600 leading-relaxed">{item.body}</p>
+                  </div>
+                </div>
+              </Reveal>
+            ))}
           </div>
+
+          <Reveal>
+            {/* Image placeholder */}
+            <div
+              className="w-full rounded-2xl bg-slate-100 border-2 border-dashed border-slate-300 flex flex-col items-center justify-center text-slate-400 text-sm"
+              style={{ minHeight: "240px" }}
+            >
+              <span className="text-2xl mb-2">📷</span>
+              <span className="font-medium">[AI IMAGE: Israeli supermarket fresh food aisle, warm lighting, premium products]</span>
+              <span className="text-xs mt-1 text-slate-300">Replace with generated image</span>
+            </div>
+          </Reveal>
         </div>
       </section>
 
-      {/* CONVERSION FLOW */}
-      <section className="px-6 py-24 bg-slate-50 border-t border-slate-100">
-        <div className="max-w-5xl mx-auto text-center">
-          <h2 className="text-3xl font-bold text-slate-900 mb-6">What Happens Next</h2>
-
-          <p className="text-slate-600 max-w-2xl mx-auto mb-14">
-            A simple, structured process designed to move from initial contact to real commercial discussions.
-          </p>
-
-          <div className="grid md:grid-cols-3 gap-8 text-left">
-            <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm">
-              <div className="flex items-center justify-center h-12 w-12 rounded-full bg-orange-500 text-white font-bold mb-4">
-                1
-              </div>
-              <h3 className="font-semibold text-slate-900 mb-2">Initial Contact</h3>
-              <p className="text-sm text-slate-600">
-                You share your needs, capability, or sourcing objective (message or call).
-              </p>
-            </div>
-
-            <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm">
-              <div className="flex items-center justify-center h-12 w-12 rounded-full bg-orange-500 text-white font-bold mb-4">
-                2
-              </div>
-              <h3 className="font-semibold text-slate-900 mb-2">Alignment & Qualification</h3>
-              <p className="text-sm text-slate-600">
-                We clarify fit, expectations, and scope to ensure the next step is focused and relevant.
-              </p>
-            </div>
-
-            <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm">
-              <div className="flex items-center justify-center h-12 w-12 rounded-full bg-orange-500 text-white font-bold mb-4">
-                3
-              </div>
-              <h3 className="font-semibold text-slate-900 mb-2">Targeted Introduction</h3>
-              <p className="text-sm text-slate-600">
-                We connect you with the right partner and support initial discussions toward collaboration.
-              </p>
-            </div>
-          </div>
-
-          <p className="text-sm text-slate-500 mt-14 max-w-2xl mx-auto">
-            Every engagement is designed for commercial alignment — not generic introductions.
-          </p>
-        </div>
-      </section>
-
-      {/* FINAL CTA (TWEAKED FOR HIGHER CONVERSION) */}
+      {/* ── FINAL CTA ── */}
       <section className="text-center px-6 py-24 bg-slate-900 text-white">
-        <h2 className="text-3xl font-semibold mb-4">
-          Start a Focused Conversation
-        </h2>
-
-        <p className="text-slate-300 mb-6">
-          Share your needs — we’ll respond personally and guide the next step.
-        </p>
-
-        <p className="text-sm text-slate-300 mb-10">
-          Typical response time: <span className="font-semibold text-white">within 24 hours</span> (business days)
-        </p>
-
-        <Link href="/en/contact">
-          <button className="bg-orange-500 hover:bg-orange-600 px-8 py-3 rounded-md font-semibold shadow">
-            Contact Us
-          </button>
-        </Link>
+        <Reveal>
+          <h2 className="text-3xl font-semibold mb-4">
+            Tell us what you&apos;re looking for
+          </h2>
+          <p className="text-slate-300 mb-3 max-w-xl mx-auto">
+            We&apos;ll take it from there. A real reply, within 24 hours, from a person who&apos;s read your message.
+          </p>
+          <p className="text-sm text-slate-500 mb-10">
+            We respond personally — not with an auto-reply.
+          </p>
+          <Link
+            href="/en/contact"
+            className="inline-flex bg-orange-500 hover:bg-orange-600 text-white px-8 py-3.5 rounded-md font-semibold shadow transition"
+          >
+            Tell us what you need →
+          </Link>
+        </Reveal>
       </section>
 
     </main>

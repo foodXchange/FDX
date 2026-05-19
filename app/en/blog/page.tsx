@@ -26,7 +26,7 @@ async function getPosts(): Promise<BlogPost[]> {
   const { data, error } = await supabase
     .from("blog_posts")
     .select("title, slug, excerpt, created_at, cover_image, tags")
-    .eq("published", true)
+    .eq("status", "published")
     .eq("lang", "en")
     .order("created_at", { ascending: false });
 
