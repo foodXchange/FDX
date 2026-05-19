@@ -29,24 +29,25 @@ export default function Header() {
 
       <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 sm:px-6">
 
-{/* ✅ LOGO — CLEAN FINAL VERSION */}
-<Link
-  href="/"
-  className="flex items-center gap-3 hover:opacity-90 transition"
->
-  <Image
-    src="/logo-white.png"
-    alt="FoodXchange"
-    width={140}
-    height={40}
-    priority
-    className="h-7 w-auto object-contain"
-  />
+        {/* ✅ LOGO — CLEAN FINAL VERSION */}
+        <Link
+          href="/"
+          className="flex items-center gap-3 hover:opacity-90 transition"
+        >
+          <Image
+            src="/logo-white.png"
+            alt="FoodXchange"
+            width={140}
+            height={40}
+            sizes="140px"
+            priority
+            className="h-7 w-auto object-contain"
+          />
 
-  <span className="hidden lg:block text-xs text-slate-400 tracking-wide">
-    Strategic Sourcing
-  </span>
-</Link>
+          <span className="hidden lg:block text-xs text-slate-400 tracking-wide">
+            Strategic Sourcing
+          </span>
+        </Link>
 
         {/* ✅ DESKTOP NAV */}
         <nav className="hidden md:flex items-center gap-8">

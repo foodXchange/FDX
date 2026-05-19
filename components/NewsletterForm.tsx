@@ -1,141 +1,95 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { supabase } from '@/lib/supabase';
+import { useState } from "react";
 
-interface NewsletterFormProps {
-  lang?: 'en' | 'he';
-}
-
-const translations = {
-  en: {
-    emailLabel: 'Email Address',
-    emailPlaceholder: 'your@email.com',
-    submit: 'Subscribe',
-    required: 'Email is required',
-    invalidEmail: 'Please enter a valid email address',
-    success: 'Welcome! Check your email for confirmation. Thank you for joining.',
-    error: 'Something went wrong. Please try again.',
-    alreadySubscribed: 'This email is already subscribed.',
-  },
-  he: {
-    emailLabel: 'כתובת דוא״ל',
-    emailPlaceholder: 'your@email.com',
-    submit: 'הירשם',
-    required: 'דוא״ל נדרש',
-    invalidEmail: 'אנא הזן כתובת דוא״ל תקינה',
-    success: 'ברוכים הצטרפו! בדוק את תיבת הדוא״ל שלך. תודה על ההצטרפות.',
-    error: 'משהו השתבש. אנא נסה שוב.',
-    alreadySubscribed: 'כתובת דוא״ל זו כבר רשומה.',
-  },
-};
-
-const submitNewsletterForm = async (email: string, lang: 'en' | 'he') => {
-  const { data, error } = await supabase
-    .from('newsletter_subscribers')
-    .insert([{ email, lang }])
-    .select();
-
-  if (error) {
-    if (error.code === '23505') {
-      // Unique constraint violation
-      throw new Error('alreadySubscribed');
-    }
-    throw new Error(error.message);
-  }
-
-  return { success: true, data };
-};
-
-export default function NewsletterForm({ lang = 'en' }: NewsletterFormProps) {
-  const t = translations[lang];
-  const [email, setEmail] = useState('');
-  const [error, setError] = useState('');
+export default function NewsletterForm({ lang = "en" }: { lang?: string }) {
+  const [email, setEmail] = useState("");
+  const [type, setType] = useState("");
   const [submitted, setSubmitted] = useState(false);
-  const [loading, setLoading] = useState(false);
 
-  const validateEmail = () => {
-    if (!email.trim()) {
-      setError(t.required);
-      return false;
-    }
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      setError(t.invalidEmail);
-      return false;
-    }
-    return true;
-  };
-
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setError('');
 
-    if (!validateEmail()) {
-      return;
-    }
-
-    setLoading(true);
+    if (!email) return;
 
     try {
-      await submitNewsletterForm(email, lang);
-      setSubmitted(true);
-      setEmail('');
+      // 👉 Replace with your API later
+      console.log("Newsletter signup:", { email, type });
 
-      setTimeout(() => {
-        setSubmitted(false);
-      }, 5000);
-    } catch (err: any) {
-      console.error('Error subscribing:', err);
-      const errorKey = err.message === 'alreadySubscribed' ? 'alreadySubscribed' : 'error';
-      setError(t[errorKey as keyof typeof t]);
-    } finally {
-      setLoading(false);
+      setSubmitted(true);
+      setEmail("");
+      setType("");
+    } catch (err) {
+      console.error(err);
     }
-  };
+  }
+
+  if (submitted) {
+    return (
+      <div className="text-center py-6">
+        <p className="text-green-600 font-semibold">
+          ✅ Thanks — you’re in.
+        </p>
+        <p className="text-sm text-slate-500 mt-2">
+          You’ll receive real sourcing insights soon.
+        </p>
+      </div>
+    );
+  }
 
   return (
-    <div
-      dir={lang === 'he' ? 'rtl' : 'ltr'}
-      className="w-full max-w-md"
-    >
-      {submitted && (
-        <div className="mb-4 rounded-lg border border-green-200 bg-green-50 p-4 text-green-700 text-sm">
-          {t.success}
-        </div>
-      )}
+    <form onSubmit={handleSubmit} className="space-y-5 text-left">
 
-      {error && (
-        <div className="mb-4 rounded-lg border border-red-200 bg-red-50 p-4 text-red-700 text-sm">
-          {error}
-        </div>
-      )}
+      {/* ✅ HEADLINE */}
+      <div>
+        <h3 className="text-lg font-semibold text-slate-900">
+          Get Real Sourcing Insights (No Noise)
+        </h3>
 
-      <form onSubmit={handleSubmit} className="flex flex-col sm:flex-row gap-3">
-        <div className="flex-1">
-          <label htmlFor="email" className="sr-only">
-            {t.emailLabel}
-          </label>
-          <input
-            id="email"
-            type="email"
-            placeholder={t.emailPlaceholder}
-            value={email}
-            onChange={(e) => {
-              setEmail(e.target.value);
-              if (error) setError('');
-            }}
-            disabled={loading}
-            className="w-full rounded-md border border-slate-300 bg-white px-4 py-2 text-sm outline-none transition placeholder-slate-500 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:bg-slate-100"
-          />
-        </div>
-        <button
-          type="submit"
-          disabled={loading}
-          className="rounded-md bg-blue-600 px-6 py-2 text-sm font-medium text-white transition hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-blue-500"
-        >
-          {loading ? '...' : t.submit}
-        </button>
-      </form>
-    </div>
+        <p className="text-sm text-slate-600 mt-1">
+          Practical updates from the Israeli market — suppliers, opportunities, and real signals.
+        </p>
+      </div>
+
+      {/* ✅ EMAIL */}
+      <input
+        type="email"
+        required
+        placeholder="Your business email"
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+        className="w-full border border-slate-300 px-4 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500"
+      />
+
+      {/* ✅ SEGMENTATION */}
+      <select
+        value={type}
+        onChange={(e) => setType(e.target.value)}
+        className="w-full border border-slate-300 px-4 py-2 rounded-md focus:outline-none"
+      >
+        <option value="">What best describes you?</option>
+        <option value="buyer">Buyer / Retailer</option>
+        <option value="supplier">Manufacturer / Supplier</option>
+        <option value="other">Other</option>
+      </select>
+
+      {/* ✅ CTA */}
+      <button
+        type="submit"
+        className="w-full bg-orange-500 hover:bg-orange-600 text-white py-2 rounded-md font-semibold transition"
+      >
+        Send me insights →
+      </button>
+
+      {/* ✅ TRUST */}
+      <p className="text-xs text-slate-500">
+        1–2 emails per month. Only practical insights. Unsubscribe anytime.
+      </p>
+
+      {/* ✅ AUTHORITY POSITIONING */}
+      <p className="text-xs text-slate-400">
+        Written by an active sourcing operator — not a marketing team.
+      </p>
+    </form>
   );
 }

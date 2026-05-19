@@ -1,25 +1,54 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
-
-import "./globals.css";
 import Header from "@/components/Header";
-import Footer from "@/components/Footer";
-import FloatingActionStack from "@/components/FloatingActionStack"; // ✅ unified stack
+import Footer from "@/components/ui/Footer";
+import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
+const baseUrl =
+  process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
 
 export const metadata: Metadata = {
-  title: "FoodXchange",
-  description: "Connecting buyers and manufacturers in the Israeli market",
-  metadataBase: new URL("https://fdx.trading"), // ✅ IMPORTANT
+  metadataBase: new URL(baseUrl),
+
+  title: {
+    default: "FoodXchange | Global Food Sourcing Platform",
+    template: "%s | FoodXchange",
+  },
+
+  description:
+    "FoodXchange connects global food manufacturers with Israeli retailers. Sourcing insights, supplier discovery, and private label opportunities.",
+
+  openGraph: {
+    type: "website",
+    url: baseUrl,
+    siteName: "FoodXchange",
+    title: "FoodXchange",
+    description:
+      "Global sourcing platform connecting manufacturers with Israeli retail.",
+    images: [
+      {
+        url: "/og-default.png", // ✅ add later in /public
+        width: 1200,
+        height: 630,
+      },
+    ],
+  },
+
+  twitter: {
+    card: "summary_large_image",
+    title: "FoodXchange",
+    description:
+      "Food sourcing insights, supplier discovery, and market opportunities.",
+    images: ["/og-default.png"],
+  },
+
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+    },
+  },
 };
 
 export default function RootLayout({
@@ -28,26 +57,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html
-      lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full`}
-    >
-      <body className="min-h-screen flex flex-col font-sans antialiased">
-
-        {/* ✅ HEADER */}
+    <html lang="en">
+      <body>
         <Header />
-
-        {/* ✅ MAIN */}
-        <main className="flex-1">
-          {children}
-        </main>
-
-        {/* ✅ FOOTER */}
+        {children}
         <Footer />
-
-        {/* ✅ ✅ UNIFIED FLOATING STACK (WhatsApp + Accessibility) */}
-        <FloatingActionStack />
-
       </body>
     </html>
   );
