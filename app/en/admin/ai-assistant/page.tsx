@@ -6,7 +6,7 @@
 // Has the same Chat, History, Prompts tabs as the panel in the blog editor,
 // but uses the full screen width for a much more comfortable experience.
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 
@@ -22,7 +22,7 @@ type SavedPrompt = {
 const SYSTEM_CATEGORIES = ["All", "Content", "SEO", "Images", "Israeli market"];
 const CAT_KEY = "fx_prompt_categories";
 
-export default function AIAssistantPage() {
+function AIAssistantContent() {
   const [tab, setTab] = useState<"chat" | "history" | "prompts">("chat");
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
@@ -431,5 +431,13 @@ export default function AIAssistantPage() {
         </div>
       )}
     </main>
+  );
+}
+
+export default function AIAssistantPage() {
+  return (
+    <Suspense fallback={<div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", color: "#9ca3af" }}>Loading…</div>}>
+      <AIAssistantContent />
+    </Suspense>
   );
 }

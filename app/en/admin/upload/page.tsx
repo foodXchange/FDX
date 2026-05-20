@@ -269,7 +269,7 @@ export default function UploadPage() {
             <div key={h.id} className="border p-2 mb-2">
               {h.action}
               {h.trashed_object_path && (
-                <button onClick={() => restore(h.trashed_object_path)}>
+                <button onClick={() => restore(h.trashed_object_path!)}>
                   Restore
                 </button>
               )}

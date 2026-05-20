@@ -271,13 +271,15 @@ export default function AboutPage() {
         <section className="px-6 py-12 bg-white border-t border-slate-100">
           <div className="max-w-4xl mx-auto">
             <Reveal>
-              <div
-                className="w-full rounded-2xl bg-slate-100 border-2 border-dashed border-slate-300 flex flex-col items-center justify-center text-slate-400 text-sm"
-                style={{ minHeight: "260px" }}
-              >
-                <span className="text-2xl mb-2">📷</span>
-                <span className="font-medium">[AI IMAGE: Israeli food market / shuk, colorful produce, warm afternoon light, wide angle]</span>
-                <span className="text-xs mt-1 text-slate-300">Replace with generated image</span>
+              <div className="relative w-full rounded-2xl overflow-hidden" style={{ height: "320px" }}>
+                <Image
+                  src="/images/telaviv-aerial.png"
+                  alt="Tel Aviv city aerial view with Mediterranean coastline"
+                  fill
+                  className="object-cover"
+                  sizes="(max-width: 768px) 100vw, 50vw"
+                  quality={85}
+                />
               </div>
             </Reveal>
           </div>

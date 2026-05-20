@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import type { Metadata } from "next";
 import Reveal from "@/components/Reveal";
 import FAQAccordion from "@/components/FAQAccordion";
@@ -55,7 +56,18 @@ export default function ManufacturersPage() {
       <main id="main" className="bg-white text-slate-800">
 
         {/* ── HERO ── */}
-        <section className="bg-linear-to-b from-slate-900 to-slate-800 px-6 py-20 sm:py-24 text-center">
+        <section className="relative w-full overflow-hidden" style={{ minHeight: "600px" }}>
+          <Image
+            src="/images/hero-ashdod-port.png"
+            alt="Shipping containers at Ashdod port, Israel's main food import gateway"
+            fill
+            className="object-cover"
+            priority
+            quality={90}
+            sizes="100vw"
+          />
+          <div className="absolute inset-0 bg-slate-900/75" />
+          <div className="relative z-10 px-6 py-20 sm:py-24 text-center">
           <Reveal>
             <h1 className="text-4xl md:text-5xl font-semibold tracking-tight text-white max-w-3xl mx-auto">
               Enter the Israeli Food Market —{" "}
@@ -89,6 +101,7 @@ export default function ManufacturersPage() {
               </a>
             </div>
           </Reveal>
+          </div>
         </section>
 
         {/* ── PROOF STATEMENT BOX ── */}
@@ -110,14 +123,15 @@ export default function ManufacturersPage() {
         <section className="px-6 py-20 bg-white">
           <div className="max-w-5xl mx-auto grid md:grid-cols-2 gap-12 items-center">
             <Reveal>
-              {/* Image placeholder */}
-              <div
-                className="w-full rounded-2xl bg-slate-100 border-2 border-dashed border-slate-300 flex flex-col items-center justify-center text-slate-400 text-sm"
-                style={{ minHeight: "280px" }}
-              >
-                <span className="text-2xl mb-2">📷</span>
-                <span className="font-medium">[AI IMAGE: European food manufacturing facility, clean modern production line, wide shot]</span>
-                <span className="text-xs mt-1 text-slate-300">Replace with generated image</span>
+              <div className="relative w-full rounded-2xl overflow-hidden" style={{ height: "320px" }}>
+                <Image
+                  src="/images/eu-manufacturing-facility.png"
+                  alt="European food manufacturing facility with modern production line"
+                  fill
+                  className="object-cover"
+                  sizes="(max-width: 768px) 100vw, 50vw"
+                  quality={85}
+                />
               </div>
             </Reveal>
 
@@ -259,6 +273,24 @@ export default function ManufacturersPage() {
                 </Reveal>
               ))}
             </div>
+          </div>
+        </section>
+
+        {/* ── SUPERMARKET IMAGE ── */}
+        <section className="px-6 py-12 bg-white border-t border-slate-100">
+          <div className="max-w-5xl mx-auto">
+            <Reveal>
+              <div className="relative w-full rounded-2xl overflow-hidden" style={{ height: "360px" }}>
+                <Image
+                  src="/images/israeli-supermarket-aisle-premium-food-retail.png"
+                  alt="Premium food products on Israeli supermarket shelf"
+                  fill
+                  className="object-cover"
+                  sizes="(max-width: 768px) 100vw, 1024px"
+                  quality={85}
+                />
+              </div>
+            </Reveal>
           </div>
         </section>
 

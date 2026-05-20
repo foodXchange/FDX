@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import type { Metadata } from "next";
 import Reveal from "@/components/Reveal";
 
@@ -142,14 +143,15 @@ export default function HomePage() {
             </Reveal>
 
             <Reveal>
-              {/* Image placeholder */}
-              <div
-                className="w-full rounded-2xl bg-slate-100 border-2 border-dashed border-slate-300 flex flex-col items-center justify-center text-slate-400 text-sm"
-                style={{ minHeight: "240px" }}
-              >
-                <span className="text-2xl mb-2">📷</span>
-                <span className="font-medium">[AI IMAGE: shipping containers at Ashdod port, golden hour, aerial view]</span>
-                <span className="text-xs mt-1 text-slate-300">Replace with generated image</span>
+              <div className="relative w-full rounded-2xl overflow-hidden" style={{ height: "320px" }}>
+                <Image
+                  src="/images/belgium-israel-container-shipping.png"
+                  alt="Shipping containers in transit between Belgium and Israel representing container-level food supply"
+                  fill
+                  className="object-cover"
+                  sizes="(max-width: 768px) 100vw, 50vw"
+                  quality={85}
+                />
               </div>
             </Reveal>
           </div>
@@ -357,14 +359,15 @@ export default function HomePage() {
           </div>
 
           <Reveal>
-            {/* Image placeholder */}
-            <div
-              className="w-full rounded-2xl bg-slate-100 border-2 border-dashed border-slate-300 flex flex-col items-center justify-center text-slate-400 text-sm"
-              style={{ minHeight: "240px" }}
-            >
-              <span className="text-2xl mb-2">📷</span>
-              <span className="font-medium">[AI IMAGE: Israeli supermarket fresh food aisle, warm lighting, premium products]</span>
-              <span className="text-xs mt-1 text-slate-300">Replace with generated image</span>
+            <div className="relative w-full rounded-2xl overflow-hidden" style={{ height: "360px" }}>
+              <Image
+                src="/images/supermarket-premium-shelf.png"
+                alt="Premium food products on Israeli supermarket shelf"
+                fill
+                className="object-cover"
+                sizes="(max-width: 768px) 100vw, 1024px"
+                quality={85}
+              />
             </div>
           </Reveal>
         </div>
