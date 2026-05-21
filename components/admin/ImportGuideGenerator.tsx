@@ -1,7 +1,7 @@
 'use client';
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { IMPORT_GUIDE_CATEGORIES } from "@/types/importGuide";
-import { createImportArticle } from "@/app/admin/import-guide/actions";
+import { createImportArticle, publishAllDrafts } from "@/app/admin/import-guide/actions";
 
 interface TopicItem {
   topic: string;
@@ -119,6 +119,9 @@ export default function ImportGuideGenerator({ existingSlugs }: Props) {
   const [streamText, setStreamText] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [generatingAll, setGeneratingAll] = useState(false);
+  const [bulkProgress, setBulkProgress] = useState<{ current: number; total: number } | null>(null);
+  const stopRef = useRef(false);
 
   useEffect(() => {
     const preExisting = new Set(
@@ -234,6 +237,34 @@ export default function ImportGuideGenerator({ existingSlugs }: Props) {
     }
   }
 
+  async function generateAll() {
+    const pending = TOPICS.filter((t) => {
+      const slug = topicToSlug(t.topic);
+      return !generated.has(slug) && !existingSlugs.includes(slug);
+    });
+    if (pending.length === 0) return;
+
+    stopRef.current = false;
+    setGeneratingAll(true);
+    setError(null);
+
+    for (let i = 0; i < pending.length; i++) {
+      if (stopRef.current) break;
+      setBulkProgress({ current: i + 1, total: pending.length });
+      await generateArticle(pending[i]);
+    }
+
+    setGeneratingAll(false);
+    setBulkProgress(null);
+    stopRef.current = false;
+  }
+
+  async function publishAll() {
+    if (!confirm("Publish all draft articles now?")) return;
+    const result = await publishAllDrafts();
+    if (!result.ok) setError(result.error);
+  }
+
   const categoryPills = [
     { slug: "all", label: "All" },
     ...IMPORT_GUIDE_CATEGORIES.map((c) => ({ slug: c.slug, label: c.title })),
@@ -242,17 +273,47 @@ export default function ImportGuideGenerator({ existingSlugs }: Props) {
   return (
     <div>
       {/* Header */}
-      <div className="flex items-start justify-between mb-4">
+      <div className="flex items-start justify-between gap-4 mb-4 flex-wrap">
         <div>
           <h2 className="text-lg font-semibold text-gray-800">AI Article Generator</h2>
           <p className="text-slate-500 text-sm mt-0.5">
-            Click Generate on any topic. Claude writes a full regulation article in about 30
-            seconds.
+            Click Generate on any topic, or use Generate All to run the full queue sequentially.
           </p>
         </div>
-        <span className="text-sm font-medium text-slate-600 bg-slate-100 px-3 py-1 rounded-full shrink-0 ml-4">
-          {generatedCount} / {TOPICS.length} generated
-        </span>
+        <div className="flex items-center gap-2 flex-wrap shrink-0">
+          {generatingAll ? (
+            <>
+              <span className="text-xs text-orange-600 font-medium">
+                Generating {bulkProgress?.current}/{bulkProgress?.total}…
+              </span>
+              <button
+                onClick={() => { stopRef.current = true; }}
+                className="text-xs px-3 py-2 rounded-lg border border-slate-200 text-slate-600 hover:border-red-300 hover:text-red-600 transition"
+              >
+                Stop
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                onClick={generateAll}
+                disabled={!!generating || generatedCount === TOPICS.length}
+                className="text-xs px-4 py-2 rounded-lg bg-orange-500 hover:bg-orange-600 text-white transition disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                Generate All
+              </button>
+              <button
+                onClick={publishAll}
+                className="text-xs px-4 py-2 rounded-lg bg-green-600 hover:bg-green-700 text-white transition"
+              >
+                Save & Publish All
+              </button>
+            </>
+          )}
+          <span className="text-sm font-medium text-slate-600 bg-slate-100 px-3 py-1 rounded-full">
+            {generatedCount} / {TOPICS.length} generated
+          </span>
+        </div>
       </div>
 
       {/* Error */}
@@ -331,7 +392,7 @@ export default function ImportGuideGenerator({ existingSlugs }: Props) {
                   ) : (
                     <button
                       onClick={() => generateArticle(item)}
-                      disabled={!!generating}
+                      disabled={!!generating || generatingAll}
                       className="bg-orange-500 hover:bg-orange-600 text-white text-xs px-4 py-2 rounded-lg transition disabled:opacity-40 disabled:cursor-not-allowed"
                     >
                       Generate
