@@ -147,3 +147,20 @@ export async function bulkCreateFromAI(
   revalidateAll();
   return { ok: true, count: rows.length };
 }
+
+export async function publishAllDrafts(): Promise<
+  { ok: true; count: number } | { ok: false; error: string }
+> {
+  const { data, error } = await supabaseAdmin
+    .from("import_guide_articles")
+    .update({ published: true, updated_at: new Date().toISOString() })
+    .eq("published", false)
+    .select("id");
+
+  if (error) {
+    console.error("publishAllDrafts error:", error);
+    return { ok: false, error: "Database error" };
+  }
+  revalidateAll();
+  return { ok: true, count: data?.length ?? 0 };
+}

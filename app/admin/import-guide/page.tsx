@@ -2,6 +2,7 @@ import Link from "next/link";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import ImportGuideGenerator from "@/components/admin/ImportGuideGenerator";
 import ImportGuideRowActions from "@/components/admin/ImportGuideRowActions";
+import PublishAllDraftsButton from "@/components/admin/PublishAllDraftsButton";
 import { IMPORT_GUIDE_CATEGORIES } from "@/types/importGuide";
 
 type ArticleRow = {
@@ -34,12 +35,15 @@ export default async function AdminImportGuidePage() {
             {publishedCount} published · {draftCount} drafts · {articles.length} total
           </span>
         </div>
-        <Link
-          href="/admin/import-guide/new"
-          className="px-4 py-2 rounded-lg bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold transition"
-        >
-          + New article
-        </Link>
+        <div className="flex items-center gap-3">
+          <PublishAllDraftsButton draftCount={draftCount} />
+          <Link
+            href="/admin/import-guide/new"
+            className="px-4 py-2 rounded-lg bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold transition"
+          >
+            + New article
+          </Link>
+        </div>
       </div>
 
       <div className="px-6 py-6 max-w-6xl mx-auto">
