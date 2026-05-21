@@ -168,7 +168,7 @@ export default function AdminHome() {
 
           {/* SOURCING REQUESTS */}
           <Link
-            href="/admin/portfolio"
+            href="/admin/requests"
             className="group bg-white border border-slate-200 rounded-2xl p-6 shadow-sm hover:shadow-md transition"
           >
             <div className="flex items-start justify-between gap-4">
@@ -179,6 +179,28 @@ export default function AdminHome() {
                 </div>
                 <div className="text-sm text-slate-600 mt-2">
                   Review buyer leads and matched scenarios
+                </div>
+              </div>
+
+              <div className="text-orange-600 font-semibold text-lg group-hover:translate-x-0.5 transition">
+                →
+              </div>
+            </div>
+          </Link>
+
+          {/* SUPPLIER DATABASE */}
+          <Link
+            href="/admin/suppliers"
+            className="group bg-white border border-slate-200 rounded-2xl p-6 shadow-sm hover:shadow-md transition"
+          >
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <div className="text-sm text-slate-500">Database</div>
+                <div className="text-lg font-semibold text-slate-900 mt-1">
+                  Supplier Database
+                </div>
+                <div className="text-sm text-slate-600 mt-2">
+                  Manage approved suppliers and their offerings
                 </div>
               </div>
 

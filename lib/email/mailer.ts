@@ -8,6 +8,12 @@ export interface LeadEmailPayload {
   intentSummary: string;
   matchedItems: { title: string; slug: string }[];
   submittedAt: string;
+  matchedSuppliers?: {
+    company_name: string;
+    score: number;
+    match_reasons: string[];
+    country_of_origin: string | null;
+  }[];
 }
 
 export async function sendLeadNotification(payload: LeadEmailPayload): Promise<void> {
@@ -19,7 +25,7 @@ export async function sendLeadNotification(payload: LeadEmailPayload): Promise<v
   const resend = new Resend(process.env.RESEND_API_KEY);
   const to = process.env.NOTIFY_EMAIL_TO ?? "info@foodz-x.com";
   const from = process.env.NOTIFY_EMAIL_FROM ?? "info@foodz-x.com";
-  const { name, email, company, message, intentSummary, matchedItems, submittedAt } = payload;
+  const { name, email, company, message, intentSummary, matchedItems, submittedAt, matchedSuppliers } = payload;
 
   const matchedSection =
     matchedItems.length > 0
@@ -32,6 +38,25 @@ ${matchedItems
   )
   .join("")}
 </ul>`
+      : "";
+
+  const suppliersSection =
+    matchedSuppliers && matchedSuppliers.length > 0
+      ? `<h3 style="color:#1e293b;font-size:14px;margin:20px 0 8px;">Matching suppliers (${matchedSuppliers.length})</h3>
+<table style="width:100%;border-collapse:collapse;font-size:13px;">
+${matchedSuppliers
+  .map(
+    (s) =>
+      `<tr style="border-bottom:1px solid #f1f5f9;">
+  <td style="padding:8px 0;color:#1e293b;font-weight:500;">${s.country_of_origin ? `${s.country_of_origin} · ` : ""}${s.company_name}</td>
+  <td style="padding:8px 0;color:#64748b;text-align:right;">${s.score} pts</td>
+</tr>
+<tr style="border-bottom:1px solid #f1f5f9;">
+  <td colspan="2" style="padding:0 0 8px;color:#94a3b8;font-size:12px;">${s.match_reasons.join(" · ")}</td>
+</tr>`
+  )
+  .join("")}
+</table>`
       : "";
 
   const html = `<div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:24px;">
@@ -64,6 +89,8 @@ ${matchedItems
   <p style="color:#64748b;font-size:13px;font-style:italic;">${intentSummary || "No specific intent detected"}</p>
 
   ${matchedSection}
+
+  ${suppliersSection}
 
   <hr style="border:none;border-top:1px solid #e2e8f0;margin:24px 0 16px;"/>
   <p style="color:#94a3b8;font-size:12px;">FoodXchange · foodz-x.com</p>

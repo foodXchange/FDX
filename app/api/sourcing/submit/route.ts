@@ -95,6 +95,17 @@ export async function POST(req: Request) {
       ).catch(console.error);
     }
 
+    if (process.env.INTERNAL_API_KEY) {
+      fetch(`${process.env.NEXT_PUBLIC_BASE_URL ?? ""}/api/admin/match-request`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-internal-key": process.env.INTERNAL_API_KEY,
+        },
+        body: JSON.stringify({ requestId: newRequest.id }),
+      }).catch(console.error);
+    }
+
     sendLeadNotification({
       name: data.name,
       email: data.email,
