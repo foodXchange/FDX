@@ -3,6 +3,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const links = [
+  { href: "/admin/analytics", label: "Analytics" },
   { href: "/admin/portfolio", label: "Portfolio" },
   { href: "/admin/import-guide", label: "Import Guide" },
   { href: "/en/admin/newsletter-builder", label: "Newsletter" },

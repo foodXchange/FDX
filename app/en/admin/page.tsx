@@ -100,6 +100,28 @@ export default function AdminHome() {
             </div>
           </Link>
 
+          {/* NEWSLETTER SENDER */}
+          <Link
+            href="/en/admin/newsletter-send"
+            className="group bg-white border border-slate-200 rounded-2xl p-6 shadow-sm hover:shadow-md transition"
+          >
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <div className="text-sm text-slate-500">Newsletter</div>
+                <div className="text-lg font-semibold text-slate-900 mt-1">
+                  Send newsletter
+                </div>
+                <div className="text-sm text-slate-600 mt-2">
+                  Select → preview → send to subscribers
+                </div>
+              </div>
+
+              <div className="text-orange-600 font-semibold text-lg group-hover:translate-x-0.5 transition">
+                →
+              </div>
+            </div>
+          </Link>
+
           {/* PORTFOLIO CMS */}
           <Link
             href="/admin/portfolio"
