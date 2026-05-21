@@ -50,7 +50,11 @@ export default async function AdminImportGuidePage() {
         {/* AI Generator */}
         <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm mb-6">
           <ImportGuideGenerator
-            existingArticles={articles.map((a) => ({ slug: a.slug, id: a.id }))}
+            existingArticles={articles.map((a) => ({
+              slug: a.slug,
+              id: a.id,
+              published: a.published,
+            }))}
           />
         </div>
 

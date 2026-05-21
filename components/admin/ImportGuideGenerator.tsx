@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect, useRef } from "react";
 import { IMPORT_GUIDE_CATEGORIES } from "@/types/importGuide";
-import { createImportArticle, publishAllDrafts } from "@/app/admin/import-guide/actions";
+import { createImportArticle, publishAllDrafts, togglePublished } from "@/app/admin/import-guide/actions";
 
 interface TopicItem {
   topic: string;
@@ -11,6 +11,7 @@ interface TopicItem {
 interface ExistingArticle {
   slug: string;
   id: string;
+  published: boolean;
 }
 
 interface Props {
@@ -127,6 +128,8 @@ export default function ImportGuideGenerator({ existingArticles }: Props) {
   const [saving, setSaving] = useState(false);
   const [generatingAll, setGeneratingAll] = useState(false);
   const [bulkProgress, setBulkProgress] = useState<{ current: number; total: number } | null>(null);
+  const [generatedPublished, setGeneratedPublished] = useState<Record<string, boolean>>({});
+  const [togglingSlug, setTogglingSlug] = useState<string | null>(null);
   const stopRef = useRef(false);
 
   useEffect(() => {
@@ -136,12 +139,15 @@ export default function ImportGuideGenerator({ existingArticles }: Props) {
       )
     );
     setGenerated(preExisting);
-    // seed IDs for all pre-existing articles so Edit links work immediately
+    // seed IDs and published status for all pre-existing articles
     const idMap: Record<string, string> = {};
+    const pubMap: Record<string, boolean> = {};
     for (const a of existingArticles) {
       idMap[a.slug] = a.id;
+      pubMap[a.slug] = a.published;
     }
     setGeneratedIds((prev) => ({ ...idMap, ...prev }));
+    setGeneratedPublished((prev) => ({ ...pubMap, ...prev }));
   }, [existingArticles]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const filteredTopics =
@@ -237,6 +243,7 @@ export default function ImportGuideGenerator({ existingArticles }: Props) {
       if (result.ok) {
         setGenerated((prev) => new Set([...prev, slug]));
         setGeneratedIds((prev) => ({ ...prev, [slug]: result.id }));
+        setGeneratedPublished((prev) => ({ ...prev, [slug]: true }));
       } else {
         throw new Error(result.error);
       }
@@ -269,6 +276,20 @@ export default function ImportGuideGenerator({ existingArticles }: Props) {
     setGeneratingAll(false);
     setBulkProgress(null);
     stopRef.current = false;
+  }
+
+  async function toggleArticlePublished(slug: string) {
+    const id = generatedIds[slug];
+    if (!id) return;
+    const current = generatedPublished[slug] ?? false;
+    setTogglingSlug(slug);
+    const result = await togglePublished(id, current);
+    if (result.ok) {
+      setGeneratedPublished((prev) => ({ ...prev, [slug]: !current }));
+    } else {
+      setError(result.error);
+    }
+    setTogglingSlug(null);
   }
 
   async function publishAll() {
@@ -385,10 +406,29 @@ export default function ImportGuideGenerator({ existingArticles }: Props) {
 
                 <div className="shrink-0">
                   {isGenerated ? (
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-medium text-green-600 bg-green-50 border border-green-200 rounded-full px-3 py-1">
-                        ✓ Generated
-                      </span>
+                    <div className="flex items-center gap-2 flex-wrap justify-end">
+                      {generatedPublished[slug] === true ? (
+                        <span className="text-xs font-medium text-green-700 bg-green-50 border border-green-200 rounded-full px-2.5 py-1">
+                          ✓ Published
+                        </span>
+                      ) : generatedPublished[slug] === false ? (
+                        <span className="text-xs font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded-full px-2.5 py-1">
+                          Draft
+                        </span>
+                      ) : (
+                        <span className="text-xs font-medium text-slate-500 bg-slate-50 border border-slate-200 rounded-full px-2.5 py-1">
+                          ✓ Generated
+                        </span>
+                      )}
+                      {generatedPublished[slug] === false && (
+                        <button
+                          onClick={() => toggleArticlePublished(slug)}
+                          disabled={togglingSlug === slug}
+                          className="text-xs text-green-700 hover:underline disabled:opacity-50"
+                        >
+                          {togglingSlug === slug ? "…" : "Publish"}
+                        </button>
+                      )}
                       <a
                         href={`/admin/import-guide/${generatedIds[slug] ?? slug}`}
                         className="text-xs text-orange-600 hover:underline"
