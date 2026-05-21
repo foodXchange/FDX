@@ -8,7 +8,11 @@ export default function FloatingSourcingButton() {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
 
-  if (pathname.includes("/sourcing") || pathname.includes("/contact")) {
+  if (
+    pathname.includes("/sourcing") ||
+    pathname.includes("/contact") ||
+    pathname.includes("/buyers")
+  ) {
     return null;
   }
 
