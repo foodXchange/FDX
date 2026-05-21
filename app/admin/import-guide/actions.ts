@@ -13,7 +13,7 @@ const ArticleSchema = z.object({
   related_portfolio_slugs: z.array(z.string()).default([]),
   published: z.boolean().default(false),
   meta_title: z.string().max(60).optional(),
-  meta_description: z.string().max(160).optional(),
+  meta_description: z.string().max(500).optional(),
   reading_time_mins: z.number().int().min(1).default(5),
 });
 

@@ -50,7 +50,7 @@ Also provide at the END of your response, after the article, a JSON block in thi
   "summary": "[2-3 sentence summary for the article card]",
   "tags": ["tag1", "tag2", "tag3"],
   "meta_title": "[SEO title under 60 chars]",
-  "meta_description": "[SEO description 120-160 chars]",
+  "meta_description": "[SEO description, max 155 chars]",
   "reading_time_mins": 5
 }
 ---END JSON---
