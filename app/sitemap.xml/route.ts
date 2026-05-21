@@ -41,6 +41,7 @@ export async function GET() {
     { loc: `${baseUrl}/en/blog`, lastmod: today },
     { loc: `${baseUrl}/en/newsletter`, lastmod: today },
     { loc: `${baseUrl}/en/portfolio`, lastmod: today },
+    { loc: `${baseUrl}/en/sourcing`, lastmod: today, priority: 0.9 },
     { loc: `${baseUrl}/en/contact`, lastmod: today },
     { loc: `${baseUrl}/he/blog`, lastmod: today },
   ];

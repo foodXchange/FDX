@@ -3,6 +3,7 @@ import Image from "next/image";
 import type { Metadata } from "next";
 import Reveal from "@/components/Reveal";
 import FAQAccordion from "@/components/FAQAccordion";
+import SourcingWidget from "@/components/SourcingWidget";
 
 export const metadata: Metadata = {
   title: "Enter the Israeli Food Market | FoodXchange",
@@ -99,6 +100,13 @@ export default function ManufacturersPage() {
               >
                 WhatsApp us
               </a>
+            </div>
+
+            <div className="mt-12 max-w-xl mx-auto px-6">
+              <p className="text-center text-slate-400 text-sm mb-4">
+                Or tell us directly what you need to source:
+              </p>
+              <SourcingWidget source="home" compact={true} />
             </div>
           </Reveal>
           </div>
