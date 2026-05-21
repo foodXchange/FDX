@@ -72,6 +72,11 @@ type CategoryRecord = {
   parent_name: string | null;
   description: string | null;
   tags: string[];
+  tier1: string | null;
+  tier2: string | null;
+  tier3: string | null;
+  level: number;
+  is_leaf: boolean;
 };
 
 // ─── Main ─────────────────────────────────────────────────────────────────────
@@ -142,13 +147,35 @@ async function main() {
   for (const [name, { description, tags }] of tier1) {
     const slug = slugify(name);
     if (!slug) continue;
-    records.push({ name, slug, parent_name: null, description: description || null, tags });
+    records.push({
+      name,
+      slug,
+      parent_name: null,
+      description: description || null,
+      tags,
+      tier1: name,
+      tier2: null,
+      tier3: description || null,
+      level: 1,
+      is_leaf: false,
+    });
   }
 
   for (const [name, { parent, description, tags }] of tier2) {
     const slug = slugify(name);
     if (!slug) continue;
-    records.push({ name, slug, parent_name: parent, description: description || null, tags });
+    records.push({
+      name,
+      slug,
+      parent_name: parent,
+      description: description || null,
+      tags,
+      tier1: parent,
+      tier2: name,
+      tier3: description || null,
+      level: 2,
+      is_leaf: true,
+    });
   }
 
   if (records.length === 0) {
@@ -156,7 +183,13 @@ async function main() {
     return;
   }
 
-  console.log(`Upserting ${records.length} categories…`);
+  // Delete all existing rows then insert fresh (idempotent, no unique constraint needed)
+  console.log("Clearing existing categories…");
+  await Promise.resolve(
+    supabaseAdmin.from("product_categories").delete().gte("created_at", "2000-01-01")
+  ).catch(console.error);
+
+  console.log(`Inserting ${records.length} categories…`);
 
   let inserted = 0;
   let failed = 0;
@@ -166,7 +199,7 @@ async function main() {
     const batch = records.slice(i, i + BATCH);
     const { error } = await supabaseAdmin
       .from("product_categories")
-      .upsert(batch, { onConflict: "slug" });
+      .insert(batch);
 
     if (error) {
       console.error(`  ✗ Batch ${Math.floor(i / BATCH) + 1}: ${error.message}`);
@@ -176,7 +209,7 @@ async function main() {
     }
   }
 
-  console.log(`\n✓ ${inserted} upserted  ·  ✗ ${failed} failed`);
+  console.log(`\n✓ ${inserted} inserted  ·  ✗ ${failed} failed`);
   console.log(`  ${tier1.size} top-level  ·  ${tier2.size} sub-categories`);
 }
 
