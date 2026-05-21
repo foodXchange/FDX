@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { supabaseServer } from "@/lib/supabase-server";
+import { supabase } from "@/lib/supabase";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -35,6 +36,7 @@ export async function GET() {
 
   const staticUrls = [
     { loc: `${baseUrl}/en`, lastmod: today },
+    { loc: `${baseUrl}/en/products`, lastmod: today, priority: 0.9 },
     { loc: `${baseUrl}/en/about`, lastmod: today },
     { loc: `${baseUrl}/en/buyers`, lastmod: today },
     { loc: `${baseUrl}/en/manufacturers`, lastmod: today },
@@ -71,6 +73,19 @@ export async function GET() {
     priority: 0.6,
   }));
 
+  // Catalogue products (public gallery)
+  const { data: catalogueProducts } = await supabase
+    .from("catalogue_products")
+    .select("id, updated_at")
+    .eq("status", "ready");
+
+  const productUrls = (catalogueProducts || []).map((p) => ({
+    loc: `${baseUrl}/en/products/${p.id}`,
+    lastmod: new Date(p.updated_at).toISOString().split("T")[0],
+    changefreq: "monthly",
+    priority: 0.8,
+  }));
+
   // Import Guide
   const { data: importGuideArticles } = await supabaseServer
     .from("import_guide_articles")
@@ -98,6 +113,7 @@ export async function GET() {
     ...blogUrls,
     ...newsletterUrls,
     ...portfolioUrls,
+    ...productUrls,
     ...importGuideStaticUrls,
     ...importGuideArticleUrls,
   ];
