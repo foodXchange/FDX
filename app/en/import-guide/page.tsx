@@ -4,7 +4,7 @@ import { supabase } from "@/lib/supabase";
 import { IMPORT_GUIDE_CATEGORIES } from "@/types/importGuide";
 import type { ImportGuideListItem } from "@/types/importGuide";
 
-export const revalidate = 3600;
+export const revalidate = 0; // temporary: force fresh fetch while debugging
 
 export const metadata: Metadata = {
   title: "Israeli Food Import Guide | FoodXchange",
@@ -47,6 +47,7 @@ export default async function ImportGuideHubPage() {
 
   const articles = (recentArticles ?? []) as ImportGuideListItem[];
   const totalCount = allArticles?.length ?? 0;
+  console.log("Articles fetched:", articles?.length);
 
   const countByCategory = (slug: string) =>
     (allArticles ?? []).filter((a) => a.category === slug).length;

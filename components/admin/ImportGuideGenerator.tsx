@@ -115,6 +115,7 @@ export default function ImportGuideGenerator({ existingSlugs }: Props) {
   const [activeCategory, setActiveCategory] = useState<string>("all");
   const [generating, setGenerating] = useState<string | null>(null);
   const [generated, setGenerated] = useState<Set<string>>(new Set());
+  const [generatedIds, setGeneratedIds] = useState<Record<string, string>>({});
   const [streamText, setStreamText] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -212,7 +213,7 @@ export default function ImportGuideGenerator({ existingSlugs }: Props) {
         content: articleHtml,
         tags: meta.tags ?? [],
         related_portfolio_slugs: [],
-        published: false,
+        published: true,
         meta_title: meta.meta_title || undefined,
         meta_description: meta.meta_description || undefined,
         reading_time_mins: meta.reading_time_mins ?? readingTime,
@@ -220,6 +221,7 @@ export default function ImportGuideGenerator({ existingSlugs }: Props) {
 
       if (result.ok) {
         setGenerated((prev) => new Set([...prev, slug]));
+        setGeneratedIds((prev) => ({ ...prev, [slug]: result.id }));
       } else {
         throw new Error(result.error);
       }
@@ -315,7 +317,7 @@ export default function ImportGuideGenerator({ existingSlugs }: Props) {
                         ✓ Generated
                       </span>
                       <a
-                        href={`/admin/import-guide/${slug}`}
+                        href={`/admin/import-guide/${generatedIds[slug] ?? slug}`}
                         className="text-xs text-orange-600 hover:underline"
                       >
                         Edit
