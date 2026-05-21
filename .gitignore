@@ -45,3 +45,8 @@ next-env.d.ts
 
 # Local Netlify folder
 .netlify
+
+# Data import files (CSVs and XLSXs stay local — never commit raw data)
+data/*.csv
+data/*.xlsx
+data/*.xls
