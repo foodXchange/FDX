@@ -4,6 +4,7 @@ import { usePathname } from "next/navigation";
 
 const links = [
   { href: "/admin/portfolio", label: "Portfolio" },
+  { href: "/admin/import-guide", label: "Import Guide" },
   { href: "/en/admin/newsletter-builder", label: "Newsletter" },
   { href: "/en/admin/blog-editor", label: "Blog" },
 ];
@@ -18,7 +19,7 @@ export default function AdminNav() {
           href={link.href}
           className={`block px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
             pathname.startsWith(link.href)
-              ? "border-l-2 border-orange-500 bg-slate-800 text-white pl-[10px]"
+              ? "border-l-2 border-orange-500 bg-slate-800 text-white pl-2.5"
               : "text-slate-400 hover:text-slate-200 hover:bg-slate-800"
           }`}
         >
@@ -28,3 +29,4 @@ export default function AdminNav() {
     </nav>
   );
 }
+
