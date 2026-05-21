@@ -230,7 +230,7 @@ export default async function PortfolioItemPage({
 
       {/* CONTENT */}
       {(() => {
-        const sections = parseSections(item.content);
+        const sections = parseSections(item.content ?? "");
         if (!sections) {
           return (
             <section className="max-w-3xl mx-auto px-6 py-12">
