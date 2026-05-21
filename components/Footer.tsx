@@ -49,6 +49,17 @@ export default function Footer() {
           <ul className="space-y-3 text-sm mb-6">
             <li><Link href="/en/blog" className="hover:text-white">Blog</Link></li>
             <li><Link href="/en/newsletter" className="hover:text-white">Newsletter</Link></li>
+            <li>
+              <a
+                href="https://kb.fdx.trading"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hover:text-white flex items-center gap-1.5"
+              >
+                Knowledge Base
+                <span className="bg-orange-500 text-white text-[10px] px-1 py-0.5 rounded font-bold leading-none">KB</span>
+              </a>
+            </li>
           </ul>
 
           <div className="pt-4 border-t border-slate-800">

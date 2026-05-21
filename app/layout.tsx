@@ -1,6 +1,4 @@
 import type { Metadata } from "next";
-import Header from "@/components/Header";
-import Footer from "@/components/ui/Footer";
 import "./globals.css";
 
 const baseUrl =
@@ -59,9 +57,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body suppressHydrationWarning>
-        <Header />
         {children}
-        <Footer />
       </body>
     </html>
   );

@@ -9,6 +9,7 @@ export async function GET() {
   const { data, error } = await supabase
     .from("newsletter_issues")
     .select("slug, title, cover_image, created_at")
+    .eq("published", true)
     .order("created_at", { ascending: false });
 
   if (error) return Response.json({ error: error.message }, { status: 500 });

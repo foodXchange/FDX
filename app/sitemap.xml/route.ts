@@ -25,7 +25,11 @@ export async function GET() {
     console.error("Sitemap Supabase error:", error);
   }
 
-  console.log("SITEMAP POSTS:", posts);
+  const { data: newsletterIssues } = await supabaseServer
+    .from("newsletter_issues")
+    .select("slug, created_at")
+    .eq("published", true)
+    .order("created_at", { ascending: false });
 
   const today = new Date().toISOString().split("T")[0];
 
@@ -35,6 +39,8 @@ export async function GET() {
     { loc: `${baseUrl}/en/buyers`, lastmod: today },
     { loc: `${baseUrl}/en/manufacturers`, lastmod: today },
     { loc: `${baseUrl}/en/blog`, lastmod: today },
+    { loc: `${baseUrl}/en/newsletter`, lastmod: today },
+    { loc: `${baseUrl}/en/portfolio`, lastmod: today },
     { loc: `${baseUrl}/en/contact`, lastmod: today },
     { loc: `${baseUrl}/he/blog`, lastmod: today },
   ];
@@ -44,18 +50,46 @@ export async function GET() {
     lastmod: new Date(post.created_at).toISOString().split("T")[0],
   }));
 
-  const allUrls = [...staticUrls, ...blogUrls];
+  const newsletterUrls = (newsletterIssues || []).map((issue) => ({
+    loc: `${baseUrl}/en/newsletter/${issue.slug}`,
+    lastmod: new Date(issue.created_at).toISOString().split("T")[0],
+    changefreq: "weekly",
+    priority: 0.7,
+  }));
+
+  const { data: portfolioItems } = await supabaseServer
+    .from("portfolio_items")
+    .select("slug, created_at")
+    .eq("published", true)
+    .order("created_at", { ascending: false });
+
+  const portfolioUrls = (portfolioItems || []).map((item) => ({
+    loc: `${baseUrl}/en/portfolio/${item.slug}`,
+    lastmod: new Date(item.created_at).toISOString().split("T")[0],
+    changefreq: "monthly",
+    priority: 0.6,
+  }));
+
+  const allUrls = [...staticUrls, ...blogUrls, ...newsletterUrls, ...portfolioUrls];
 
   const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
 ${allUrls
-  .map(
-    (entry) => `
+  .map((entry) => {
+    const extra = [
+      "changefreq" in entry && entry.changefreq
+        ? `\n    <changefreq>${entry.changefreq}</changefreq>`
+        : "",
+      "priority" in entry && entry.priority !== undefined
+        ? `\n    <priority>${entry.priority}</priority>`
+        : "",
+    ].join("");
+    return `
   <url>
     <loc>${esc(entry.loc)}</loc>
-    <lastmod>${entry.lastmod}</lastmod>
-  </url>`
-  )
+    <lastmod>${entry.lastmod}</lastmod>${extra}
+  </url>`;
+  })
   .join("")}
 </urlset>`;
 

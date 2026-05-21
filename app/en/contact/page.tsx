@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
-import ContactForm from "@/components/ContactForm";
+import LeadForm from "@/components/LeadForm";
+import MatchingWidget from "@/components/MatchingWidget";
 
 export const metadata: Metadata = {
   title: "Contact FoodXchange | Start a Sourcing Conversation",
@@ -92,7 +93,16 @@ export default function EnglishContactPage() {
       {/* ── FORM ── */}
       <section id="contact-form" className="px-6 py-16">
         <div className="max-w-lg mx-auto">
-          <ContactForm lang="en" leadType="buyer" allowSwitch />
+          <div className="mb-10">
+            <h2 className="text-lg font-semibold text-slate-900 mb-2">
+              Find relevant scenarios
+            </h2>
+            <p className="text-sm text-slate-500 mb-4">
+              Describe what you are sourcing — we will show similar work we have done.
+            </p>
+            <MatchingWidget placeholder="e.g. tomato paste in cups, private label, kosher, for retail" />
+          </div>
+          <LeadForm />
         </div>
       </section>
 

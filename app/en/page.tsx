@@ -104,6 +104,8 @@ export default function ManufacturersPage() {
           </div>
         </section>
 
+        {/* TODO: add MatchingWidget to home page sourcing section */}
+
         {/* ── PROOF STATEMENT BOX ── */}
         <section className="px-6 py-10 bg-orange-50 border-y border-orange-200">
           <div className="max-w-4xl mx-auto text-center">

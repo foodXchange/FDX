@@ -17,6 +17,7 @@ export default function Header() {
     { href: '/en/about', label: 'About' },
     { href: '/he', label: 'Buyers' },
     { href: '/en', label: 'Manufacturers' },
+    { href: '/en/portfolio', label: 'Portfolio' },
   ];
 
   const isActive = (href: string) => {

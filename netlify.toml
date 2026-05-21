@@ -8,3 +8,10 @@
 
 [[plugins]]
   package = "@netlify/plugin-nextjs"
+
+# Optional: redirect udi.fdx.trading → /c/udi (only works if udi.fdx.trading points to this Netlify site)
+[[redirects]]
+  from = "https://udi.fdx.trading/*"
+  to = "https://fdx.trading/c/udi"
+  status = 301
+  force = true

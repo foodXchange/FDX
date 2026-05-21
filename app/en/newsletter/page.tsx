@@ -1,11 +1,8 @@
-import { createClient } from "@supabase/supabase-js";
 import Link from "next/link";
 import Image from "next/image";
+import { supabase } from "@/lib/supabase";
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+export const revalidate = 60;
 
 type Issue = {
   slug: string;
@@ -44,7 +41,7 @@ export default async function NewsletterPage() {
   return (
     <main className="bg-white text-slate-900">
       {/* HERO */}
-      <section className="bg-gradient-to-b from-slate-900 to-slate-800 text-white py-20 px-6 text-center">
+      <section className="bg-linear-to-b from-slate-900 to-slate-800 text-white py-20 px-6 text-center">
         <div className="max-w-2xl mx-auto">
           <h1 className="text-3xl md:text-5xl font-bold tracking-tight">
             FoodXchange Market Notes
@@ -57,7 +54,20 @@ export default async function NewsletterPage() {
 
       {/* LIST */}
       <section className="max-w-5xl mx-auto px-6 py-16">
-        {/* Use grid for premium layout */}
+        {issues.length === 0 ? (
+          <div className="text-center py-16">
+            <p className="text-slate-500 text-lg font-medium">More issues coming soon</p>
+            <p className="text-slate-400 text-sm mt-3">
+              Subscribe below to get notified when new issues are published.
+            </p>
+            <a
+              href="#subscribe"
+              className="mt-6 inline-block text-orange-600 text-sm font-medium hover:text-orange-700 transition"
+            >
+              Subscribe for updates ↓
+            </a>
+          </div>
+        ) : (
         <div className="grid md:grid-cols-2 gap-8">
           {issues.map((issue) => (
             <article
@@ -66,7 +76,7 @@ export default async function NewsletterPage() {
             >
               {/* IMAGE */}
               <Link href={`/en/newsletter/${issue.slug}`} className="block">
-                <div className="relative w-full h-[240px] overflow-hidden">
+                <div className="relative w-full h-60 overflow-hidden">
                   <Image
                     src={issue.cover_image || "/blog/default-hero.png"}
                     alt={issue.title}
@@ -76,7 +86,7 @@ export default async function NewsletterPage() {
                     quality={78}
                   />
                   {/* Overlay */}
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent opacity-85 group-hover:opacity-95 transition" />
+                  <div className="absolute inset-0 bg-linear-to-t from-black/70 via-black/20 to-transparent opacity-85 group-hover:opacity-95 transition" />
 
                   {/* Title on image */}
                   <div className="absolute bottom-4 left-4 right-4">
@@ -109,6 +119,7 @@ export default async function NewsletterPage() {
             </article>
           ))}
         </div>
+        )}
       </section>
     </main>
   );

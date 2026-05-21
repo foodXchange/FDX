@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import type { Metadata } from "next";
 import Reveal from "@/components/Reveal";
 import FAQAccordion from "@/components/FAQAccordion";
@@ -133,13 +134,15 @@ export default function BuyersPage() {
             </div>
 
             <Reveal>
-              <div
-                className="w-full rounded-2xl bg-slate-100 border-2 border-dashed border-slate-300 flex flex-col items-center justify-center text-slate-400 text-sm mt-10"
-                style={{ minHeight: "240px" }}
-              >
-                <span className="text-2xl mb-2">📷</span>
-                <span className="font-medium">[AI IMAGE: Israeli food buyer reviewing product samples in a modern office, natural light]</span>
-                <span className="text-xs mt-1 text-slate-300">Replace with generated image</span>
+              <div className="relative w-full mt-10 rounded-2xl overflow-hidden" style={{ minHeight: "280px" }}>
+                <Image
+                  src="/images/buyer-product-review.png"
+                  alt="Israeli food buyer reviewing product samples"
+                  fill
+                  className="object-cover"
+                  sizes="(max-width: 1024px) 100vw, 1024px"
+                  quality={85}
+                />
               </div>
             </Reveal>
           </div>

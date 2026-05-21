@@ -1,16 +1,14 @@
 import type { Metadata } from "next";
-import { createClient } from "@supabase/supabase-js";
 import { notFound } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
 import { cache } from "react";
+import { supabase } from "@/lib/supabase";
+import BackToTop from "@/components/BackToTop";
+
+export const revalidate = 60;
 
 type Params = Promise<{ slug: string }>;
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
 
 const getIssue = cache(async (slug: string) => {
   const { data, error } = await supabase
@@ -30,6 +28,37 @@ function formatDate(date: string) {
     month: "long",
     day: "numeric",
   });
+}
+
+const getAdjacentIssues = cache(async (createdAt: string) => {
+  const [prevResult, nextResult] = await Promise.all([
+    supabase
+      .from("newsletter_issues")
+      .select("slug, title")
+      .eq("published", true)
+      .lt("created_at", createdAt)
+      .order("created_at", { ascending: false })
+      .limit(1),
+    supabase
+      .from("newsletter_issues")
+      .select("slug, title")
+      .eq("published", true)
+      .gt("created_at", createdAt)
+      .order("created_at", { ascending: true })
+      .limit(1),
+  ]);
+  return {
+    prev: prevResult.data?.[0] ?? null,
+    next: nextResult.data?.[0] ?? null,
+  };
+});
+
+export async function generateStaticParams() {
+  const { data } = await supabase
+    .from("newsletter_issues")
+    .select("slug")
+    .eq("published", true);
+  return (data || []).map((issue) => ({ slug: issue.slug }));
 }
 
 // ✅ Per-issue metadata
@@ -93,10 +122,12 @@ export default async function NewsletterIssuePage({
 
   if (!issue) return notFound();
 
+  const { prev, next } = await getAdjacentIssues(issue.created_at);
+
   return (
     <main className="bg-white text-slate-900">
       {/* HERO */}
-      <section className="bg-gradient-to-b from-slate-900 to-slate-800 text-white py-16 px-6">
+      <section className="bg-linear-to-b from-slate-900 to-slate-800 text-white py-16 px-6">
         <div className="max-w-3xl mx-auto text-center">
           <p className="text-xs text-slate-400 mb-2 uppercase tracking-wider">
             FoodXchange Market Notes
@@ -115,7 +146,7 @@ export default async function NewsletterIssuePage({
       {/* COVER */}
       {issue.cover_image && (
         <section className="max-w-3xl mx-auto px-6 mt-10">
-          <div className="relative w-full h-[280px] md:h-[360px] rounded-xl overflow-hidden">
+          <div className="relative w-full h-70 md:h-90 rounded-xl overflow-hidden">
             <Image
               src={issue.cover_image}
               alt={issue.title}
@@ -142,6 +173,36 @@ export default async function NewsletterIssuePage({
         />
       </section>
 
+      {/* PREV/NEXT NAV */}
+      {(prev || next) && (
+        <section className="max-w-3xl mx-auto px-6 py-8 border-t border-slate-100">
+          <div className="flex gap-4">
+            <div className="flex-1">
+              {prev && (
+                <Link
+                  href={`/en/newsletter/${prev.slug}`}
+                  className="block border border-slate-200 rounded-xl px-5 py-4 hover:border-slate-400 transition text-sm"
+                >
+                  <span className="text-xs text-slate-400 block mb-1">← Previous</span>
+                  <span className="text-slate-700 font-medium line-clamp-2">{prev.title}</span>
+                </Link>
+              )}
+            </div>
+            <div className="flex-1 text-right">
+              {next && (
+                <Link
+                  href={`/en/newsletter/${next.slug}`}
+                  className="block border border-slate-200 rounded-xl px-5 py-4 hover:border-slate-400 transition text-sm"
+                >
+                  <span className="text-xs text-slate-400 block mb-1">Next →</span>
+                  <span className="text-slate-700 font-medium line-clamp-2">{next.title}</span>
+                </Link>
+              )}
+            </div>
+          </div>
+        </section>
+      )}
+
       {/* CTA */}
       <section className="bg-slate-50 py-16 text-center px-6">
         <h2 className="text-2xl font-semibold mb-4">
@@ -167,6 +228,7 @@ export default async function NewsletterIssuePage({
           </Link>
         </div>
       </section>
+      <BackToTop />
     </main>
   );
 }

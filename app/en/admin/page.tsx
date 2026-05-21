@@ -100,6 +100,50 @@ export default function AdminHome() {
             </div>
           </Link>
 
+          {/* PORTFOLIO CMS */}
+          <Link
+            href="/admin/portfolio"
+            className="group bg-white border border-slate-200 rounded-2xl p-6 shadow-sm hover:shadow-md transition"
+          >
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <div className="text-sm text-slate-500">Portfolio</div>
+                <div className="text-lg font-semibold text-slate-900 mt-1">
+                  Portfolio CMS
+                </div>
+                <div className="text-sm text-slate-600 mt-2">
+                  Add → edit → publish sourcing scenarios
+                </div>
+              </div>
+
+              <div className="text-orange-600 font-semibold text-lg group-hover:translate-x-0.5 transition">
+                →
+              </div>
+            </div>
+          </Link>
+
+          {/* SOURCING REQUESTS */}
+          <Link
+            href="/admin/portfolio"
+            className="group bg-white border border-slate-200 rounded-2xl p-6 shadow-sm hover:shadow-md transition"
+          >
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <div className="text-sm text-slate-500">CRM</div>
+                <div className="text-lg font-semibold text-slate-900 mt-1">
+                  Sourcing requests
+                </div>
+                <div className="text-sm text-slate-600 mt-2">
+                  Review buyer leads and matched scenarios
+                </div>
+              </div>
+
+              <div className="text-orange-600 font-semibold text-lg group-hover:translate-x-0.5 transition">
+                →
+              </div>
+            </div>
+          </Link>
+
         </div>
 
         {/* Footer */}
