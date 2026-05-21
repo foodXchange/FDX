@@ -38,6 +38,53 @@ function slugify(title: string): string {
     .replace(/^-|-$/g, "");
 }
 
+function InlineTooltip({ content }: { content: string }) {
+  return (
+    <span className="relative group inline-block">
+      <span className="text-slate-300 text-xs cursor-help">ⓘ</span>
+      <span className="absolute left-5 top-0 z-20 hidden group-hover:block w-56 bg-slate-800 text-white text-xs rounded-lg px-3 py-2 shadow-lg leading-relaxed pointer-events-none">
+        {content}
+      </span>
+    </span>
+  );
+}
+
+function wordCount(text: string): number {
+  return text.trim() ? text.trim().split(/\s+/).length : 0;
+}
+
+function buildContent(s: {
+  brief: string;
+  challenge: string;
+  validated: string;
+  findings: string;
+  takeaways: string;
+}): string {
+  return [
+    `<section class="scenario-brief"><h2>The sourcing brief</h2>${s.brief}</section>`,
+    `<section class="scenario-challenge"><h2>The market challenge</h2>${s.challenge}</section>`,
+    `<section class="scenario-validated"><h2>What we validated</h2>${s.validated}</section>`,
+    `<section class="scenario-findings"><h2>What we found</h2>${s.findings}</section>`,
+    `<section class="scenario-takeaways"><h2>Key takeaways</h2>${s.takeaways}</section>`,
+  ].join("\n");
+}
+
+function extractSections(html: string) {
+  const extract = (name: string) => {
+    const m = html.match(
+      new RegExp(`<section class="scenario-${name}">[\\s\\S]*?</h2>([\\s\\S]*?)</section>`)
+    );
+    return m ? m[1].trim() : "";
+  };
+  return {
+    brief: extract("brief"),
+    challenge: extract("challenge"),
+    validated: extract("validated"),
+    findings: extract("findings"),
+    takeaways: extract("takeaways"),
+  };
+}
+
 function Toggle({
   checked,
   onChange,
@@ -76,7 +123,17 @@ export default function PortfolioForm({ action, initialData, redirectOnCreate }:
   const [slug, setSlug] = useState(initialData?.slug ?? "");
   const [category, setCategory] = useState(initialData?.category ?? "");
   const [summary, setSummary] = useState(initialData?.summary ?? "");
-  const [content, setContent] = useState(initialData?.content ?? "");
+  const existingSections = initialData?.content ? extractSections(initialData.content) : null;
+  const [brief, setBrief] = useState(existingSections?.brief ?? "");
+  const [challenge, setChallenge] = useState(existingSections?.challenge ?? "");
+  const [validated, setValidated] = useState(existingSections?.validated ?? "");
+  const [findings, setFindings] = useState(existingSections?.findings ?? "");
+  const [takeaways, setTakeaways] = useState(existingSections?.takeaways ?? "");
+  const [aiStreaming, setAiStreaming] = useState<string | null>(null);
+  const [aiDraft, setAiDraft] = useState<Record<string, string>>({});
+  const [imagePrompt, setImagePrompt] = useState("");
+  const [generatingImagePrompt, setGeneratingImagePrompt] = useState(false);
+  const [imageCopied, setImageCopied] = useState(false);
   const [heroImage, setHeroImage] = useState(initialData?.hero_image ?? "");
   const [priority, setPriority] = useState(initialData?.priority ?? 0);
   const [published, setPublished] = useState(initialData?.published ?? false);
@@ -112,11 +169,75 @@ export default function PortfolioForm({ action, initialData, redirectOnCreate }:
     setSuggesting(true);
     setSuggestions(null);
     try {
-      const result = await suggestPortfolioTaxonomy({ title, summary, content });
+      const result = await suggestPortfolioTaxonomy({
+        title,
+        summary,
+        content: buildContent({ brief, challenge, validated, findings, takeaways }),
+      });
       if (result.ok) setSuggestions(result);
     } finally {
       setSuggesting(false);
     }
+  }
+
+  async function generateSectionAI(sectionName: string) {
+    setAiStreaming(sectionName);
+    setAiDraft((prev) => ({ ...prev, [sectionName]: "" }));
+    try {
+      const res = await fetch("/api/admin/portfolio/ai-section", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sectionName, title, category, tags, markets, formats }),
+      });
+      if (!res.ok || !res.body) return;
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        setAiDraft((prev) => ({
+          ...prev,
+          [sectionName]: (prev[sectionName] ?? "") + decoder.decode(value, { stream: true }),
+        }));
+      }
+    } finally {
+      setAiStreaming(null);
+    }
+  }
+
+  async function generateImagePrompt() {
+    setGeneratingImagePrompt(true);
+    setImagePrompt("");
+    try {
+      const res = await fetch("/api/admin/portfolio/ai-section", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sectionName: "image-prompt",
+          title,
+          category,
+          tags,
+          markets,
+          formats,
+        }),
+      });
+      if (!res.ok || !res.body) return;
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        setImagePrompt((prev) => prev + decoder.decode(value, { stream: true }));
+      }
+    } finally {
+      setGeneratingImagePrompt(false);
+    }
+  }
+
+  async function copyImagePrompt() {
+    await navigator.clipboard.writeText(imagePrompt);
+    setImageCopied(true);
+    setTimeout(() => setImageCopied(false), 2000);
   }
 
   function applyTag(value: string, field: "tags" | "formats" | "certifications") {
@@ -142,7 +263,7 @@ export default function PortfolioForm({ action, initialData, redirectOnCreate }:
       slug,
       category,
       summary,
-      content,
+      content: buildContent({ brief, challenge, validated, findings, takeaways }),
       hero_image: heroImage,
       priority,
       published,
@@ -168,10 +289,69 @@ export default function PortfolioForm({ action, initialData, redirectOnCreate }:
     });
   }
 
+  const canGenerateImagePrompt =
+    Boolean(title) &&
+    Boolean(category) &&
+    Boolean(brief) &&
+    (markets.length > 0 || formats.length > 0);
+
   const inputCls =
     "w-full text-sm border border-gray-200 rounded-lg px-3 py-2 outline-none focus:border-orange-300 focus:ring-2 focus:ring-orange-100";
   const labelCls = "text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1.5";
   const cardCls = "bg-white border border-gray-200 rounded-2xl p-5 mb-4 shadow-sm";
+
+  const SECTIONS = [
+    {
+      key: "brief" as const,
+      label: "The sourcing brief",
+      value: brief,
+      setter: setBrief,
+      placeholder:
+        "Describe what was needed — product type, format, volume range, target market. Do not mention the buyer by name.",
+      tooltip:
+        "What did the buyer need? Describe the product and market without naming the client.",
+    },
+    {
+      key: "challenge" as const,
+      label: "The market challenge",
+      value: challenge,
+      setter: setChallenge,
+      placeholder:
+        "What made this category complex? What do most importers get wrong? What is the real risk buyers face in this category?",
+      tooltip:
+        "What is genuinely difficult about sourcing this product? Show your expertise.",
+    },
+    {
+      key: "validated" as const,
+      label: "What we validated",
+      value: validated,
+      setter: setValidated,
+      placeholder:
+        "List what was tested and verified: packaging integrity, shelf life, certifications, production capacity, labeling compliance, etc.",
+      tooltip:
+        "Be specific. Specs, tests, certifications checked. This shows the depth of your work.",
+    },
+    {
+      key: "findings" as const,
+      label: "What we found",
+      value: findings,
+      setter: setFindings,
+      placeholder:
+        "Describe the supplier landscape — without naming specific suppliers. Which countries perform best? What are the common gaps? What surprised you?",
+      tooltip:
+        "Market intelligence — not supplier names. Describe patterns, not individuals.",
+    },
+    {
+      key: "takeaways" as const,
+      label: "Key takeaways for buyers",
+      value: takeaways,
+      setter: setTakeaways,
+      placeholder:
+        "• First key insight for buyers in this category\n• Second key insight\n• Third key insight",
+      tooltip:
+        "3-5 bullet points a buyer should know before sourcing this product.",
+    },
+  ];
 
   return (
     <div className="max-w-3xl mx-auto px-6 py-8">
@@ -231,16 +411,106 @@ export default function PortfolioForm({ action, initialData, redirectOnCreate }:
         />
       </div>
 
-      {/* CONTENT */}
+      {/* CONTENT SECTIONS */}
       <div className={cardCls}>
-        <label className={labelCls}>Content (HTML)</label>
-        <textarea
-          value={content}
-          onChange={(e) => setContent(e.target.value)}
-          rows={12}
-          placeholder="<p>Full scenario content…</p>"
-          className={`${inputCls} resize-y font-mono text-xs`}
-        />
+        <p className={`${labelCls} mb-5`}>Content sections</p>
+        {SECTIONS.map((section) => (
+          <div key={section.key} className="mb-6 last:mb-0">
+            <div className="flex items-center gap-2 mb-2">
+              <label className={labelCls}>{section.label}</label>
+              <InlineTooltip content={section.tooltip} />
+              <button
+                type="button"
+                onClick={() => generateSectionAI(section.key)}
+                disabled={aiStreaming !== null}
+                className="ml-auto text-xs px-2 py-0.5 rounded border border-orange-200 text-orange-600 hover:bg-orange-50 disabled:opacity-40 transition"
+              >
+                {aiStreaming === section.key ? "Writing…" : "✦ AI"}
+              </button>
+            </div>
+            <textarea
+              value={section.value}
+              onChange={(e) => section.setter(e.target.value)}
+              placeholder={section.placeholder}
+              rows={4}
+              className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-800 placeholder:text-slate-300 resize-none focus:outline-none focus:ring-2 focus:ring-orange-400/30 focus:border-orange-400"
+            />
+            <div className="flex items-center justify-between mt-1">
+              <p className="text-xs text-slate-400">{wordCount(section.value)} words</p>
+              {aiDraft[section.key] && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    section.setter(aiDraft[section.key]);
+                    setAiDraft((p) => {
+                      const n = { ...p };
+                      delete n[section.key];
+                      return n;
+                    });
+                  }}
+                  className="text-xs text-orange-600 hover:underline"
+                >
+                  Apply AI draft
+                </button>
+              )}
+            </div>
+            {aiDraft[section.key] && (
+              <div className="mt-2 bg-orange-50 border border-orange-100 rounded-xl px-4 py-3 text-xs text-slate-700 whitespace-pre-wrap max-h-40 overflow-y-auto">
+                {aiDraft[section.key]}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+
+      {/* IMAGE PROMPT */}
+      <div className={cardCls}>
+        <div className="flex items-center justify-between mb-3">
+          <div>
+            <label className={labelCls}>Image prompt generator</label>
+            {!canGenerateImagePrompt && (
+              <p className="text-xs text-slate-400 mt-0.5">
+                Fill in title, category, sourcing brief, and at least one market or format to unlock.
+              </p>
+            )}
+          </div>
+          <button
+            type="button"
+            onClick={generateImagePrompt}
+            disabled={!canGenerateImagePrompt || generatingImagePrompt}
+            className="text-xs px-3 py-1.5 rounded-lg bg-violet-600 hover:bg-violet-700 text-white font-medium disabled:opacity-40 disabled:cursor-not-allowed transition flex items-center gap-1.5"
+          >
+            {generatingImagePrompt ? (
+              <>
+                <span className="inline-block w-3 h-3 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                Generating…
+              </>
+            ) : (
+              "✦ Generate prompt"
+            )}
+          </button>
+        </div>
+
+        {(imagePrompt || generatingImagePrompt) && (
+          <div className="relative">
+            <textarea
+              value={imagePrompt}
+              onChange={(e) => setImagePrompt(e.target.value)}
+              rows={4}
+              placeholder="Image prompt will appear here…"
+              className="w-full border border-slate-200 rounded-xl px-4 py-3 pr-20 text-sm text-slate-800 placeholder:text-slate-300 resize-none focus:outline-none focus:ring-2 focus:ring-violet-400/30 focus:border-violet-400"
+            />
+            {imagePrompt && (
+              <button
+                type="button"
+                onClick={copyImagePrompt}
+                className="absolute top-2.5 right-2.5 text-xs px-2.5 py-1 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 transition"
+              >
+                {imageCopied ? "✓ Copied" : "Copy"}
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
       {/* HERO IMAGE */}

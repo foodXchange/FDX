@@ -9,6 +9,41 @@ import { supabase } from "@/lib/supabase";
 
 export const revalidate = 60;
 
+type Sections = {
+  brief: string;
+  challenge: string;
+  validated: string;
+  findings: string;
+  takeaways: string;
+} | null;
+
+function parseSections(html: string): Sections {
+  const extract = (name: string) => {
+    const m = html.match(
+      new RegExp(`<section class="scenario-${name}">[\\s\\S]*?</h2>([\\s\\S]*?)</section>`)
+    );
+    return m ? m[1].trim() : null;
+  };
+  const brief = extract("brief");
+  const challenge = extract("challenge");
+  if (!brief && !challenge) return null;
+  return {
+    brief: brief ?? "",
+    challenge: challenge ?? "",
+    validated: extract("validated") ?? "",
+    findings: extract("findings") ?? "",
+    takeaways: extract("takeaways") ?? "",
+  };
+}
+
+function toBullets(text: string): string[] {
+  return text
+    .split("\n")
+    .map((l) => l.trim())
+    .filter((l) => l.startsWith("•"))
+    .map((l) => l.replace(/^•\s*/, ""));
+}
+
 type Params = Promise<{ slug: string }>;
 
 type PortfolioDetail = {
@@ -166,6 +201,13 @@ export default async function PortfolioItemPage({
           <p className="mt-2 text-xs text-slate-500">
             {formatDate(item.created_at)}
           </p>
+          {(markets.length > 0 || formats.length > 0 || certifications.length > 0) && (
+            <div className="flex flex-wrap justify-center gap-6 mt-3 text-sm text-slate-400">
+              {markets.length > 0 && <span>Markets: {markets.join(" · ")}</span>}
+              {formats.length > 0 && <span>Format: {formats[0]}</span>}
+              {certifications.length > 0 && <span>Certs: {certifications.join(" · ")}</span>}
+            </div>
+          )}
         </div>
       </section>
 
@@ -187,12 +229,97 @@ export default async function PortfolioItemPage({
       )}
 
       {/* CONTENT */}
-      <section className="max-w-3xl mx-auto px-6 py-12">
-        <div
-          className="prose prose-lg max-w-none prose-headings:text-slate-900 prose-p:text-slate-800 prose-a:text-orange-600 hover:prose-a:underline"
-          dangerouslySetInnerHTML={{ __html: item.content }}
-        />
-      </section>
+      {(() => {
+        const sections = parseSections(item.content);
+        if (!sections) {
+          return (
+            <section className="max-w-3xl mx-auto px-6 py-12">
+              <div
+                className="prose prose-lg max-w-none prose-headings:text-slate-900 prose-p:text-slate-800 prose-a:text-orange-600 hover:prose-a:underline"
+                dangerouslySetInnerHTML={{ __html: item.content }}
+              />
+            </section>
+          );
+        }
+        const SectionHeading = ({ num, label }: { num: string; label: string }) => (
+          <h2 className="text-xl font-semibold text-slate-900 mb-4 flex items-center gap-2">
+            <span className="text-orange-500">{num}</span> {label}
+          </h2>
+        );
+        return (
+          <div className="max-w-3xl mx-auto px-6 py-12 space-y-12">
+            {sections.brief && (
+              <div>
+                <SectionHeading num="01" label="The sourcing brief" />
+                <div
+                  className="prose prose-slate max-w-none"
+                  dangerouslySetInnerHTML={{ __html: sections.brief }}
+                />
+              </div>
+            )}
+            {sections.challenge && (
+              <div>
+                <SectionHeading num="02" label="The market challenge" />
+                <div
+                  className="bg-slate-50 border-l-4 border-orange-500 rounded-r-xl px-6 py-5 prose prose-slate max-w-none"
+                  dangerouslySetInnerHTML={{ __html: sections.challenge }}
+                />
+              </div>
+            )}
+            {sections.validated && (
+              <div>
+                <SectionHeading num="03" label="What we validated" />
+                {toBullets(sections.validated).length > 0 ? (
+                  <ul className="space-y-2">
+                    {toBullets(sections.validated).map((point, i) => (
+                      <li key={i} className="flex items-start gap-3 text-sm text-slate-700">
+                        <span className="text-green-600 mt-0.5 shrink-0">✓</span>
+                        {point}
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <div
+                    className="prose prose-slate max-w-none"
+                    dangerouslySetInnerHTML={{ __html: sections.validated }}
+                  />
+                )}
+              </div>
+            )}
+            {sections.findings && (
+              <div>
+                <SectionHeading num="04" label="What we found" />
+                <div
+                  className="prose prose-slate max-w-none"
+                  dangerouslySetInnerHTML={{ __html: sections.findings }}
+                />
+              </div>
+            )}
+            {sections.takeaways && (
+              <div>
+                <SectionHeading num="05" label="Key takeaways" />
+                {toBullets(sections.takeaways).length > 0 ? (
+                  <div className="space-y-3">
+                    {toBullets(sections.takeaways).map((point, i) => (
+                      <div
+                        key={i}
+                        className="bg-orange-50 border border-orange-100 rounded-xl p-4 text-sm text-slate-700"
+                      >
+                        {point}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div
+                    className="prose prose-slate max-w-none"
+                    dangerouslySetInnerHTML={{ __html: sections.takeaways }}
+                  />
+                )}
+              </div>
+            )}
+          </div>
+        );
+      })()}
 
       {/* METADATA CHIPS */}
       {hasChips && (
@@ -230,6 +357,32 @@ export default async function PortfolioItemPage({
                 {t}
               </span>
             ))}
+          </div>
+        </section>
+      )}
+
+      {/* AT A GLANCE */}
+      {(markets.length > 0 || formats.length > 0 || certifications.length > 0) && (
+        <section className="max-w-3xl mx-auto px-6 pb-12">
+          <div className="grid grid-cols-3 gap-4">
+            <div className="text-center p-4 bg-slate-50 rounded-xl">
+              <p className="text-2xl font-bold text-slate-900">{markets.length}</p>
+              <p className="text-xs text-slate-500 mt-1">
+                Target {markets.length === 1 ? "market" : "markets"}
+              </p>
+            </div>
+            <div className="text-center p-4 bg-slate-50 rounded-xl">
+              <p className="text-2xl font-bold text-slate-900">{formats.length}</p>
+              <p className="text-xs text-slate-500 mt-1">
+                {formats.length === 1 ? "Format" : "Formats"} validated
+              </p>
+            </div>
+            <div className="text-center p-4 bg-slate-50 rounded-xl">
+              <p className="text-2xl font-bold text-slate-900">{certifications.length}</p>
+              <p className="text-xs text-slate-500 mt-1">
+                {certifications.length === 1 ? "Certification" : "Certifications"} required
+              </p>
+            </div>
           </div>
         </section>
       )}
