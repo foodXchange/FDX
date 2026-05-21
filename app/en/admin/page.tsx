@@ -18,6 +18,27 @@ export default function AdminHome() {
         {/* Grid */}
         <div className="grid md:grid-cols-2 gap-6">
 
+          {/* VIDEO SCRIPTS */}
+          <Link
+            href="/admin/scripts"
+            className="group bg-white border border-slate-200 rounded-2xl p-6 shadow-sm hover:shadow-md transition"
+          >
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <div className="text-sm text-slate-500">Content</div>
+                <div className="text-lg font-semibold text-slate-900 mt-1">
+                  Video Scripts
+                </div>
+                <div className="text-sm text-slate-600 mt-2">
+                  Generate talking-head video scripts for buyers and manufacturers
+                </div>
+              </div>
+              <div className="text-red-600 font-semibold text-lg group-hover:translate-x-0.5 transition">
+                🎬
+              </div>
+            </div>
+          </Link>
+
           {/* BLOG EDITOR (NEW ✅) */}
           <Link
             href="/en/admin/blog-editor"
@@ -83,7 +104,7 @@ export default function AdminHome() {
           {/* ✅ NEW: NEWSLETTER GENERATOR */}
           <Link
             href="/en/admin/newsletter-builder"
-            className="group bg-white border border-green-200 rounded-2xl p-6 shadow-sm hover:shadow-md transition bg-green-50/40"
+            className="group bg-green-50/40 border border-green-200 rounded-2xl p-6 shadow-sm hover:shadow-md transition"
           >
             <div className="flex items-start justify-between gap-4">
               <div>
@@ -185,6 +206,25 @@ export default function AdminHome() {
               <div className="text-orange-600 font-semibold text-lg group-hover:translate-x-0.5 transition">
                 →
               </div>
+            </div>
+          </Link>
+
+          {/* PRODUCT CATALOGUE */}
+          <Link
+            href="/admin/catalogue"
+            className="group bg-blue-50/20 border border-blue-200 rounded-2xl p-6 shadow-sm hover:shadow-md transition"
+          >
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <div className="text-sm text-blue-700">Sales</div>
+                <div className="text-lg font-semibold text-slate-900 mt-1">
+                  Product Catalogue
+                </div>
+                <div className="text-sm text-slate-600 mt-2">
+                  Build and generate buyer presentations as PDF
+                </div>
+              </div>
+              <div className="text-blue-600 font-semibold text-lg">📋</div>
             </div>
           </Link>
 

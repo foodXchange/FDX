@@ -3,6 +3,7 @@ import Image from "next/image";
 import type { Metadata } from "next";
 import Reveal from "@/components/Reveal";
 import FAQAccordion from "@/components/FAQAccordion";
+import SupplierWidget from "@/components/SupplierWidget";
 
 export const metadata: Metadata = {
   title: "For Manufacturers | FoodXchange",
@@ -43,7 +44,12 @@ const manufacturerFaqs = [
   },
 ];
 
-export default function ManufacturersPage() {
+export default async function ManufacturersPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ ref?: string }>;
+}) {
+  const { ref } = await searchParams;
   return (
     <>
       <a
@@ -84,7 +90,15 @@ export default function ManufacturersPage() {
               We know entering a new market feels uncertain — that&apos;s exactly why we&apos;re here.
             </p>
 
-            <div className="mt-10 flex gap-4 flex-wrap justify-center">
+            <a
+              href="/en/sourcing-board"
+              className="inline-flex items-center gap-2 text-orange-400 hover:text-orange-300 text-sm font-medium transition mt-8 mb-2"
+            >
+              <span>🔍</span>
+              See what Israeli buyers are sourcing right now →
+            </a>
+
+            <div className="mt-4 flex gap-4 flex-wrap justify-center">
               <Link
                 href="/en/contact"
                 className="inline-flex bg-orange-500 text-white px-7 py-3.5 rounded-md font-semibold hover:bg-orange-600 transition shadow"
@@ -102,6 +116,11 @@ export default function ManufacturersPage() {
             </div>
           </Reveal>
           </div>
+        </section>
+
+        {/* ── WIDGET ── */}
+        <section className="max-w-2xl mx-auto px-6 -mt-8 pb-16 relative z-10">
+          <SupplierWidget source="manufacturers-page" referral={ref} />
         </section>
 
         {/* ── PROOF STATEMENT BOX ── */}

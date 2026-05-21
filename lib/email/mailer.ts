@@ -14,6 +14,12 @@ export interface LeadEmailPayload {
     match_reasons: string[];
     country_of_origin: string | null;
   }[];
+  supplierMatches?: {
+    company_name: string;
+    country: string | null;
+    score: number;
+    reasons: string[];
+  }[];
 }
 
 export async function sendLeadNotification(payload: LeadEmailPayload): Promise<void> {
@@ -25,7 +31,7 @@ export async function sendLeadNotification(payload: LeadEmailPayload): Promise<v
   const resend = new Resend(process.env.RESEND_API_KEY);
   const to = process.env.NOTIFY_EMAIL_TO ?? "info@foodz-x.com";
   const from = process.env.NOTIFY_EMAIL_FROM ?? "info@foodz-x.com";
-  const { name, email, company, message, intentSummary, matchedItems, submittedAt, matchedSuppliers } = payload;
+  const { name, email, company, message, intentSummary, matchedItems, submittedAt, matchedSuppliers, supplierMatches } = payload;
 
   const matchedSection =
     matchedItems.length > 0
@@ -57,6 +63,27 @@ ${matchedSuppliers
   )
   .join("")}
 </table>`
+      : "";
+
+  const autoMatchSection =
+    supplierMatches && supplierMatches.length > 0
+      ? `<div style="margin:24px 0;padding:20px;background:#f8fafc;border-radius:12px;border:1px solid #e2e8f0;">
+  <p style="font-size:13px;font-weight:600;color:#0f172a;margin:0 0 12px;">⚡ Auto-matched suppliers (${supplierMatches.length})</p>
+  ${supplierMatches
+    .map(
+      (m) =>
+        `<div style="padding:12px 0;border-bottom:1px solid #e2e8f0;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+      <span style="font-weight:500;color:#1e293b;font-size:13px;">${m.company_name}</span>
+      <span style="background:#ea580c;color:white;font-size:11px;font-weight:600;padding:2px 8px;border-radius:20px;">${m.score} pts</span>
+    </div>
+    <p style="color:#64748b;font-size:12px;margin:0 0 4px;">${m.country ?? "—"}</p>
+    <p style="color:#94a3b8;font-size:11px;margin:0;">${m.reasons.join(" · ")}</p>
+  </div>`
+    )
+    .join("")}
+  <a href="https://fdx.trading/admin/requests" style="display:inline-block;margin-top:16px;background:#ea580c;color:white;text-decoration:none;font-weight:600;font-size:13px;padding:10px 20px;border-radius:8px;">Review in admin →</a>
+</div>`
       : "";
 
   const html = `<div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:24px;">
@@ -91,6 +118,8 @@ ${matchedSuppliers
   ${matchedSection}
 
   ${suppliersSection}
+
+  ${autoMatchSection}
 
   <hr style="border:none;border-top:1px solid #e2e8f0;margin:24px 0 16px;"/>
   <p style="color:#94a3b8;font-size:12px;">FoodXchange · foodz-x.com</p>
@@ -203,5 +232,183 @@ export async function sendBuyerConfirmation(
     });
   } catch (err) {
     console.error("sendBuyerConfirmation email send failed:", err);
+  }
+}
+
+export interface SupplierEmailPayload {
+  company_name: string;
+  country: string | null;
+  website: string | null;
+  contact_name: string;
+  contact_email: string;
+  contact_whatsapp: string | null;
+  categories: string[];
+  certifications: string[];
+  image_count: number;
+  detected_products: string[];
+  description: string | null;
+  supplier_id: string;
+}
+
+export async function sendSupplierNotification(
+  payload: SupplierEmailPayload
+): Promise<void> {
+  if (!process.env.RESEND_API_KEY) {
+    console.warn("RESEND_API_KEY not set — skipping supplier notification");
+    return;
+  }
+
+  const resend = new Resend(process.env.RESEND_API_KEY);
+  const to = process.env.NOTIFY_EMAIL_TO ?? "info@foodz-x.com";
+  const from = process.env.NOTIFY_EMAIL_FROM ?? "info@foodz-x.com";
+  const {
+    company_name, country, website, contact_name, contact_email,
+    contact_whatsapp, categories, certifications, image_count,
+    detected_products, description, supplier_id,
+  } = payload;
+
+  const html = `<div style="font-family:sans-serif;max-width:600px;margin:0 auto;">
+  <div style="background:#0f172a;padding:24px;border-radius:12px 12px 0 0;">
+    <h2 style="color:#ffffff;margin:0;font-size:20px;">New Manufacturer Submission</h2>
+    <p style="color:#94a3b8;margin:6px 0 0;font-size:13px;">via FoodXchange manufacturer widget</p>
+  </div>
+
+  <div style="border:1px solid #e2e8f0;border-top:none;border-radius:0 0 12px 12px;padding:24px;">
+    <table style="width:100%;font-size:14px;border-collapse:collapse;margin-bottom:20px;">
+      <tr>
+        <td style="color:#64748b;padding:5px 0;width:130px;">Company</td>
+        <td style="color:#1e293b;font-weight:600;">${company_name}</td>
+      </tr>
+      <tr>
+        <td style="color:#64748b;padding:5px 0;">Country</td>
+        <td style="color:#1e293b;">${country ?? "—"}</td>
+      </tr>
+      <tr>
+        <td style="color:#64748b;padding:5px 0;">Website</td>
+        <td>${website ? `<a href="${website}" style="color:#ea580c;">${website}</a>` : "—"}</td>
+      </tr>
+      <tr>
+        <td style="color:#64748b;padding:5px 0;">Contact</td>
+        <td style="color:#1e293b;">${contact_name} — <a href="mailto:${contact_email}" style="color:#ea580c;">${contact_email}</a></td>
+      </tr>
+      <tr>
+        <td style="color:#64748b;padding:5px 0;">WhatsApp</td>
+        <td style="color:#1e293b;">${contact_whatsapp ?? "—"}</td>
+      </tr>
+      <tr>
+        <td style="color:#64748b;padding:5px 0;">Images</td>
+        <td style="color:#1e293b;">${image_count}</td>
+      </tr>
+      <tr>
+        <td style="color:#64748b;padding:5px 0;">Categories</td>
+        <td style="color:#1e293b;">${categories.length > 0 ? categories.join(", ") : "—"}</td>
+      </tr>
+      <tr>
+        <td style="color:#64748b;padding:5px 0;">Certifications</td>
+        <td style="color:#1e293b;">${certifications.length > 0 ? certifications.join(", ") : "—"}</td>
+      </tr>
+      <tr>
+        <td style="color:#64748b;padding:5px 0;">AI detected</td>
+        <td style="color:#1e293b;">${detected_products.length > 0 ? detected_products.join(", ") : "—"}</td>
+      </tr>
+    </table>
+
+    ${description ? `<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:16px;margin-bottom:20px;">
+      <p style="color:#64748b;font-size:12px;margin:0 0 6px;text-transform:uppercase;letter-spacing:0.05em;">What they make</p>
+      <p style="color:#334155;font-size:14px;line-height:1.6;margin:0;">${description}</p>
+    </div>` : ""}
+
+    <a href="https://fdx.trading/admin/suppliers/${supplier_id}"
+      style="display:inline-block;background:#ea580c;color:#ffffff;font-weight:600;font-size:14px;padding:12px 24px;border-radius:8px;text-decoration:none;">
+      Review in admin →
+    </a>
+
+    <hr style="border:none;border-top:1px solid #e2e8f0;margin:24px 0 16px;"/>
+    <p style="color:#94a3b8;font-size:12px;margin:0;">FoodXchange · fdx.trading</p>
+  </div>
+</div>`;
+
+  try {
+    await resend.emails.send({
+      from,
+      to,
+      subject: `🏭 New manufacturer — ${company_name}${country ? ` (${country})` : ""}`,
+      html,
+    });
+  } catch (err) {
+    console.error("sendSupplierNotification email send failed:", err);
+  }
+}
+
+export interface SupplierConfirmationPayload {
+  contact_name: string;
+  contact_email: string;
+  company_name: string;
+  image_count: number;
+}
+
+export async function sendSupplierConfirmation(
+  payload: SupplierConfirmationPayload
+): Promise<void> {
+  if (!process.env.RESEND_API_KEY) {
+    console.warn("RESEND_API_KEY not set — skipping supplier confirmation");
+    return;
+  }
+
+  const resend = new Resend(process.env.RESEND_API_KEY);
+  const from = process.env.NOTIFY_EMAIL_FROM ?? "info@foodz-x.com";
+  const { contact_name, contact_email, company_name, image_count } = payload;
+
+  const html = `<div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:32px 24px;">
+
+  <div style="background:#ea580c;padding:4px 0;border-radius:4px;margin-bottom:28px;"></div>
+
+  <p style="color:#64748b;font-size:13px;margin:0 0 20px;">FoodXchange</p>
+
+  <h1 style="color:#1e293b;font-size:22px;font-weight:600;margin:0 0 16px;line-height:1.3;">
+    Thank you, ${contact_name}
+  </h1>
+
+  <p style="color:#475569;font-size:15px;line-height:1.7;margin:0 0 16px;">
+    We received your submission for <strong style="color:#1e293b;">${company_name}</strong>${image_count > 0 ? ` — including ${image_count} image${image_count > 1 ? "s" : ""}` : ""}.
+  </p>
+
+  <p style="color:#475569;font-size:15px;line-height:1.7;margin:0 0 24px;">
+    We review every manufacturer personally. If there is a fit with buyers we work with in Israel, we will be in touch within 5 business days.
+  </p>
+
+  <p style="color:#475569;font-size:14px;line-height:1.7;margin:0 0 24px;">
+    In the meantime, feel free to reach us directly on WhatsApp if you have any questions.
+  </p>
+
+  <a href="https://wa.me/972525222291"
+    style="display:inline-flex;align-items:center;gap:8px;background:#22c55e;color:#ffffff;font-weight:600;font-size:14px;padding:12px 24px;border-radius:10px;text-decoration:none;margin-bottom:32px;">
+    WhatsApp us
+  </a>
+
+  <div style="border-top:1px solid #e2e8f0;padding-top:20px;">
+    <p style="color:#475569;font-size:14px;margin:0 0 6px;">
+      Questions? Reply to this email or write to:
+    </p>
+    <a href="mailto:info@foodz-x.com" style="color:#ea580c;font-size:14px;">info@foodz-x.com</a>
+  </div>
+
+  <div style="margin-top:32px;padding-top:16px;border-top:1px solid #f1f5f9;">
+    <p style="color:#94a3b8;font-size:12px;margin:0;">
+      FoodXchange · Strategic sourcing · fdx.trading
+    </p>
+  </div>
+
+</div>`;
+
+  try {
+    await resend.emails.send({
+      from,
+      to: contact_email,
+      subject: "We received your submission — FoodXchange",
+      html,
+    });
+  } catch (err) {
+    console.error("sendSupplierConfirmation email send failed:", err);
   }
 }

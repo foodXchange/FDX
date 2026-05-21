@@ -2,6 +2,7 @@ import { z } from "zod";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { checkRateLimit } from "@/lib/rateLimit";
 import { sendLeadNotification, sendBuyerConfirmation } from "@/lib/email/mailer";
+import { matchSuppliers } from "@/lib/matching/matchSuppliers";
 
 const SubmitSchema = z.object({
   name: z.string().min(1).max(200),
@@ -95,26 +96,71 @@ export async function POST(req: Request) {
       ).catch(console.error);
     }
 
-    if (process.env.INTERNAL_API_KEY) {
-      fetch(`${process.env.NEXT_PUBLIC_BASE_URL ?? ""}/api/admin/match-request`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-internal-key": process.env.INTERNAL_API_KEY,
-        },
-        body: JSON.stringify({ requestId: newRequest.id }),
-      }).catch(console.error);
-    }
+    (async () => {
+      try {
+        const matchInput = {
+          product_name: data.product_name ?? null,
+          category: data.category ?? null,
+          certifications: data.certifications ?? [],
+          target_market: data.target_market ?? null,
+          private_label: data.private_label ?? null,
+          tags: [
+            ...(data.certifications ?? []),
+            data.product_name ?? "",
+            data.category ?? "",
+          ].filter(Boolean),
+          formats: [],
+          ai_analysis: (data.ai_analysis as Record<string, unknown>) ?? null,
+          description: data.description ?? null,
+        };
 
-    sendLeadNotification({
-      name: data.name,
-      email: data.email,
-      company: data.company ?? "",
-      message: data.description ?? intentSummary,
-      intentSummary,
-      matchedItems: [],
-      submittedAt: new Date().toISOString(),
-    }).catch(console.error);
+        const matches = await matchSuppliers(matchInput, 5);
+
+        if (matches.length > 0) {
+          await Promise.resolve(
+            supabaseAdmin
+              .from("sourcing_matches")
+              .upsert(
+                matches.slice(0, 3).map((m) => ({
+                  request_id: newRequest.id,
+                  supplier_id: m.supplier_id,
+                  match_score: m.score,
+                  match_breakdown: m.score_breakdown,
+                  status: "suggested",
+                })),
+                { onConflict: "request_id,supplier_id" }
+              )
+          );
+        }
+
+        await sendLeadNotification({
+          name: data.name,
+          email: data.email,
+          company: data.company ?? "",
+          message: data.description ?? intentSummary,
+          intentSummary,
+          matchedItems: [],
+          submittedAt: new Date().toISOString(),
+          supplierMatches: matches.slice(0, 3).map((m) => ({
+            company_name: m.company_name,
+            country: m.country_of_origin,
+            score: m.score,
+            reasons: m.match_reasons,
+          })),
+        });
+      } catch (err) {
+        console.error("Auto-match error:", err);
+        sendLeadNotification({
+          name: data.name,
+          email: data.email,
+          company: data.company ?? "",
+          message: data.description ?? intentSummary,
+          intentSummary,
+          matchedItems: [],
+          submittedAt: new Date().toISOString(),
+        }).catch(console.error);
+      }
+    })();
 
     sendBuyerConfirmation({
       name: data.name,

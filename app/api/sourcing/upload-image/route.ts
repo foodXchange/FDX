@@ -1,6 +1,10 @@
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
 export async function POST(req: Request) {
+  const urlObj = new URL(req.url);
+  const bucketParam = urlObj.searchParams.get("bucket");
+  const bucket = bucketParam === "suppliers" ? "suppliers" : "requests";
+
   const formData = await req.formData();
   const file = formData.get("file") as File | null;
 
@@ -23,9 +27,10 @@ export async function POST(req: Request) {
     );
   }
 
-  if (file.size > 10 * 1024 * 1024) {
+  const maxSize = bucket === "suppliers" ? 20 * 1024 * 1024 : 10 * 1024 * 1024;
+  if (file.size > maxSize) {
     return Response.json(
-      { error: "File too large — maximum 10MB." },
+      { error: `File too large — maximum ${bucket === "suppliers" ? "20" : "10"}MB.` },
       { status: 400 }
     );
   }
@@ -36,7 +41,7 @@ export async function POST(req: Request) {
   const bytes = await file.arrayBuffer();
 
   const { error: uploadError } = await supabaseAdmin.storage
-    .from("requests")
+    .from(bucket)
     .upload(filename, Buffer.from(bytes), {
       contentType: file.type,
       upsert: false,
@@ -50,7 +55,7 @@ export async function POST(req: Request) {
     );
   }
 
-  const { data } = supabaseAdmin.storage.from("requests").getPublicUrl(filename);
+  const { data } = supabaseAdmin.storage.from(bucket).getPublicUrl(filename);
 
   return Response.json({ ok: true, url: data.publicUrl, filename });
 }

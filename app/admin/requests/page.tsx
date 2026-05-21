@@ -1,5 +1,6 @@
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import RequestsTable from "@/components/admin/RequestsTable";
+import ScriptGenerator from "@/components/admin/ScriptGenerator";
 
 export type RequestRow = {
   id: string;
@@ -77,7 +78,7 @@ export default async function AdminRequestsPage() {
     <main className="min-h-screen bg-gray-50">
       <div className="border-b border-gray-200 bg-white px-6 py-3 flex items-center gap-4 sticky top-0 z-10 shadow-sm">
         <span className="text-sm font-semibold text-gray-800">Sourcing Requests</span>
-        <span className="text-xs text-gray-400">
+        <span className="text-xs text-gray-400 flex-1">
           {requests.length} total
           {newCount > 0 && (
             <span className="ml-2 bg-blue-100 text-blue-700 rounded-full px-2 py-0.5 font-semibold">
@@ -90,6 +91,7 @@ export default async function AdminRequestsPage() {
             </span>
           )}
         </span>
+        <ScriptGenerator />
       </div>
 
       <div className="p-6 max-w-7xl mx-auto">

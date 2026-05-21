@@ -6,6 +6,7 @@ interface SourcingWidgetProps {
   source?: string;
   onSuccess?: () => void;
   compact?: boolean;
+  initialDescription?: string;
 }
 
 interface UploadedImage {
@@ -49,10 +50,11 @@ export default function SourcingWidget({
   source,
   onSuccess,
   compact = false,
+  initialDescription,
 }: SourcingWidgetProps) {
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [images, setImages] = useState<UploadedImage[]>([]);
-  const [description, setDescription] = useState("");
+  const [description, setDescription] = useState(initialDescription ?? "");
   const [analysing, setAnalysing] = useState(false);
   const [analysis, setAnalysis] = useState<Analysis | null>(null);
   const [chips, setChips] = useState({

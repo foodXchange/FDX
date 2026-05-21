@@ -4,6 +4,8 @@ import { useState, useTransition } from "react";
 import type { RequestRow } from "@/app/admin/requests/page";
 import { updateRequestStatus } from "@/app/admin/requests/actions";
 import type { SupplierMatch } from "@/lib/matching/matchSuppliers";
+import PostGenerator from "@/components/admin/PostGenerator";
+import ScriptGenerator from "@/components/admin/ScriptGenerator";
 
 interface Props {
   request: RequestRow | null;
@@ -92,7 +94,7 @@ export default function RequestSlideOver({
   return (
     <>
       <div className="fixed inset-0 bg-black/40 z-40" onClick={onClose} />
-      <div className="fixed right-0 top-0 h-full w-[480px] max-w-full bg-white shadow-2xl z-50 flex flex-col">
+      <div className="fixed right-0 top-0 h-full w-120 max-w-full bg-white shadow-2xl z-50 flex flex-col">
 
         {/* Header */}
         <div className="flex items-center justify-between p-5 border-b border-slate-100 shrink-0">
@@ -139,6 +141,21 @@ export default function RequestSlideOver({
                 </button>
               ))}
             </div>
+          </section>
+
+          {/* Generate post */}
+          <section>
+            <PostGenerator
+              requestId={request.id}
+              productName={request.product_name}
+            />
+          </section>
+
+          {/* Generate video script */}
+          <section>
+            <ScriptGenerator
+              defaultTopic={`Sourcing ${request.product_name ?? "product"} for Israeli ${request.target_market ?? "retail"}${(request.certifications ?? []).some((c) => c.toLowerCase().includes("kosher")) ? " — kosher certified" : " — kosher options available"}`}
+            />
           </section>
 
           {/* Section 1 — Contact */}

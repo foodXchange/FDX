@@ -18,6 +18,7 @@ export default function Header() {
     { href: '/en/buyers', label: 'Buyers' },
     { href: '/en/manufacturers', label: 'Manufacturers' },
     { href: '/en/portfolio', label: 'Portfolio' },
+    { href: '/en/products', label: 'Products' },
     { href: '/en/sourcing', label: 'Sourcing' },
     { href: '/en/import-guide', label: 'Import Guide' },
   ];

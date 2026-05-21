@@ -4,6 +4,7 @@ import type { Metadata } from "next";
 import Reveal from "@/components/Reveal";
 import FAQAccordion from "@/components/FAQAccordion";
 import SourcingWidget from "@/components/SourcingWidget";
+import { supabase } from "@/lib/supabase";
 
 export const metadata: Metadata = {
   title: "Enter the Israeli Food Market | FoodXchange",
@@ -44,7 +45,13 @@ const manufacturerFaqs = [
   },
 ];
 
-export default function ManufacturersPage() {
+export default async function ManufacturersPage() {
+  const { count: activeRequestCount } = await supabase
+    .from("sourcing_requests")
+    .select("*", { count: "exact", head: true })
+    .in("status", ["new", "reviewed"])
+    .not("product_name", "is", null);
+
   return (
     <>
       <a
@@ -113,6 +120,29 @@ export default function ManufacturersPage() {
         </section>
 
         {/* TODO: add MatchingWidget to home page sourcing section */}
+
+        {/* ── LIVE DEMAND TEASER ── */}
+        <section className="max-w-4xl mx-auto px-6 py-8">
+          <div className="bg-orange-50 border border-orange-100 rounded-2xl p-6 flex items-center justify-between gap-6 flex-wrap">
+            <div>
+              <p className="text-orange-600 text-xs font-semibold uppercase tracking-wider mb-1">
+                Live demand
+              </p>
+              <p className="text-slate-900 font-semibold text-lg">
+                {activeRequestCount ?? 0} active sourcing requests from Israeli buyers
+              </p>
+              <p className="text-slate-500 text-sm mt-1">
+                Olive oil · Tomato products · Snacks · and more
+              </p>
+            </div>
+            <a
+              href="/en/sourcing-board"
+              className="bg-orange-500 hover:bg-orange-600 text-white font-semibold px-6 py-3 rounded-xl text-sm whitespace-nowrap transition shrink-0"
+            >
+              View all →
+            </a>
+          </div>
+        </section>
 
         {/* ── PROOF STATEMENT BOX ── */}
         <section className="px-6 py-10 bg-orange-50 border-y border-orange-200">

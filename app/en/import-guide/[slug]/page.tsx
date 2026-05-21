@@ -114,6 +114,26 @@ export default async function ImportGuideArticlePage({ params }: { params: Param
     relatedScenarios = (data ?? []) as RelatedScenario[];
   }
 
+  // Matching catalogue products for sidebar
+  type CatalogueProductMini = {
+    id: string;
+    product_name: string;
+    brand_name: string | null;
+    catalogue_image_url: string | null;
+    format: string | null;
+    category: string;
+  };
+  let matchingProducts: CatalogueProductMini[] = [];
+  if (article.category) {
+    const { data: catalogueData } = await supabase
+      .from("catalogue_products")
+      .select("id,product_name,brand_name,catalogue_image_url,format,category")
+      .eq("status", "ready")
+      .contains("tags", [article.category])
+      .limit(3);
+    matchingProducts = (catalogueData ?? []) as CatalogueProductMini[];
+  }
+
   // Prev / next in same category
   const [{ data: prevData }, { data: nextData }] = await Promise.all([
     supabase
@@ -350,6 +370,51 @@ export default async function ImportGuideArticlePage({ params }: { params: Param
               </div>
             </div>
           )}
+          {/* Products we source */}
+          {matchingProducts.length > 0 && (
+            <div className="bg-white border border-slate-200 rounded-xl p-5">
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-4">
+                Products we source
+              </p>
+              <div className="space-y-3">
+                {matchingProducts.map((p) => (
+                  <Link
+                    key={p.id}
+                    href={`/en/products/${p.id}`}
+                    className="flex items-center gap-3 group"
+                  >
+                    {p.catalogue_image_url ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={p.catalogue_image_url}
+                        alt={p.product_name}
+                        className="w-12 h-12 rounded-lg object-contain border border-slate-100 bg-white p-1 shrink-0"
+                      />
+                    ) : (
+                      <div className="w-12 h-12 rounded-lg bg-slate-50 flex items-center justify-center text-xl shrink-0">
+                        📦
+                      </div>
+                    )}
+                    <div>
+                      <p className="text-sm font-medium text-slate-900 group-hover:text-orange-600 transition leading-snug">
+                        {p.brand_name ? `${p.brand_name} — ` : ""}
+                        {p.product_name}
+                      </p>
+                      <p className="text-xs text-slate-400">
+                        {p.format ?? p.category}
+                      </p>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+              <Link
+                href="/en/products"
+                className="text-xs text-orange-600 hover:underline mt-4 block"
+              >
+                Browse all products →
+              </Link>
+            </div>
+          )}
         </aside>
       </div>
 
@@ -369,6 +434,28 @@ export default async function ImportGuideArticlePage({ params }: { params: Param
           Start a sourcing conversation →
         </Link>
       </section>
+
+      {/* MANUFACTURER CTA */}
+      <div className="max-w-4xl mx-auto px-6 pb-16 pt-12">
+        <div className="bg-slate-900 rounded-2xl p-8 text-center">
+          <p className="text-orange-400 text-xs font-semibold uppercase tracking-wider mb-2">
+            FOR MANUFACTURERS
+          </p>
+          <h3 className="text-xl font-bold text-white mb-3">
+            You make this product?
+          </h3>
+          <p className="text-slate-400 text-sm leading-relaxed mb-6 max-w-xl mx-auto">
+            Tell us about your range. If there is a fit with buyers we work with in Israel,
+            we will be in touch.
+          </p>
+          <Link
+            href={`/en/manufacturers?ref=import-guide-${article.slug}`}
+            className="inline-flex items-center gap-2 bg-orange-500 hover:bg-orange-600 text-white font-semibold px-6 py-3 rounded-xl text-sm transition"
+          >
+            Show us what you make →
+          </Link>
+        </div>
+      </div>
     </main>
   );
 }
