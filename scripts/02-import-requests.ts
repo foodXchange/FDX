@@ -38,15 +38,15 @@ const supabaseAdmin = createClient(
 // Step 1: run with DRY_RUN=true to print available columns.
 // Step 2: fill in the values below with the actual CSV header names.
 const COLUMN_MAP = {
-  name: "Contact",            // ← replace with actual CSV header
-  email: "Email",
-  company: "Company",
-  product_name: "Product",
-  category: "Category",
-  target_market: "Market",
-  message: "Notes",
-  certifications: "Certs",    // comma-separated → string[]
-  private_label: "PL",        // "yes"/"true"/"1" → true
+  name: "Buyer Name",
+  email: "",                           // no direct email column — will be null
+  company: "Company Name",
+  product_name: "Buyer Request Title", // first col, BOM-stripped via bom:true
+  category: "Product.s Category",
+  target_market: "",                   // no target_market column
+  message: "Detailed Description",
+  certifications: "Kosher Type",       // certification types
+  private_label: "Branding Requirements",
 } as const;
 
 const DRY_RUN = process.env.DRY_RUN === "true";
@@ -82,6 +82,7 @@ async function main() {
     columns: true,
     skip_empty_lines: true,
     trim: true,
+    bom: true,
   }) as Record<string, string>[];
 
   if (rows.length === 0) {

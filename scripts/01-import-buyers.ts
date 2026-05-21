@@ -56,18 +56,16 @@ const supabaseAdmin = createClient(
 // Step 1: run with DRY_RUN=true to print available columns.
 // Step 2: fill in the values below with the actual CSV header names.
 const COLUMN_MAP = {
-  company_name: "Company",    // ← replace with actual CSV header
-  contact_name: "Contact",
+  company_name: "Company",
+  contact_name: "Buyer Name",
   email: "Email",
-  phone: "Phone",
-  country: "Country",
-  city: "City",
-  website: "Website",
-  notes: "Notes",
+  phone: "Buyer – WhatsApp / Phone",
+  website: "Company website",
+  notes: "Additional Notes",
 } as const;
 
 const DRY_RUN = process.env.DRY_RUN === "true";
-const FILE = resolve(process.cwd(), "data/Buyer_Requests_21_5_2026.csv");
+const FILE = resolve(process.cwd(), "data/Buyers_21_5_2026.csv");
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function get(row: Record<string, string>, col: string): string | null {
@@ -89,6 +87,7 @@ async function main() {
     columns: true,
     skip_empty_lines: true,
     trim: true,
+    bom: true,
   }) as Record<string, string>[];
 
   if (rows.length === 0) {
@@ -109,6 +108,27 @@ async function main() {
     console.log("\n──────────────────────────────────────────────────────────");
     console.log("No changes made. Update COLUMN_MAP and remove DRY_RUN=true to import.");
     return;
+  }
+
+  // Check table exists
+  const { error: tableCheck } = await supabaseAdmin
+    .from("buyer_companies")
+    .select("id")
+    .limit(1);
+  if (tableCheck?.code === "42P01" || tableCheck?.message?.includes("does not exist") || tableCheck?.message?.includes("schema cache")) {
+    console.error("\n✗ Table 'buyer_companies' not found.");
+    console.error("  Run this SQL in Supabase SQL editor first:\n");
+    console.error(`  CREATE TABLE IF NOT EXISTS public.buyer_companies (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    company_name text NOT NULL,
+    contact_name text, email text, phone text,
+    country text, city text, website text, notes text,
+    tags text[] DEFAULT '{}', status text DEFAULT 'active',
+    source text DEFAULT 'imported',
+    created_at timestamptz DEFAULT now(),
+    updated_at timestamptz DEFAULT now()
+  );`);
+    process.exit(1);
   }
 
   // Load existing records for dedup
@@ -155,8 +175,8 @@ async function main() {
       contact_name: get(row, COLUMN_MAP.contact_name),
       email,
       phone: get(row, COLUMN_MAP.phone),
-      country: get(row, COLUMN_MAP.country),
-      city: get(row, COLUMN_MAP.city),
+      country: null,
+      city: null,
       website: get(row, COLUMN_MAP.website),
       notes: get(row, COLUMN_MAP.notes),
       source: "imported",

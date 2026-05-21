@@ -74,32 +74,31 @@ type ColumnMap = {
 
 const MAPS: Record<string, ColumnMap> = {
   "Suppliers_21_5_2026.csv": {
-    company_name: "Company",           // ← replace with actual CSV header
+    company_name: "Company Name",
     country_of_origin: "Country",
-    categories: "Categories",
+    website: "Company website",
+    contact_phone: "Main Contact – WhatsApp / Phone",
+    product_description: "Company & Products Description",
+    categories: "Other Relevant Categories",
     certifications: "Certifications",
-    website: "Website",
-    product_type: "Type",
-    status: "Status",
-    priority: "Priority",
-    contact_email: "Email",
-    sourcing_notes: "Notes",
+    formats: "Packaging Formats",
+    tags: "Tags — Product",
+    primary_ingredients: "Ingredients — Specifics",
+    private_label: "Private Label Capability",
+    sourcing_notes: "Additional details/ Notes",
+    headquarters: "Address (Factory/HQ)",
   },
   "Tuna_Manufacturer_Directory.csv": {
-    company_name: "Name",              // ← replace with actual CSV header
+    company_name: "Company Name",
     country_of_origin: "Country",
-    categories: "Products",
-    certifications: "Certifications",
     website: "Website",
-    contact_email: "Email",
+    contact_email: "Direct Email",
+    sourcing_notes: "Notes",
   },
   "Beetroot_Factory_Recommendations.csv": {
-    company_name: "Company",           // ← replace with actual CSV header
+    company_name: "Name of Factory",
     country_of_origin: "Country",
-    categories: "Products",
-    certifications: "Certifications",
-    website: "Website",
-    contact_email: "Email",
+    contact_email: "Recommended Contact Email",
   },
 };
 
@@ -164,6 +163,7 @@ async function processFile(filename: string): Promise<{ inserted: number; skippe
     columns: true,
     skip_empty_lines: true,
     trim: true,
+    bom: true,
   }) as Record<string, string>[];
 
   if (rows.length === 0) {
@@ -200,6 +200,16 @@ async function processFile(filename: string): Promise<{ inserted: number; skippe
       supabaseAdmin.from("supplier_offerings").delete().eq("company_name", company_name)
     ).catch(console.error);
 
+    // Hardcode categories/tags for directory files that lack those columns
+    const hardcodedCategories: Record<string, string[]> = {
+      "Tuna_Manufacturer_Directory.csv": ["Tuna", "Canned Fish", "Seafood"],
+      "Beetroot_Factory_Recommendations.csv": ["Beetroot", "Vegetables"],
+    };
+    const hardcodedTags: Record<string, string[]> = {
+      "Tuna_Manufacturer_Directory.csv": ["tuna", "canned fish"],
+      "Beetroot_Factory_Recommendations.csv": ["beetroot"],
+    };
+
     const record = {
       company_name,
       country_of_origin: get(row, map.country_of_origin),
@@ -214,11 +224,15 @@ async function processFile(filename: string): Promise<{ inserted: number; skippe
       product_type: toProductType(get(row, map.product_type)),
       product_description: get(row, map.product_description),
       annual_capacity: get(row, map.annual_capacity),
-      categories: toArray(get(row, map.categories)),
+      categories: toArray(get(row, map.categories)).length > 0
+        ? toArray(get(row, map.categories))
+        : (hardcodedCategories[filename] ?? []),
       certifications: toArray(get(row, map.certifications)),
       formats: toArray(get(row, map.formats)),
       markets_served: toArray(get(row, map.markets_served)),
-      tags: toArray(get(row, map.tags)),
+      tags: toArray(get(row, map.tags)).length > 0
+        ? toArray(get(row, map.tags))
+        : (hardcodedTags[filename] ?? []),
       primary_ingredients: toArray(get(row, map.primary_ingredients)),
       private_label: toBool(get(row, map.private_label)),
       own_brand: toBool(get(row, map.own_brand)),

@@ -43,14 +43,17 @@ const supabaseAdmin = createClient(
 // Step 1: run with DRY_RUN=true to print available columns.
 // Step 2: fill in the values below with the actual CSV header names.
 const COLUMN_MAP = {
-  company_name: "Company",   // ← used to look up supplier_id — replace with actual header
-  name: "Name",
-  role: "Role",
-  email: "Email",
-  phone: "Phone",
-  is_primary: "Primary",     // "yes"/"true"/"1" → true
-  notes: "Notes",
+  company_name: "Suppliers",        // links to supplier — used as lookup key
+  name: "Full Name",                // first col, BOM-stripped via bom:true
+  role: "Job Title / Dept.",
+  email: "Email Address",
+  phone: "WhatsApp / Phone",
+  is_primary: "",                   // no primary flag — default false
+  notes: "Open Comments",
 } as const;
+
+// Only import rows that are linked to a supplier (skip buyer-only contacts)
+const SUPPLIER_FILTER_COL = "Supplier?";
 
 const DRY_RUN = process.env.DRY_RUN === "true";
 const FILE = resolve(process.cwd(), "data/Contacts_21_5_2026.csv");
@@ -80,6 +83,7 @@ async function main() {
     columns: true,
     skip_empty_lines: true,
     trim: true,
+    bom: true,
   }) as Record<string, string>[];
 
   if (rows.length === 0) {
@@ -126,24 +130,36 @@ async function main() {
   const unresolved = new Set<string>();
 
   for (const row of rows) {
-    const company_name = get(row, COLUMN_MAP.company_name);
-    if (!company_name) {
-      console.warn("  ⚠ Skipping row — missing company_name");
+    // Filter: skip contacts not linked to any supplier
+    const supplierFilterVal = row[SUPPLIER_FILTER_COL]?.trim().toLowerCase();
+    if (
+      supplierFilterVal !== undefined &&
+      supplierFilterVal !== "" &&
+      !["yes", "true", "1"].includes(supplierFilterVal)
+    ) {
       continue;
     }
 
-    const supplierId = supplierMap.get(company_name.toLowerCase());
-    if (!supplierId) {
-      if (!unresolved.has(company_name)) {
-        console.warn(`  ⚠ No supplier found for: "${company_name}"`);
-        unresolved.add(company_name);
+    const rawCompany = get(row, COLUMN_MAP.company_name);
+    if (!rawCompany) continue;
+
+    // "Suppliers" column may contain multiple names separated by comma
+    const companyNames = rawCompany.split(",").map((s) => s.trim()).filter(Boolean);
+
+    for (const company_name of companyNames) {
+      const supplierId = supplierMap.get(company_name.toLowerCase());
+      if (!supplierId) {
+        if (!unresolved.has(company_name)) {
+          console.warn(`  ⚠ No supplier found for: "${company_name}"`);
+          unresolved.add(company_name);
+        }
+        continue;
       }
-      continue;
-    }
 
-    const existing = grouped.get(supplierId) ?? [];
-    existing.push(row);
-    grouped.set(supplierId, existing);
+      const existing = grouped.get(supplierId) ?? [];
+      existing.push(row);
+      grouped.set(supplierId, existing);
+    }
   }
 
   let inserted = 0;
@@ -164,7 +180,7 @@ async function main() {
       .map((row) => ({
         supplier_id: supplierId,
         name: get(row, COLUMN_MAP.name),
-        role: get(row, COLUMN_MAP.role),
+        title: get(row, COLUMN_MAP.role),   // table uses "title", not "role"
         email: get(row, COLUMN_MAP.email),
         phone: get(row, COLUMN_MAP.phone),
         is_primary: toBool(get(row, COLUMN_MAP.is_primary)),

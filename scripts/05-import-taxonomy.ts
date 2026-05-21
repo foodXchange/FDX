@@ -1,5 +1,6 @@
 /**
- * Import product taxonomy from XLSX and CSV into product_categories table.
+ * Import product taxonomy from Products_21_5_2026.xlsx into product_categories table.
+ * Extracts unique Tier 1 (major) and Tier 2 (sub) category values.
  *
  * Run with: npx tsx scripts/05-import-taxonomy.ts
  * Dry-run:  DRY_RUN=true npx tsx scripts/05-import-taxonomy.ts
@@ -15,13 +16,12 @@
  *     created_at timestamptz DEFAULT now()
  *   );
  *
- * Idempotent: upserts on slug — updates existing records if slug matches.
+ * Idempotent: upserts on slug.
  */
 
 import { readFileSync, existsSync } from "fs";
 import { resolve } from "path";
 import { createClient } from "@supabase/supabase-js";
-import { parse } from "csv-parse/sync";
 import * as XLSX from "xlsx";
 
 // ─── Load .env.local ─────────────────────────────────────────────────────────
@@ -50,37 +50,15 @@ const supabaseAdmin = createClient(
 );
 
 // ─── CONFIG ───────────────────────────────────────────────────────────────────
-// Step 1: run with DRY_RUN=true to print available columns for each file.
-// Step 2: fill in the values below with the actual column header names.
-
-const XLSX_MAP = {
-  name: "Name",               // ← replace with actual XLSX header
-  parent_name: "Parent",
-  description: "Description",
-  tags: "Tags",               // comma-separated → string[]
-} as const;
-
-const CSV_MAP = {
-  name: "Category",           // ← replace with actual CSV header
-  parent_name: "Parent Category",
-  description: "Description",
-  tags: "Tags",               // comma-separated → string[]
-} as const;
+const TIER1_COL = "Tier 1: Major Category";
+const TIER2_COL = "Tier 2: Sub-Category";
+const TIER3_COL = "Tier 3: Specific Product Description";
+const TAGS_COL  = "Search Keywords – Ingredients & Inputs";
 
 const DRY_RUN = process.env.DRY_RUN === "true";
 const XLSX_FILE = resolve(process.cwd(), "data/Products_21_5_2026.xlsx");
-const CSV_FILE = resolve(process.cwd(), "data/Untitled_spreadsheet.csv");
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-function get(row: Record<string, string>, col: string): string | null {
-  return row[col]?.toString().trim() || null;
-}
-
-function toArray(val: string | null): string[] {
-  if (!val) return [];
-  return val.split(",").map((s) => s.trim()).filter(Boolean);
-}
-
 function slugify(name: string): string {
   return name
     .toLowerCase()
@@ -88,17 +66,6 @@ function slugify(name: string): string {
     .replace(/^-|-$/g, "");
 }
 
-// ─── Parse XLSX ───────────────────────────────────────────────────────────────
-function parseXlsx(filePath: string): Record<string, string>[] {
-  const wb = XLSX.readFile(filePath);
-  const sheet = wb.Sheets[wb.SheetNames[0]];
-  return XLSX.utils.sheet_to_json<Record<string, string>>(sheet, {
-    defval: "",
-    raw: false,
-  });
-}
-
-// ─── Process rows ─────────────────────────────────────────────────────────────
 type CategoryRecord = {
   name: string;
   slug: string;
@@ -107,101 +74,94 @@ type CategoryRecord = {
   tags: string[];
 };
 
-function mapRows(
-  rows: Record<string, string>[],
-  map: typeof XLSX_MAP | typeof CSV_MAP,
-  source: string
-): { records: CategoryRecord[]; skipped: number } {
-  const records: CategoryRecord[] = [];
-  let skipped = 0;
+// ─── Main ─────────────────────────────────────────────────────────────────────
+async function main() {
+  if (!existsSync(XLSX_FILE)) {
+    console.error(`✗ File not found: ${XLSX_FILE}`);
+    process.exit(1);
+  }
 
-  for (const row of rows) {
-    const name = get(row, map.name);
-    if (!name) { skipped++; continue; }
+  console.log("Reading XLSX (this may take a moment)…");
+  const wb = XLSX.readFile(XLSX_FILE);
+  const sheet = wb.Sheets[wb.SheetNames[0]];
+  const rows = XLSX.utils.sheet_to_json<Record<string, string>>(sheet, {
+    defval: "",
+    raw: false,
+  });
 
-    const slug = slugify(name);
-    if (!slug) { skipped++; continue; }
-
-    records.push({
-      name,
-      slug,
-      parent_name: get(row, map.parent_name),
-      description: get(row, map.description),
-      tags: toArray(get(row, map.tags)),
-    });
+  if (rows.length === 0) {
+    console.log("No rows found in XLSX.");
+    return;
   }
 
   if (DRY_RUN) {
-    console.log(`\n── ${source} ──────────────────────────────────────────────`);
-    if (rows.length > 0) {
-      console.log("Columns found:", Object.keys(rows[0]).join(", "));
-      console.log("\nFirst 3 mapped rows:");
-      rows.slice(0, 3).forEach((row, i) => {
-        console.log(`\n  Row ${i + 1}:`);
-        for (const [dbKey, csvCol] of Object.entries(map)) {
-          console.log(`    ${dbKey}: "${row[csvCol] ?? "—"}"`);
-        }
-      });
+    console.log("\n── DRY RUN: XLSX column discovery ───────────────────────");
+    console.log("Total rows:", rows.length);
+    console.log("\nAll columns:");
+    Object.keys(rows[0]).forEach((c) => console.log(`  "${c}"`));
+    console.log("\nSample Tier values (first 5 rows):");
+    rows.slice(0, 5).forEach((row, i) => {
+      console.log(`  Row ${i + 1}: Tier1="${row[TIER1_COL]}" | Tier2="${row[TIER2_COL]}"`);
+    });
+    console.log("\n──────────────────────────────────────────────────────────");
+    console.log("No changes made. Remove DRY_RUN=true to import.");
+    return;
+  }
+
+  // Collect unique Tier 1 categories
+  // key = tier1 name, value = first seen description + tags
+  const tier1: Map<string, { description: string; tags: string[] }> = new Map();
+
+  // Collect unique Tier 2 sub-categories
+  // key = tier2 name, value = { parent (tier1), description, tags }
+  const tier2: Map<string, { parent: string; description: string; tags: string[] }> = new Map();
+
+  for (const row of rows) {
+    const t1 = row[TIER1_COL]?.toString().trim();
+    const t2 = row[TIER2_COL]?.toString().trim();
+    const desc = row[TIER3_COL]?.toString().trim() || "";
+    const tags = (row[TAGS_COL]?.toString() ?? "")
+      .split(",")
+      .map((t) => t.trim())
+      .filter(Boolean)
+      .slice(0, 8);
+
+    if (t1 && !tier1.has(t1)) {
+      tier1.set(t1, { description: desc, tags });
+    }
+    if (t2 && t1 && !tier2.has(t2)) {
+      tier2.set(t2, { parent: t1, description: desc, tags });
     }
   }
 
-  return { records, skipped };
-}
+  console.log(`Extracted ${tier1.size} Tier 1 categories, ${tier2.size} Tier 2 sub-categories.`);
 
-// ─── Main ─────────────────────────────────────────────────────────────────────
-async function main() {
-  const allRecords: CategoryRecord[] = [];
-  let totalSkipped = 0;
+  // Build records list: Tier 1 first, then Tier 2
+  const records: CategoryRecord[] = [];
 
-  // ── XLSX source ──────────────────────────────────────────────────────────
-  if (existsSync(XLSX_FILE)) {
-    const xlsxRows = parseXlsx(XLSX_FILE);
-    const { records, skipped } = mapRows(xlsxRows, XLSX_MAP, "Products_21_5_2026.xlsx");
-    allRecords.push(...records);
-    totalSkipped += skipped;
-  } else {
-    console.warn(`⚠ XLSX file not found, skipping: ${XLSX_FILE}`);
+  for (const [name, { description, tags }] of tier1) {
+    const slug = slugify(name);
+    if (!slug) continue;
+    records.push({ name, slug, parent_name: null, description: description || null, tags });
   }
 
-  // ── CSV source ───────────────────────────────────────────────────────────
-  if (existsSync(CSV_FILE)) {
-    const content = readFileSync(CSV_FILE, "utf-8");
-    const csvRows = parse(content, {
-      columns: true,
-      skip_empty_lines: true,
-      trim: true,
-    }) as Record<string, string>[];
-    const { records, skipped } = mapRows(csvRows, CSV_MAP, "Untitled_spreadsheet.csv");
-    allRecords.push(...records);
-    totalSkipped += skipped;
-  } else {
-    console.warn(`⚠ CSV file not found, skipping: ${CSV_FILE}`);
+  for (const [name, { parent, description, tags }] of tier2) {
+    const slug = slugify(name);
+    if (!slug) continue;
+    records.push({ name, slug, parent_name: parent, description: description || null, tags });
   }
 
-  if (DRY_RUN) {
-    console.log("\n──────────────────────────────────────────────────────────");
-    console.log(`Total rows to import: ${allRecords.length}  ·  Skipped: ${totalSkipped}`);
-    console.log("No changes made. Update XLSX_MAP/CSV_MAP and remove DRY_RUN=true to import.");
+  if (records.length === 0) {
+    console.log("No categories to import.");
     return;
   }
 
-  if (allRecords.length === 0) {
-    console.log("No records to import.");
-    return;
-  }
-
-  // Deduplicate by slug (last occurrence wins if same slug appears in both files)
-  const deduped = new Map<string, CategoryRecord>();
-  for (const rec of allRecords) {
-    deduped.set(rec.slug, rec);
-  }
-  const records = Array.from(deduped.values());
+  console.log(`Upserting ${records.length} categories…`);
 
   let inserted = 0;
-  let skipped = 0;
+  let failed = 0;
+  const BATCH = 100;
 
-  // Upsert in batches of 50
-  const BATCH = 50;
   for (let i = 0; i < records.length; i += BATCH) {
     const batch = records.slice(i, i + BATCH);
     const { error } = await supabaseAdmin
@@ -209,14 +169,15 @@ async function main() {
       .upsert(batch, { onConflict: "slug" });
 
     if (error) {
-      console.error(`  ✗ Batch ${Math.floor(i / BATCH) + 1} failed: ${error.message}`);
-      skipped += batch.length;
+      console.error(`  ✗ Batch ${Math.floor(i / BATCH) + 1}: ${error.message}`);
+      failed += batch.length;
     } else {
       inserted += batch.length;
     }
   }
 
-  console.log(`\n✓ ${inserted} upserted  ·  ✗ ${skipped} skipped  (${allRecords.length} total rows, ${deduped.size} unique slugs)`);
+  console.log(`\n✓ ${inserted} upserted  ·  ✗ ${failed} failed`);
+  console.log(`  ${tier1.size} top-level  ·  ${tier2.size} sub-categories`);
 }
 
 main().catch((err) => {
