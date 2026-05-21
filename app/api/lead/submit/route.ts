@@ -1,3 +1,4 @@
+import * as Sentry from "@sentry/nextjs";
 import { z } from "zod";
 import { checkRateLimit } from "@/lib/rateLimit";
 import { runMatch } from "@/lib/matching/runMatch";
@@ -82,6 +83,7 @@ export async function POST(req: Request) {
       limit: 3,
     });
   } catch (err) {
+    Sentry.captureException(err);
     console.error("runMatch failed in lead/submit:", err);
     return Response.json({ error: "Matching failed" }, { status: 500 });
   }
@@ -102,6 +104,7 @@ export async function POST(req: Request) {
         matched_slugs: matchOutput.results.map((r) => r.slug),
       });
     } catch (err) {
+      Sentry.captureException(err);
       console.error("sourcing_requests insert failed:", err);
     }
   })();
@@ -119,6 +122,7 @@ export async function POST(req: Request) {
         submittedAt: new Date().toISOString(),
       });
     } catch (err) {
+      Sentry.captureException(err);
       console.error("sendLeadNotification failed:", err);
     }
   })();
@@ -129,7 +133,10 @@ export async function POST(req: Request) {
     email,
     intentSummary,
     matchedItems: matchOutput.results.map((r) => ({ title: r.title, slug: r.slug })),
-  }).catch((err) => console.error("sendBuyerConfirmation failed:", err));
+  }).catch((err) => {
+    Sentry.captureException(err);
+    console.error("sendBuyerConfirmation failed:", err);
+  });
 
   return Response.json({
     ok: true,

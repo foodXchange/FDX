@@ -1,3 +1,4 @@
+import * as Sentry from "@sentry/nextjs";
 import { z } from "zod";
 import { supabase } from "@/lib/supabase";
 
@@ -27,6 +28,7 @@ export async function POST(req: Request) {
   try {
     await supabase.from("portfolio_match_events").insert(parsed.data);
   } catch (err) {
+    Sentry.captureException(err);
     console.error("Event tracking insert failed:", err);
   }
 

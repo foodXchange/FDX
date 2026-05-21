@@ -1,3 +1,4 @@
+import * as Sentry from "@sentry/nextjs";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { runMatch } from "@/lib/matching/runMatch";
@@ -29,6 +30,7 @@ export async function POST(req: Request) {
   try {
     output = await runMatch({ text, market, privateLabel, limit });
   } catch (err) {
+    Sentry.captureException(err);
     console.error("runMatch failed:", err);
     return NextResponse.json({ error: "Matching unavailable" }, { status: 500 });
   }
@@ -45,6 +47,7 @@ export async function POST(req: Request) {
         session_id: session_id ?? null,
       });
     } catch (err) {
+      Sentry.captureException(err);
       console.error("match_shown log failed:", err);
     }
   })();
