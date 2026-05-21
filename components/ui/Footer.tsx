@@ -99,18 +99,20 @@ export default function Footer() {
 
           <div className="flex flex-col gap-3">
             <a
-              href="#"
+              href="https://wa.me/972525222291"
+              target="_blank"
+              rel="noopener noreferrer"
               className="bg-green-500 hover:bg-green-600 text-white text-sm text-center py-2 rounded-md"
             >
               WhatsApp
             </a>
 
-            <a
-              href="/contact"
+            <Link
+              href="/en/contact"
               className="border border-slate-600 text-white text-sm text-center py-2 rounded-md hover:bg-slate-800"
             >
               Contact →
-            </a>
+            </Link>
           </div>
         </div>
 
