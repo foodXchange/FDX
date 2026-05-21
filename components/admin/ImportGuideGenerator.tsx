@@ -8,8 +8,13 @@ interface TopicItem {
   category: string;
 }
 
+interface ExistingArticle {
+  slug: string;
+  id: string;
+}
+
 interface Props {
-  existingSlugs: string[];
+  existingArticles: ExistingArticle[];
 }
 
 const TOPICS: TopicItem[] = [
@@ -111,7 +116,8 @@ function markdownToHtml(markdown: string): string {
     .join("\n");
 }
 
-export default function ImportGuideGenerator({ existingSlugs }: Props) {
+export default function ImportGuideGenerator({ existingArticles }: Props) {
+  const existingSlugs = existingArticles.map((a) => a.slug);
   const [activeCategory, setActiveCategory] = useState<string>("all");
   const [generating, setGenerating] = useState<string | null>(null);
   const [generated, setGenerated] = useState<Set<string>>(new Set());
@@ -130,7 +136,13 @@ export default function ImportGuideGenerator({ existingSlugs }: Props) {
       )
     );
     setGenerated(preExisting);
-  }, [existingSlugs]);
+    // seed IDs for all pre-existing articles so Edit links work immediately
+    const idMap: Record<string, string> = {};
+    for (const a of existingArticles) {
+      idMap[a.slug] = a.id;
+    }
+    setGeneratedIds((prev) => ({ ...idMap, ...prev }));
+  }, [existingArticles]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const filteredTopics =
     activeCategory === "all"
