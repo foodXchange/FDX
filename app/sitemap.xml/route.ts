@@ -70,7 +70,36 @@ export async function GET() {
     priority: 0.6,
   }));
 
-  const allUrls = [...staticUrls, ...blogUrls, ...newsletterUrls, ...portfolioUrls];
+  // Import Guide
+  const { data: importGuideArticles } = await supabaseServer
+    .from("import_guide_articles")
+    .select("slug, updated_at")
+    .eq("published", true);
+
+  const importGuideStaticUrls = [
+    { loc: `${baseUrl}/en/import-guide`, lastmod: today, priority: 0.9 },
+    ...["labeling","kosher","standards","permits","categories","countries","cold-chain","certifications","customs"].map((slug) => ({
+      loc: `${baseUrl}/en/import-guide/category/${slug}`,
+      lastmod: today,
+      priority: 0.7,
+    })),
+  ];
+
+  const importGuideArticleUrls = (importGuideArticles || []).map((article) => ({
+    loc: `${baseUrl}/en/import-guide/${article.slug}`,
+    lastmod: new Date(article.updated_at).toISOString().split("T")[0],
+    changefreq: "monthly",
+    priority: 0.8,
+  }));
+
+  const allUrls = [
+    ...staticUrls,
+    ...blogUrls,
+    ...newsletterUrls,
+    ...portfolioUrls,
+    ...importGuideStaticUrls,
+    ...importGuideArticleUrls,
+  ];
 
   const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">

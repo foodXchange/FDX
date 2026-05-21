@@ -18,6 +18,7 @@ export default function Header() {
     { href: '/he', label: 'Buyers' },
     { href: '/en', label: 'Manufacturers' },
     { href: '/en/portfolio', label: 'Portfolio' },
+    { href: '/en/import-guide', label: 'Import Guide' },
   ];
 
   const isActive = (href: string) => {
