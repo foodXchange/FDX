@@ -1,11 +1,16 @@
 import Firecrawl from "@mendable/firecrawl-js";
 import type { Document } from "@mendable/firecrawl-js";
+import { researchSupplier } from "./perplexity";
 
 function sleep(ms: number): Promise<void> {
   return new Promise((r) => setTimeout(r, ms));
 }
 
-export async function crawlSupplier(website: string): Promise<string> {
+export async function crawlSupplier(
+  website: string,
+  companyName: string,
+  country: string | null
+): Promise<string> {
   const firecrawl = new Firecrawl({
     apiKey: process.env.FIRECRAWL_API_KEY,
   });
@@ -76,6 +81,20 @@ export async function crawlSupplier(website: string): Promise<string> {
       }
     }
 
+    // Perplexity fallback when crawl returned minimal content
+    if (combinedText.length < 500) {
+      console.log(`  🔍 Crawl returned minimal content — trying Perplexity research...`);
+      try {
+        const result = await researchSupplier(companyName, website, country);
+        if (result.content.length > 200) {
+          console.log(`  ✓ Perplexity found ${result.content.length} chars`);
+          return `[PERPLEXITY RESEARCH]\nSources: ${result.sources.join(", ")}\n\n${result.content}`;
+        }
+      } catch {
+        // fall through to return combinedText
+      }
+    }
+
     return combinedText;
   } catch (err: unknown) {
     const status =
@@ -135,6 +154,20 @@ export async function crawlSupplier(website: string): Promise<string> {
         // try next path
       }
       await sleep(5000);
+    }
+
+    // Perplexity fallback — all Firecrawl paths exhausted
+    console.log(`  🔍 Firecrawl failed — trying Perplexity research...`);
+    try {
+      const result = await researchSupplier(companyName, website, country);
+      if (result.content.length > 200) {
+        console.log(
+          `  ✓ Perplexity found ${result.content.length} chars from ${result.sources.length} sources`
+        );
+        return `[PERPLEXITY RESEARCH]\nSources: ${result.sources.join(", ")}\n\n${result.content}`;
+      }
+    } catch (pErr) {
+      console.log(`  ✗ Perplexity also failed: ${pErr}`);
     }
 
     return "";

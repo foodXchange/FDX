@@ -12,6 +12,7 @@ export interface LeadEmailPayload {
     company_name: string;
     score: number;
     match_reasons: string[];
+    match_summary?: string;
     country_of_origin: string | null;
   }[];
   supplierMatches?: {
@@ -19,6 +20,7 @@ export interface LeadEmailPayload {
     country: string | null;
     score: number;
     reasons: string[];
+    match_summary?: string;
   }[];
 }
 
@@ -58,7 +60,7 @@ ${matchedSuppliers
   <td style="padding:8px 0;color:#64748b;text-align:right;">${s.score} pts</td>
 </tr>
 <tr style="border-bottom:1px solid #f1f5f9;">
-  <td colspan="2" style="padding:0 0 8px;color:#94a3b8;font-size:12px;">${s.match_reasons.join(" · ")}</td>
+  <td colspan="2" style="padding:0 0 8px;color:#94a3b8;font-size:12px;">${s.match_summary ?? s.match_reasons.join(" · ")}</td>
 </tr>`
   )
   .join("")}
@@ -78,7 +80,7 @@ ${matchedSuppliers
       <span style="background:#ea580c;color:white;font-size:11px;font-weight:600;padding:2px 8px;border-radius:20px;">${m.score} pts</span>
     </div>
     <p style="color:#64748b;font-size:12px;margin:0 0 4px;">${m.country ?? "—"}</p>
-    <p style="color:#94a3b8;font-size:11px;margin:0;">${m.reasons.join(" · ")}</p>
+    <p style="color:#94a3b8;font-size:11px;margin:0;">${m.match_summary ?? m.reasons.join(" · ")}</p>
   </div>`
     )
     .join("")}

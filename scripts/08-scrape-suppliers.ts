@@ -111,6 +111,7 @@ async function insertProducts(
     scrape_confidence: p.confidence ?? 0.5,
     last_scraped_at: new Date().toISOString(),
     manually_verified: false,
+    needs_review: p.needs_review ?? false,
   }));
 
   const { error } = await supabase.from("supplier_products").insert(rows);
@@ -247,7 +248,8 @@ async function main(): Promise<void> {
       if (crawlUrl !== supplier.website) {
         console.log(`  ℹ Using homepage: ${crawlUrl}`);
       }
-      const content = await crawlSupplier(crawlUrl);
+      const content = await crawlSupplier(crawlUrl, supplier.company_name, supplier.country_of_origin);
+      const isPerplexity = content.startsWith("[PERPLEXITY RESEARCH]");
 
       if (!content || content.length < 50) {
         console.log(`  ✗ Website blocked or no content`);
@@ -263,10 +265,14 @@ async function main(): Promise<void> {
         continue;
       }
 
-      const pageCount = content.split("---PAGE BREAK---").length;
-      console.log(
-        `  ✓ Fetched ${content.length.toLocaleString()} chars across ${pageCount} page${pageCount !== 1 ? "s" : ""}`
-      );
+      if (isPerplexity) {
+        console.log(`  ✓ Content from Perplexity research (${content.length.toLocaleString()} chars)`);
+      } else {
+        const pageCount = content.split("---PAGE BREAK---").length;
+        console.log(
+          `  ✓ Fetched ${content.length.toLocaleString()} chars across ${pageCount} page${pageCount !== 1 ? "s" : ""}`
+        );
+      }
 
       // ── Step 2: Manufacturer detection ──────────────────────────────────
       console.log(`\n  → Checking if manufacturer...`);
@@ -350,7 +356,8 @@ async function main(): Promise<void> {
             ? (p.certifications ?? []).join(", ")
             : "—";
         const conf = p.confidence ?? 0;
-        console.log(`     ${idx + 1}. ${p.product_name} (${p.category})`);
+        const reviewFlag = p.needs_review ? " ⚠ review" : "";
+        console.log(`     ${idx + 1}. ${p.product_name} (${p.category})${reviewFlag}`);
         console.log(`        Formats: ${formatsStr}`);
         console.log(`        Certs:   ${certsStr}`);
         console.log(`        Conf:    ${confidenceBar(conf)}  ${conf.toFixed(1)}`);
@@ -358,10 +365,13 @@ async function main(): Promise<void> {
 
       // ── Step 4: Save to database ─────────────────────────────────────────
       console.log(`\n  → Saving to database...`);
+      const scrapeSource = isPerplexity
+        ? `perplexity:${supplier.website}`
+        : supplier.website!;
       const inserted = await insertProducts(
         supplier.id,
         products,
-        supplier.website!
+        scrapeSource
       );
 
       const internalNote =

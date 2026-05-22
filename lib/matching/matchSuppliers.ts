@@ -24,6 +24,7 @@ export interface SupplierMatch {
     priorityBonus: number;
   };
   match_reasons: string[];
+  match_summary?: string;
 }
 
 export interface ProductMatch {
@@ -54,6 +55,7 @@ export interface ProductMatch {
     confidenceMultiplier: number;
   };
   match_reasons: string[];
+  match_summary?: string;
 }
 
 export interface MatchRequestInput {
@@ -69,6 +71,7 @@ export interface MatchRequestInput {
   ai_analysis?: Record<string, unknown> | null;
   description?: string | null;
   kosher_type?: string | null;
+  packaging_preference?: string | null;
 }
 
 type SupplierRow = {
@@ -99,7 +102,12 @@ type ProductRow = {
   private_label: boolean | null;
   scrape_confidence: number;
   supplier_id: string;
-  factories: { kosher_types: string[] }[] | null;
+  factory: {
+    kosher_types: string[];
+    certifications_quality: string[];
+    certifications_dietary: string[];
+    is_primary: boolean;
+  } | null;
   supplier: {
     id: string;
     company_name: string;
@@ -108,6 +116,136 @@ type ProductRow = {
     priority: number | null;
   } | null;
 };
+
+// ─── Semantic matching constants ─────────────────────────────────────────────
+
+const SEMANTIC_BRIDGES: Record<string, string[]> = {
+  "Tomato Products": ["Sauces & Condiments", "Canned Foods"],
+  "Sauces & Condiments": ["Tomato Products", "Canned Foods"],
+  "Organic & Natural": ["Snacks", "Ingredients & Additives", "Beverages"],
+  "Canned Foods": ["Pulses & Legumes", "Tomato Products", "Sauces & Condiments"],
+  "Snacks": ["Bakery", "Organic & Natural"],
+  "Oils & Fats": ["Ingredients & Additives"],
+};
+
+const GEO_BONUS: Record<string, number> = {
+  Italy: 5, Spain: 5, Greece: 5, Cyprus: 4, Turkey: 4, Portugal: 4, France: 4,
+  Egypt: 4, Jordan: 4, Morocco: 3, Bulgaria: 3, Poland: 3, Romania: 3,
+  Serbia: 3, Croatia: 3, Netherlands: 3, Germany: 3, Israel: 2,
+};
+
+// ─── Factory kosher helpers ───────────────────────────────────────────────────
+
+function getEffectiveKosherTypes(product: {
+  kosher_types: string[] | null;
+  factory?: { kosher_types: string[]; is_primary: boolean } | null;
+}): string[] {
+  if (product.factory?.kosher_types?.length) {
+    return product.factory.kosher_types;
+  }
+  return product.kosher_types ?? [];
+}
+
+function getEffectiveCertifications(product: {
+  certifications: string[] | null;
+  factory?: { certifications_quality: string[]; certifications_dietary: string[] } | null;
+}): string[] {
+  const productCerts = product.certifications ?? [];
+  if (!product.factory) return productCerts;
+  const factoryCerts = [
+    ...(product.factory.certifications_quality ?? []),
+    ...(product.factory.certifications_dietary ?? []),
+  ];
+  return [...new Set([...productCerts, ...factoryCerts])];
+}
+
+// ─── Semantic tag similarity ──────────────────────────────────────────────────
+
+function tagSimilarityScore(
+  requestTags: string[],
+  productTags: string[],
+  requestProductName: string | null,
+  productName: string
+): number {
+  const rSet = new Set(requestTags.map((t) => t.toLowerCase().trim()));
+  const pSet = new Set(productTags.map((t) => t.toLowerCase().trim()));
+  let overlap = 0;
+  for (const tag of rSet) {
+    if (pSet.has(tag)) {
+      overlap++;
+    } else {
+      for (const pTag of pSet) {
+        if (pTag.includes(tag) || tag.includes(pTag)) {
+          overlap += 0.5;
+          break;
+        }
+      }
+    }
+  }
+  if (requestProductName) {
+    const reqWords = requestProductName
+      .toLowerCase()
+      .split(/\s+/)
+      .filter((w) => w.length > 3);
+    const prodWords = productName.toLowerCase().split(/\s+/);
+    for (const word of reqWords) {
+      if (prodWords.some((pw) => pw.includes(word) || word.includes(pw))) {
+        overlap += 2;
+      }
+    }
+  }
+  return overlap;
+}
+
+// ─── Human-readable match formatters ─────────────────────────────────────────
+
+export function formatMatchSummary(reasons: string[]): string {
+  return reasons
+    .map((r) => {
+      if (r.includes("Kosher") || r.includes("kosher"))
+        return `✡ Kosher: ${r.split(":")[1]?.trim() ?? r}`;
+      if (r.startsWith("Category match"))
+        return `📦 Makes: ${r.split(":")[1]?.trim()}`;
+      if (r.startsWith("Related category"))
+        return `📦 Related: ${r.split(":")[1]?.trim()}`;
+      if (r.startsWith("Keyword match"))
+        return `🎯 Match: ${r.split(":")[1]?.trim()}`;
+      if (r.startsWith("Format match"))
+        return `📐 Format: ${r.split(":")[1]?.trim()}`;
+      if (r.startsWith("Geographic"))
+        return `🌍 Location: ${r.split(":")[1]?.trim()}`;
+      if (r.includes("Private label"))
+        return `🏷️ Private label available`;
+      if (r.includes("certification"))
+        return `✓ ${r.split(":")[1]?.trim() ?? r}`;
+      if (r.includes("Ingredient"))
+        return `🌿 Ingredient: ${r.split(":")[1]?.trim()}`;
+      if (r.startsWith("Product:"))
+        return `📦 Product: ${r.split(":")[1]?.trim()}`;
+      return r;
+    })
+    .filter(Boolean)
+    .join(" · ");
+}
+
+export function formatWhatsAppMatch(
+  requestProductName: string | null,
+  match: ProductMatch
+): string {
+  return [
+    `🔍 *Sourcing match found*`,
+    ``,
+    `Request: ${requestProductName ?? "Your product"}`,
+    `Supplier: *${match.company_name}*`,
+    `Product: ${match.product_name}`,
+    `Country: ${match.country_of_origin ?? "—"}`,
+    ``,
+    match.match_summary ?? match.match_reasons.join(" · "),
+    ``,
+    `Score: ${match.score}/100`,
+    `fdx.trading`,
+  ].join("\n");
+}
 
 // ─── Product-level matching ───────────────────────────────────────────────────
 
@@ -121,10 +259,11 @@ export async function matchSupplierProducts(
       `id, product_name, category, formats, certifications, kosher_types,
        product_type, primary_ingredients, tags, private_label, scrape_confidence,
        supplier_id,
-       factories:supplier_factories(kosher_types),
+       factory:supplier_factories(kosher_types, certifications_quality, certifications_dietary, is_primary),
        supplier:supplier_offerings!inner(id, company_name, country_of_origin, status, priority)`
     )
-    .eq("supplier_offerings.status", "approved");
+    .eq("supplier_offerings.status", "approved")
+    .neq("needs_review", true);
 
   if (error || !data) return [];
 
@@ -150,17 +289,10 @@ export async function matchSupplierProducts(
     if (!product.supplier) return null;
 
     // ── HARD FILTER: kosher compatibility ─────────────────────────────────
-    // Check factory kosher first (source of truth), then product-level
+    // Factory kosher overrides product-level (source of truth)
     if (request.kosher_type && request.kosher_type !== "none") {
-      const factoryKosher = (product.factories ?? []).flatMap(
-        (f) => f.kosher_types ?? []
-      );
-      const effectiveKosher = factoryKosher.length > 0
-        ? factoryKosher
-        : (product.kosher_types ?? []);
-
+      const effectiveKosher = getEffectiveKosherTypes(product);
       if (effectiveKosher.length === 0) return null;
-
       const reqKosher = request.kosher_type.toLowerCase();
       const compatible = effectiveKosher.map((k) => k.toLowerCase()).some(
         (k) => k.includes(reqKosher) || reqKosher.includes(k) || k.includes("kosher")
@@ -190,9 +322,8 @@ export async function matchSupplierProducts(
     const reasons: string[] = [];
 
     const productTags = (product.tags ?? []).map((t) => t.toLowerCase().trim());
-    const productCerts = (product.certifications ?? []).map((c) =>
-      c.toLowerCase().trim()
-    );
+    const effectiveCerts = getEffectiveCertifications(product);
+    const productCerts = effectiveCerts.map((c) => c.toLowerCase().trim());
     const productFormats = (product.formats ?? []).map((f) =>
       f.toLowerCase().trim()
     );
@@ -227,6 +358,29 @@ export async function matchSupplierProducts(
       }
     }
 
+    // ── CROSS-CATEGORY SEMANTIC BRIDGE (+4) ───────────────────────────────
+    if (request.category && !breakdown.categoryHit) {
+      const bridges = SEMANTIC_BRIDGES[request.category] ?? [];
+      if (bridges.includes(product.category)) {
+        baseScore += 4;
+        reasons.push(`Related category: ${product.category}`);
+      }
+    }
+
+    // ── SEMANTIC TAG SIMILARITY (capped at +15) ────────────────────────────
+    const tagScore = tagSimilarityScore(
+      request.tags ?? [],
+      product.tags ?? [],
+      request.product_name ?? null,
+      product.product_name
+    );
+    if (tagScore > 0) {
+      baseScore += Math.min(tagScore * 2, 15);
+      if (tagScore >= 2) {
+        reasons.push(`Keyword match: ${product.product_name}`);
+      }
+    }
+
     // ── CERTIFICATION MATCH (+4 per hit) ──────────────────────────────────
     requestCerts.forEach((cert) => {
       const hit = productCerts.some((pc) => pc.includes(cert) || cert.includes(pc));
@@ -239,6 +393,18 @@ export async function matchSupplierProducts(
       reasons.push(
         `${breakdown.certHits} certification match${breakdown.certHits > 1 ? "es" : ""}`
       );
+    }
+
+    // ── FORMAT PREFERENCE (+6) ─────────────────────────────────────────────
+    if (request.packaging_preference && (product.formats ?? []).length > 0) {
+      const reqFmt = request.packaging_preference.toLowerCase();
+      const hit = (product.formats ?? []).some(
+        (f) => f.toLowerCase().includes(reqFmt) || reqFmt.includes(f.toLowerCase())
+      );
+      if (hit) {
+        baseScore += 6;
+        reasons.push(`Format match: ${request.packaging_preference}`);
+      }
     }
 
     // ── FORMAT MATCH (+3 per hit, fuzzy) ──────────────────────────────────
@@ -271,6 +437,13 @@ export async function matchSupplierProducts(
         breakdown.ingredientHit = true;
         reasons.push(`Ingredient match: ${request.product_name}`);
       }
+    }
+
+    // ── GEOGRAPHIC PROXIMITY (+1 to +5) ────────────────────────────────────
+    const geoBonus = GEO_BONUS[product.supplier?.country_of_origin ?? ""] ?? 0;
+    if (geoBonus > 0) {
+      baseScore += geoBonus;
+      reasons.push(`Geographic advantage: ${product.supplier?.country_of_origin}`);
     }
 
     // ── PRIVATE LABEL (+4) ────────────────────────────────────────────────
@@ -311,6 +484,7 @@ export async function matchSupplierProducts(
       score: Math.round(finalScore * 10) / 10,
       score_breakdown: breakdown,
       match_reasons: reasons,
+      match_summary: formatMatchSummary(reasons),
     };
   });
 
@@ -538,6 +712,7 @@ async function matchSuppliersCompanyLevel(
       score: Math.round(score * 10) / 10,
       score_breakdown: breakdown,
       match_reasons: reasons,
+      match_summary: formatMatchSummary(reasons),
     };
   });
 
@@ -585,6 +760,7 @@ export async function matchSuppliers(
         `Product: ${pm.product_name}`,
         ...pm.match_reasons,
       ],
+      match_summary: pm.match_summary,
     }));
   }
 

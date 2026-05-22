@@ -57,6 +57,7 @@ async function insertProducts(
     scrape_confidence: p.confidence ?? 0.5,
     last_scraped_at: new Date().toISOString(),
     manually_verified: false,
+    needs_review: p.needs_review ?? false,
   }));
 
   const { error } = await supabaseAdmin.from("supplier_products").insert(rows);
@@ -153,7 +154,8 @@ export async function GET(req: NextRequest) {
           // Crawl
           send({ type: "log", message: "  → Crawling website..." });
           const crawlUrl = getHomepage(supplier.website!);
-          const content = await crawlSupplier(crawlUrl);
+          const content = await crawlSupplier(crawlUrl, supplier.company_name, supplier.country_of_origin);
+          const isPerplexity = content.startsWith("[PERPLEXITY RESEARCH]");
 
           if (!content || content.length < 50) {
             send({ type: "error", message: "  ✗ Website blocked or no content" });
@@ -169,11 +171,18 @@ export async function GET(req: NextRequest) {
             continue;
           }
 
-          const pageCount = content.split("---PAGE BREAK---").length;
-          send({
-            type: "log",
-            message: `  ✓ Fetched ${content.length.toLocaleString()} chars across ${pageCount} page${pageCount !== 1 ? "s" : ""}`,
-          });
+          if (isPerplexity) {
+            send({
+              type: "log",
+              message: `  ✓ Content from Perplexity research (${content.length.toLocaleString()} chars)`,
+            });
+          } else {
+            const pageCount = content.split("---PAGE BREAK---").length;
+            send({
+              type: "log",
+              message: `  ✓ Fetched ${content.length.toLocaleString()} chars across ${pageCount} page${pageCount !== 1 ? "s" : ""}`,
+            });
+          }
 
           // Manufacturer detection
           send({ type: "log", message: "  → Checking if manufacturer..." });
@@ -235,7 +244,10 @@ export async function GET(req: NextRequest) {
           }
 
           // Save products
-          const inserted = await insertProducts(supplier.id, products, supplier.website!);
+          const scrapeSource = isPerplexity
+            ? `perplexity:${supplier.website}`
+            : supplier.website!;
+          const inserted = await insertProducts(supplier.id, products, scrapeSource);
 
           // Extract profile + factories
           send({ type: "log", message: "  → Extracting company profile..." });

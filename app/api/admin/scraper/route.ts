@@ -167,7 +167,7 @@ export async function POST(req: NextRequest) {
     .eq("id", supplierId);
 
   try {
-    const content = await crawlSupplier(row.website);
+    const content = await crawlSupplier(row.website, row.company_name, row.country_of_origin);
 
     if (!content || content.length < 50) {
       await supabaseAdmin

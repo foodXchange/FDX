@@ -359,16 +359,20 @@ export default function RequestSlideOver({
                           </span>
                         )}
                       </div>
-                      <div className="flex flex-wrap gap-1 mt-1.5">
-                        {m.match_reasons.map((r, i) => (
-                          <span
-                            key={i}
-                            className="text-xs bg-white border border-slate-200 text-slate-600 rounded-full px-2 py-0.5"
-                          >
-                            {r}
-                          </span>
-                        ))}
-                      </div>
+                      {m.match_summary ? (
+                        <p className="text-sm text-slate-600 mt-1.5">{m.match_summary}</p>
+                      ) : (
+                        <div className="flex flex-wrap gap-1 mt-1.5">
+                          {m.match_reasons.map((r, i) => (
+                            <span
+                              key={i}
+                              className="text-xs bg-white border border-slate-200 text-slate-600 rounded-full px-2 py-0.5"
+                            >
+                              {r}
+                            </span>
+                          ))}
+                        </div>
+                      )}
                     </div>
                     <ScoreChip score={m.score} />
                   </div>

@@ -45,6 +45,7 @@ export interface ExtractedProduct {
   markets_suitable: string[];
   confidence: number;
   detected_language?: string;
+  needs_review?: boolean;
 }
 
 export interface ManufacturerDetectionResult {
@@ -190,6 +191,12 @@ export async function extractProducts(
     return [];
   }
 
+  const isPerplexity = websiteContent.startsWith("[PERPLEXITY RESEARCH]");
+  const sourceNote = isPerplexity
+    ? `NOTE: This content is from AI research across multiple web sources, not directly ` +
+      `from the supplier website. Extract with slightly lower confidence (max 0.8).`
+    : `NOTE: This content is directly from the supplier website.`;
+
   const userPrompt =
     `Extract all food products from this supplier website content.\n\n` +
     `IMPORTANT: The website may be in ANY language — Italian, Spanish, French, German, ` +
@@ -237,7 +244,11 @@ export async function extractProducts(
     `one entry per product variant, not per SKU. ` +
     `Example: "Tomato Paste" covers all sizes, not "Tomato Paste 70g", "Tomato Paste 115g" ` +
     `separately unless format matters for matching.\n` +
-    `If no products found, return empty array: []`;
+    `If no products found, return empty array: []\n\n` +
+    sourceNote;
+
+  const CONFIDENCE_THRESHOLD = 0.4;
+  const REVIEW_THRESHOLD = 0.6;
 
   try {
     const response = await anthropic.messages.create({
@@ -254,7 +265,14 @@ export async function extractProducts(
 
     const parsed = safeParseProducts(raw);
     if (!Array.isArray(parsed) || parsed.length === 0) return [];
-    return parsed as ExtractedProduct[];
+
+    const filtered = (parsed as ExtractedProduct[]).filter(
+      (p) => (p.confidence ?? 0) >= CONFIDENCE_THRESHOLD
+    );
+    return filtered.map((p) => ({
+      ...p,
+      needs_review: (p.confidence ?? 0) < REVIEW_THRESHOLD,
+    }));
   } catch (err) {
     console.error("Extraction error:", err);
     return [];
