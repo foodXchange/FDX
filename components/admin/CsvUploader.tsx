@@ -9,6 +9,7 @@ type UploadResult = {
   inserted: number;
   skipped: number;
   errors: number;
+  invalidUrls?: number;
   skippedNames?: string[];
   errorDetails?: string[];
 };
@@ -17,6 +18,7 @@ export function CsvUploader() {
   const [dragging, setDragging] = useState(false);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<UploadResult | null>(null);
+  const [resultTime, setResultTime] = useState<string | null>(null);
   const [fileName, setFileName] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -29,6 +31,7 @@ export function CsvUploader() {
     setFileName(file.name);
     setLoading(true);
     setResult(null);
+    setResultTime(null);
     setError(null);
 
     const form = new FormData();
@@ -44,6 +47,7 @@ export function CsvUploader() {
         setError(data.error ?? "Upload failed");
       } else {
         setResult(data);
+        setResultTime(new Date().toLocaleString());
       }
     } catch {
       setError("Network error — upload failed");
@@ -107,26 +111,52 @@ export function CsvUploader() {
           />
         </div>
 
-        {/* Result */}
+        {/* Detailed result card */}
         {result && (
-          <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg text-sm text-green-800">
-            <p className="font-medium">
-              ✓ {result.inserted} supplier{result.inserted !== 1 ? "s" : ""} imported
-              {result.skipped > 0 && `, ${result.skipped} already existed`}
-              {result.errors > 0 && `, ${result.errors} error${result.errors !== 1 ? "s" : ""}`}
+          <div className="mt-4 p-4 bg-slate-50 border border-slate-200 rounded-xl text-sm space-y-2">
+            <p className="font-semibold text-slate-800">
+              CSV processed — {result.total} rows
             </p>
-            {result.skippedNames && result.skippedNames.length > 0 && (
-              <p className="mt-1 text-green-700 text-xs">
-                Skipped: {result.skippedNames.join(", ")}
+            <div className="space-y-1 text-slate-600">
+              <p>
+                ✓{" "}
+                <span className="font-medium text-green-700">
+                  {result.inserted}
+                </span>{" "}
+                new suppliers added
               </p>
-            )}
+              <p>
+                ⊘{" "}
+                <span className="font-medium text-slate-500">
+                  {result.skipped}
+                </span>{" "}
+                already existed (duplicates)
+              </p>
+              <p>
+                ✗{" "}
+                <span className="font-medium text-red-600">
+                  {result.invalidUrls ?? 0}
+                </span>{" "}
+                invalid URLs skipped
+              </p>
+              {result.errors > 0 && (
+                <p className="text-amber-700">
+                  ⚠ {result.errors} other error{result.errors !== 1 ? "s" : ""}
+                </p>
+              )}
+            </div>
             {result.errorDetails && result.errorDetails.length > 0 && (
-              <ul className="mt-1 text-red-700 text-xs list-disc list-inside">
+              <ul className="text-xs text-red-700 list-disc list-inside">
                 {result.errorDetails.map((e, i) => (
                   <li key={i}>{e}</li>
                 ))}
               </ul>
             )}
+            <div className="text-xs text-slate-400 pt-1 border-t border-slate-200">
+              {result.batchId && <span>Batch {result.batchId}</span>}
+              {result.batchId && resultTime && <span> · </span>}
+              {resultTime && <span>{resultTime}</span>}
+            </div>
           </div>
         )}
 
@@ -141,14 +171,19 @@ export function CsvUploader() {
       <div
         className={`md:w-56 border-2 border-dashed rounded-xl p-6 flex flex-col items-center justify-center text-center transition-colors cursor-pointer
           ${dragging ? "border-orange-400 bg-orange-50" : "border-slate-200 hover:border-slate-300"}`}
-        onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
+        onDragOver={(e) => {
+          e.preventDefault();
+          setDragging(true);
+        }}
         onDragLeave={() => setDragging(false)}
         onDrop={onDrop}
         onClick={() => inputRef.current?.click()}
       >
         <span className="text-2xl mb-2">📂</span>
         {fileName ? (
-          <p className="text-xs text-slate-600 font-medium break-all">{fileName}</p>
+          <p className="text-xs text-slate-600 font-medium break-all">
+            {fileName}
+          </p>
         ) : (
           <>
             <p className="text-sm text-slate-500">Drag CSV here</p>

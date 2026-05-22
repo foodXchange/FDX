@@ -93,7 +93,7 @@ export async function detectManufacturerType(
             `Return ONLY this JSON:\n` +
             `{\n` +
             `  "is_manufacturer": true or false,\n` +
-            `  "company_type": "manufacturer" | "trading_company" | "agency" | "wholesaler" | "retailer" | "importer" | "mixed" | "unknown",\n` +
+            `  "company_type": "manufacturer" | "trading_company" | "agency" | "wholesaler" | "retailer" | "importer" | "mixed" | "unknown" | "non_food",\n` +
             `  "reason": "one sentence explanation",\n` +
             `  "confidence": 0.0 to 1.0\n` +
             `}\n\n` +
@@ -114,7 +114,18 @@ export async function detectManufacturerType(
             `  Italian: "distribuiamo", "importiamo", "rappresentiamo", "agenzia"\n` +
             `  Spanish: "distribuimos", "importamos", "representamos", "agencia"\n` +
             `  French: "nous distribuons", "nous importons", "agence", "représentant"\n` +
-            `  German: "wir vertreiben", "Importeur", "Handelsvertreter", "Agentur"`,
+            `  German: "wir vertreiben", "Importeur", "Handelsvertreter", "Agentur"\n\n` +
+            `IMPORTANT — If the website is completely unrelated to food manufacturing, set company_type = "non_food" and is_manufacturer = false:\n` +
+            `  - Certification / testing / inspection agency (e.g. SGS, Bureau Veritas, kosher certifying body)\n` +
+            `  - Domain for sale, parked page, "Under construction", or placeholder site\n` +
+            `  - Casino, gambling, sports betting, or gaming site\n` +
+            `  - Logistics, shipping, freight forwarding, or customs broker\n` +
+            `  - Packaging manufacturer (cardboard, plastic bags, bottles, labels) — NOT food itself\n` +
+            `  - Software, SaaS, ERP, or technology company\n` +
+            `  - Marketing, PR, branding, or advertising agency\n` +
+            `  - Law firm, legal services, or compliance consultancy\n` +
+            `  - Financial services, banking, insurance, or investment firm\n` +
+            `Use "non_food" for any site where food manufacturing is clearly not the business.`,
         },
       ],
     });

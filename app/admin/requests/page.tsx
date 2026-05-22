@@ -1,6 +1,7 @@
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import RequestsTable from "@/components/admin/RequestsTable";
 import ScriptGenerator from "@/components/admin/ScriptGenerator";
+import BulkMatchButton from "@/components/admin/BulkMatchButton";
 
 export type RequestRow = {
   id: string;
@@ -19,6 +20,7 @@ export type RequestRow = {
   created_at: string;
   images: { url: string }[];
   match_count: number;
+  best_match_score: number | null;
 };
 
 export default async function AdminRequestsPage() {
@@ -35,7 +37,7 @@ export default async function AdminRequestsPage() {
 
   const rawRequests = (requestsResult.data ?? []) as Omit<
     RequestRow,
-    "images" | "match_count"
+    "images" | "match_count" | "best_match_score"
   >[];
   const rawImages = (imagesResult.data ?? []) as {
     request_id: string;
@@ -44,18 +46,22 @@ export default async function AdminRequestsPage() {
 
   const requestIds = rawRequests.map((r) => r.id);
 
-  const matchCountsResult =
+  const matchDataResult =
     requestIds.length > 0
       ? await supabaseAdmin
           .from("sourcing_matches")
-          .select("request_id")
+          .select("request_id, match_score")
           .in("request_id", requestIds)
+          .neq("status", "rejected")
       : { data: [] };
 
   const matchCountMap = new Map<string, number>();
-  for (const m of matchCountsResult.data ?? []) {
-    const id = (m as { request_id: string }).request_id;
-    matchCountMap.set(id, (matchCountMap.get(id) ?? 0) + 1);
+  const bestScoreMap = new Map<string, number>();
+  for (const m of matchDataResult.data ?? []) {
+    const row = m as { request_id: string; match_score: number };
+    matchCountMap.set(row.request_id, (matchCountMap.get(row.request_id) ?? 0) + 1);
+    const current = bestScoreMap.get(row.request_id) ?? 0;
+    if (row.match_score > current) bestScoreMap.set(row.request_id, row.match_score);
   }
 
   const imageMap = new Map<string, { url: string }[]>();
@@ -69,34 +75,72 @@ export default async function AdminRequestsPage() {
     ...r,
     images: imageMap.get(r.id) ?? [],
     match_count: matchCountMap.get(r.id) ?? 0,
+    best_match_score: bestScoreMap.get(r.id) ?? null,
   }));
 
-  const newCount = requests.filter((r) => r.status === "new").length;
+  const totalCount = requests.length;
   const matchedCount = requests.filter((r) => r.match_count > 0).length;
+  const unmatchedCount = requests.filter((r) => r.match_count === 0).length;
+  const highScoreCount = requests.filter(
+    (r) => (r.best_match_score ?? 0) >= 70
+  ).length;
+  const awaitingCount = requests.filter((r) => r.status === "matched").length;
+
+  const unmatchedIds = requests
+    .filter((r) => r.match_count === 0)
+    .map((r) => r.id);
 
   return (
     <main className="min-h-screen bg-gray-50">
-      <div className="border-b border-gray-200 bg-white px-6 py-3 flex items-center gap-4 sticky top-0 z-10 shadow-sm">
-        <span className="text-sm font-semibold text-gray-800">Sourcing Requests</span>
-        <span className="text-xs text-gray-400 flex-1">
-          {requests.length} total
-          {newCount > 0 && (
-            <span className="ml-2 bg-blue-100 text-blue-700 rounded-full px-2 py-0.5 font-semibold">
-              {newCount} new
-            </span>
-          )}
-          {matchedCount > 0 && (
-            <span className="ml-1.5 bg-green-100 text-green-700 rounded-full px-2 py-0.5 font-semibold">
-              {matchedCount} matched
-            </span>
-          )}
-        </span>
-        <ScriptGenerator />
+      <div className="border-b border-gray-200 bg-white px-6 py-3 sticky top-0 z-10 shadow-sm">
+        <div className="flex items-center gap-3 flex-wrap mb-3">
+          <span className="text-sm font-semibold text-gray-800">
+            Sourcing Requests
+          </span>
+          <BulkMatchButton unmatchedIds={unmatchedIds} />
+          <div className="ml-auto">
+            <ScriptGenerator />
+          </div>
+        </div>
+
+        {/* Stats row */}
+        <div className="flex items-center gap-3 flex-wrap">
+          <StatCard label="Total" count={totalCount} color="gray" />
+          <StatCard label="Matched" count={matchedCount} color="green" />
+          <StatCard label="Unmatched" count={unmatchedCount} color="orange" />
+          <StatCard label="High score ≥70" count={highScoreCount} color="blue" />
+          <StatCard label="Awaiting" count={awaitingCount} color="purple" />
+        </div>
       </div>
 
       <div className="p-6 max-w-7xl mx-auto">
         <RequestsTable requests={requests} />
       </div>
     </main>
+  );
+}
+
+function StatCard({
+  label,
+  count,
+  color,
+}: {
+  label: string;
+  count: number;
+  color: "gray" | "green" | "orange" | "blue" | "purple";
+}) {
+  const styles = {
+    gray: "bg-slate-50 text-slate-600",
+    green: "bg-green-50 text-green-700",
+    orange: "bg-orange-50 text-orange-700",
+    blue: "bg-blue-50 text-blue-700",
+    purple: "bg-purple-50 text-purple-700",
+  };
+  return (
+    <span
+      className={`inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1 rounded-full ${styles[color]}`}
+    >
+      {count} {label}
+    </span>
   );
 }

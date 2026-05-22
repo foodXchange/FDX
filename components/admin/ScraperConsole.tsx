@@ -15,8 +15,19 @@ interface ScraperSummary {
   totalProducts: number;
 }
 
+interface ProgressState {
+  current: number;
+  total: number;
+  succeeded: number;
+  failed: number;
+  products: number;
+  perplexity: number;
+}
+
 interface ScraperConsoleProps {
   supplierId?: string;
+  totalPending?: number;
+  totalAll?: number;
 }
 
 const LOG_COLORS: Record<string, string> = {
@@ -29,13 +40,14 @@ const LOG_COLORS: Record<string, string> = {
   summary: "text-orange-400",
 };
 
-const LIMIT_OPTIONS = [5, 10, 25, 50];
+const LIMIT_OPTIONS: (number | "all")[] = [10, 50, 100, 200, 500, "all"];
 
 export function ScraperConsole({ supplierId }: ScraperConsoleProps) {
   const [running, setRunning] = useState(false);
   const [logs, setLogs] = useState<LogLine[]>([]);
   const [summary, setSummary] = useState<ScraperSummary | null>(null);
-  const [limit, setLimit] = useState(10);
+  const [progress, setProgress] = useState<ProgressState | null>(null);
+  const [limit, setLimit] = useState<number | "all">(50);
   const [filterPending, setFilterPending] = useState(true);
   const eventSourceRef = useRef<EventSource | null>(null);
   const logEndRef = useRef<HTMLDivElement>(null);
@@ -46,7 +58,6 @@ export function ScraperConsole({ supplierId }: ScraperConsoleProps) {
     }
   }, [logs]);
 
-  // Cleanup on unmount
   useEffect(() => {
     return () => {
       eventSourceRef.current?.close();
@@ -57,12 +68,13 @@ export function ScraperConsole({ supplierId }: ScraperConsoleProps) {
     setRunning(true);
     setLogs([]);
     setSummary(null);
+    setProgress(null);
 
     const params = new URLSearchParams();
     if (supplierId) {
       params.set("supplierId", supplierId);
     } else {
-      params.set("limit", String(limit));
+      if (limit !== "all") params.set("limit", String(limit));
       if (filterPending) params.set("status", "pending");
     }
 
@@ -74,7 +86,13 @@ export function ScraperConsole({ supplierId }: ScraperConsoleProps) {
       const data = JSON.parse(event.data) as {
         type: string;
         message?: string;
-        data?: ScraperSummary;
+        data?: {
+          products?: number;
+          succeeded?: number;
+          failed?: number;
+          skipped?: number;
+          totalProducts?: number;
+        };
       };
 
       if (data.type === "done") {
@@ -84,7 +102,52 @@ export function ScraperConsole({ supplierId }: ScraperConsoleProps) {
       }
 
       if (data.type === "summary" && data.data) {
-        setSummary(data.data);
+        setSummary(data.data as ScraperSummary);
+      }
+
+      // Progress tracking
+      if (data.type === "supplier" && data.message) {
+        const match = data.message.match(/\[(\d+)\/(\d+)\]/);
+        if (match) {
+          const current = parseInt(match[1], 10);
+          const total = parseInt(match[2], 10);
+          setProgress((prev) => ({
+            current,
+            total,
+            succeeded: prev?.succeeded ?? 0,
+            failed: prev?.failed ?? 0,
+            products: prev?.products ?? 0,
+            perplexity: prev?.perplexity ?? 0,
+          }));
+        }
+      }
+
+      if (data.type === "success") {
+        const products = data.data?.products ?? 0;
+        setProgress((prev) =>
+          prev
+            ? {
+                ...prev,
+                succeeded: prev.succeeded + 1,
+                products: prev.products + products,
+              }
+            : null
+        );
+      }
+
+      if (data.type === "error" && data.message?.trimStart().startsWith("✗")) {
+        setProgress((prev) =>
+          prev ? { ...prev, failed: prev.failed + 1 } : null
+        );
+      }
+
+      if (
+        data.type === "log" &&
+        data.message?.includes("Perplexity research")
+      ) {
+        setProgress((prev) =>
+          prev ? { ...prev, perplexity: prev.perplexity + 1 } : null
+        );
       }
 
       if (data.message) {
@@ -126,7 +189,35 @@ export function ScraperConsole({ supplierId }: ScraperConsoleProps) {
     ]);
   }
 
+  function handleCopyLog() {
+    const text = logs
+      .map((l) => `[${new Date(l.timestamp).toLocaleTimeString()}] ${l.message}`)
+      .join("\n");
+    navigator.clipboard.writeText(text);
+  }
+
+  function handleDownloadLog() {
+    const text = logs
+      .map((l) => `[${new Date(l.timestamp).toLocaleTimeString()}] ${l.message}`)
+      .join("\n");
+    const blob = new Blob([text], { type: "text/plain" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `scrape-${new Date()
+      .toISOString()
+      .slice(0, 16)
+      .replace("T", "-")
+      .replace(":", "-")}.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
   const isSingleSupplier = Boolean(supplierId);
+  const etaMinutes =
+    progress && progress.total > progress.current
+      ? Math.ceil((progress.total - progress.current) * 45 / 60)
+      : 0;
 
   return (
     <div>
@@ -134,19 +225,20 @@ export function ScraperConsole({ supplierId }: ScraperConsoleProps) {
       <div className="flex flex-wrap items-center gap-3 mb-4">
         {!isSingleSupplier && (
           <>
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-1 flex-wrap">
               {LIMIT_OPTIONS.map((n) => (
                 <button
                   key={n}
                   onClick={() => setLimit(n)}
                   disabled={running}
                   className={`px-3 py-1.5 text-sm rounded-lg border transition-colors disabled:opacity-50
-                    ${limit === n
-                      ? "bg-slate-800 text-white border-slate-800"
-                      : "border-slate-200 text-slate-600 hover:bg-slate-50"
+                    ${
+                      limit === n
+                        ? "bg-slate-800 text-white border-slate-800"
+                        : "border-slate-200 text-slate-600 hover:bg-slate-50"
                     }`}
                 >
-                  {n}
+                  {n === "all" ? "All" : n}
                 </button>
               ))}
             </div>
@@ -181,6 +273,38 @@ export function ScraperConsole({ supplierId }: ScraperConsoleProps) {
         )}
       </div>
 
+      {/* Progress bar */}
+      {running && progress !== null && (
+        <div className="mb-4 p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
+          <div className="flex justify-between text-sm font-medium text-slate-700">
+            <span>
+              Running — {progress.current} of {progress.total}
+            </span>
+            <span>
+              {etaMinutes > 0 ? `ETA ~${etaMinutes}m` : "Almost done"}
+            </span>
+          </div>
+          <div className="w-full bg-slate-200 rounded-full h-2">
+            <div
+              className="bg-orange-500 h-2 rounded-full transition-all duration-500"
+              style={{
+                width: `${Math.round(
+                  (progress.current / Math.max(progress.total, 1)) * 100
+                )}%`,
+              }}
+            />
+          </div>
+          <div className="flex gap-4 text-xs text-slate-500 flex-wrap">
+            <span>✓ {progress.succeeded} succeeded</span>
+            <span>✗ {progress.failed} failed</span>
+            <span>📦 {progress.products} products</span>
+            {progress.perplexity > 0 && (
+              <span>🔍 {progress.perplexity} via Perplexity</span>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Log panel */}
       <div
         className={`bg-slate-900 rounded-xl p-4 font-mono text-sm min-h-[300px] max-h-[500px] overflow-y-auto transition-all
@@ -188,8 +312,8 @@ export function ScraperConsole({ supplierId }: ScraperConsoleProps) {
       >
         {logs.length === 0 && !running ? (
           <p className="text-slate-600 text-center mt-8">
-            Click &apos;{isSingleSupplier ? "Re-scrape now" : "Start scraping"}&apos; to begin.
-            Live output will appear here.
+            Click &apos;{isSingleSupplier ? "Re-scrape now" : "Start scraping"}
+            &apos; to begin. Live output will appear here.
           </p>
         ) : (
           <>
@@ -224,6 +348,24 @@ export function ScraperConsole({ supplierId }: ScraperConsoleProps) {
         )}
         <div ref={logEndRef} />
       </div>
+
+      {/* Log actions */}
+      {logs.length > 0 && (
+        <div className="flex gap-2 mt-2">
+          <button
+            onClick={handleCopyLog}
+            className="px-3 py-1.5 text-xs border border-slate-200 text-slate-600 rounded-lg hover:bg-slate-50 transition"
+          >
+            Copy log
+          </button>
+          <button
+            onClick={handleDownloadLog}
+            className="px-3 py-1.5 text-xs border border-slate-200 text-slate-600 rounded-lg hover:bg-slate-50 transition"
+          >
+            Download log
+          </button>
+        </div>
+      )}
     </div>
   );
 }

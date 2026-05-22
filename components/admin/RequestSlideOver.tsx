@@ -1,11 +1,27 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useEffect } from "react";
 import type { RequestRow } from "@/app/admin/requests/page";
 import { updateRequestStatus } from "@/app/admin/requests/actions";
-import type { SupplierMatch } from "@/lib/matching/matchSuppliers";
 import PostGenerator from "@/components/admin/PostGenerator";
 import ScriptGenerator from "@/components/admin/ScriptGenerator";
+
+type SavedMatch = {
+  id: string;
+  supplier_id: string;
+  match_score: number;
+  product_name: string | null;
+  company_name: string | null;
+  country: string | null;
+  match_summary: string | null;
+  whatsapp_message: string | null;
+  match_breakdown: {
+    kosher_types?: string[];
+    certifications?: string[];
+    reasons?: string[];
+  } | null;
+  status: string;
+};
 
 interface Props {
   request: RequestRow | null;
@@ -17,18 +33,24 @@ interface Props {
 const STATUS_OPTIONS = ["new", "reviewed", "matched", "closed"] as const;
 const WHATSAPP = "972525222291";
 
-function ScoreChip({ score }: { score: number }) {
+function timeAgo(dateStr: string): string {
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  return `${Math.floor(hrs / 24)}d ago`;
+}
+
+function ScoreDisplay({ score }: { score: number }) {
   const cls =
-    score >= 20
-      ? "bg-green-100 text-green-700"
-      : score >= 10
-      ? "bg-orange-100 text-orange-700"
-      : "bg-gray-100 text-gray-600";
-  return (
-    <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${cls}`}>
-      {score}pt
-    </span>
-  );
+    score >= 70
+      ? "text-green-600"
+      : score >= 50
+      ? "text-orange-500"
+      : "text-red-400";
+  return <span className={`text-2xl font-bold tabular-nums ${cls}`}>{score}</span>;
 }
 
 export default function RequestSlideOver({
@@ -38,9 +60,25 @@ export default function RequestSlideOver({
   onMatchComplete,
 }: Props) {
   const [matchLoading, setMatchLoading] = useState(false);
-  const [matches, setMatches] = useState<SupplierMatch[] | null>(null);
+  const [matches, setMatches] = useState<SavedMatch[] | null>(null);
   const [matchError, setMatchError] = useState<string | null>(null);
   const [, startTransition] = useTransition();
+
+  // Load saved matches whenever the request changes
+  useEffect(() => {
+    if (!request?.id) {
+      setMatches(null);
+      return;
+    }
+    setMatches(null);
+    setMatchError(null);
+    fetch(`/api/admin/requests/${request.id}/match`)
+      .then((r) => r.json())
+      .then((d: { ok?: boolean; matches?: SavedMatch[] }) => {
+        setMatches(d.matches ?? []);
+      })
+      .catch(() => setMatches([]));
+  }, [request?.id]);
 
   if (!request) return null;
 
@@ -53,33 +91,63 @@ export default function RequestSlideOver({
     confidence?: number;
   } | null;
 
+  const hasKosher = request.certifications?.some((c) =>
+    c.toLowerCase().includes("kosher")
+  );
+
   const waText = encodeURIComponent(
     `Hi, following up on your sourcing request` +
       (request.product_name ? ` for ${request.product_name}` : "") +
       `. Can we discuss further?`
   );
 
-  async function handleRunMatching() {
+  async function handleRunMatch() {
     setMatchLoading(true);
     setMatchError(null);
     try {
-      const res = await fetch("/api/admin/match-request", {
+      const res = await fetch(`/api/admin/requests/${request!.id}/match`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ requestId: request!.id }),
       });
-      const data = await res.json();
-      if (data.ok) {
-        setMatches(data.matches as SupplierMatch[]);
-        onMatchComplete(request!.id, (data.matches as SupplierMatch[]).length);
-      } else {
-        setMatchError(data.error ?? "Matching failed");
+      const d = (await res.json()) as {
+        ok: boolean;
+        matches?: number;
+        error?: string;
+      };
+      if (!d.ok) {
+        setMatchError(d.error ?? "Matching failed");
+        return;
       }
+      // Reload from DB
+      const res2 = await fetch(`/api/admin/requests/${request!.id}/match`);
+      const d2 = (await res2.json()) as { matches?: SavedMatch[] };
+      const newMatches = d2.matches ?? [];
+      setMatches(newMatches);
+      onMatchComplete(request!.id, newMatches.length);
     } catch {
       setMatchError("Network error");
     } finally {
       setMatchLoading(false);
     }
+  }
+
+  async function handleApprove(matchId: string) {
+    await fetch(`/api/admin/sourcing-matches/${matchId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status: "approved" }),
+    });
+    setMatches((prev) =>
+      prev?.map((m) => (m.id === matchId ? { ...m, status: "approved" } : m)) ?? null
+    );
+  }
+
+  async function handleReject(matchId: string) {
+    await fetch(`/api/admin/sourcing-matches/${matchId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status: "rejected" }),
+    });
+    setMatches((prev) => prev?.filter((m) => m.id !== matchId) ?? null);
   }
 
   function handleStatusChange(newStatus: string) {
@@ -89,7 +157,37 @@ export default function RequestSlideOver({
     });
   }
 
-  const sHdr = "text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3";
+  function buildMultiMatchMsg(): string {
+    if (!request || !matches || matches.length === 0) return "";
+    const top3 = matches.filter((m) => m.status !== "rejected").slice(0, 3);
+    if (top3.length === 0) return "";
+    const div = "──────────────────";
+    const header = [
+      "🔍 *Sourcing matches — FoodXchange*",
+      "",
+      `Buyer: ${request.company ?? "Unknown"}`,
+      `Product: ${request.product_name ?? "—"}`,
+    ].join("\n");
+    const cards = top3
+      .map((m, i) =>
+        [
+          div,
+          `*Match #${i + 1} — ${m.match_score}/100*`,
+          `Supplier: *${m.company_name ?? "—"}* (${m.country ?? "—"})`,
+          `Product: ${m.product_name ?? "—"}`,
+          m.match_summary ?? null,
+        ]
+          .filter(Boolean)
+          .join("\n")
+      )
+      .join("\n");
+    return [header, cards, div, "fdx.trading"].join("\n");
+  }
+
+  const sHdr =
+    "text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3";
+  const approvedMatches = matches?.filter((m) => m.status === "approved") ?? [];
+  const pendingMatches = matches?.filter((m) => m.status !== "rejected") ?? [];
 
   return (
     <>
@@ -97,20 +195,41 @@ export default function RequestSlideOver({
       <div className="fixed right-0 top-0 h-full w-120 max-w-full bg-white shadow-2xl z-50 flex flex-col">
 
         {/* Header */}
-        <div className="flex items-center justify-between p-5 border-b border-slate-100 shrink-0">
-          <div>
-            <p className="text-sm font-semibold text-gray-900">{request.name ?? "Unknown buyer"}</p>
-            {request.company && (
-              <p className="text-xs text-gray-400 mt-0.5">{request.company}</p>
-            )}
+        <div className="shrink-0 px-5 py-4 border-b border-slate-100">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-base font-bold text-gray-900 leading-tight">
+                {request.product_name ?? "Sourcing request"}
+              </p>
+              <div className="flex flex-wrap gap-1.5 mt-1.5">
+                {request.company && (
+                  <span className="text-xs bg-slate-100 text-slate-700 px-2 py-0.5 rounded-full">
+                    {request.company}
+                  </span>
+                )}
+                {request.category && (
+                  <span className="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full">
+                    {request.category}
+                  </span>
+                )}
+                {hasKosher && (
+                  <span className="text-xs bg-orange-50 text-orange-700 px-2 py-0.5 rounded-full">
+                    ✡ Kosher
+                  </span>
+                )}
+                <span className="text-xs text-gray-400">
+                  {timeAgo(request.created_at)}
+                </span>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={onClose}
+              className="text-gray-400 hover:text-gray-600 text-xl leading-none transition shrink-0"
+            >
+              ×
+            </button>
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 text-xl leading-none transition"
-          >
-            ×
-          </button>
         </div>
 
         {/* Body */}
@@ -143,6 +262,193 @@ export default function RequestSlideOver({
             </div>
           </section>
 
+          {/* ── MATCHES SECTION ── */}
+          <section>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className={sHdr}>
+                Matches{" "}
+                {matches !== null && matches.length > 0 && (
+                  <span className="text-orange-500 normal-case font-semibold">
+                    ({matches.length})
+                  </span>
+                )}
+              </h3>
+              <div className="flex gap-2">
+                {pendingMatches.length >= 3 && (
+                  <a
+                    href={`https://wa.me/?text=${encodeURIComponent(buildMultiMatchMsg())}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs px-3 py-1.5 rounded-lg border border-green-200 text-green-700 hover:bg-green-50 transition flex items-center gap-1"
+                  >
+                    Send top 3 ↗
+                  </a>
+                )}
+                <button
+                  type="button"
+                  onClick={handleRunMatch}
+                  disabled={matchLoading}
+                  className="text-xs px-3 py-1.5 rounded-lg bg-orange-500 hover:bg-orange-600 text-white font-medium disabled:opacity-50 transition flex items-center gap-1.5"
+                >
+                  {matchLoading ? (
+                    <>
+                      <span className="w-3 h-3 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                      Matching…
+                    </>
+                  ) : matches?.length ? (
+                    "Re-run matching"
+                  ) : (
+                    "Find suppliers"
+                  )}
+                </button>
+              </div>
+            </div>
+
+            {matchError && (
+              <p className="text-xs text-red-600 bg-red-50 rounded-lg px-3 py-2 mb-2">
+                {matchError}
+              </p>
+            )}
+
+            {/* Loading state */}
+            {matches === null && (
+              <div className="flex items-center gap-2 text-sm text-gray-400 py-4">
+                <span className="inline-block w-4 h-4 border-2 border-gray-300 border-t-orange-400 rounded-full animate-spin" />
+                Loading matches…
+              </div>
+            )}
+
+            {/* No matches state */}
+            {matches !== null && matches.length === 0 && (
+              <div className="text-center py-8 text-gray-400">
+                <p className="text-2xl mb-2">🔍</p>
+                <p className="text-sm font-medium text-gray-600">
+                  No matches found yet
+                </p>
+                <p className="text-xs mt-1">
+                  Click &ldquo;Find suppliers&rdquo; to run matching
+                </p>
+              </div>
+            )}
+
+            {/* Match cards */}
+            {matches !== null && matches.length > 0 && (
+              <div className="space-y-3">
+                {matches.map((m, idx) => {
+                  const kosherTypes = (m.match_breakdown?.kosher_types ?? []) as string[];
+                  const certs = (m.match_breakdown?.certifications ?? []) as string[];
+                  const isApproved = m.status === "approved";
+
+                  return (
+                    <div
+                      key={m.id}
+                      className={`rounded-xl border p-4 transition ${
+                        isApproved
+                          ? "border-green-200 bg-green-50/30"
+                          : "border-gray-200 bg-white"
+                      }`}
+                    >
+                      {/* Card header: rank + company + score */}
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-1.5 mb-0.5">
+                            <span className="text-xs text-gray-400 font-mono">
+                              #{idx + 1}
+                            </span>
+                            {isApproved && (
+                              <span className="text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full font-medium">
+                                ✓ Approved
+                              </span>
+                            )}
+                          </div>
+                          <p className="font-semibold text-gray-900 text-sm">
+                            {m.company_name ?? "—"}
+                          </p>
+                          {m.country && (
+                            <p className="text-xs text-gray-400">{m.country}</p>
+                          )}
+                          {m.product_name && (
+                            <p className="text-xs text-gray-600 mt-1">
+                              {m.product_name}
+                            </p>
+                          )}
+                        </div>
+                        <ScoreDisplay score={m.match_score} />
+                      </div>
+
+                      {/* Match summary */}
+                      {m.match_summary && (
+                        <p className="text-xs text-slate-600 mt-2 leading-relaxed">
+                          {m.match_summary}
+                        </p>
+                      )}
+
+                      {/* Kosher + cert chips */}
+                      {(kosherTypes.length > 0 || certs.length > 0) && (
+                        <div className="flex flex-wrap gap-1 mt-2">
+                          {kosherTypes.map((k) => (
+                            <span
+                              key={k}
+                              className="text-xs bg-orange-50 text-orange-700 border border-orange-200 rounded-full px-2 py-0.5"
+                            >
+                              ✡ {k.replace("Chief Rabbinate", "CR").replace("Badatz Beit Yosef", "BY")}
+                            </span>
+                          ))}
+                          {certs.slice(0, 3).map((c) => (
+                            <span
+                              key={c}
+                              className="text-xs bg-slate-50 text-slate-600 border border-slate-200 rounded-full px-2 py-0.5"
+                            >
+                              {c}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Actions */}
+                      <div className="flex items-center gap-2 mt-3 flex-wrap">
+                        {!isApproved && (
+                          <button
+                            type="button"
+                            onClick={() => handleApprove(m.id)}
+                            className="text-xs px-2.5 py-1.5 rounded-lg bg-green-50 text-green-700 hover:bg-green-100 font-medium transition"
+                          >
+                            ✓ Approve
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => handleReject(m.id)}
+                          className="text-xs px-2.5 py-1.5 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 font-medium transition"
+                        >
+                          ✗ Reject
+                        </button>
+                        {m.whatsapp_message && (
+                          <a
+                            href={`https://wa.me/?text=${encodeURIComponent(m.whatsapp_message)}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-xs px-2.5 py-1.5 rounded-lg border border-green-200 text-green-700 hover:bg-green-50 transition"
+                          >
+                            WhatsApp ↗
+                          </a>
+                        )}
+                        <a
+                          href={`/admin/proposals/new?request=${request.id}&supplier=${m.supplier_id}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-xs px-2.5 py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 transition"
+                        >
+                          Proposal ↗
+                        </a>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </section>
+
           {/* Generate post */}
           <section>
             <PostGenerator
@@ -154,11 +460,17 @@ export default function RequestSlideOver({
           {/* Generate video script */}
           <section>
             <ScriptGenerator
-              defaultTopic={`Sourcing ${request.product_name ?? "product"} for Israeli ${request.target_market ?? "retail"}${(request.certifications ?? []).some((c) => c.toLowerCase().includes("kosher")) ? " — kosher certified" : " — kosher options available"}`}
+              defaultTopic={`Sourcing ${request.product_name ?? "product"} for Israeli ${request.target_market ?? "retail"}${
+                (request.certifications ?? []).some((c) =>
+                  c.toLowerCase().includes("kosher")
+                )
+                  ? " — kosher certified"
+                  : " — kosher options available"
+              }`}
             />
           </section>
 
-          {/* Section 1 — Contact */}
+          {/* Contact */}
           <section>
             <h3 className={sHdr}>Contact</h3>
             <table className="w-full text-sm">
@@ -170,10 +482,15 @@ export default function RequestSlideOver({
                   ["Source", request.source ?? "—"],
                 ].map(([label, val]) => (
                   <tr key={label}>
-                    <td className="py-2 pr-4 text-gray-400 text-xs w-20 shrink-0">{label}</td>
+                    <td className="py-2 pr-4 text-gray-400 text-xs w-20 shrink-0">
+                      {label}
+                    </td>
                     <td className="py-2 text-xs text-gray-800">
                       {label === "Email" && val ? (
-                        <a href={`mailto:${val}`} className="text-orange-600 hover:underline">
+                        <a
+                          href={`mailto:${val}`}
+                          className="text-orange-600 hover:underline"
+                        >
                           {val}
                         </a>
                       ) : (
@@ -186,7 +503,7 @@ export default function RequestSlideOver({
             </table>
           </section>
 
-          {/* Section 2 — Images */}
+          {/* Images */}
           {request.images.length > 0 && (
             <section>
               <h3 className={sHdr}>Images ({request.images.length})</h3>
@@ -210,7 +527,7 @@ export default function RequestSlideOver({
             </section>
           )}
 
-          {/* Section 3 — Request details */}
+          {/* Request details */}
           <section>
             <h3 className={sHdr}>Request</h3>
             <div className="space-y-2">
@@ -221,7 +538,9 @@ export default function RequestSlideOver({
               ].map(([label, val]) =>
                 val ? (
                   <div key={label} className="flex gap-2 items-center">
-                    <span className="text-xs text-gray-400 w-20 shrink-0">{label}</span>
+                    <span className="text-xs text-gray-400 w-20 shrink-0">
+                      {label}
+                    </span>
                     <span className="text-xs bg-orange-50 text-orange-700 border border-orange-200 rounded-full px-3 py-0.5">
                       {val}
                     </span>
@@ -230,7 +549,9 @@ export default function RequestSlideOver({
               )}
               {request.private_label !== null && (
                 <div className="flex gap-2 items-center">
-                  <span className="text-xs text-gray-400 w-20 shrink-0">Private label</span>
+                  <span className="text-xs text-gray-400 w-20 shrink-0">
+                    Private label
+                  </span>
                   <span className="text-xs bg-orange-50 text-orange-700 border border-orange-200 rounded-full px-3 py-0.5">
                     {request.private_label ? "Yes" : "No"}
                   </span>
@@ -238,7 +559,9 @@ export default function RequestSlideOver({
               )}
               {(request.certifications?.length ?? 0) > 0 && (
                 <div className="flex gap-2 items-start">
-                  <span className="text-xs text-gray-400 w-20 shrink-0 pt-0.5">Certs</span>
+                  <span className="text-xs text-gray-400 w-20 shrink-0 pt-0.5">
+                    Certs
+                  </span>
                   <div className="flex flex-wrap gap-1">
                     {request.certifications!.map((c) => (
                       <span
@@ -259,7 +582,7 @@ export default function RequestSlideOver({
             )}
           </section>
 
-          {/* Section 4 — AI Analysis */}
+          {/* AI Analysis */}
           {ai && (
             <section>
               <h3 className={sHdr}>AI Analysis</h3>
@@ -272,14 +595,20 @@ export default function RequestSlideOver({
                 ].map(([label, val]) =>
                   val ? (
                     <div key={label} className="flex gap-2 items-center">
-                      <span className="text-xs text-orange-500 w-20 shrink-0">{label}</span>
-                      <span className="text-xs text-orange-800">{val as string}</span>
+                      <span className="text-xs text-orange-500 w-20 shrink-0">
+                        {label}
+                      </span>
+                      <span className="text-xs text-orange-800">
+                        {val as string}
+                      </span>
                     </div>
                   ) : null
                 )}
                 {(ai.certifications_visible?.length ?? 0) > 0 && (
                   <div className="flex gap-2 items-start">
-                    <span className="text-xs text-orange-500 w-20 shrink-0 pt-0.5">Certs seen</span>
+                    <span className="text-xs text-orange-500 w-20 shrink-0 pt-0.5">
+                      Certs seen
+                    </span>
                     <div className="flex flex-wrap gap-1">
                       {ai.certifications_visible!.map((c) => (
                         <span
@@ -294,11 +623,15 @@ export default function RequestSlideOver({
                 )}
                 {typeof ai.confidence === "number" && (
                   <div className="flex gap-2 items-center">
-                    <span className="text-xs text-orange-500 w-20 shrink-0">Confidence</span>
+                    <span className="text-xs text-orange-500 w-20 shrink-0">
+                      Confidence
+                    </span>
                     <div className="flex-1 bg-orange-200 rounded-full h-1.5">
                       <div
                         className="bg-orange-500 h-1.5 rounded-full"
-                        style={{ width: `${Math.round(ai.confidence * 100)}%` }}
+                        style={{
+                          width: `${Math.round(ai.confidence * 100)}%`,
+                        }}
                       />
                     </div>
                     <span className="text-xs text-orange-700 ml-1 shrink-0">
@@ -310,77 +643,27 @@ export default function RequestSlideOver({
             </section>
           )}
 
-          {/* Section 5 — Matched Suppliers */}
-          <section>
-            <div className="flex items-center justify-between mb-3">
-              <h3 className={sHdr}>Matched Suppliers</h3>
-              <button
-                type="button"
-                onClick={handleRunMatching}
-                disabled={matchLoading}
-                className="text-xs px-3 py-1.5 rounded-lg bg-orange-500 hover:bg-orange-600 text-white font-medium disabled:opacity-50 transition flex items-center gap-1.5"
-              >
-                {matchLoading ? (
-                  <>
-                    <span className="w-3 h-3 border-2 border-white/40 border-t-white rounded-full animate-spin" />
-                    Matching…
-                  </>
-                ) : (
-                  "Run matching"
-                )}
-              </button>
-            </div>
-
-            {matchError && (
-              <p className="text-xs text-red-600 bg-red-50 rounded-lg px-3 py-2 mb-2">
-                {matchError}
-              </p>
-            )}
-
-            {matches !== null && matches.length === 0 && (
-              <p className="text-xs text-gray-400">No matching suppliers found.</p>
-            )}
-
-            {matches !== null && matches.length > 0 && (
-              <div className="space-y-2">
-                {matches.map((m) => (
+          {/* Approved matches summary */}
+          {approvedMatches.length > 0 && (
+            <section>
+              <h3 className={sHdr}>Approved ({approvedMatches.length})</h3>
+              <div className="space-y-1">
+                {approvedMatches.map((m) => (
                   <div
-                    key={m.supplier_id}
-                    className="flex items-start gap-3 p-3 bg-slate-50 rounded-xl"
+                    key={m.id}
+                    className="flex items-center justify-between text-xs"
                   >
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <p className="text-xs font-medium text-gray-900 truncate">
-                          {m.company_name}
-                        </p>
-                        {m.country_of_origin && (
-                          <span className="text-xs text-gray-400 shrink-0">
-                            {m.country_of_origin}
-                          </span>
-                        )}
-                      </div>
-                      {m.match_summary ? (
-                        <p className="text-sm text-slate-600 mt-1.5">{m.match_summary}</p>
-                      ) : (
-                        <div className="flex flex-wrap gap-1 mt-1.5">
-                          {m.match_reasons.map((r, i) => (
-                            <span
-                              key={i}
-                              className="text-xs bg-white border border-slate-200 text-slate-600 rounded-full px-2 py-0.5"
-                            >
-                              {r}
-                            </span>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                    <ScoreChip score={m.score} />
+                    <span className="font-medium text-gray-700">
+                      {m.company_name}
+                    </span>
+                    <span className="text-green-600 font-semibold">
+                      {m.match_score}%
+                    </span>
                   </div>
                 ))}
               </div>
-            )}
-          </section>
-
+            </section>
+          )}
         </div>
 
         {/* Footer */}
@@ -409,7 +692,6 @@ export default function RequestSlideOver({
             Close
           </button>
         </div>
-
       </div>
     </>
   );

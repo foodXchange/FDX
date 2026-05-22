@@ -145,184 +145,196 @@ export async function GET(req: NextRequest) {
         });
         send({ type: "log", message: `  Website: ${supplier.website}` });
 
+        const supplierTimeout = new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error("Supplier timeout")), 90000)
+        );
+
         try {
           await supabaseAdmin
             .from("supplier_offerings")
             .update({ scrape_status: "pending" })
             .eq("id", supplier.id);
 
-          // Crawl
-          send({ type: "log", message: "  → Crawling website..." });
-          const crawlUrl = getHomepage(supplier.website!);
-          const content = await crawlSupplier(crawlUrl, supplier.company_name, supplier.country_of_origin);
-          const isPerplexity = content.startsWith("[PERPLEXITY RESEARCH]");
+          await Promise.race([
+            (async () => {
+              // ── CRAWL ─────────────────────────────────────────────────────
+              send({ type: "log", message: "  → Crawling website..." });
+              const crawlUrl = getHomepage(supplier.website!);
+              const content = await crawlSupplier(crawlUrl, supplier.company_name, supplier.country_of_origin);
+              const isPerplexity = content.startsWith("[PERPLEXITY RESEARCH]");
 
-          if (!content || content.length < 50) {
-            send({ type: "error", message: "  ✗ Website blocked or no content" });
-            await supabaseAdmin
-              .from("supplier_offerings")
-              .update({ scrape_status: "failed" })
-              .eq("id", supplier.id);
-            failed.push({ name: supplier.company_name, reason: "No content returned" });
-            if (i < suppliers.length - 1) {
-              send({ type: "log", message: "  ⏳ Waiting 25s before next supplier..." });
-              await sleep(25000);
-            }
-            continue;
-          }
+              if (!content || content.length < 50) {
+                send({ type: "error", message: "  ✗ Website blocked or no content" });
+                await supabaseAdmin
+                  .from("supplier_offerings")
+                  .update({ scrape_status: "failed" })
+                  .eq("id", supplier.id);
+                failed.push({ name: supplier.company_name, reason: "No content returned" });
+                return;
+              }
 
-          if (isPerplexity) {
-            send({
-              type: "log",
-              message: `  ✓ Content from Perplexity research (${content.length.toLocaleString()} chars)`,
-            });
-          } else {
-            const pageCount = content.split("---PAGE BREAK---").length;
-            send({
-              type: "log",
-              message: `  ✓ Fetched ${content.length.toLocaleString()} chars across ${pageCount} page${pageCount !== 1 ? "s" : ""}`,
-            });
-          }
+              if (isPerplexity) {
+                send({
+                  type: "log",
+                  message: `  ✓ Content from Perplexity research (${content.length.toLocaleString()} chars)`,
+                });
+              } else {
+                const pageCount = content.split("---PAGE BREAK---").length;
+                send({
+                  type: "log",
+                  message: `  ✓ Fetched ${content.length.toLocaleString()} chars across ${pageCount} page${pageCount !== 1 ? "s" : ""}`,
+                });
+              }
 
-          // Manufacturer detection
-          send({ type: "log", message: "  → Checking if manufacturer..." });
-          const mfr = await detectManufacturerType(content, supplier.company_name);
+              // ── MANUFACTURER DETECTION ────────────────────────────────────
+              send({ type: "log", message: "  → Checking if manufacturer..." });
+              const mfr = await detectManufacturerType(content, supplier.company_name);
 
-          const shouldSkip =
-            !mfr.isManufacturer &&
-            !["manufacturer", "mixed", "unknown"].includes(mfr.companyType) &&
-            mfr.confidence >= 0.4;
+              const shouldSkip =
+                !mfr.isManufacturer &&
+                !["manufacturer", "mixed", "unknown"].includes(mfr.companyType) &&
+                mfr.confidence >= 0.4;
 
-          if (shouldSkip) {
-            send({
-              type: "warning",
-              message: `  ✗ SKIPPED — Not a manufacturer (${mfr.companyType}): ${mfr.reason}`,
-            });
-            await supabaseAdmin
-              .from("supplier_offerings")
-              .update({ scrape_status: "skipped" })
-              .eq("id", supplier.id);
-            skippedList.push({ name: supplier.company_name, type: mfr.companyType });
-            if (i < suppliers.length - 1) {
-              send({ type: "log", message: "  ⏳ Waiting 25s before next supplier..." });
-              await sleep(25000);
-            }
-            continue;
-          }
+              if (shouldSkip) {
+                send({
+                  type: "warning",
+                  message: `  ✗ SKIPPED — Not a manufacturer (${mfr.companyType}): ${mfr.reason}`,
+                });
+                await supabaseAdmin
+                  .from("supplier_offerings")
+                  .update({
+                    scrape_status: "skipped",
+                    ...(mfr.companyType === "non_food" ? { supplier_type: "non_food" } : {}),
+                  })
+                  .eq("id", supplier.id);
+                skippedList.push({ name: supplier.company_name, type: mfr.companyType });
+                return;
+              }
 
-          if (mfr.companyType === "mixed") {
-            send({ type: "warning", message: `  ⚠ Mixed company — ${mfr.reason}` });
-          } else {
-            send({ type: "log", message: `  ✓ Confirmed manufacturer` });
-          }
+              if (mfr.companyType === "mixed") {
+                send({ type: "warning", message: `  ⚠ Mixed company — ${mfr.reason}` });
+              } else {
+                send({ type: "log", message: `  ✓ Confirmed manufacturer` });
+              }
 
-          // Extract products
-          send({ type: "log", message: "  → Extracting products..." });
-          const products = await extractProducts(content, {
-            company_name: supplier.company_name,
-            country_of_origin: supplier.country_of_origin,
-            certifications: supplier.certifications ?? [],
-          });
+              // ── EXTRACT PRODUCTS ──────────────────────────────────────────
+              send({ type: "log", message: "  → Extracting products..." });
+              const products = await extractProducts(content, {
+                company_name: supplier.company_name,
+                country_of_origin: supplier.country_of_origin,
+                certifications: supplier.certifications ?? [],
+              });
 
-          if (products.length === 0) {
-            send({ type: "error", message: "  ✗ No products extracted" });
-            await supabaseAdmin
-              .from("supplier_offerings")
-              .update({ scrape_status: "failed" })
-              .eq("id", supplier.id);
-            failed.push({ name: supplier.company_name, reason: "No products extracted" });
-            if (i < suppliers.length - 1) {
-              send({ type: "log", message: "  ⏳ Waiting 25s before next supplier..." });
-              await sleep(25000);
-            }
-            continue;
-          }
+              if (products.length === 0) {
+                send({ type: "error", message: "  ✗ No products extracted" });
+                await supabaseAdmin
+                  .from("supplier_offerings")
+                  .update({ scrape_status: "failed" })
+                  .eq("id", supplier.id);
+                failed.push({ name: supplier.company_name, reason: "No products extracted" });
+                return;
+              }
 
-          const detectedLang = products[0]?.detected_language;
-          if (detectedLang && detectedLang !== "english") {
-            send({ type: "log", message: `  🌍 Content language: ${detectedLang}` });
-          }
+              const detectedLang = products[0]?.detected_language;
+              if (detectedLang && detectedLang !== "english") {
+                send({ type: "log", message: `  🌍 Content language: ${detectedLang}` });
+              }
 
-          // Save products
-          const scrapeSource = isPerplexity
-            ? `perplexity:${supplier.website}`
-            : supplier.website!;
-          const inserted = await insertProducts(supplier.id, products, scrapeSource);
+              // ── SAVE PRODUCTS ─────────────────────────────────────────────
+              const scrapeSource = isPerplexity
+                ? `perplexity:${supplier.website}`
+                : supplier.website!;
+              const inserted = await insertProducts(supplier.id, products, scrapeSource);
 
-          // Extract profile + factories
-          send({ type: "log", message: "  → Extracting company profile..." });
-          const profile = await extractSupplierProfile(content, supplier.company_name, {
-            country: supplier.country_of_origin,
-            categories: supplier.categories ?? [],
-          });
+              // ── EXTRACT PROFILE ───────────────────────────────────────────
+              send({ type: "log", message: "  → Extracting company profile..." });
+              const profile = await extractSupplierProfile(content, supplier.company_name, {
+                country: supplier.country_of_origin,
+                categories: supplier.categories ?? [],
+              });
 
-          await supabaseAdmin
-            .from("supplier_offerings")
-            .update({
-              scrape_status: "scraped",
-              last_scraped_at: new Date().toISOString(),
-              products_found: inserted,
-              ...(profile.company_description
-                ? { product_description: profile.company_description }
-                : {}),
-              ...(profile.contact_email ? { contact_email: profile.contact_email } : {}),
-              ...(profile.contact_phone ? { contact_phone: profile.contact_phone } : {}),
-              ...(profile.contact_name ? { contact_name: profile.contact_name } : {}),
-              ...(profile.linkedin_url ? { linkedin_url: profile.linkedin_url } : {}),
-              ...(profile.export_markets.length > 0
-                ? { export_markets: profile.export_markets }
-                : {}),
-              ...(profile.founded_year ? { founded_year: profile.founded_year } : {}),
-              ...(profile.employees_range
-                ? { employees_range: profile.employees_range }
-                : {}),
-            })
-            .eq("id", supplier.id);
+              await supabaseAdmin
+                .from("supplier_offerings")
+                .update({
+                  scrape_status: "scraped",
+                  last_scraped_at: new Date().toISOString(),
+                  products_found: inserted,
+                  ...(profile.company_description
+                    ? { product_description: profile.company_description }
+                    : {}),
+                  ...(profile.contact_email ? { contact_email: profile.contact_email } : {}),
+                  ...(profile.contact_phone ? { contact_phone: profile.contact_phone } : {}),
+                  ...(profile.contact_name ? { contact_name: profile.contact_name } : {}),
+                  ...(profile.linkedin_url ? { linkedin_url: profile.linkedin_url } : {}),
+                  ...(profile.export_markets.length > 0
+                    ? { export_markets: profile.export_markets }
+                    : {}),
+                  ...(profile.founded_year ? { founded_year: profile.founded_year } : {}),
+                  ...(profile.employees_range
+                    ? { employees_range: profile.employees_range }
+                    : {}),
+                })
+                .eq("id", supplier.id);
 
-          if (profile.factories.length > 0) {
-            await supabaseAdmin
-              .from("supplier_factories")
-              .delete()
-              .eq("supplier_id", supplier.id);
+              if (profile.factories.length > 0) {
+                await supabaseAdmin
+                  .from("supplier_factories")
+                  .delete()
+                  .eq("supplier_id", supplier.id);
 
-            await supabaseAdmin.from("supplier_factories").insert(
-              profile.factories.map((f, idx) => ({
-                supplier_id: supplier.id,
-                factory_name: f.factory_name,
-                country: f.country,
-                city: f.city,
-                is_primary: idx === 0,
-                kosher_types: f.kosher_types,
-                kosher_certifying_body: f.kosher_certifying_body,
-                certifications_quality: f.certifications_quality,
-                certifications_dietary: f.certifications_dietary,
-                brc_grade: f.brc_grade,
-                ifs_grade: f.ifs_grade,
-                production_capacity: f.production_capacity,
-              }))
-            );
+                await supabaseAdmin.from("supplier_factories").insert(
+                  profile.factories.map((f, idx) => ({
+                    supplier_id: supplier.id,
+                    factory_name: f.factory_name,
+                    country: f.country,
+                    city: f.city,
+                    is_primary: idx === 0,
+                    kosher_types: f.kosher_types,
+                    kosher_certifying_body: f.kosher_certifying_body,
+                    certifications_quality: f.certifications_quality,
+                    certifications_dietary: f.certifications_dietary,
+                    brc_grade: f.brc_grade,
+                    ifs_grade: f.ifs_grade,
+                    production_capacity: f.production_capacity,
+                  }))
+                );
 
-            send({
-              type: "log",
-              message: `  🏭 ${profile.factories.length} factory/factories found`,
-            });
-          }
+                send({
+                  type: "log",
+                  message: `  🏭 ${profile.factories.length} factory/factories found`,
+                });
+              }
 
-          send({
-            type: "success",
-            message: `  ✓ ${inserted} products saved`,
-            data: { products: inserted, supplier: supplier.company_name },
-          });
+              send({
+                type: "success",
+                message: `  ✓ ${inserted} products saved`,
+                data: { products: inserted, supplier: supplier.company_name },
+              });
 
-          succeeded.push({ name: supplier.company_name, products: inserted });
+              succeeded.push({ name: supplier.company_name, products: inserted });
+            })(),
+            supplierTimeout,
+          ]);
         } catch (err) {
           const msg = err instanceof Error ? err.message : String(err);
-          send({ type: "error", message: `  ✗ Error: ${msg}` });
-          await supabaseAdmin
-            .from("supplier_offerings")
-            .update({ scrape_status: "failed" })
-            .eq("id", supplier.id);
-          failed.push({ name: supplier.company_name, reason: msg });
+          if (err instanceof Error && err.message === "Supplier timeout") {
+            send({ type: "warning", message: "  ⏱ Timeout after 90s — skipping" });
+            await supabaseAdmin
+              .from("supplier_offerings")
+              .update({
+                scrape_status: "failed",
+                internal_notes: "Timeout: exceeded 90s limit",
+              })
+              .eq("id", supplier.id);
+            failed.push({ name: supplier.company_name, reason: "Timeout after 90s" });
+          } else {
+            send({ type: "error", message: `  ✗ Error: ${msg}` });
+            await supabaseAdmin
+              .from("supplier_offerings")
+              .update({ scrape_status: "failed" })
+              .eq("id", supplier.id);
+            failed.push({ name: supplier.company_name, reason: msg });
+          }
         }
 
         if (i < suppliers.length - 1) {

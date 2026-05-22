@@ -70,6 +70,7 @@ export async function POST(req: Request) {
   let inserted = 0;
   let skipped = 0;
   let errors = 0;
+  let invalidUrls = 0;
   const skippedNames: string[] = [];
   const errorDetails: string[] = [];
 
@@ -90,7 +91,7 @@ export async function POST(req: Request) {
 
     const cleanedUrl = cleanUrl(website);
     if (!cleanedUrl) {
-      errors++;
+      invalidUrls++;
       errorDetails.push(`${name}: invalid website URL "${website}"`);
       continue;
     }
@@ -144,6 +145,7 @@ export async function POST(req: Request) {
     inserted,
     skipped,
     errors,
+    invalidUrls,
     skippedNames,
     errorDetails,
   });

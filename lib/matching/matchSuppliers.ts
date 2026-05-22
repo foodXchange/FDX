@@ -101,6 +101,7 @@ type ProductRow = {
   tags: string[] | null;
   private_label: boolean | null;
   scrape_confidence: number;
+  manually_verified: boolean | null;
   supplier_id: string;
   factory: {
     kosher_types: string[];
@@ -229,35 +230,79 @@ export function formatMatchSummary(reasons: string[]): string {
 }
 
 export function formatWhatsAppMatch(
-  requestProductName: string | null,
-  match: ProductMatch
+  request: { product_name?: string | null; company?: string | null },
+  match: ProductMatch,
+  rank = 1,
+  slug?: string
 ): string {
-  return [
-    `🔍 *Sourcing match found*`,
+  const div = "──────────────────";
+  const lines: (string | null)[] = [
+    `🔍 *Sourcing match — FoodXchange*`,
     ``,
-    `Request: ${requestProductName ?? "Your product"}`,
-    `Supplier: *${match.company_name}*`,
+    `Buyer: ${request.company ?? "Unknown"}`,
+    `Product: ${request.product_name ?? "—"}`,
+    ``,
+    div,
+    `*Match #${rank} — ${Math.round(match.score)}/100*`,
+    `Supplier: *${match.company_name}* (${match.country_of_origin ?? "—"})`,
     `Product: ${match.product_name}`,
-    `Country: ${match.country_of_origin ?? "—"}`,
+    match.kosher_types.length > 0 ? `Kosher: ${match.kosher_types.join(", ")}` : null,
+    match.certifications.length > 0
+      ? `Certs: ${match.certifications.slice(0, 3).join(", ")}`
+      : null,
+    match.match_summary ?? null,
+    div,
+    slug ? `Request details: fdx.trading/${slug}` : null,
+  ];
+  return lines.filter((l): l is string => l !== null).join("\n");
+}
+
+export function formatMultiMatchWhatsApp(
+  request: { product_name?: string | null; company?: string | null },
+  matches: ProductMatch[],
+  slug?: string
+): string {
+  const div = "──────────────────";
+  const header = [
+    `🔍 *Sourcing matches — FoodXchange*`,
     ``,
-    match.match_summary ?? match.match_reasons.join(" · "),
-    ``,
-    `Score: ${match.score}/100`,
-    `fdx.trading`,
+    `Buyer: ${request.company ?? "Unknown"}`,
+    `Product: ${request.product_name ?? "—"}`,
   ].join("\n");
+
+  const cards = matches
+    .map((m, i) => {
+      const lines: (string | null)[] = [
+        div,
+        `*Match #${i + 1} — ${Math.round(m.score)}/100*`,
+        `Supplier: *${m.company_name}* (${m.country_of_origin ?? "—"})`,
+        `Product: ${m.product_name}`,
+        m.kosher_types.length > 0 ? `Kosher: ${m.kosher_types.join(", ")}` : null,
+        m.certifications.length > 0
+          ? `Certs: ${m.certifications.slice(0, 3).join(", ")}`
+          : null,
+        m.match_summary ?? null,
+      ];
+      return lines.filter((l): l is string => l !== null).join("\n");
+    })
+    .join("\n");
+
+  const footer = slug ? `${div}\nRequest: fdx.trading/${slug}` : div;
+  return [header, cards, footer].join("\n");
 }
 
 // ─── Product-level matching ───────────────────────────────────────────────────
 
 export async function matchSupplierProducts(
   request: MatchRequestInput,
-  limit = 10
+  limit = 10,
+  excludeSupplierIds: string[] = []
 ): Promise<ProductMatch[]> {
   const { data, error } = await supabaseAdmin
     .from("supplier_products")
     .select(
       `id, product_name, category, formats, certifications, kosher_types,
-       product_type, primary_ingredients, tags, private_label, scrape_confidence,
+       product_type, primary_ingredients, tags, private_label, scrape_confidence, manually_verified,
        supplier_id,
        factory:supplier_factories(kosher_types, certifications_quality, certifications_dietary, is_primary),
        supplier:supplier_offerings!inner(id, company_name, country_of_origin, status, priority)`
@@ -268,6 +313,11 @@ export async function matchSupplierProducts(
   if (error || !data) return [];
 
   const rows = data as unknown as ProductRow[];
+
+  const filteredRows =
+    excludeSupplierIds.length > 0
+      ? rows.filter((r) => !excludeSupplierIds.includes(r.supplier_id))
+      : rows;
 
   const requestTags = [
     ...(request.tags ?? []),
@@ -285,7 +335,7 @@ export async function matchSupplierProducts(
     f.toLowerCase().trim()
   );
 
-  const scored: (ProductMatch | null)[] = rows.map((product) => {
+  const scored: (ProductMatch | null)[] = filteredRows.map((product) => {
     if (!product.supplier) return null;
 
     // ── HARD FILTER: kosher compatibility ─────────────────────────────────
@@ -461,7 +511,8 @@ export async function matchSupplierProducts(
     const priorityBonus = Math.min(product.supplier.priority ?? 0, 20) * 0.25;
     breakdown.priorityBonus = priorityBonus;
 
-    const finalScore = confidenceScore + priorityBonus;
+    const verifiedBonus = product.manually_verified ? 5 : 0;
+    const finalScore = confidenceScore + priorityBonus + verifiedBonus;
 
     if (finalScore <= 0) return null;
 
@@ -500,6 +551,7 @@ export async function matchSupplierProducts(
   }
 
   return Array.from(bestPerSupplier.values())
+    .filter((m) => m.score >= 30)
     .sort((a, b) => b.score - a.score)
     .slice(0, limit);
 }

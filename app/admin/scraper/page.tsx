@@ -20,27 +20,17 @@ type SupplierRow = {
   last_scraped_at: string | null;
   products_found: number | null;
   status: string | null;
+  scrape_source: string | null;
+  categories: string[] | null;
 };
 
-type FilterTab = "all" | "pending" | "scraped" | "failed";
-
-export default async function ScraperPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ tab?: string }>;
-}) {
-  const { tab: rawTab } = await searchParams;
-  const activeTab: FilterTab =
-    rawTab === "pending" || rawTab === "scraped" || rawTab === "failed"
-      ? rawTab
-      : "all";
-
+export default async function ScraperPage() {
   const [suppliersResult, productsCountResult, factoriesResult] =
     await Promise.all([
       supabaseAdmin
         .from("supplier_offerings")
         .select(
-          "id, company_name, website, country_of_origin, scrape_status, last_scraped_at, products_found, status"
+          "id, company_name, website, country_of_origin, scrape_status, last_scraped_at, products_found, status, scrape_source, categories"
         )
         .not("website", "is", null)
         .neq("website", "")
@@ -57,7 +47,6 @@ export default async function ScraperPage({
   const suppliers = (suppliersResult.data ?? []) as SupplierRow[];
   const totalProducts = productsCountResult.count ?? 0;
 
-  // Build factory metadata per supplier
   const factories = (factoriesResult.data ?? []) as FactoryRow[];
   const factoryCountMap: Record<string, number> = {};
   const primaryKosherMap: Record<string, string[]> = {};
@@ -77,18 +66,6 @@ export default async function ScraperPage({
     },
     { pending: 0, scraped: 0, failed: 0, skipped: 0 }
   );
-
-  const filtered =
-    activeTab === "all"
-      ? suppliers
-      : suppliers.filter((s) => (s.scrape_status ?? "pending") === activeTab);
-
-  const tabs: { key: FilterTab; label: string }[] = [
-    { key: "all", label: `All (${suppliers.length})` },
-    { key: "pending", label: `Pending (${counts.pending})` },
-    { key: "scraped", label: `Scraped (${counts.scraped})` },
-    { key: "failed", label: `Failed (${counts.failed})` },
-  ];
 
   return (
     <main className="min-h-screen bg-gray-50">
@@ -117,66 +94,19 @@ export default async function ScraperPage({
         {/* Batch scraper section */}
         <div className="bg-white border border-slate-200 rounded-2xl p-6">
           <p className="font-semibold text-slate-800 mb-4">Run batch scrape</p>
-          <ScraperConsole />
+          <ScraperConsole
+            totalPending={counts.pending}
+            totalAll={suppliers.length}
+          />
         </div>
 
-        {/* Supplier table */}
+        {/* Supplier table — filtering/sorting owned by client component */}
         <div>
-          {/* Filter tabs */}
-          <div className="flex gap-1 mb-4 bg-white border border-gray-200 rounded-xl p-1 w-fit">
-            {tabs.map((t) => (
-              <a
-                key={t.key}
-                href={t.key === "all" ? "/admin/scraper" : `/admin/scraper?tab=${t.key}`}
-                className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                  activeTab === t.key
-                    ? "bg-slate-900 text-white"
-                    : "text-slate-600 hover:text-slate-900"
-                }`}
-              >
-                {t.label}
-              </a>
-            ))}
-          </div>
-
-          {filtered.length === 0 ? (
-            <div className="text-center py-16 text-gray-400 text-sm">
-              No suppliers in this category.
-            </div>
-          ) : (
-            <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-sm">
-              <table className="w-full text-sm">
-                <thead className="bg-gray-50 border-b border-gray-200">
-                  <tr>
-                    {[
-                      "Company",
-                      "Website",
-                      "Status",
-                      "Products",
-                      "Factories",
-                      "Kosher",
-                      "Last scraped",
-                      "Actions",
-                    ].map((h) => (
-                      <th
-                        key={h}
-                        className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider"
-                      >
-                        {h}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  <ScraperTableClient
-                    suppliers={filtered}
-                    factoryCountMap={factoryCountMap}
-                    primaryKosherMap={primaryKosherMap}
-                  />
-                </tbody>
-              </table>
-            </div>
-          )}
+          <ScraperTableClient
+            suppliers={suppliers}
+            factoryCountMap={factoryCountMap}
+            primaryKosherMap={primaryKosherMap}
+          />
         </div>
       </div>
     </main>

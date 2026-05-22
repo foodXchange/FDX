@@ -2,7 +2,7 @@ import { z } from "zod";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { checkRateLimit } from "@/lib/rateLimit";
 import { sendLeadNotification, sendBuyerConfirmation } from "@/lib/email/mailer";
-import { matchSuppliers } from "@/lib/matching/matchSuppliers";
+import { matchSupplierProducts, formatWhatsAppMatch } from "@/lib/matching/matchSuppliers";
 
 const SubmitSchema = z.object({
   name: z.string().min(1).max(200),
@@ -114,40 +114,77 @@ export async function POST(req: Request) {
           description: data.description ?? null,
         };
 
-        const matches = await matchSuppliers(matchInput, 5);
+        const allMatches = await matchSupplierProducts(matchInput, 10);
+        const top10 = allMatches.filter((m) => m.score >= 30);
 
-        if (matches.length > 0) {
-          await Promise.resolve(
-            supabaseAdmin
-              .from("sourcing_matches")
-              .upsert(
-                matches.slice(0, 3).map((m) => ({
-                  request_id: newRequest.id,
-                  supplier_id: m.supplier_id,
-                  match_score: m.score,
-                  match_breakdown: m.score_breakdown,
-                  status: "suggested",
-                })),
-                { onConflict: "request_id,supplier_id" }
-              )
-          );
+        if (top10.length > 0) {
+          await supabaseAdmin
+            .from("sourcing_matches")
+            .upsert(
+              top10.map((m, idx) => ({
+                request_id: newRequest.id,
+                supplier_id: m.supplier_id,
+                match_score: Math.round(m.score),
+                product_name: m.product_name,
+                company_name: m.company_name,
+                country: m.country_of_origin,
+                match_summary: m.match_summary ?? null,
+                whatsapp_message: formatWhatsAppMatch(
+                  { product_name: data.product_name, company: data.company },
+                  m,
+                  idx + 1
+                ),
+                match_breakdown: {
+                  reasons: m.match_reasons,
+                  summary: m.match_summary,
+                  kosher_types: m.kosher_types,
+                  certifications: m.certifications,
+                },
+                status: "pending",
+              })),
+              { onConflict: "request_id,supplier_id" }
+            );
+
+          await supabaseAdmin
+            .from("sourcing_requests")
+            .update({
+              last_matched_at: new Date().toISOString(),
+              best_match_score: Math.round(top10[0].score),
+              match_count: top10.length,
+              status: "matched",
+            })
+            .eq("id", newRequest.id);
         }
 
-        await sendLeadNotification({
-          name: data.name,
-          email: data.email,
-          company: data.company ?? "",
-          message: data.description ?? intentSummary,
-          intentSummary,
-          matchedItems: [],
-          submittedAt: new Date().toISOString(),
-          supplierMatches: matches.slice(0, 3).map((m) => ({
-            company_name: m.company_name,
-            country: m.country_of_origin,
-            score: m.score,
-            reasons: m.match_reasons,
-          })),
-        });
+        // Only notify admin when best match score is meaningful
+        if ((top10[0]?.score ?? 0) >= 60) {
+          await sendLeadNotification({
+            name: data.name,
+            email: data.email,
+            company: data.company ?? "",
+            message: data.description ?? intentSummary,
+            intentSummary,
+            matchedItems: [],
+            submittedAt: new Date().toISOString(),
+            supplierMatches: top10.slice(0, 3).map((m) => ({
+              company_name: m.company_name,
+              country: m.country_of_origin,
+              score: Math.round(m.score),
+              reasons: m.match_reasons,
+              match_summary: m.match_summary,
+            })),
+          });
+        } else {
+          await sendLeadNotification({
+            name: data.name,
+            email: data.email,
+            company: data.company ?? "",
+            message: data.description ?? intentSummary,
+            intentSummary,
+            matchedItems: [],
+            submittedAt: new Date().toISOString(),
+          });
+        }
       } catch (err) {
         console.error("Auto-match error:", err);
         sendLeadNotification({
