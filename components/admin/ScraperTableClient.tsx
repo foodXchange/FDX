@@ -73,7 +73,30 @@ function RelativeTime({ iso }: { iso: string | null }) {
   return <span className="text-slate-500 text-sm">{label}</span>;
 }
 
-function ScraperRow({ supplier }: { supplier: Supplier }) {
+function KosherBadge({ types }: { types: string[] }) {
+  if (!types || types.length === 0) return <span className="text-slate-300">—</span>;
+  const abbr = types[0]
+    .replace("Chief Rabbinate", "CR")
+    .replace("Badatz Beit Yosef", "Badatz BY")
+    .replace("Badatz Eida Chareidis", "Badatz EC")
+    .replace("Orthodox Union", "OU")
+    .slice(0, 12);
+  return (
+    <span className="inline-flex items-center gap-1 bg-orange-50 text-orange-700 text-xs font-medium px-2 py-0.5 rounded-full">
+      ✡ {abbr}
+    </span>
+  );
+}
+
+function ScraperRow({
+  supplier,
+  factoryCount,
+  kosherTypes,
+}: {
+  supplier: Supplier;
+  factoryCount: number;
+  kosherTypes: string[];
+}) {
   const [state, setState] = useState<RowState>({
     scrape_status: supplier.scrape_status,
     products_found: supplier.products_found,
@@ -160,6 +183,20 @@ function ScraperRow({ supplier }: { supplier: Supplier }) {
           <ProductCount count={state.products_found} />
         </td>
 
+        {/* Factories */}
+        <td className="px-4 py-3">
+          {factoryCount > 0 ? (
+            <span className="text-slate-600 text-sm">{factoryCount} factory</span>
+          ) : (
+            <span className="text-slate-300">—</span>
+          )}
+        </td>
+
+        {/* Kosher */}
+        <td className="px-4 py-3">
+          <KosherBadge types={kosherTypes} />
+        </td>
+
         {/* Last scraped */}
         <td className="px-4 py-3">
           <RelativeTime iso={state.last_scraped_at} />
@@ -217,13 +254,22 @@ function ScraperRow({ supplier }: { supplier: Supplier }) {
 
 export default function ScraperTableClient({
   suppliers,
+  factoryCountMap = {},
+  primaryKosherMap = {},
 }: {
   suppliers: Supplier[];
+  factoryCountMap?: Record<string, number>;
+  primaryKosherMap?: Record<string, string[]>;
 }) {
   return (
     <>
       {suppliers.map((s) => (
-        <ScraperRow key={s.id} supplier={s} />
+        <ScraperRow
+          key={s.id}
+          supplier={s}
+          factoryCount={factoryCountMap[s.id] ?? 0}
+          kosherTypes={primaryKosherMap[s.id] ?? []}
+        />
       ))}
     </>
   );

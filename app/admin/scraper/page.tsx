@@ -1,7 +1,15 @@
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import ScraperTableClient from "@/components/admin/ScraperTableClient";
+import { CsvUploader } from "@/components/admin/CsvUploader";
+import { ScraperConsole } from "@/components/admin/ScraperConsole";
 
 export const dynamic = "force-dynamic";
+
+type FactoryRow = {
+  supplier_id: string;
+  is_primary: boolean;
+  kosher_types: string[];
+};
 
 type SupplierRow = {
   id: string;
@@ -27,21 +35,39 @@ export default async function ScraperPage({
       ? rawTab
       : "all";
 
-  const { data } = await supabaseAdmin
-    .from("supplier_offerings")
-    .select(
-      "id, company_name, website, country_of_origin, scrape_status, last_scraped_at, products_found, status"
-    )
-    .not("website", "is", null)
-    .neq("website", "")
-    .order("scrape_status", { ascending: true })
-    .order("company_name", { ascending: true });
+  const [suppliersResult, productsCountResult, factoriesResult] =
+    await Promise.all([
+      supabaseAdmin
+        .from("supplier_offerings")
+        .select(
+          "id, company_name, website, country_of_origin, scrape_status, last_scraped_at, products_found, status"
+        )
+        .not("website", "is", null)
+        .neq("website", "")
+        .order("scrape_status", { ascending: true })
+        .order("company_name", { ascending: true }),
+      supabaseAdmin
+        .from("supplier_products")
+        .select("*", { count: "exact", head: true }),
+      supabaseAdmin
+        .from("supplier_factories")
+        .select("supplier_id, is_primary, kosher_types"),
+    ]);
 
-  const { count: totalProducts } = await supabaseAdmin
-    .from("supplier_products")
-    .select("*", { count: "exact", head: true });
+  const suppliers = (suppliersResult.data ?? []) as SupplierRow[];
+  const totalProducts = productsCountResult.count ?? 0;
 
-  const suppliers = (data ?? []) as SupplierRow[];
+  // Build factory metadata per supplier
+  const factories = (factoriesResult.data ?? []) as FactoryRow[];
+  const factoryCountMap: Record<string, number> = {};
+  const primaryKosherMap: Record<string, string[]> = {};
+
+  for (const f of factories) {
+    factoryCountMap[f.supplier_id] = (factoryCountMap[f.supplier_id] ?? 0) + 1;
+    if (f.is_primary && f.kosher_types.length > 0) {
+      primaryKosherMap[f.supplier_id] = f.kosher_types;
+    }
+  }
 
   const counts = suppliers.reduce(
     (acc, s) => {
@@ -73,89 +99,112 @@ export default async function ScraperPage({
         </h1>
 
         {/* Stats row */}
-        <div className="flex items-center gap-3 flex-wrap mb-4">
-          <span className="inline-flex items-center gap-1.5 bg-green-50 text-green-700 text-sm font-medium px-3 py-1 rounded-full">
-            <span className="w-2 h-2 rounded-full bg-green-500 inline-block" />
-            {counts.scraped} scraped
-          </span>
-          <span className="inline-flex items-center gap-1.5 bg-orange-50 text-orange-700 text-sm font-medium px-3 py-1 rounded-full">
-            <span className="w-2 h-2 rounded-full bg-orange-400 inline-block" />
-            {counts.pending} pending
-          </span>
-          <span className="inline-flex items-center gap-1.5 bg-red-50 text-red-700 text-sm font-medium px-3 py-1 rounded-full">
-            <span className="w-2 h-2 rounded-full bg-red-400 inline-block" />
-            {counts.failed} failed
-          </span>
-          <span className="inline-flex items-center gap-1.5 bg-blue-50 text-blue-700 text-sm font-medium px-3 py-1 rounded-full">
-            {totalProducts ?? 0} total products extracted
-          </span>
-        </div>
-
-        {/* Script instructions */}
-        <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 text-sm text-slate-600 space-y-2">
-          <p>To scrape all pending suppliers, run:</p>
-          <code className="block bg-slate-100 px-3 py-1.5 rounded text-xs font-mono">
-            npx tsx scripts/08-scrape-suppliers.ts --limit=50
-          </code>
-          <p>To scrape a specific supplier:</p>
-          <code className="block bg-slate-100 px-3 py-1.5 rounded text-xs font-mono">
-            npx tsx scripts/08-scrape-suppliers.ts --supplier=[id]
-          </code>
+        <div className="flex items-center gap-3 flex-wrap">
+          <StatCard color="green" label="Scraped" count={counts.scraped} />
+          <StatCard color="orange" label="Pending" count={counts.pending} />
+          <StatCard color="red" label="Failed" count={counts.failed} />
+          <StatCard color="gray" label="Skipped" count={counts.skipped} />
+          <StatCard color="blue" label="Products" count={totalProducts} />
         </div>
       </div>
 
-      <div className="p-6 max-w-7xl mx-auto">
-        {/* Filter tabs */}
-        <div className="flex gap-1 mb-4 bg-white border border-gray-200 rounded-xl p-1 w-fit">
-          {tabs.map((t) => (
-            <a
-              key={t.key}
-              href={t.key === "all" ? "/admin/scraper" : `/admin/scraper?tab=${t.key}`}
-              className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                activeTab === t.key
-                  ? "bg-slate-900 text-white"
-                  : "text-slate-600 hover:text-slate-900"
-              }`}
-            >
-              {t.label}
-            </a>
-          ))}
+      <div className="p-6 max-w-7xl mx-auto space-y-6">
+        {/* CSV upload section */}
+        <div className="bg-white border border-slate-200 rounded-2xl p-6">
+          <CsvUploader />
         </div>
 
-        {/* Table */}
-        {filtered.length === 0 ? (
-          <div className="text-center py-16 text-gray-400 text-sm">
-            No suppliers in this category.
+        {/* Batch scraper section */}
+        <div className="bg-white border border-slate-200 rounded-2xl p-6">
+          <p className="font-semibold text-slate-800 mb-4">Run batch scrape</p>
+          <ScraperConsole />
+        </div>
+
+        {/* Supplier table */}
+        <div>
+          {/* Filter tabs */}
+          <div className="flex gap-1 mb-4 bg-white border border-gray-200 rounded-xl p-1 w-fit">
+            {tabs.map((t) => (
+              <a
+                key={t.key}
+                href={t.key === "all" ? "/admin/scraper" : `/admin/scraper?tab=${t.key}`}
+                className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                  activeTab === t.key
+                    ? "bg-slate-900 text-white"
+                    : "text-slate-600 hover:text-slate-900"
+                }`}
+              >
+                {t.label}
+              </a>
+            ))}
           </div>
-        ) : (
-          <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-sm">
-            <table className="w-full text-sm">
-              <thead className="bg-gray-50 border-b border-gray-200">
-                <tr>
-                  {[
-                    "Company",
-                    "Website",
-                    "Status",
-                    "Products",
-                    "Last scraped",
-                    "Actions",
-                  ].map((h) => (
-                    <th
-                      key={h}
-                      className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider"
-                    >
-                      {h}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                <ScraperTableClient suppliers={filtered} />
-              </tbody>
-            </table>
-          </div>
-        )}
+
+          {filtered.length === 0 ? (
+            <div className="text-center py-16 text-gray-400 text-sm">
+              No suppliers in this category.
+            </div>
+          ) : (
+            <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-sm">
+              <table className="w-full text-sm">
+                <thead className="bg-gray-50 border-b border-gray-200">
+                  <tr>
+                    {[
+                      "Company",
+                      "Website",
+                      "Status",
+                      "Products",
+                      "Factories",
+                      "Kosher",
+                      "Last scraped",
+                      "Actions",
+                    ].map((h) => (
+                      <th
+                        key={h}
+                        className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider"
+                      >
+                        {h}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  <ScraperTableClient
+                    suppliers={filtered}
+                    factoryCountMap={factoryCountMap}
+                    primaryKosherMap={primaryKosherMap}
+                  />
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
       </div>
     </main>
+  );
+}
+
+function StatCard({
+  color,
+  label,
+  count,
+}: {
+  color: "green" | "orange" | "red" | "gray" | "blue";
+  label: string;
+  count: number;
+}) {
+  const styles = {
+    green: "bg-green-50 text-green-700",
+    orange: "bg-orange-50 text-orange-700",
+    red: "bg-red-50 text-red-700",
+    gray: "bg-slate-50 text-slate-600",
+    blue: "bg-blue-50 text-blue-700",
+  };
+
+  return (
+    <span
+      className={`inline-flex items-center gap-1.5 text-sm font-medium px-3 py-1 rounded-full ${styles[color]}`}
+    >
+      {count} {label}
+    </span>
   );
 }

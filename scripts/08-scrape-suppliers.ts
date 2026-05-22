@@ -13,6 +13,7 @@ import { createClient } from "@supabase/supabase-js";
 import { crawlSupplier } from "../lib/scraper/crawl";
 import {
   extractProducts,
+  extractSupplierProfile,
   detectManufacturerType,
 } from "../lib/scraper/extract";
 import type { ExtractedProduct } from "../lib/scraper/extract";
@@ -379,6 +380,72 @@ async function main(): Promise<void> {
         .eq("id", supplier.id);
 
       console.log(`  ✓ Saved ${inserted} products`);
+
+      // ── Step 5: Extract supplier profile + factories ─────────────────────
+      console.log(`\n  → Extracting company profile...`);
+      const profile = await extractSupplierProfile(content, supplier.company_name, {
+        country: supplier.country_of_origin,
+        categories: supplier.categories ?? [],
+      });
+
+      await supabase
+        .from("supplier_offerings")
+        .update({
+          ...(profile.company_description
+            ? { product_description: profile.company_description }
+            : {}),
+          ...(profile.contact_email ? { contact_email: profile.contact_email } : {}),
+          ...(profile.contact_phone ? { contact_phone: profile.contact_phone } : {}),
+          ...(profile.contact_name ? { contact_name: profile.contact_name } : {}),
+          ...(profile.linkedin_url ? { linkedin_url: profile.linkedin_url } : {}),
+          ...(profile.export_markets.length > 0
+            ? { export_markets: profile.export_markets }
+            : {}),
+          ...(profile.founded_year ? { founded_year: profile.founded_year } : {}),
+          ...(profile.employees_range
+            ? { employees_range: profile.employees_range }
+            : {}),
+        })
+        .eq("id", supplier.id);
+
+      if (profile.factories.length > 0) {
+        // Delete existing unverified factories then insert new ones
+        await supabase
+          .from("supplier_factories")
+          .delete()
+          .eq("supplier_id", supplier.id);
+
+        await supabase.from("supplier_factories").insert(
+          profile.factories.map((f, idx) => ({
+            supplier_id: supplier.id,
+            factory_name: f.factory_name,
+            country: f.country,
+            city: f.city,
+            is_primary: idx === 0,
+            kosher_types: f.kosher_types,
+            kosher_certifying_body: f.kosher_certifying_body,
+            certifications_quality: f.certifications_quality,
+            certifications_dietary: f.certifications_dietary,
+            brc_grade: f.brc_grade,
+            ifs_grade: f.ifs_grade,
+            production_capacity: f.production_capacity,
+          }))
+        );
+
+        console.log(`  🏭 Factories: ${profile.factories.length}`);
+        profile.factories.forEach((f) => {
+          const kosher =
+            f.kosher_types.length > 0
+              ? `✡ ${f.kosher_types.join(", ")}`
+              : "No kosher";
+          const certs = [
+            ...f.certifications_quality,
+            ...f.certifications_dietary,
+          ].join(", ") || "No certs";
+          console.log(`     ${f.factory_name} (${f.country ?? "?"})`);
+          console.log(`     ${kosher} · ${certs}`);
+        });
+      }
 
       succeeded.push({
         name: supplier.company_name,

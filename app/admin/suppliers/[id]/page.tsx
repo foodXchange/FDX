@@ -10,23 +10,34 @@ export default async function EditSupplierPage({
 }) {
   const { id } = await params;
 
-  const [supplierResult, contactsResult, documentsResult] = await Promise.all([
-    supabaseAdmin
-      .from("supplier_offerings")
-      .select("*")
-      .eq("id", id)
-      .single(),
-    supabaseAdmin
-      .from("supplier_contacts")
-      .select("*")
-      .eq("supplier_id", id)
-      .order("is_primary", { ascending: false }),
-    supabaseAdmin
-      .from("supplier_documents")
-      .select("*")
-      .eq("supplier_id", id)
-      .order("created_at", { ascending: false }),
-  ]);
+  const [supplierResult, contactsResult, documentsResult, factoriesResult, productsResult] =
+    await Promise.all([
+      supabaseAdmin
+        .from("supplier_offerings")
+        .select("*")
+        .eq("id", id)
+        .single(),
+      supabaseAdmin
+        .from("supplier_contacts")
+        .select("*")
+        .eq("supplier_id", id)
+        .order("is_primary", { ascending: false }),
+      supabaseAdmin
+        .from("supplier_documents")
+        .select("*")
+        .eq("supplier_id", id)
+        .order("created_at", { ascending: false }),
+      supabaseAdmin
+        .from("supplier_factories")
+        .select("*")
+        .eq("supplier_id", id)
+        .order("is_primary", { ascending: false }),
+      supabaseAdmin
+        .from("supplier_products")
+        .select("*")
+        .eq("supplier_id", id)
+        .order("scrape_confidence", { ascending: false }),
+    ]);
 
   if (!supplierResult.data) return notFound();
 
@@ -65,6 +76,8 @@ export default async function EditSupplierPage({
         initialData={supplierResult.data}
         contacts={(contactsResult.data ?? []) as Record<string, unknown>[]}
         documents={(documentsResult.data ?? []) as Record<string, unknown>[]}
+        factories={(factoriesResult.data ?? []) as Parameters<typeof SupplierDetailTabs>[0]["factories"]}
+        products={(productsResult.data ?? []) as Parameters<typeof SupplierDetailTabs>[0]["products"]}
         action={bound}
       />
     </main>

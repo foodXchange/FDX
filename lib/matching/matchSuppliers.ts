@@ -99,6 +99,7 @@ type ProductRow = {
   private_label: boolean | null;
   scrape_confidence: number;
   supplier_id: string;
+  factories: { kosher_types: string[] }[] | null;
   supplier: {
     id: string;
     company_name: string;
@@ -120,6 +121,7 @@ export async function matchSupplierProducts(
       `id, product_name, category, formats, certifications, kosher_types,
        product_type, primary_ingredients, tags, private_label, scrape_confidence,
        supplier_id,
+       factories:supplier_factories(kosher_types),
        supplier:supplier_offerings!inner(id, company_name, country_of_origin, status, priority)`
     )
     .eq("supplier_offerings.status", "approved");
@@ -148,13 +150,19 @@ export async function matchSupplierProducts(
     if (!product.supplier) return null;
 
     // ── HARD FILTER: kosher compatibility ─────────────────────────────────
+    // Check factory kosher first (source of truth), then product-level
     if (request.kosher_type && request.kosher_type !== "none") {
-      const productKosher = (product.kosher_types ?? []).map((k) =>
-        k.toLowerCase()
+      const factoryKosher = (product.factories ?? []).flatMap(
+        (f) => f.kosher_types ?? []
       );
-      if (productKosher.length === 0) return null;
+      const effectiveKosher = factoryKosher.length > 0
+        ? factoryKosher
+        : (product.kosher_types ?? []);
+
+      if (effectiveKosher.length === 0) return null;
+
       const reqKosher = request.kosher_type.toLowerCase();
-      const compatible = productKosher.some(
+      const compatible = effectiveKosher.map((k) => k.toLowerCase()).some(
         (k) => k.includes(reqKosher) || reqKosher.includes(k) || k.includes("kosher")
       );
       if (!compatible) return null;

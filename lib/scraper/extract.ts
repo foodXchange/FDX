@@ -1,5 +1,32 @@
 import Anthropic from "@anthropic-ai/sdk";
 
+export interface ExtractedFactory {
+  factory_name: string;
+  country: string | null;
+  city: string | null;
+  is_primary: boolean;
+  kosher_types: string[];
+  kosher_certifying_body: string | null;
+  certifications_quality: string[];
+  certifications_dietary: string[];
+  brc_grade: string | null;
+  ifs_grade: string | null;
+  production_capacity: string | null;
+}
+
+export interface SupplierProfile {
+  company_description: string | null;
+  founded_year: number | null;
+  employees_range: string | null;
+  export_markets: string[];
+  production_capacity: string | null;
+  contact_email: string | null;
+  contact_phone: string | null;
+  contact_name: string | null;
+  linkedin_url: string | null;
+  factories: ExtractedFactory[];
+}
+
 export interface ExtractedProduct {
   product_name: string;
   category: string;
@@ -231,5 +258,157 @@ export async function extractProducts(
   } catch (err) {
     console.error("Extraction error:", err);
     return [];
+  }
+}
+
+const EMPTY_PROFILE: SupplierProfile = {
+  company_description: null,
+  founded_year: null,
+  employees_range: null,
+  export_markets: [],
+  production_capacity: null,
+  contact_email: null,
+  contact_phone: null,
+  contact_name: null,
+  linkedin_url: null,
+  factories: [],
+};
+
+export async function extractSupplierProfile(
+  websiteContent: string,
+  companyName: string,
+  existingData: { country?: string | null; categories?: string[] }
+): Promise<SupplierProfile> {
+  const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! });
+
+  if (!websiteContent || websiteContent.length < 100) {
+    return EMPTY_PROFILE;
+  }
+
+  const userPrompt =
+    `Extract company profile information from this food supplier website.\n\n` +
+    `Company: ${companyName}\n` +
+    `Country hint: ${existingData.country ?? "Unknown"}\n` +
+    `Website content:\n${websiteContent.slice(0, 30000)}\n\n` +
+    `Return ONLY this JSON (no other text):\n` +
+    `{\n` +
+    `  "company_description": "max 300 word description of what they make and their market position",\n` +
+    `  "founded_year": number or null,\n` +
+    `  "employees_range": "200-500" or "1000+" or null,\n` +
+    `  "export_markets": ["EU", "Middle East", "USA"] — only if explicitly stated,\n` +
+    `  "production_capacity": "e.g. 2800 tons/day" or null,\n` +
+    `  "contact_email": "email@domain.com" or null,\n` +
+    `  "contact_phone": "+39 xxx xxx xxxx" or null,\n` +
+    `  "contact_name": "First Last" or null,\n` +
+    `  "linkedin_url": "https://linkedin.com/..." or null,\n` +
+    `  "factories": [\n` +
+    `    {\n` +
+    `      "factory_name": "Main Plant" or factory name if stated,\n` +
+    `      "country": "Italy",\n` +
+    `      "city": "Naples" or null,\n` +
+    `      "is_primary": true,\n` +
+    `      "kosher_types": [] or ["Chief Rabbinate"] or ["Badatz Beit Yosef"] etc,\n` +
+    `      "kosher_certifying_body": "OU" or "KSA" or null,\n` +
+    `      "certifications_quality": ["BRC","IFS"] — only explicitly stated,\n` +
+    `      "certifications_dietary": ["Organic","Halal"] — only explicitly stated,\n` +
+    `      "brc_grade": "AA" or "A" or null,\n` +
+    `      "ifs_grade": "Higher" or "Foundation" or null,\n` +
+    `      "production_capacity": null\n` +
+    `    }\n` +
+    `  ]\n` +
+    `}\n\n` +
+    `Kosher detection — look for:\n` +
+    `  English: kosher, OU, OK, KF, Star-K\n` +
+    `  Hebrew: כשר, כשרות, הכשרה\n` +
+    `  Italian: kasher, certificazione kasher\n` +
+    `  Spanish: kosher, certificado kosher\n` +
+    `  French: casher, certifié casher\n` +
+    `  German: koscher, koscherzertifiziert\n` +
+    `  Always check footer, about page, certifications page for kosher logos and badges.`;
+
+  try {
+    const response = await anthropic.messages.create({
+      model: "claude-sonnet-4-5",
+      max_tokens: 1500,
+      system:
+        "You are a food industry research analyst. Extract structured company information from food supplier websites. Return JSON only. Never invent data — only extract what is explicitly stated on the website.",
+      messages: [{ role: "user", content: userPrompt }],
+    });
+
+    const raw =
+      response.content[0].type === "text"
+        ? response.content[0].text.trim()
+        : "";
+
+    const match = raw.match(/\{[\s\S]*\}/);
+    if (!match) return EMPTY_PROFILE;
+
+    const parsed = JSON.parse(match[0]) as Record<string, unknown>;
+
+    const factories: ExtractedFactory[] = Array.isArray(parsed.factories)
+      ? (parsed.factories as Record<string, unknown>[]).map((f, i) => ({
+          factory_name:
+            typeof f.factory_name === "string"
+              ? f.factory_name
+              : "Main Factory",
+          country:
+            typeof f.country === "string" ? f.country : existingData.country ?? null,
+          city: typeof f.city === "string" ? f.city : null,
+          is_primary: i === 0,
+          kosher_types: Array.isArray(f.kosher_types)
+            ? (f.kosher_types as string[])
+            : [],
+          kosher_certifying_body:
+            typeof f.kosher_certifying_body === "string"
+              ? f.kosher_certifying_body
+              : null,
+          certifications_quality: Array.isArray(f.certifications_quality)
+            ? (f.certifications_quality as string[])
+            : [],
+          certifications_dietary: Array.isArray(f.certifications_dietary)
+            ? (f.certifications_dietary as string[])
+            : [],
+          brc_grade:
+            typeof f.brc_grade === "string" ? f.brc_grade : null,
+          ifs_grade:
+            typeof f.ifs_grade === "string" ? f.ifs_grade : null,
+          production_capacity:
+            typeof f.production_capacity === "string"
+              ? f.production_capacity
+              : null,
+        }))
+      : [];
+
+    return {
+      company_description:
+        typeof parsed.company_description === "string"
+          ? parsed.company_description
+          : null,
+      founded_year:
+        typeof parsed.founded_year === "number" ? parsed.founded_year : null,
+      employees_range:
+        typeof parsed.employees_range === "string"
+          ? parsed.employees_range
+          : null,
+      export_markets: Array.isArray(parsed.export_markets)
+        ? (parsed.export_markets as string[])
+        : [],
+      production_capacity:
+        typeof parsed.production_capacity === "string"
+          ? parsed.production_capacity
+          : null,
+      contact_email:
+        typeof parsed.contact_email === "string" ? parsed.contact_email : null,
+      contact_phone:
+        typeof parsed.contact_phone === "string" ? parsed.contact_phone : null,
+      contact_name:
+        typeof parsed.contact_name === "string" ? parsed.contact_name : null,
+      linkedin_url:
+        typeof parsed.linkedin_url === "string" ? parsed.linkedin_url : null,
+      factories,
+    };
+  } catch (err) {
+    console.error("Profile extraction error:", err);
+    return EMPTY_PROFILE;
   }
 }

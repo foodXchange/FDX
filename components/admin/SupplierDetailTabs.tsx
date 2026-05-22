@@ -10,8 +10,11 @@ import {
   deleteDocument,
   getSupplierMatches,
 } from "@/app/admin/suppliers/actions";
+import { FactoriesTab, type SupplierFactory } from "@/components/admin/FactoriesTab";
+import { SupplierProductsTab, type SupplierProduct } from "@/components/admin/SupplierProductsTab";
+import { ScraperConsole } from "@/components/admin/ScraperConsole";
 
-type Tab = "details" | "contacts" | "documents" | "matches";
+type Tab = "details" | "contacts" | "documents" | "matches" | "factories" | "products" | "scraper";
 
 interface Contact {
   id: string;
@@ -52,6 +55,8 @@ interface Props {
   initialData: Record<string, unknown>;
   contacts: Record<string, unknown>[];
   documents: Record<string, unknown>[];
+  factories: SupplierFactory[];
+  products: SupplierProduct[];
   action: (data: SupplierInput) => Promise<{ ok: boolean; error?: string }>;
 }
 
@@ -587,6 +592,8 @@ export default function SupplierDetailTabs({
   initialData,
   contacts: rawContacts,
   documents: rawDocuments,
+  factories,
+  products,
   action,
 }: Props) {
   const [activeTab, setActiveTab] = useState<Tab>("details");
@@ -599,6 +606,9 @@ export default function SupplierDetailTabs({
     { id: "contacts", label: "Contacts", count: contacts.length },
     { id: "documents", label: "Documents", count: documents.length },
     { id: "matches", label: "Demand signals" },
+    { id: "factories", label: "Factories", count: factories.length },
+    { id: "products", label: "Products", count: products.length },
+    { id: "scraper", label: "Scraper" },
   ];
 
   return (
@@ -647,6 +657,51 @@ export default function SupplierDetailTabs({
         <DocumentsTab supplierId={supplierId} initialDocuments={documents} />
       )}
       {activeTab === "matches" && <MatchesTab supplierId={supplierId} />}
+      {activeTab === "factories" && (
+        <FactoriesTab supplierId={supplierId} initialFactories={factories} />
+      )}
+      {activeTab === "products" && (
+        <SupplierProductsTab supplierId={supplierId} initialProducts={products} />
+      )}
+      {activeTab === "scraper" && (
+        <div className="p-6">
+          <div className="mb-4">
+            <p className="text-sm text-gray-600 mb-1">
+              Status:{" "}
+              <span className="font-medium">
+                {String(initialData.scrape_status ?? "not scraped")}
+              </span>
+            </p>
+            {typeof initialData.last_scraped_at === "string" && (
+              <p className="text-sm text-gray-600 mb-1">
+                Last scraped:{" "}
+                {new Date(initialData.last_scraped_at).toLocaleDateString("en-US", {
+                  month: "short",
+                  day: "numeric",
+                  year: "numeric",
+                })}
+              </p>
+            )}
+            <p className="text-sm text-gray-600">
+              Products found:{" "}
+              <span className="font-medium">
+                {typeof initialData.products_found === "number" ? initialData.products_found : 0}
+              </span>
+            </p>
+          </div>
+          {typeof initialData.scrape_log === "string" && initialData.scrape_log && (
+            <details className="mb-4">
+              <summary className="text-xs text-gray-500 cursor-pointer hover:text-gray-700">
+                Show scrape log
+              </summary>
+              <pre className="mt-2 text-xs bg-slate-50 border border-slate-200 rounded-lg p-3 overflow-auto max-h-40 whitespace-pre-wrap">
+                {initialData.scrape_log}
+              </pre>
+            </details>
+          )}
+          <ScraperConsole supplierId={supplierId} />
+        </div>
+      )}
     </div>
   );
 }
