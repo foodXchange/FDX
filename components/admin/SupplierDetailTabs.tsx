@@ -658,7 +658,11 @@ export default function SupplierDetailTabs({
       )}
       {activeTab === "matches" && <MatchesTab supplierId={supplierId} />}
       {activeTab === "factories" && (
-        <FactoriesTab supplierId={supplierId} initialFactories={factories} />
+        <FactoriesTab
+          supplierId={supplierId}
+          initialFactories={factories}
+          products={products}
+        />
       )}
       {activeTab === "products" && (
         <SupplierProductsTab supplierId={supplierId} initialProducts={products} />

@@ -18,6 +18,7 @@ const SupplierSubmitSchema = z.object({
   private_label: z.boolean().optional().nullable(),
   image_urls: z.array(z.string().url()).max(10).default([]),
   ai_analyses: z.array(z.record(z.string(), z.unknown())).default([]),
+  annual_capacity: z.string().max(200).optional().nullable(),
   source: z.string().optional(),
   ref: z.string().optional(),
 });
@@ -97,6 +98,7 @@ export async function POST(req: Request) {
         source: data.source ?? "manufacturer-widget",
         internal_notes: data.ref ? `Referral: ${data.ref}` : null,
         ai_analysis: data.ai_analyses.length > 0 ? data.ai_analyses[0] : null,
+        annual_capacity: data.annual_capacity ?? null,
         verified: false,
         priority: 0,
       })

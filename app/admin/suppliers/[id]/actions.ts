@@ -169,3 +169,52 @@ export async function deleteSupplierProduct(
   revalidatePath(`/admin/suppliers/${supplierId}`);
   return { ok: true };
 }
+
+export async function propagateFactoryCertifications(
+  supplierId: string,
+  factoryId: string
+): Promise<{ ok: boolean; updated: number; error?: string }> {
+  const { data: factory, error: fetchErr } = await supabaseAdmin
+    .from("supplier_factories")
+    .select("kosher_types, certifications_quality, certifications_dietary")
+    .eq("id", factoryId)
+    .single();
+
+  if (fetchErr || !factory) {
+    return { ok: false, updated: 0, error: fetchErr?.message ?? "Factory not found" };
+  }
+
+  const mergedCerts = [
+    ...new Set([
+      ...((factory.kosher_types as string[]) ?? []),
+      ...((factory.certifications_quality as string[]) ?? []),
+      ...((factory.certifications_dietary as string[]) ?? []),
+    ]),
+  ];
+
+  const { data, error } = await supabaseAdmin
+    .from("supplier_products")
+    .update({
+      kosher_types: factory.kosher_types,
+      certifications: mergedCerts,
+    })
+    .eq("factory_id", factoryId)
+    .eq("product_override_kosher", false)
+    .select("id");
+
+  if (error) return { ok: false, updated: 0, error: error.message };
+
+  const kosherTypes = (factory.kosher_types as string[]) ?? [];
+  if (kosherTypes.length > 0) {
+    await supabaseAdmin
+      .from("supplier_products")
+      .update({ is_published: true })
+      .eq("factory_id", factoryId)
+      .eq("product_override_kosher", false)
+      .gte("scrape_confidence", 0.6)
+      .eq("needs_review", false);
+  }
+
+  revalidatePath(`/admin/suppliers/${supplierId}`);
+  return { ok: true, updated: data?.length ?? 0 };
+}

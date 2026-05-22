@@ -79,6 +79,7 @@ export async function POST(req: Request) {
         ai_analysis: data.ai_analysis ?? null,
         source: data.source ?? "sourcing-widget",
         status: "new",
+        image_urls: data.image_urls,
       })
       .select("id")
       .single();

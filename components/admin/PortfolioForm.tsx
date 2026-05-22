@@ -5,6 +5,7 @@ import ArrayInput from "@/components/admin/ArrayInput";
 import ImageUpload from "@/components/admin/ImageUpload";
 import { suggestPortfolioTaxonomy } from "@/app/admin/portfolio/suggestActions";
 import type { PortfolioInput } from "@/app/admin/portfolio/actions";
+import PortfolioAIAssistant from "@/components/admin/PortfolioAIAssistant";
 
 type ActionResult = { ok: boolean; id?: string; error?: string };
 type Action = (data: PortfolioInput) => Promise<ActionResult>;
@@ -145,6 +146,7 @@ export default function PortfolioForm({ action, initialData, redirectOnCreate }:
   );
   const [countries, setCountries] = useState<string[]>(initialData?.countries ?? []);
   const [tags, setTags] = useState<string[]>(initialData?.tags ?? []);
+  const [highlightingField, setHighlightingField] = useState<string | null>(null);
   const [suggesting, setSuggesting] = useState(false);
   const [suggestions, setSuggestions] = useState<{
     tags: string[];
@@ -355,6 +357,30 @@ export default function PortfolioForm({ action, initialData, redirectOnCreate }:
 
   return (
     <div className="max-w-3xl mx-auto px-6 py-8">
+      {/* AI ASSISTANT */}
+      <PortfolioAIAssistant
+        setTitle={setTitle}
+        setSlug={setSlug}
+        setSlugEdited={setSlugEdited}
+        setCategory={setCategory}
+        setSummary={setSummary}
+        setBrief={setBrief}
+        setChallenge={setChallenge}
+        setValidated={setValidated}
+        setFindings={setFindings}
+        setTakeaways={setTakeaways}
+        setPriority={setPriority}
+        setPrivateLabel={setPrivateLabel}
+        setMarkets={setMarkets}
+        setFormats={setFormats}
+        setCertifications={setCertifications}
+        setCountries={setCountries}
+        setTags={setTags}
+        setHighlightingField={setHighlightingField}
+        title={title}
+        category={category}
+      />
+
       {/* TITLE */}
       <div className="mb-6">
         <input
@@ -362,7 +388,7 @@ export default function PortfolioForm({ action, initialData, redirectOnCreate }:
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           placeholder="Item title…"
-          className="w-full text-2xl font-bold text-gray-900 border-0 border-b border-gray-200 pb-2 outline-none focus:border-orange-400 bg-transparent placeholder:text-gray-300"
+          className={`w-full text-2xl font-bold text-gray-900 border-0 border-b border-gray-200 pb-2 outline-none focus:border-orange-400 bg-transparent placeholder:text-gray-300 transition-all ${highlightingField === "title" ? "border-orange-400" : ""}`}
         />
       </div>
 
@@ -376,7 +402,7 @@ export default function PortfolioForm({ action, initialData, redirectOnCreate }:
             value={slug}
             onChange={(e) => handleSlugChange(e.target.value)}
             placeholder="auto-generated"
-            className={inputCls}
+            className={`${inputCls} transition-all ${highlightingField === "slug" ? "ring-2 ring-orange-400 border-orange-400" : ""}`}
           />
         </div>
       </div>
@@ -390,7 +416,7 @@ export default function PortfolioForm({ action, initialData, redirectOnCreate }:
           onChange={(e) => setCategory(e.target.value)}
           list="category-suggestions"
           placeholder="e.g. Dairy & Cheese"
-          className={inputCls}
+          className={`${inputCls} transition-all ${highlightingField === "category" ? "ring-2 ring-orange-400 border-orange-400" : ""}`}
         />
         <datalist id="category-suggestions">
           {CATEGORY_SUGGESTIONS.map((s) => (
@@ -407,7 +433,7 @@ export default function PortfolioForm({ action, initialData, redirectOnCreate }:
           onChange={(e) => setSummary(e.target.value)}
           rows={3}
           placeholder="Short description shown on the portfolio grid…"
-          className={`${inputCls} resize-none`}
+          className={`${inputCls} resize-none transition-all ${highlightingField === "summary" ? "ring-2 ring-orange-400 border-orange-400" : ""}`}
         />
       </div>
 
@@ -433,7 +459,7 @@ export default function PortfolioForm({ action, initialData, redirectOnCreate }:
               onChange={(e) => section.setter(e.target.value)}
               placeholder={section.placeholder}
               rows={4}
-              className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-800 placeholder:text-slate-300 resize-none focus:outline-none focus:ring-2 focus:ring-orange-400/30 focus:border-orange-400"
+              className={`w-full border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-800 placeholder:text-slate-300 resize-none focus:outline-none focus:ring-2 focus:ring-orange-400/30 focus:border-orange-400 transition-all ${highlightingField === section.key ? "ring-2 ring-orange-400 border-orange-400" : ""}`}
             />
             <div className="flex items-center justify-between mt-1">
               <p className="text-xs text-slate-400">{wordCount(section.value)} words</p>
@@ -545,12 +571,14 @@ export default function PortfolioForm({ action, initialData, redirectOnCreate }:
               max={100}
               value={priority}
               onChange={(e) => setPriority(Number(e.target.value))}
-              className={`${inputCls} w-24`}
+              className={`${inputCls} w-24 transition-all ${highlightingField === "priority" ? "ring-2 ring-orange-400 border-orange-400" : ""}`}
             />
           </div>
           <div className="flex flex-col gap-3 pt-5">
             <Toggle checked={published} onChange={setPublished} label="Published" />
-            <Toggle checked={privateLabel} onChange={setPrivateLabel} label="Private label" />
+            <div className={`rounded-lg transition-all ${highlightingField === "private_label" ? "ring-2 ring-orange-400" : ""}`}>
+              <Toggle checked={privateLabel} onChange={setPrivateLabel} label="Private label" />
+            </div>
           </div>
         </div>
       </div>
@@ -558,11 +586,21 @@ export default function PortfolioForm({ action, initialData, redirectOnCreate }:
       {/* ARRAY FIELDS */}
       <div className={cardCls}>
         <div className="space-y-5">
-          <ArrayInput values={markets} onChange={setMarkets} label="Markets" placeholder="e.g. israel, germany" />
-          <ArrayInput values={formats} onChange={setFormats} label="Formats" placeholder="e.g. bulk, retail-pack" />
-          <ArrayInput values={certifications} onChange={setCertifications} label="Certifications" placeholder="e.g. kosher, organic, ifs" />
-          <ArrayInput values={countries} onChange={setCountries} label="Countries" placeholder="e.g. belgium, netherlands" />
-          <ArrayInput values={tags} onChange={setTags} label="Tags" placeholder="e.g. frozen, private-label" />
+          <div className={`rounded-lg transition-all ${highlightingField === "markets" ? "ring-2 ring-orange-400" : ""}`}>
+            <ArrayInput values={markets} onChange={setMarkets} label="Markets" placeholder="e.g. israel, germany" />
+          </div>
+          <div className={`rounded-lg transition-all ${highlightingField === "formats" ? "ring-2 ring-orange-400" : ""}`}>
+            <ArrayInput values={formats} onChange={setFormats} label="Formats" placeholder="e.g. bulk, retail-pack" />
+          </div>
+          <div className={`rounded-lg transition-all ${highlightingField === "certifications" ? "ring-2 ring-orange-400" : ""}`}>
+            <ArrayInput values={certifications} onChange={setCertifications} label="Certifications" placeholder="e.g. kosher, organic, ifs" />
+          </div>
+          <div className={`rounded-lg transition-all ${highlightingField === "countries" ? "ring-2 ring-orange-400" : ""}`}>
+            <ArrayInput values={countries} onChange={setCountries} label="Countries" placeholder="e.g. belgium, netherlands" />
+          </div>
+          <div className={`rounded-lg transition-all ${highlightingField === "tags" ? "ring-2 ring-orange-400" : ""}`}>
+            <ArrayInput values={tags} onChange={setTags} label="Tags" placeholder="e.g. frozen, private-label" />
+          </div>
         </div>
       </div>
 

@@ -1,5 +1,6 @@
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { ProductsTableClient } from "@/components/admin/ProductsTableClient";
+import { SyncFactoryCertsButton } from "@/components/admin/SyncFactoryCertsButton";
 
 export const dynamic = "force-dynamic";
 
@@ -180,6 +181,7 @@ export default async function ProductsPage({
       <div className="border-b border-gray-200 bg-white px-6 py-4 sticky top-0 z-10 shadow-sm">
         <div className="flex items-center justify-between mb-3">
           <h1 className="text-base font-semibold text-gray-800">Products</h1>
+          <SyncFactoryCertsButton />
         </div>
 
         {/* Stats row */}

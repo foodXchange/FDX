@@ -1,8 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import ArrayInput from "@/components/admin/ArrayInput";
-import { updateProduct, deleteProduct } from "@/app/admin/products/actions";
+import {
+  updateProduct,
+  deleteProduct,
+  getFactoriesForSupplier,
+  type FactoryOption,
+} from "@/app/admin/products/actions";
 
 const CATEGORIES = [
   "Tomato Products",
@@ -59,6 +64,8 @@ type ProductRow = {
   manually_verified: boolean;
   private_label: boolean;
   supplier_id: string;
+  factory_id?: string | null;
+  product_override_kosher?: boolean;
   supplier: {
     company_name: string;
     country_of_origin: string | null;
@@ -81,6 +88,34 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
   );
 }
 
+function InheritancePreview({ factory }: { factory: FactoryOption }) {
+  const inherited = [
+    ...factory.kosher_types,
+    ...factory.certifications_quality,
+    ...factory.certifications_dietary,
+  ];
+  if (inherited.length === 0) return null;
+  return (
+    <div className="bg-green-50 border border-green-200 rounded-lg px-3 py-2.5 mt-2">
+      <p className="text-xs font-semibold text-green-700 mb-1">
+        Inheriting from {factory.factory_name}:
+      </p>
+      <div className="flex flex-wrap gap-1">
+        {factory.kosher_types.map((k) => (
+          <span key={k} className="text-xs bg-orange-100 text-orange-700 rounded-full px-2 py-0.5">
+            ✡ {k}
+          </span>
+        ))}
+        {[...factory.certifications_quality, ...factory.certifications_dietary].map((c) => (
+          <span key={c} className="text-xs bg-blue-100 text-blue-700 rounded-full px-2 py-0.5">
+            {c}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function ProductEditSlideOver({
   product,
   onClose,
@@ -88,6 +123,7 @@ export default function ProductEditSlideOver({
   onDelete,
 }: Props) {
   const [saving, setSaving] = useState(false);
+  const [factories, setFactories] = useState<FactoryOption[]>([]);
   const [form, setForm] = useState({
     product_name: product.product_name,
     category: product.category,
@@ -97,7 +133,15 @@ export default function ProductEditSlideOver({
     description: product.description ?? "",
     manually_verified: product.manually_verified,
     needs_review: product.needs_review,
+    factory_id: product.factory_id ?? null,
+    product_override_kosher: product.product_override_kosher ?? false,
   });
+
+  useEffect(() => {
+    getFactoriesForSupplier(product.supplier_id).then(setFactories);
+  }, [product.supplier_id]);
+
+  const selectedFactory = factories.find((f) => f.id === form.factory_id) ?? null;
 
   function toggleKosher(k: string) {
     setForm((f) => ({
@@ -128,6 +172,8 @@ export default function ProductEditSlideOver({
       description: form.description.trim() || null,
       manually_verified: form.manually_verified,
       needs_review: form.needs_review,
+      factory_id: form.factory_id,
+      product_override_kosher: form.product_override_kosher,
     });
     setSaving(false);
     if (result.ok) {
@@ -141,6 +187,8 @@ export default function ProductEditSlideOver({
         description: form.description.trim() || null,
         manually_verified: form.manually_verified,
         needs_review: form.needs_review,
+        factory_id: form.factory_id,
+        product_override_kosher: form.product_override_kosher,
       });
     }
   }
@@ -217,68 +265,127 @@ export default function ProductEditSlideOver({
             </select>
           </div>
 
-          {/* Kosher */}
+          {/* Factory */}
           <div>
-            <SectionLabel>Kosher</SectionLabel>
-            <div className="space-y-2">
-              {KOSHER_OPTIONS.map((k) => (
-                <label
-                  key={k}
-                  className="flex items-center gap-2.5 cursor-pointer"
-                >
-                  <input
-                    type="checkbox"
-                    checked={form.kosher_types.includes(k)}
-                    onChange={() => toggleKosher(k)}
-                    className="rounded border-gray-300 text-orange-500 focus:ring-orange-200"
-                  />
-                  <span className="text-sm text-gray-700">{k}</span>
-                </label>
+            <SectionLabel>Factory</SectionLabel>
+            <p className="text-xs text-gray-500 mb-2">
+              Certifications are inherited from the factory unless overridden
+            </p>
+            <select
+              value={form.factory_id ?? ""}
+              onChange={(e) =>
+                setForm((f) => ({
+                  ...f,
+                  factory_id: e.target.value || null,
+                  product_override_kosher: e.target.value
+                    ? f.product_override_kosher
+                    : false,
+                }))
+              }
+              className={inputCls}
+            >
+              <option value="">No factory assigned</option>
+              {factories.map((factory) => (
+                <option key={factory.id} value={factory.id}>
+                  {factory.factory_name}
+                  {factory.city ? ` — ${factory.city}` : ""}
+                  {factory.country ? `, ${factory.country}` : ""}
+                </option>
               ))}
-            </div>
+            </select>
+
+            {selectedFactory && !form.product_override_kosher && (
+              <InheritancePreview factory={selectedFactory} />
+            )}
+
+            {form.factory_id && (
+              <label className="flex items-center gap-2 mt-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={form.product_override_kosher}
+                  onChange={(e) =>
+                    setForm((f) => ({
+                      ...f,
+                      product_override_kosher: e.target.checked,
+                    }))
+                  }
+                  className="rounded border-gray-300 text-orange-500 focus:ring-orange-200"
+                />
+                <span className="text-sm text-gray-700">
+                  Override factory certifications for this product
+                </span>
+              </label>
+            )}
           </div>
 
-          {/* Quality certifications */}
-          <div>
-            <SectionLabel>Quality certifications</SectionLabel>
-            <div className="grid grid-cols-2 gap-2">
-              {QUALITY_CERTS.map((c) => (
-                <label
-                  key={c}
-                  className="flex items-center gap-2.5 cursor-pointer"
-                >
-                  <input
-                    type="checkbox"
-                    checked={form.certifications.includes(c)}
-                    onChange={() => toggleCert(c)}
-                    className="rounded border-gray-300 text-orange-500 focus:ring-orange-200"
-                  />
-                  <span className="text-sm text-gray-700">{c}</span>
-                </label>
-              ))}
+          {/* Kosher — shown when no factory assigned or override is ON */}
+          {(!form.factory_id || form.product_override_kosher) && (
+            <div>
+              <SectionLabel>Kosher</SectionLabel>
+              <div className="space-y-2">
+                {KOSHER_OPTIONS.map((k) => (
+                  <label
+                    key={k}
+                    className="flex items-center gap-2.5 cursor-pointer"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={form.kosher_types.includes(k)}
+                      onChange={() => toggleKosher(k)}
+                      className="rounded border-gray-300 text-orange-500 focus:ring-orange-200"
+                    />
+                    <span className="text-sm text-gray-700">{k}</span>
+                  </label>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
 
-          {/* Dietary */}
-          <div>
-            <SectionLabel>Dietary</SectionLabel>
-            <div className="grid grid-cols-2 gap-2">
-              {DIETARY_CERTS.map((c) => (
-                <label
-                  key={c}
-                  className="flex items-center gap-2.5 cursor-pointer"
-                >
-                  <input
-                    type="checkbox"
-                    checked={form.certifications.includes(c)}
-                    onChange={() => toggleCert(c)}
-                    className="rounded border-gray-300 text-orange-500 focus:ring-orange-200"
-                  />
-                  <span className="text-sm text-gray-700">{c}</span>
-                </label>
-              ))}
+          {/* Quality certifications — shown when no factory or override is ON */}
+          {(!form.factory_id || form.product_override_kosher) && (
+            <div>
+              <SectionLabel>Quality certifications</SectionLabel>
+              <div className="grid grid-cols-2 gap-2">
+                {QUALITY_CERTS.map((c) => (
+                  <label
+                    key={c}
+                    className="flex items-center gap-2.5 cursor-pointer"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={form.certifications.includes(c)}
+                      onChange={() => toggleCert(c)}
+                      className="rounded border-gray-300 text-orange-500 focus:ring-orange-200"
+                    />
+                    <span className="text-sm text-gray-700">{c}</span>
+                  </label>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
+
+          {/* Dietary — shown when no factory or override is ON */}
+          {(!form.factory_id || form.product_override_kosher) && (
+            <div>
+              <SectionLabel>Dietary</SectionLabel>
+              <div className="grid grid-cols-2 gap-2">
+                {DIETARY_CERTS.map((c) => (
+                  <label
+                    key={c}
+                    className="flex items-center gap-2.5 cursor-pointer"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={form.certifications.includes(c)}
+                      onChange={() => toggleCert(c)}
+                      className="rounded border-gray-300 text-orange-500 focus:ring-orange-200"
+                    />
+                    <span className="text-sm text-gray-700">{c}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Formats */}
           <ArrayInput

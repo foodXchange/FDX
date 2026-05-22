@@ -15,7 +15,32 @@ type ProductUpdate = {
   private_label?: boolean;
   manually_verified?: boolean;
   needs_review?: boolean;
+  factory_id?: string | null;
+  product_override_kosher?: boolean;
 };
+
+export interface FactoryOption {
+  id: string;
+  factory_name: string;
+  city: string | null;
+  country: string | null;
+  kosher_types: string[];
+  certifications_quality: string[];
+  certifications_dietary: string[];
+}
+
+export async function getFactoriesForSupplier(
+  supplierId: string
+): Promise<FactoryOption[]> {
+  const { data } = await supabaseAdmin
+    .from("supplier_factories")
+    .select(
+      "id, factory_name, city, country, kosher_types, certifications_quality, certifications_dietary"
+    )
+    .eq("supplier_id", supplierId)
+    .order("is_primary", { ascending: false });
+  return (data ?? []) as FactoryOption[];
+}
 
 export async function updateProduct(
   id: string,

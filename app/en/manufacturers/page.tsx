@@ -3,7 +3,11 @@ import Image from "next/image";
 import type { Metadata } from "next";
 import Reveal from "@/components/Reveal";
 import FAQAccordion from "@/components/FAQAccordion";
-import SupplierWidget from "@/components/SupplierWidget";
+import ManufacturerIntakeSection, {
+  type RequestPreviewItem,
+} from "@/components/manufacturers/ManufacturerIntakeSection";
+import ManufacturerStickyCard from "@/components/manufacturers/ManufacturerStickyCard";
+import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
 export const metadata: Metadata = {
   title: "For Manufacturers | FoodXchange",
@@ -42,7 +46,45 @@ const manufacturerFaqs = [
     q: "How long does it take to get a first introduction?",
     a: "It depends on how specific your category and requirements are. Once we've assessed fit, introductions typically happen within days — not weeks. The alignment work upfront is what makes the introduction meaningful.",
   },
+  {
+    q: "What categories are you currently prioritising?",
+    a: "Right now we have strong buyer demand for: tomato products, olive oil, frozen vegetables, kosher snacks, and organic products. But we review all categories — if the product is right, we will find the buyer.",
+  },
+  {
+    q: "Do I need to have Israeli packaging or Hebrew labeling already?",
+    a: "No. We handle the market preparation guidance. You need your standard export packaging. We will tell you exactly what changes are needed for Israeli retail.",
+  },
+  {
+    q: "What is your fee structure?",
+    a: "We work on a success basis for the commercial introduction. There is no upfront fee for submitting or being reviewed. We will explain our commercial terms when there is a confirmed match.",
+  },
 ];
+
+const CATEGORY_COLORS: Record<string, string> = {
+  "Tomato Products":        "bg-red-100 text-red-700",
+  "Oils & Fats":            "bg-yellow-100 text-yellow-700",
+  "Canned Foods":           "bg-slate-100 text-slate-600",
+  "Snacks & Confectionery": "bg-orange-100 text-orange-700",
+  "Pasta & Grains":         "bg-amber-100 text-amber-800",
+  "Frozen Foods":           "bg-blue-100 text-blue-700",
+  "Bakery & Cereals":       "bg-yellow-50 text-yellow-800",
+  "Sauces & Condiments":    "bg-rose-100 text-rose-700",
+  "Fish & Seafood":         "bg-cyan-100 text-cyan-700",
+  "Dairy":                  "bg-blue-50 text-blue-600",
+  "Beverages":              "bg-purple-100 text-purple-700",
+  "Spices & Herbs":         "bg-lime-100 text-lime-700",
+  "Organic & Natural":      "bg-green-100 text-green-700",
+};
+
+function timeAgo(dateStr: string): string {
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const days = Math.floor(diff / 86400000);
+  if (days === 0) return "today";
+  if (days === 1) return "1 day ago";
+  if (days < 30) return `${days} days ago`;
+  const weeks = Math.floor(days / 7);
+  return weeks === 1 ? "1 week ago" : `${weeks} weeks ago`;
+}
 
 export default async function ManufacturersPage({
   searchParams,
@@ -50,6 +92,17 @@ export default async function ManufacturersPage({
   searchParams: Promise<{ ref?: string }>;
 }) {
   const { ref } = await searchParams;
+
+  const { data: rawRequests } = await supabaseAdmin
+    .from("sourcing_requests")
+    .select("id, product_name, category, certifications, created_at")
+    .in("status", ["new", "matched", "reviewed"])
+    .not("product_name", "is", null)
+    .order("created_at", { ascending: false })
+    .limit(9);
+
+  const requestPreview = (rawRequests ?? []) as RequestPreviewItem[];
+
   return (
     <>
       <a
@@ -74,53 +127,69 @@ export default async function ManufacturersPage({
           />
           <div className="absolute inset-0 bg-slate-900/75" />
           <div className="relative z-10 px-6 py-20 sm:py-24 text-center">
-          <Reveal>
-            <h1 className="text-4xl md:text-5xl font-semibold tracking-tight text-white max-w-3xl mx-auto">
-              Enter the Israeli Food Market —{" "}
-              <span className="text-orange-500">With a Real Local Partner</span>
-            </h1>
+            <Reveal>
+              <h1 className="text-4xl md:text-5xl font-semibold tracking-tight text-white max-w-3xl mx-auto">
+                Enter the Israeli Food Market —{" "}
+                <span className="text-orange-500">With a Real Local Partner</span>
+              </h1>
 
-            <p className="mt-6 max-w-2xl mx-auto text-lg text-slate-300 leading-relaxed">
-              Israel imports over 70% of its food products. For European and international
-              manufacturers, this is a premium, growing market — but entry requires the right
-              positioning and the right introduction.
-            </p>
+              <p className="mt-6 max-w-2xl mx-auto text-lg text-slate-300 leading-relaxed">
+                Israel imports over 70% of its food products. For European and international
+                manufacturers, this is a premium, growing market — but entry requires the right
+                positioning and the right introduction.
+              </p>
 
-            <p className="mt-4 text-sm text-slate-400">
-              We know entering a new market feels uncertain — that&apos;s exactly why we&apos;re here.
-            </p>
+              <p className="mt-4 text-sm text-slate-400">
+                We know entering a new market feels uncertain — that&apos;s exactly why we&apos;re here.
+              </p>
 
-            <a
-              href="/en/sourcing-board"
-              className="inline-flex items-center gap-2 text-orange-400 hover:text-orange-300 text-sm font-medium transition mt-8 mb-2"
-            >
-              <span>🔍</span>
-              See what Israeli buyers are sourcing right now →
-            </a>
-
-            <div className="mt-4 flex gap-4 flex-wrap justify-center">
-              <Link
-                href="/en/contact"
-                className="inline-flex bg-orange-500 text-white px-7 py-3.5 rounded-md font-semibold hover:bg-orange-600 transition shadow"
-              >
-                Tell us what you need →
-              </Link>
               <a
-                href="https://wa.me/972525222291"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex border border-white/40 text-white px-7 py-3.5 rounded-md font-semibold hover:bg-white/10 transition"
+                href="/en/sourcing-board"
+                className="inline-flex items-center gap-2 text-orange-400 hover:text-orange-300 text-sm font-medium transition mt-8 mb-2"
               >
-                WhatsApp us
+                <span>🔍</span>
+                See what Israeli buyers are sourcing right now →
               </a>
-            </div>
-          </Reveal>
+
+              <div className="mt-4 flex gap-4 flex-wrap justify-center">
+                <a
+                  href="#manufacturer-intake"
+                  className="inline-flex bg-orange-500 text-white px-7 py-3.5 rounded-md font-semibold hover:bg-orange-600 transition shadow"
+                >
+                  Apply for representation →
+                </a>
+                <a
+                  href="https://wa.me/972525222291"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex border border-white/40 text-white px-7 py-3.5 rounded-md font-semibold hover:bg-white/10 transition"
+                >
+                  WhatsApp us
+                </a>
+              </div>
+            </Reveal>
           </div>
         </section>
 
-        {/* ── WIDGET ── */}
-        <section className="max-w-2xl mx-auto px-6 -mt-8 pb-16 relative z-10">
-          <SupplierWidget source="manufacturers-page" referral={ref} />
+        {/* ── COMPONENT 1: Manufacturer Intake Form ── */}
+        <ManufacturerIntakeSection requestPreview={requestPreview} referral={ref} />
+
+        {/* ── COMPONENT 3: Stats Strip ── */}
+        <section className="bg-white border-b border-slate-100 px-6 py-10">
+          <div className="max-w-4xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
+            {[
+              { stat: "500+", label: "Verified manufacturers", sub: "in our network" },
+              { stat: "220+", label: "Active buyer requests", sub: "this month" },
+              { stat: "17",   label: "Product categories", sub: "covered" },
+              { stat: "48h",  label: "Average time to first", sub: "buyer introduction" },
+            ].map((item, i) => (
+              <div key={i}>
+                <p className="text-3xl font-black text-orange-500">{item.stat}</p>
+                <p className="text-sm font-medium text-slate-800 mt-1">{item.label}</p>
+                <p className="text-xs text-slate-400">{item.sub}</p>
+              </div>
+            ))}
+          </div>
         </section>
 
         {/* ── PROOF STATEMENT BOX ── */}
@@ -237,19 +306,19 @@ export default async function ManufacturersPage({
               {[
                 {
                   title: "We listen before we act",
-                  body: "We start by understanding your actual objective — not just your product list. What volume do you need to make this market viable? What&apos;s your kosher situation? What&apos;s your lead time? That shapes everything.",
+                  body: "We start by understanding your actual objective — not just your product list. What volume do you need to make this market viable? What's your kosher situation? What's your lead time? That shapes everything.",
                 },
                 {
                   title: "We assess fit honestly",
-                  body: "Not every manufacturer is ready for the Israeli market — and that&apos;s fine. If we don&apos;t think the timing or fit is right, we&apos;ll tell you directly and explain why. No point in an introduction that goes nowhere.",
+                  body: "Not every manufacturer is ready for the Israeli market — and that's fine. If we don't think the timing or fit is right, we'll tell you directly and explain why. No point in an introduction that goes nowhere.",
                 },
                 {
                   title: "We make the right introduction — once",
-                  body: "We don&apos;t shotgun introductions to multiple retailers. We find the one that makes sense, prepare both sides, and make a meaningful connection. If we don&apos;t think it&apos;ll work, we won&apos;t do it.",
+                  body: "We don't shotgun introductions to multiple retailers. We find the one that makes sense, prepare both sides, and make a meaningful connection. If we don't think it'll work, we won't do it.",
                 },
                 {
                   title: "We support the commercial discussion",
-                  body: "We stay involved through the early stages — helping navigate expectations on both sides, answering questions, and keeping things moving. We&apos;re not just making an introduction and disappearing.",
+                  body: "We stay involved through the early stages — helping navigate expectations on both sides, answering questions, and keeping things moving. We're not just making an introduction and disappearing.",
                 },
               ].map((item, i) => (
                 <Reveal key={i}>
@@ -295,6 +364,74 @@ export default async function ManufacturersPage({
           </div>
         </section>
 
+        {/* ── COMPONENT 4: Buyer Demand Preview ── */}
+        {requestPreview.length > 0 && (
+          <section id="buyer-demand" className="px-6 py-20 bg-white border-t border-slate-100">
+            <div className="max-w-5xl mx-auto">
+              <Reveal>
+                <div className="text-center mb-10">
+                  <p className="text-xs font-semibold text-orange-500 uppercase tracking-widest mb-3">
+                    Live demand
+                  </p>
+                  <h2 className="text-2xl md:text-3xl font-semibold text-slate-900">
+                    What Israeli buyers are sourcing right now
+                  </h2>
+                  <p className="text-slate-500 mt-3 max-w-xl mx-auto text-sm">
+                    These are real active sourcing requests from our buyer network.
+                    If you produce any of these categories, we want to hear from you.
+                  </p>
+                </div>
+              </Reveal>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {requestPreview.map((req) => {
+                  const catColor = req.category
+                    ? (CATEGORY_COLORS[req.category] ?? "bg-slate-100 text-slate-600")
+                    : "bg-slate-100 text-slate-600";
+                  const isKosher = (req.certifications ?? []).some((c) =>
+                    c.toLowerCase().includes("kosher")
+                  );
+                  return (
+                    <Reveal key={req.id}>
+                      <div className="bg-white border border-slate-200 rounded-xl p-4 h-full">
+                        {req.category && (
+                          <span className={`inline-block text-xs font-semibold px-2 py-0.5 rounded-full mb-2 ${catColor}`}>
+                            {req.category}
+                          </span>
+                        )}
+                        <p className="font-medium text-slate-800 text-sm leading-snug">
+                          {req.product_name}
+                        </p>
+                        <div className="flex items-center gap-2 mt-2">
+                          {isKosher && (
+                            <span className="text-[10px] bg-orange-50 text-orange-700 border border-orange-200 px-1.5 py-0.5 rounded">
+                              ✡ Kosher required
+                            </span>
+                          )}
+                          <span className="text-xs text-slate-400">{timeAgo(req.created_at)}</span>
+                        </div>
+                      </div>
+                    </Reveal>
+                  );
+                })}
+              </div>
+
+              <p className="text-center text-sm text-slate-400 mt-8">
+                {requestPreview.length} active requests shown · New requests added weekly
+              </p>
+
+              <div className="text-center mt-6">
+                <a
+                  href="#manufacturer-intake"
+                  className="inline-flex bg-orange-500 text-white px-6 py-3 rounded-lg font-semibold hover:bg-orange-600 transition text-sm shadow"
+                >
+                  Submit your product line →
+                </a>
+              </div>
+            </div>
+          </section>
+        )}
+
         {/* ── SUPERMARKET IMAGE ── */}
         <section className="px-6 py-12 bg-white border-t border-slate-100">
           <div className="max-w-5xl mx-auto">
@@ -313,7 +450,7 @@ export default async function ManufacturersPage({
           </div>
         </section>
 
-        {/* ── FAQ ── */}
+        {/* ── COMPONENT 5: FAQ ── */}
         <section className="px-6 py-20 bg-white border-t border-slate-100">
           <div className="max-w-3xl mx-auto">
             <Reveal>
@@ -348,6 +485,9 @@ export default async function ManufacturersPage({
         </section>
 
       </main>
+
+      {/* ── COMPONENT 2: Floating sticky CTA ── */}
+      <ManufacturerStickyCard />
     </>
   );
 }

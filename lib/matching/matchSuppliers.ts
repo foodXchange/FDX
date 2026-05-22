@@ -1,4 +1,5 @@
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { getEffectiveKosherTypes, getEffectiveCertifications } from "./factoryInheritance";
 
 export interface SupplierMatch {
   supplier_id: string;
@@ -134,31 +135,6 @@ const GEO_BONUS: Record<string, number> = {
   Egypt: 4, Jordan: 4, Morocco: 3, Bulgaria: 3, Poland: 3, Romania: 3,
   Serbia: 3, Croatia: 3, Netherlands: 3, Germany: 3, Israel: 2,
 };
-
-// ─── Factory kosher helpers ───────────────────────────────────────────────────
-
-function getEffectiveKosherTypes(product: {
-  kosher_types: string[] | null;
-  factory?: { kosher_types: string[]; is_primary: boolean } | null;
-}): string[] {
-  if (product.factory?.kosher_types?.length) {
-    return product.factory.kosher_types;
-  }
-  return product.kosher_types ?? [];
-}
-
-function getEffectiveCertifications(product: {
-  certifications: string[] | null;
-  factory?: { certifications_quality: string[]; certifications_dietary: string[] } | null;
-}): string[] {
-  const productCerts = product.certifications ?? [];
-  if (!product.factory) return productCerts;
-  const factoryCerts = [
-    ...(product.factory.certifications_quality ?? []),
-    ...(product.factory.certifications_dietary ?? []),
-  ];
-  return [...new Set([...productCerts, ...factoryCerts])];
-}
 
 // ─── Semantic tag similarity ──────────────────────────────────────────────────
 

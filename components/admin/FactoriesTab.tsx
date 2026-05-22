@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import {
   saveFactory,
   deleteFactory,
+  propagateFactoryCertifications,
   type FactoryFormData,
 } from "@/app/admin/suppliers/[id]/actions";
 
@@ -156,6 +157,8 @@ function FactorySlideOver({
       : EMPTY_FORM()
   );
   const [pending, startTransition] = useTransition();
+  const [propagating, setPropagating] = useState(false);
+  const [propagateMsg, setPropagateMsg] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   function set<K extends keyof FactoryFormData>(key: K, val: FactoryFormData[K]) {
@@ -180,6 +183,25 @@ function FactorySlideOver({
         ...form,
       });
     });
+  }
+
+  async function handlePropagate() {
+    if (!factory) return;
+    if (
+      !confirm(
+        `Update certifications on all products from "${factory.factory_name}"?\n\nProducts with a manual override will not be changed.`
+      )
+    )
+      return;
+    setPropagating(true);
+    setPropagateMsg(null);
+    const result = await propagateFactoryCertifications(supplierId, factory.id);
+    setPropagating(false);
+    if (result.ok) {
+      setPropagateMsg(`✓ ${result.updated} products updated`);
+    } else {
+      setPropagateMsg(`Error: ${result.error ?? "Propagation failed"}`);
+    }
   }
 
   return (
@@ -242,39 +264,64 @@ function FactorySlideOver({
             selected={form.kosher_types}
             onChange={(v) => set("kosher_types", v)}
           />
+
           {form.kosher_types.length > 0 && (
-            <div>
-              <label className={labelCls}>Certifying body</label>
-              <input
-                type="text"
-                value={form.kosher_certifying_body ?? ""}
-                onChange={(e) =>
-                  set("kosher_certifying_body", e.target.value || null)
-                }
-                placeholder="e.g. OU Kosher, KSA"
-                className={inputCls}
-              />
-              <div className="flex gap-4 mt-2">
-                <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={form.kosher_passover}
-                    onChange={(e) => set("kosher_passover", e.target.checked)}
-                    className="rounded"
-                  />
-                  Passover kosher
-                </label>
-                <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={form.kosher_year_round}
-                    onChange={(e) => set("kosher_year_round", e.target.checked)}
-                    className="rounded"
-                  />
-                  Year-round kosher
-                </label>
+            <>
+              <div>
+                <label className={labelCls}>Certifying body</label>
+                <input
+                  type="text"
+                  value={form.kosher_certifying_body ?? ""}
+                  onChange={(e) =>
+                    set("kosher_certifying_body", e.target.value || null)
+                  }
+                  placeholder="e.g. OU Kosher, KSA"
+                  className={inputCls}
+                />
+                <div className="flex gap-4 mt-2">
+                  <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={form.kosher_passover}
+                      onChange={(e) => set("kosher_passover", e.target.checked)}
+                      className="rounded"
+                    />
+                    Passover kosher
+                  </label>
+                  <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={form.kosher_year_round}
+                      onChange={(e) => set("kosher_year_round", e.target.checked)}
+                      className="rounded"
+                    />
+                    Year-round kosher
+                  </label>
+                </div>
               </div>
-            </div>
+
+              {/* Inheritance preview + propagate button (only when editing existing factory) */}
+              {factory && (
+                <div className="bg-orange-50 border border-orange-200 rounded-lg px-4 py-3 space-y-2">
+                  <p className="text-sm text-orange-800 font-medium">
+                    ✡ These certifications will be inherited by all products from this factory
+                  </p>
+                  <div className="flex items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={handlePropagate}
+                      disabled={propagating}
+                      className="text-xs font-semibold text-orange-700 hover:text-orange-900 underline underline-offset-2 disabled:opacity-50"
+                    >
+                      {propagating ? "Propagating…" : "Propagate to all products now →"}
+                    </button>
+                    {propagateMsg && (
+                      <span className="text-xs text-gray-600">{propagateMsg}</span>
+                    )}
+                  </div>
+                </div>
+              )}
+            </>
           )}
 
           {/* Quality certs */}
@@ -385,10 +432,12 @@ function FactorySlideOver({
 
 function FactoryCard({
   factory,
+  productCount,
   onEdit,
   onDelete,
 }: {
   factory: SupplierFactory;
+  productCount: number;
   onEdit: () => void;
   onDelete: () => void;
 }) {
@@ -409,6 +458,9 @@ function FactoryCard({
               primary
             </span>
           )}
+          <span className="ml-2 text-xs bg-slate-100 text-slate-500 rounded-full px-2 py-0.5">
+            {productCount} product{productCount !== 1 ? "s" : ""}
+          </span>
           {(factory.country || factory.city) && (
             <p className="text-xs text-gray-500 mt-0.5">
               {[factory.city, factory.country].filter(Boolean).join(", ")}
@@ -467,9 +519,11 @@ function FactoryCard({
 export function FactoriesTab({
   supplierId,
   initialFactories,
+  products,
 }: {
   supplierId: string;
   initialFactories: SupplierFactory[];
+  products: { factory_id: string | null }[];
 }) {
   const [factories, setFactories] = useState<SupplierFactory[]>(initialFactories);
   const [slideOver, setSlideOver] = useState<{
@@ -527,6 +581,7 @@ export function FactoriesTab({
             <FactoryCard
               key={f.id}
               factory={f}
+              productCount={products.filter((p) => p.factory_id === f.id).length}
               onEdit={() => setSlideOver({ open: true, factory: f })}
               onDelete={() => handleDelete(f)}
             />
