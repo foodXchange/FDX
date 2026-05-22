@@ -123,7 +123,7 @@ For kosher_types: only populate if certifications mention kosher. Use exact valu
 Chief Rabbinate, Badatz Beit Yosef, Badatz Eida Chareidis, Mehadrin, Kosher (unspecified)`;
 
   const response = await client.messages.create({
-    model: "claude-sonnet-4-20250514",
+    model: "claude-sonnet-4-5",
     max_tokens: 500,
     system:
       "You are a food industry categorisation expert. Analyse food supplier descriptions and return structured categorisation data as JSON only. No explanation, no markdown, just valid JSON.",
@@ -201,7 +201,7 @@ async function main(): Promise<void> {
 
   console.log(`\nFound ${suppliers.length} suppliers to categorise`);
   console.log(`This will take approximately ${suppliers.length * 2} seconds`);
-  console.log("Model: claude-sonnet-4-20250514");
+  console.log("Model: claude-sonnet-4-5");
 
   if (DRY_RUN) {
     console.log("\n── DRY RUN — first 3 suppliers ──────────────────────");

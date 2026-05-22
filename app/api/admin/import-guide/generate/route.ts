@@ -92,7 +92,7 @@ export async function POST(req: NextRequest) {
   const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
   const stream = await client.messages.stream({
-    model: "claude-sonnet-4-20250514",
+    model: "claude-sonnet-4-5",
     max_tokens: 3000,
     system: SYSTEM_PROMPT,
     messages: [{ role: "user", content: buildUserPrompt(topic, categoryTitle) }],

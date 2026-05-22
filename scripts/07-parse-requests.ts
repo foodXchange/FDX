@@ -113,7 +113,7 @@ Examples:
 Note: some titles may be in Hebrew — translate and extract correctly.`;
 
   const response = await client.messages.create({
-    model: "claude-sonnet-4-20250514",
+    model: "claude-sonnet-4-5",
     max_tokens: 400,
     system:
       "You are a food sourcing analyst. Extract structured product information from buyer request titles. Return JSON only. No explanation.",
@@ -180,7 +180,7 @@ async function main(): Promise<void> {
 
   console.log(`\nFound ${requests.length} requests to parse`);
   console.log(`This will take approximately ${requests.length * 2} seconds`);
-  console.log("Model: claude-sonnet-4-20250514");
+  console.log("Model: claude-sonnet-4-5");
 
   if (DRY_RUN) {
     console.log("\n── DRY RUN — first 5 requests ───────────────────────");

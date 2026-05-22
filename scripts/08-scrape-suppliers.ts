@@ -11,7 +11,10 @@ import { readFileSync } from "fs";
 import { resolve } from "path";
 import { createClient } from "@supabase/supabase-js";
 import { crawlSupplier } from "../lib/scraper/crawl";
-import { extractProducts } from "../lib/scraper/extract";
+import {
+  extractProducts,
+  detectManufacturerType,
+} from "../lib/scraper/extract";
 import type { ExtractedProduct } from "../lib/scraper/extract";
 
 // ─── Load .env.local ─────────────────────────────────────────────────────────
@@ -69,6 +72,7 @@ type SupplierRow = {
   categories: string[] | null;
   certifications: string[] | null;
   scrape_status: string | null;
+  status: string | null;
 };
 
 // ─── Insert products ──────────────────────────────────────────────────────────
@@ -109,13 +113,59 @@ async function insertProducts(
   }));
 
   const { error } = await supabase.from("supplier_products").insert(rows);
-
   if (error) {
     console.error("  Insert error:", error);
     return 0;
   }
-
   return rows.length;
+}
+
+// ─── Display helpers ──────────────────────────────────────────────────────────
+const SEP = "━".repeat(52);
+const SEP2 = "═".repeat(52);
+
+function confidenceBar(score: number): string {
+  const filled = Math.round(score * 10);
+  return "█".repeat(filled) + "░".repeat(10 - filled);
+}
+
+function pad(str: string, width: number): string {
+  return str.length >= width ? str.slice(0, width) : str + " ".repeat(width - str.length);
+}
+
+function getHomepage(url: string): string {
+  try {
+    const parsed = new URL(url);
+    return `${parsed.protocol}//${parsed.host}`;
+  } catch {
+    return url;
+  }
+}
+
+function printSummaryTable(
+  rows: { col1: string; col2: string; col3?: string }[],
+  headers: { col1: string; col2: string; col3?: string },
+  widths: { col1: number; col2: number; col3?: number }
+): void {
+  const hasCol3 = headers.col3 !== undefined;
+  const totalWidth =
+    widths.col1 + widths.col2 + (hasCol3 && widths.col3 ? widths.col3 : 0) + (hasCol3 ? 6 : 4);
+
+  console.log("┌" + "─".repeat(totalWidth) + "┐");
+
+  const headerLine = hasCol3 && widths.col3
+    ? `│ ${pad(headers.col1, widths.col1)} ${pad(headers.col2, widths.col2)} ${pad(headers.col3!, widths.col3)} │`
+    : `│ ${pad(headers.col1, widths.col1)} ${pad(headers.col2, widths.col2)} │`;
+  console.log(headerLine);
+
+  for (const row of rows) {
+    const line = hasCol3 && widths.col3
+      ? `│ ${pad(row.col1, widths.col1)} ${pad(row.col2, widths.col2)} ${pad(row.col3 ?? "", widths.col3)} │`
+      : `│ ${pad(row.col1, widths.col1)} ${pad(row.col2, widths.col2)} │`;
+    console.log(line);
+  }
+
+  console.log("└" + "─".repeat(totalWidth) + "┘");
 }
 
 // ─── Main ─────────────────────────────────────────────────────────────────────
@@ -134,7 +184,7 @@ async function main(): Promise<void> {
   let query: any = supabase
     .from("supplier_offerings")
     .select(
-      "id, company_name, website, country_of_origin, categories, certifications, scrape_status"
+      "id, company_name, website, country_of_origin, categories, certifications, scrape_status, status"
     )
     .not("website", "is", null)
     .neq("website", "");
@@ -161,16 +211,28 @@ async function main(): Promise<void> {
 
   const list = (suppliers ?? []) as SupplierRow[];
 
-  console.log(`\n=== SUPPLIER SCRAPER ===`);
-  console.log(`Suppliers to process: ${list.length}\n`);
+  const startTime = Date.now();
 
-  let success = 0;
-  let failed = 0;
+  const succeeded: { name: string; products: number; avgConfidence: number }[] = [];
+  const failed: { name: string; reason: string }[] = [];
+  const skipped: { name: string; reason: string; type: string }[] = [];
   let totalProducts = 0;
 
-  for (const supplier of list) {
-    console.log(`\nProcessing: ${supplier.company_name}`);
-    console.log(`  Website: ${supplier.website}`);
+  console.log(`\n${SEP2}`);
+  console.log(`  SUPPLIER SCRAPER`);
+  console.log(`  Suppliers to process: ${list.length}`);
+  console.log(SEP2);
+
+  for (let i = 0; i < list.length; i++) {
+    const supplier = list[i];
+    const supplierStart = Date.now();
+
+    console.log(`\n${SEP}`);
+    console.log(`[${i + 1}/${list.length}] ${supplier.company_name}`);
+    console.log(SEP);
+    console.log(`  Country:  ${supplier.country_of_origin ?? "Unknown"}`);
+    console.log(`  Website:  ${supplier.website}`);
+    console.log(`  Status:   ${supplier.status ?? "unknown"}`);
 
     try {
       await supabase
@@ -178,40 +240,133 @@ async function main(): Promise<void> {
         .update({ scrape_status: "pending" })
         .eq("id", supplier.id);
 
-      console.log(`  Crawling...`);
-      const content = await crawlSupplier(supplier.website!);
+      // ── Step 1: Crawl ───────────────────────────────────────────────────
+      console.log(`\n  → Crawling website...`);
+      const crawlUrl = getHomepage(supplier.website!);
+      if (crawlUrl !== supplier.website) {
+        console.log(`  ℹ Using homepage: ${crawlUrl}`);
+      }
+      const content = await crawlSupplier(crawlUrl);
 
       if (!content || content.length < 50) {
-        console.log(`  ✗ No content found`);
+        console.log(`  ✗ Website blocked or no content`);
+        console.log(`  ℹ Try manually: ${supplier.website}`);
         await supabase
           .from("supplier_offerings")
           .update({ scrape_status: "failed" })
           .eq("id", supplier.id);
-        failed++;
+        failed.push({ name: supplier.company_name, reason: "No content returned" });
+        const elapsed = ((Date.now() - supplierStart) / 1000).toFixed(1);
+        console.log(`\n  Time taken: ${elapsed}s`);
+        await new Promise((r) => setTimeout(r, 25000));
         continue;
       }
 
-      console.log(`  ✓ Fetched ${content.length} chars`);
-      console.log(`  Extracting products...`);
+      const pageCount = content.split("---PAGE BREAK---").length;
+      console.log(
+        `  ✓ Fetched ${content.length.toLocaleString()} chars across ${pageCount} page${pageCount !== 1 ? "s" : ""}`
+      );
 
+      // ── Step 2: Manufacturer detection ──────────────────────────────────
+      console.log(`\n  → Checking if manufacturer...`);
+      const mfr = await detectManufacturerType(content, supplier.company_name);
+
+      const shouldSkip =
+        !mfr.isManufacturer &&
+        !["manufacturer", "mixed", "unknown"].includes(mfr.companyType) &&
+        mfr.confidence >= 0.4;
+
+      if (shouldSkip) {
+        console.log(`  ✗ SKIPPED — Not a manufacturer: ${mfr.reason}`);
+        console.log(`    Type detected: ${mfr.companyType}`);
+        await supabase
+          .from("supplier_offerings")
+          .update({
+            scrape_status: "skipped",
+            internal_notes: `Auto-skipped: ${mfr.companyType} — ${mfr.reason}`,
+          })
+          .eq("id", supplier.id);
+        skipped.push({
+          name: supplier.company_name,
+          reason: mfr.reason,
+          type: mfr.companyType,
+        });
+        const elapsed = ((Date.now() - supplierStart) / 1000).toFixed(1);
+        console.log(`\n  Time taken: ${elapsed}s`);
+        await new Promise((r) => setTimeout(r, 25000));
+        continue;
+      }
+
+      if (mfr.companyType === "mixed") {
+        console.log(`  ⚠ Mixed company — extracting manufacturer products only`);
+        console.log(`    ${mfr.reason}`);
+      } else if (mfr.confidence < 0.4) {
+        console.log(`  ⚠ Cannot determine type (low confidence) — proceeding with extraction`);
+        console.log(`    ${mfr.reason}`);
+      } else {
+        console.log(`  ✓ Confirmed manufacturer: ${mfr.reason}`);
+      }
+
+      // ── Step 3: Extract products ─────────────────────────────────────────
+      console.log(`\n  → Extracting products...`);
       const products = await extractProducts(content, {
         company_name: supplier.company_name,
         country_of_origin: supplier.country_of_origin,
         certifications: supplier.certifications ?? [],
       });
 
-      console.log(`  ✓ Found ${products.length} products`);
-      products.forEach((p) => {
-        console.log(
-          `    - ${p.product_name} (${p.category}) [confidence: ${p.confidence}]`
-        );
+      if (products.length === 0) {
+        console.log(`  ✗ Products not found in content`);
+        console.log(`  ℹ Site may be JavaScript-heavy`);
+        console.log(`  ℹ Add manually via /admin/suppliers`);
+        await supabase
+          .from("supplier_offerings")
+          .update({ scrape_status: "failed" })
+          .eq("id", supplier.id);
+        failed.push({ name: supplier.company_name, reason: "No products extracted" });
+        const elapsed = ((Date.now() - supplierStart) / 1000).toFixed(1);
+        console.log(`\n  Time taken: ${elapsed}s`);
+        await new Promise((r) => setTimeout(r, 25000));
+        continue;
+      }
+
+      const avgConfidence =
+        products.reduce((sum, p) => sum + (p.confidence ?? 0), 0) /
+        products.length;
+
+      console.log(`  ✓ Found ${products.length} products:`);
+      const detectedLang = products[0]?.detected_language;
+      if (detectedLang && detectedLang !== "english") {
+        console.log(`  🌍 Content language: ${detectedLang}`);
+      }
+      products.forEach((p, idx) => {
+        const formatsStr =
+          (p.formats ?? []).length > 0
+            ? (p.formats ?? []).join(", ")
+            : "—";
+        const certsStr =
+          (p.certifications ?? []).length > 0
+            ? (p.certifications ?? []).join(", ")
+            : "—";
+        const conf = p.confidence ?? 0;
+        console.log(`     ${idx + 1}. ${p.product_name} (${p.category})`);
+        console.log(`        Formats: ${formatsStr}`);
+        console.log(`        Certs:   ${certsStr}`);
+        console.log(`        Conf:    ${confidenceBar(conf)}  ${conf.toFixed(1)}`);
       });
 
+      // ── Step 4: Save to database ─────────────────────────────────────────
+      console.log(`\n  → Saving to database...`);
       const inserted = await insertProducts(
         supplier.id,
         products,
         supplier.website!
       );
+
+      const internalNote =
+        mfr.companyType === "mixed"
+          ? `Mixed company: ${mfr.reason}`
+          : undefined;
 
       await supabase
         .from("supplier_offerings")
@@ -219,33 +374,104 @@ async function main(): Promise<void> {
           scrape_status: "scraped",
           last_scraped_at: new Date().toISOString(),
           products_found: inserted,
+          ...(internalNote ? { internal_notes: internalNote } : {}),
         })
         .eq("id", supplier.id);
 
-      success++;
-      totalProducts += inserted;
       console.log(`  ✓ Saved ${inserted} products`);
+
+      succeeded.push({
+        name: supplier.company_name,
+        products: inserted,
+        avgConfidence,
+      });
+      totalProducts += inserted;
     } catch (err) {
       console.error(`  ✗ Error:`, err);
       await supabase
         .from("supplier_offerings")
         .update({ scrape_status: "failed" })
         .eq("id", supplier.id);
-      failed++;
+      failed.push({
+        name: supplier.company_name,
+        reason: err instanceof Error ? err.message : String(err),
+      });
     }
 
-    await new Promise((r) => setTimeout(r, 2000));
+    const elapsed = ((Date.now() - supplierStart) / 1000).toFixed(1);
+    console.log(`\n  Time taken: ${elapsed}s`);
+
+    await new Promise((r) => setTimeout(r, 25000));
   }
 
-  console.log(`\n=== DONE ===`);
-  console.log(`Success: ${success}`);
-  console.log(`Failed: ${failed}`);
-  console.log(`Total products found: ${totalProducts}`);
+  // ─── Summary ───────────────────────────────────────────────────────────────
+  const totalElapsed = Date.now() - startTime;
+  const mins = Math.floor(totalElapsed / 60000);
+  const secs = Math.floor((totalElapsed % 60000) / 1000);
+  const timeStr = mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
+
+  const overallAvgConf =
+    succeeded.length > 0
+      ? succeeded.reduce((s, r) => s + r.avgConfidence, 0) / succeeded.length
+      : 0;
+
+  const successRate =
+    list.length > 0
+      ? Math.round((succeeded.length / list.length) * 100)
+      : 0;
+
+  console.log(`\n${SEP2}`);
+  console.log(`  SCRAPER SUMMARY`);
+  console.log(SEP2);
+
+  if (succeeded.length > 0) {
+    console.log(`\n✓ SUCCEEDED (${succeeded.length} ${succeeded.length === 1 ? "company" : "companies"}):`);
+    printSummaryTable(
+      succeeded.map((r) => ({
+        col1: r.name,
+        col2: String(r.products),
+        col3: r.avgConfidence.toFixed(1),
+      })),
+      { col1: "Company", col2: "Products", col3: "Conf" },
+      { col1: 32, col2: 8, col3: 5 }
+    );
+  }
+
+  if (failed.length > 0) {
+    console.log(`\n✗ FAILED (${failed.length} ${failed.length === 1 ? "company" : "companies"}):`);
+    printSummaryTable(
+      failed.map((r) => ({
+        col1: r.name,
+        col2: r.reason.slice(0, 22),
+      })),
+      { col1: "Company", col2: "Reason" },
+      { col1: 32, col2: 22 }
+    );
+  }
+
+  if (skipped.length > 0) {
+    console.log(`\n⊘ SKIPPED (${skipped.length} ${skipped.length === 1 ? "company" : "companies"}):`);
+    printSummaryTable(
+      skipped.map((r) => ({
+        col1: r.name,
+        col2: r.type,
+        col3: r.reason.slice(0, 20),
+      })),
+      { col1: "Company", col2: "Type", col3: "Reason" },
+      { col1: 28, col2: 16, col3: 20 }
+    );
+  }
+
+  console.log(`\n  Total products added to database: ${totalProducts}`);
+  console.log(`  Average confidence:               ${overallAvgConf.toFixed(2)}`);
+  console.log(`  Success rate:                     ${successRate}%`);
+  console.log(`  Time elapsed:                     ${timeStr}`);
 
   const { count } = await supabase
     .from("supplier_products")
     .select("*", { count: "exact", head: true });
-  console.log(`Total products in DB: ${count}`);
+  console.log(`  Total products in DB:             ${count}`);
+  console.log(`\n${SEP2}`);
 }
 
 main().catch((err) => {

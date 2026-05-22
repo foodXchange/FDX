@@ -1,11 +1,15 @@
 import Firecrawl from "@mendable/firecrawl-js";
 import type { Document } from "@mendable/firecrawl-js";
 
-const firecrawl = new Firecrawl({
-  apiKey: process.env.FIRECRAWL_API_KEY,
-});
+function sleep(ms: number): Promise<void> {
+  return new Promise((r) => setTimeout(r, ms));
+}
 
 export async function crawlSupplier(website: string): Promise<string> {
+  const firecrawl = new Firecrawl({
+    apiKey: process.env.FIRECRAWL_API_KEY,
+  });
+
   try {
     const crawlJob = await firecrawl.crawl(website, {
       limit: 10,
@@ -37,17 +41,102 @@ export async function crawlSupplier(website: string): Promise<string> {
       .join("\n\n---PAGE BREAK---\n\n")
       .slice(0, 50000);
 
+    // If little content returned, try language-specific URLs
+    if (combinedText.length < 5000) {
+      const baseUrl = website;
+      const langVariants = [
+        baseUrl,
+        baseUrl + "?lang=it",
+        baseUrl + "?lang=es",
+        baseUrl + "?lang=fr",
+        baseUrl + "?lang=de",
+        baseUrl + "?lang=pl",
+        baseUrl + "/it/",
+        baseUrl + "/es/",
+        baseUrl + "/fr/",
+        baseUrl + "/de/",
+      ];
+
+      for (const variant of langVariants) {
+        if (variant === baseUrl) continue;
+        try {
+          await sleep(3000);
+          const page = await firecrawl.scrape(variant, {
+            formats: ["markdown"],
+            onlyMainContent: true,
+          });
+          const varContent = (page as Document).markdown ?? "";
+          if (varContent.length > 3000) {
+            console.log(`  ℹ Better content found at: ${variant}`);
+            return varContent;
+          }
+        } catch {
+          continue;
+        }
+      }
+    }
+
     return combinedText;
-  } catch (err) {
+  } catch (err: unknown) {
+    const status =
+      ((err as Record<string, unknown>)?.status as number | undefined) ??
+      ((err as Record<string, unknown>)?.statusCode as number | undefined);
+
+    // 429 rate-limit: wait 20s then retry with single-page scrape
+    if (status === 429) {
+      console.log(`  ⏳ Rate limited — waiting 20s before retry...`);
+      await sleep(20000);
+      try {
+        const page = await firecrawl.scrape(website, {
+          formats: ["markdown"],
+          onlyMainContent: true,
+        });
+        return (page as Document).markdown ?? "";
+      } catch {
+        return "";
+      }
+    }
+
     console.error(`Crawl error for ${website}:`, err);
+
+    // First fallback: scrape the homepage directly
     try {
       const page = await firecrawl.scrape(website, {
         formats: ["markdown"],
         onlyMainContent: true,
       });
-      return (page as Document).markdown ?? "";
+      const homepageContent = (page as Document).markdown ?? "";
+      if (homepageContent.length > 200) return homepageContent;
     } catch {
-      return "";
+      // continue to product-path fallback
     }
+
+    // Second fallback: try common product-page paths
+    const productPaths = [
+      "/products",
+      "/our-products",
+      "/catalogue",
+      "/catalog",
+      "/range",
+      "/food-products",
+      "/what-we-make",
+    ];
+
+    for (const path of productPaths) {
+      try {
+        const url = new URL(path, website).href;
+        const page = await firecrawl.scrape(url, {
+          formats: ["markdown"],
+          onlyMainContent: true,
+        });
+        const content = (page as Document).markdown ?? "";
+        if (content.length > 200) return content;
+      } catch {
+        // try next path
+      }
+      await sleep(5000);
+    }
+
+    return "";
   }
 }
