@@ -13,6 +13,38 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+
+  /* ── Brand ── */
+  --color-brand:        #e85d26;
+  --color-brand-hover:  #d04e1a;
+  --color-brand-muted:  rgba(232,93,38,0.12);
+  --color-brand-border: rgba(232,93,38,0.3);
+
+  /* ── Dark surface layers ── */
+  --color-dark-900: #080f18;
+  --color-dark-800: #0f1923;
+  --color-dark-700: #162330;
+  --color-dark-600: #1d2f40;
+  --color-dark-500: #253a50;
+  --color-dark-400: #2f4760;
+  --color-dark-border: rgba(255,255,255,0.07);
+  --color-dark-border-hover: rgba(255,255,255,0.14);
+
+  /* ── Dark typography ── */
+  --color-dark-text-primary:   #f1f5f9;
+  --color-dark-text-secondary: #94a3b8;
+  --color-dark-text-muted:     #64748b;
+  --color-dark-text-brand:     #fb923c;
+
+  /* ── Semantic (dark context) ── */
+  --color-dark-kosher:  #f59e0b;
+  --color-dark-success: #10b981;
+  --color-dark-error:   #ef4444;
+  --color-dark-info:    #3b82f6;
+
+  /* ── Navigation ── */
+  --color-nav-bg:     #060d14;
+  --color-nav-border: rgba(255,255,255,0.05);
 }
 
 /* ---------------------------------- */
@@ -36,6 +68,149 @@ body {
   :focus-visible {
     outline: none;
   }
+}
+
+/* ─── PUBLIC PAGE DARK THEME ──────────────────────────────────────────────── */
+
+/* Public page dark base */
+.public-page {
+  background-color: #0f1923;
+  color: #f1f5f9;
+  min-height: 100vh;
+}
+
+/* Dark cards */
+.dark-card {
+  background: #162330;
+  border: 0.5px solid rgba(255,255,255,0.07);
+  border-radius: 12px;
+}
+
+.dark-card-elevated {
+  background: #1d2f40;
+  border: 0.5px solid rgba(255,255,255,0.10);
+  border-radius: 12px;
+}
+
+/* Dark inputs */
+.dark-input {
+  background: #162330;
+  border: 0.5px solid rgba(255,255,255,0.12);
+  border-radius: 8px;
+  color: #f1f5f9;
+  padding: 10px 14px;
+  width: 100%;
+  font-size: 14px;
+  transition: border-color 0.15s;
+}
+
+.dark-input::placeholder {
+  color: #64748b;
+}
+
+.dark-input:focus {
+  outline: none;
+  border-color: rgba(232,93,38,0.5);
+}
+
+/* Dark badge — kosher */
+.badge-kosher {
+  background: rgba(245,158,11,0.12);
+  color: #f59e0b;
+  border: 0.5px solid rgba(245,158,11,0.25);
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 500;
+  padding: 3px 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Dark badge — certification */
+.badge-cert {
+  background: rgba(255,255,255,0.06);
+  color: #94a3b8;
+  border: 0.5px solid rgba(255,255,255,0.10);
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 500;
+  padding: 2px 7px;
+}
+
+/* Dark badge — category */
+.badge-category {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+/* Orange CTA button */
+.btn-brand {
+  background: #e85d26;
+  color: #ffffff;
+  border: none;
+  border-radius: 8px;
+  padding: 10px 20px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s, transform 0.1s;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  text-decoration: none;
+}
+
+.btn-brand:hover {
+  background: #d04e1a;
+}
+
+.btn-brand:active {
+  transform: scale(0.98);
+}
+
+/* Ghost button */
+.btn-ghost {
+  background: transparent;
+  color: #94a3b8;
+  border: 0.5px solid rgba(255,255,255,0.15);
+  border-radius: 8px;
+  padding: 10px 20px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  text-decoration: none;
+}
+
+.btn-ghost:hover {
+  background: rgba(255,255,255,0.05);
+  color: #f1f5f9;
+  border-color: rgba(255,255,255,0.25);
+}
+
+/* Section eyebrow label */
+.section-eyebrow {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #e85d26;
+  margin-bottom: 8px;
+}
+
+/* Dark divider */
+.dark-divider {
+  border: none;
+  border-top: 0.5px solid rgba(255,255,255,0.07);
+  margin: 0;
 }
 
 /* ─── PREMIUM BLOG TYPOGRAPHY ─────────────────────────────────────────────── */

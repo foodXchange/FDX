@@ -34,10 +34,10 @@ function certChipCls(cert: string): string {
     lower.includes("fssc") ||
     lower.includes("iso")
   )
-    return "bg-blue-50 text-blue-700 border-blue-100";
-  if (lower.includes("organic")) return "bg-emerald-50 text-emerald-700 border-emerald-100";
-  if (lower.includes("halal")) return "bg-green-50 text-green-700 border-green-100";
-  return "bg-slate-50 text-slate-600 border-slate-200";
+    return "bg-blue-500/10 text-blue-400 border-blue-500/20";
+  if (lower.includes("organic")) return "bg-emerald-500/10 text-emerald-400 border-emerald-500/20";
+  if (lower.includes("halal")) return "bg-green-500/10 text-green-400 border-green-500/20";
+  return "bg-white/6 text-slate-400 border-white/10";
 }
 
 export default function ProductCard({ product, onRequest }: ProductCardProps) {
@@ -51,7 +51,7 @@ export default function ProductCard({ product, onRequest }: ProductCardProps) {
   const displayName = cleanProductName(product.product_name, product.category);
 
   return (
-    <div className="group relative bg-white rounded-2xl overflow-hidden border border-slate-100 hover:border-orange-300 hover:shadow-xl transition-all duration-300 flex flex-col">
+    <div className="group relative bg-dark-700 rounded-2xl overflow-hidden border border-dark-border hover:border-orange-500/40 hover:shadow-xl hover:shadow-black/40 transition-all duration-300 flex flex-col">
       {/* Category color top bar */}
       <div style={{ height: 6, backgroundColor: color }} />
 
@@ -59,24 +59,24 @@ export default function ProductCard({ product, onRequest }: ProductCardProps) {
       <div className="p-4 flex flex-col gap-1 flex-1 relative">
         {/* Kosher badge */}
         {kosherType && (
-          <span className="absolute top-4 right-4 bg-amber-50 border border-amber-200 text-amber-800 text-[10px] font-bold px-2 py-0.5 rounded-full">
+          <span className="badge-kosher absolute top-4 right-4">
             ✡ {kosherType}
           </span>
         )}
 
         {/* Private label badge */}
         {product.private_label && (
-          <span className="self-start bg-slate-800/80 text-white text-[10px] font-semibold px-2 py-0.5 rounded-full mb-1">
+          <span className="self-start bg-white/10 text-white text-[10px] font-semibold px-2 py-0.5 rounded-full mb-1">
             Private label
           </span>
         )}
 
-        <p className="text-base font-semibold text-slate-900 leading-snug line-clamp-2 pr-16">
+        <p className="text-base font-semibold text-dark-text-primary leading-snug line-clamp-2 pr-16">
           {displayName}
         </p>
 
         {product.supplier && (
-          <p className="text-xs text-slate-500">
+          <p className="text-xs text-slate-400">
             {product.supplier.company_name}
             {country ? ` · ${flag ?? country}` : ""}
           </p>
@@ -100,14 +100,14 @@ export default function ProductCard({ product, onRequest }: ProductCardProps) {
         <button
           type="button"
           onClick={() => onRequest(product)}
-          className="mt-3 w-full py-2.5 rounded-xl border-2 border-orange-500 text-orange-600 font-semibold text-sm hover:bg-orange-500 hover:text-white transition duration-200"
+          className="mt-3 w-full py-2.5 rounded-xl border border-brand-border text-orange-400 font-semibold text-sm hover:bg-brand hover:text-white hover:border-transparent transition duration-200"
         >
           Request →
         </button>
       </div>
 
       {/* Hover overlay (desktop) */}
-      <div className="absolute inset-0 bg-slate-900/80 opacity-0 group-hover:opacity-100 transition-opacity duration-300 hidden md:flex items-center justify-center rounded-2xl">
+      <div className="absolute inset-0 bg-dark-900/90 opacity-0 group-hover:opacity-100 transition-opacity duration-300 hidden md:flex items-center justify-center rounded-2xl">
         <button
           type="button"
           onClick={() => onRequest(product)}

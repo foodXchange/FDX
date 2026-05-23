@@ -28,12 +28,12 @@ export default function BuyersPage() {
     <>
       <a
         href="#main"
-        className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-50 focus:bg-white focus:px-4 focus:py-2 rounded-md shadow"
+        className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-50 focus:bg-dark-600 focus:text-dark-text-primary focus:px-4 focus:py-2 rounded-md shadow"
       >
         Skip to content
       </a>
 
-      <main id="main" className="bg-white text-slate-800">
+      <main id="main">
 
         {/* ── HERO ── */}
         <section className="relative w-full overflow-hidden" style={{ minHeight: "520px" }}>

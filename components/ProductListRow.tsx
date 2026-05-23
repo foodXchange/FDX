@@ -34,11 +34,11 @@ const COUNTRY_FLAG: Record<string, string> = {
 
 function kosherBadgeCls(type: string): string {
   const lower = type.toLowerCase();
-  if (lower.includes("badatz")) return "bg-red-50 text-red-700 border-red-200";
-  if (lower.includes("ou")) return "bg-blue-50 text-blue-700 border-blue-200";
+  if (lower.includes("badatz")) return "bg-red-500/15 text-red-400 border-red-500/25";
+  if (lower.includes("ou")) return "bg-blue-500/15 text-blue-400 border-blue-500/25";
   if (lower.includes("chief") || lower.includes("rabbinate"))
-    return "bg-amber-50 text-amber-800 border-amber-200";
-  return "bg-slate-50 text-slate-600 border-slate-200";
+    return "bg-amber-500/15 text-amber-400 border-amber-500/25";
+  return "bg-white/6 text-slate-400 border-white/10";
 }
 
 export default function ProductListRow({ product, onRequest, showImages, categoryImage }: Props) {
@@ -59,7 +59,7 @@ export default function ProductListRow({ product, onRequest, showImages, categor
 
   return (
     <div
-      className="relative flex items-center gap-3 px-5 overflow-hidden hover:bg-slate-50 transition-colors duration-150 cursor-default"
+      className="relative flex items-center gap-3 px-5 overflow-hidden hover:bg-white/3 transition-colors duration-150 cursor-default"
       style={{ height: 72 }}
     >
       {/* Left category color bar */}
@@ -89,7 +89,7 @@ export default function ProductListRow({ product, onRequest, showImages, categor
         >
           {product.category}
         </span>
-        <p className="text-sm font-medium text-slate-900 leading-snug line-clamp-1">
+        <p className="text-sm font-medium text-dark-text-primary leading-snug line-clamp-1">
           {displayName}
         </p>
         {supplierDisplay && (
@@ -117,13 +117,13 @@ export default function ProductListRow({ product, onRequest, showImages, categor
             {displayCerts.map((cert) => (
               <span
                 key={cert}
-                className="text-[10px] bg-blue-50 text-blue-700 border border-blue-100 rounded-full px-2 py-0.5 whitespace-nowrap"
+                className="text-[10px] bg-blue-500/10 text-blue-400 border border-blue-500/20 rounded-full px-2 py-0.5 whitespace-nowrap"
               >
                 {cert}
               </span>
             ))}
             {extraCerts > 0 && (
-              <span className="text-[10px] text-slate-400">+{extraCerts}</span>
+              <span className="text-[10px] text-slate-500">+{extraCerts}</span>
             )}
           </div>
         )}
@@ -139,7 +139,7 @@ export default function ProductListRow({ product, onRequest, showImages, categor
             {displayFormats.map((fmt) => (
               <span
                 key={fmt}
-                className="text-[10px] bg-slate-100 text-slate-600 rounded px-1.5 py-0.5 whitespace-nowrap"
+                className="text-[10px] bg-white/6 text-slate-400 rounded px-1.5 py-0.5 whitespace-nowrap"
               >
                 {fmt}
               </span>
@@ -159,7 +159,7 @@ export default function ProductListRow({ product, onRequest, showImages, categor
         style={{ width: 80 }}
       >
         {country && (
-          <p className="text-[11px] text-slate-500 truncate">
+          <p className="text-[11px] text-slate-400 truncate">
             {flag ? `${flag} ` : ""}{country}
           </p>
         )}

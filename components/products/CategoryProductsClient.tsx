@@ -45,7 +45,6 @@ export default function CategoryProductsClient({
     setPage(1);
   }
 
-  // Derive available filter options from data
   const allKosherTypes = Array.from(
     new Set(products.flatMap((p) => p.kosher_types ?? []))
   ).sort();
@@ -58,7 +57,6 @@ export default function CategoryProductsClient({
   );
   const hasPrivateLabel = products.some((p) => p.private_label);
 
-  // Filter
   const displayList = aiResults ?? products;
 
   const filtered = displayList.filter((p) => {
@@ -74,7 +72,6 @@ export default function CategoryProductsClient({
     return true;
   });
 
-  // Sort
   const sorted = [...filtered].sort((a, b) => {
     if (sort === "az")
       return cleanProductName(a.product_name, a.category).localeCompare(
@@ -85,7 +82,7 @@ export default function CategoryProductsClient({
       const cb = b.supplier?.country_of_origin ?? "";
       return ca.localeCompare(cb);
     }
-    return 0; // relevance: already ordered by scrape_confidence from server
+    return 0;
   });
 
   const paginated = sorted.slice(0, page * PAGE_SIZE);
@@ -103,12 +100,12 @@ export default function CategoryProductsClient({
   const pillBase =
     "text-xs px-3 py-1.5 rounded-full border transition whitespace-nowrap shrink-0 cursor-pointer";
   const pillActive = "bg-orange-500 border-orange-500 text-white";
-  const pillInactive = "border-slate-200 text-slate-600 hover:border-orange-300";
+  const pillInactive = "border-white/10 text-slate-400 hover:border-orange-500/40";
 
   return (
     <>
       {/* Filter + controls bar */}
-      <div className="bg-white border-b border-slate-100 sticky top-0 z-10 shadow-sm">
+      <div className="bg-dark-800 border-b border-dark-border sticky top-0 z-10 shadow-[0_1px_0_rgba(255,255,255,0.07)]">
         <div className="max-w-7xl mx-auto px-6 py-3 space-y-2">
           {/* Row 1: filter pills + view controls */}
           <div className="flex items-center gap-2 flex-wrap">
@@ -173,7 +170,7 @@ export default function CategoryProductsClient({
               <button
                 type="button"
                 onClick={clearAllFilters}
-                className="text-xs text-slate-400 hover:text-slate-600 transition ml-1"
+                className="text-xs text-slate-500 hover:text-slate-300 transition ml-1"
               >
                 Clear ×
               </button>
@@ -188,7 +185,7 @@ export default function CategoryProductsClient({
                   setSort(e.target.value as SortKey);
                   setPage(1);
                 }}
-                className="text-xs border border-slate-200 rounded-lg px-2 py-1.5 focus:outline-none focus:border-orange-400 bg-white"
+                className="text-xs border border-white/10 rounded-lg px-2 py-1.5 focus:outline-none focus:border-orange-500/50 bg-dark-700 text-slate-300"
               >
                 <option value="relevance">Relevance</option>
                 <option value="az">A–Z</option>
@@ -202,8 +199,8 @@ export default function CategoryProductsClient({
                   onClick={() => setShowImages((v) => !v)}
                   className={`text-xs px-3 py-1.5 rounded-lg border transition ${
                     showImages
-                      ? "bg-slate-100 border-slate-300 text-slate-700"
-                      : "border-slate-200 text-slate-400 hover:border-slate-300"
+                      ? "bg-white/8 border-white/15 text-slate-300"
+                      : "border-white/10 text-slate-500 hover:border-white/20"
                   }`}
                 >
                   {showImages ? "Hide images" : "Show images"}
@@ -211,14 +208,14 @@ export default function CategoryProductsClient({
               )}
 
               {/* View toggle */}
-              <div className="flex rounded-lg border border-slate-200 overflow-hidden">
+              <div className="flex rounded-lg border border-white/10 overflow-hidden">
                 <button
                   type="button"
                   onClick={() => handleSetView("list")}
                   className={`px-3 py-1.5 text-sm transition ${
                     view === "list"
                       ? "bg-orange-500 text-white"
-                      : "text-slate-500 hover:bg-slate-50"
+                      : "text-slate-400 hover:bg-white/5"
                   }`}
                 >
                   ≡ List
@@ -226,10 +223,10 @@ export default function CategoryProductsClient({
                 <button
                   type="button"
                   onClick={() => handleSetView("grid")}
-                  className={`px-3 py-1.5 text-sm border-l border-slate-200 transition ${
+                  className={`px-3 py-1.5 text-sm border-l border-white/10 transition ${
                     view === "grid"
                       ? "bg-orange-500 text-white"
-                      : "text-slate-500 hover:bg-slate-50"
+                      : "text-slate-400 hover:bg-white/5"
                   }`}
                 >
                   ⊞ Grid
@@ -254,19 +251,19 @@ export default function CategoryProductsClient({
         {/* Product list/grid */}
         {paginated.length === 0 ? (
           <div className="text-center py-16">
-            <p className="text-slate-500 mb-4">
+            <p className="text-slate-400 mb-4">
               No products found with these filters.
             </p>
             <button
               type="button"
               onClick={clearAllFilters}
-              className="text-orange-600 hover:text-orange-700 text-sm font-medium border border-orange-300 px-4 py-2 rounded-lg transition"
+              className="text-orange-400 hover:text-orange-300 text-sm font-medium border border-orange-500/30 px-4 py-2 rounded-lg transition"
             >
               Clear filters
             </button>
           </div>
         ) : view === "list" ? (
-          <div className="divide-y divide-slate-100 border border-slate-100 rounded-2xl overflow-hidden bg-white">
+          <div className="divide-y divide-white/6 border border-dark-border rounded-2xl overflow-hidden">
             {paginated.map((product) => (
               <ProductListRow
                 key={product.id}
@@ -295,7 +292,7 @@ export default function CategoryProductsClient({
             <button
               type="button"
               onClick={() => setPage((p) => p + 1)}
-              className="border border-slate-200 text-slate-600 hover:border-orange-400 hover:text-orange-600 text-sm font-medium px-8 py-3 rounded-xl transition"
+              className="border border-white/10 text-slate-400 hover:border-orange-500/40 hover:text-orange-400 text-sm font-medium px-8 py-3 rounded-xl transition"
             >
               Load {Math.min(PAGE_SIZE, sorted.length - paginated.length)} more (
               {sorted.length - paginated.length} remaining)

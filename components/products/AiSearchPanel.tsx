@@ -70,7 +70,7 @@ export default function AiSearchPanel({ category, onResults, onClear }: Props) {
   }
 
   return (
-    <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 mb-6">
+    <div className="dark-card p-4 mb-6">
       <div className="flex gap-2 mb-3">
         <input
           type="text"
@@ -80,7 +80,8 @@ export default function AiSearchPanel({ category, onResults, onClear }: Props) {
             if (e.key === "Enter") search(query);
           }}
           placeholder="Describe what you need… e.g. kosher olive oil 750ml glass Chief Rabbinate private label"
-          className="flex-1 text-sm border border-slate-200 bg-white rounded-xl px-4 py-2.5 focus:outline-none focus:border-orange-400"
+          className="dark-input flex-1 rounded-xl py-2.5"
+          style={{ width: undefined }}
         />
         <button
           type="button"
@@ -110,7 +111,7 @@ export default function AiSearchPanel({ category, onResults, onClear }: Props) {
                 setQuery(ex);
                 search(ex);
               }}
-              className="text-xs bg-white border border-slate-200 text-slate-600 hover:border-orange-300 hover:text-orange-600 px-3 py-1 rounded-full transition"
+              className="text-xs bg-white/4 border border-white/10 text-slate-400 hover:border-orange-500/50 hover:text-orange-400 px-3 py-1 rounded-full transition"
             >
               {ex}
             </button>
@@ -119,27 +120,27 @@ export default function AiSearchPanel({ category, onResults, onClear }: Props) {
       )}
 
       {/* Error */}
-      {error && <p className="text-sm text-red-500 mt-2">{error}</p>}
+      {error && <p className="text-sm text-red-400 mt-2">{error}</p>}
 
       {/* Result meta */}
       {resultMeta && (
         <div className="flex items-start justify-between gap-3 mt-1">
           <div>
-            <p className="text-sm text-slate-600">
-              <span className="font-semibold text-slate-900">
+            <p className="text-sm text-slate-400">
+              <span className="font-semibold text-dark-text-primary">
                 AI found {resultMeta.count} match{resultMeta.count !== 1 ? "es" : ""}
               </span>{" "}
               for &ldquo;{resultMeta.query}&rdquo;
             </p>
             {resultMeta.suggestion && (
-              <div className="mt-2 bg-orange-50 border border-orange-200 rounded-xl px-3 py-2 flex items-center justify-between gap-3">
-                <p className="text-xs text-orange-700">
+              <div className="mt-2 bg-[rgba(232,93,38,0.10)] border border-[rgba(232,93,38,0.25)] rounded-xl px-3 py-2 flex items-center justify-between gap-3">
+                <p className="text-xs text-orange-300">
                   Best matches are in{" "}
                   <strong>{resultMeta.suggestion}</strong>
                 </p>
                 <Link
                   href={`/en/products/${toCategorySlug(resultMeta.suggestion)}`}
-                  className="text-xs font-semibold text-orange-600 hover:text-orange-700 whitespace-nowrap transition"
+                  className="text-xs font-semibold text-orange-400 hover:text-orange-300 whitespace-nowrap transition"
                 >
                   View {resultMeta.suggestion} →
                 </Link>
@@ -149,7 +150,7 @@ export default function AiSearchPanel({ category, onResults, onClear }: Props) {
           <button
             type="button"
             onClick={handleClear}
-            className="text-sm text-slate-400 hover:text-slate-600 transition shrink-0"
+            className="text-sm text-slate-500 hover:text-slate-300 transition shrink-0"
           >
             Clear search
           </button>

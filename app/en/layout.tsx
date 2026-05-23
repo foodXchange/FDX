@@ -6,7 +6,9 @@ export default function EnLayout({ children }: { children: React.ReactNode }) {
   return (
     <>
       <Header />
-      {children}
+      <div className="public-page">
+        {children}
+      </div>
       <FloatingSourcingButton />
       <Footer />
     </>

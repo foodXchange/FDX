@@ -61,19 +61,19 @@ const manufacturerFaqs = [
 ];
 
 const CATEGORY_COLORS: Record<string, string> = {
-  "Tomato Products":        "bg-red-100 text-red-700",
-  "Oils & Fats":            "bg-yellow-100 text-yellow-700",
-  "Canned Foods":           "bg-slate-100 text-slate-600",
-  "Snacks & Confectionery": "bg-orange-100 text-orange-700",
-  "Pasta & Grains":         "bg-amber-100 text-amber-800",
-  "Frozen Foods":           "bg-blue-100 text-blue-700",
-  "Bakery & Cereals":       "bg-yellow-50 text-yellow-800",
-  "Sauces & Condiments":    "bg-rose-100 text-rose-700",
-  "Fish & Seafood":         "bg-cyan-100 text-cyan-700",
-  "Dairy":                  "bg-blue-50 text-blue-600",
-  "Beverages":              "bg-purple-100 text-purple-700",
-  "Spices & Herbs":         "bg-lime-100 text-lime-700",
-  "Organic & Natural":      "bg-green-100 text-green-700",
+  "Tomato Products":        "bg-red-500/15 text-red-400",
+  "Oils & Fats":            "bg-yellow-500/15 text-yellow-400",
+  "Canned Foods":           "bg-white/6 text-slate-400",
+  "Snacks & Confectionery": "bg-orange-500/15 text-orange-400",
+  "Pasta & Grains":         "bg-amber-500/15 text-amber-400",
+  "Frozen Foods":           "bg-blue-500/15 text-blue-400",
+  "Bakery & Cereals":       "bg-yellow-500/10 text-yellow-400",
+  "Sauces & Condiments":    "bg-rose-500/15 text-rose-400",
+  "Fish & Seafood":         "bg-cyan-500/15 text-cyan-400",
+  "Dairy":                  "bg-blue-500/10 text-blue-400",
+  "Beverages":              "bg-purple-500/15 text-purple-400",
+  "Spices & Herbs":         "bg-lime-500/15 text-lime-400",
+  "Organic & Natural":      "bg-green-500/15 text-green-400",
 };
 
 function timeAgo(dateStr: string): string {
@@ -107,12 +107,12 @@ export default async function ManufacturersPage({
     <>
       <a
         href="#main"
-        className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-50 focus:bg-white focus:px-4 focus:py-2 rounded-md shadow"
+        className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-50 focus:bg-dark-600 focus:text-dark-text-primary focus:px-4 focus:py-2 rounded-md shadow"
       >
         Skip to content
       </a>
 
-      <main id="main" className="bg-white text-slate-800">
+      <main id="main">
 
         {/* ── HERO ── */}
         <section className="relative w-full overflow-hidden" style={{ minHeight: "600px" }}>
@@ -175,7 +175,7 @@ export default async function ManufacturersPage({
         <ManufacturerIntakeSection requestPreview={requestPreview} referral={ref} />
 
         {/* ── COMPONENT 3: Stats Strip ── */}
-        <section className="bg-white border-b border-slate-100 px-6 py-10">
+        <section className="border-b border-dark-border px-6 py-10">
           <div className="max-w-4xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
             {[
               { stat: "500+", label: "Verified manufacturers", sub: "in our network" },
@@ -185,7 +185,7 @@ export default async function ManufacturersPage({
             ].map((item, i) => (
               <div key={i}>
                 <p className="text-3xl font-black text-orange-500">{item.stat}</p>
-                <p className="text-sm font-medium text-slate-800 mt-1">{item.label}</p>
+                <p className="text-sm font-medium text-dark-text-primary mt-1">{item.label}</p>
                 <p className="text-xs text-slate-400">{item.sub}</p>
               </div>
             ))}
@@ -193,14 +193,14 @@ export default async function ManufacturersPage({
         </section>
 
         {/* ── PROOF STATEMENT BOX ── */}
-        <section className="px-6 py-10 bg-orange-50 border-y border-orange-200">
+        <section className="px-6 py-10 border-y" style={{ background: "rgba(232,93,38,0.08)", borderColor: "rgba(232,93,38,0.2)" }}>
           <div className="max-w-4xl mx-auto text-center">
             <Reveal>
-              <p className="text-base md:text-lg text-orange-900 font-medium leading-relaxed">
+              <p className="text-base md:text-lg text-orange-200 font-medium leading-relaxed">
                 European manufacturers working with us have established container-level supply
                 relationships with Israeli retailers across multiple categories.
               </p>
-              <p className="text-sm text-orange-700 mt-3">
+              <p className="text-sm text-orange-400 mt-3">
                 Every manufacturer we work with gets honest feedback, not just enthusiasm.
               </p>
             </Reveal>
@@ -208,7 +208,7 @@ export default async function ManufacturersPage({
         </section>
 
         {/* ── MANUFACTURING IMAGE + MARKET STATS ── */}
-        <section className="px-6 py-20 bg-white">
+        <section className="px-6 py-20">
           <div className="max-w-5xl mx-auto grid md:grid-cols-2 gap-12 items-center">
             <Reveal>
               <div className="relative w-full rounded-2xl overflow-hidden" style={{ height: "320px" }}>
@@ -239,7 +239,7 @@ export default async function ManufacturersPage({
                       <span className="text-xl font-black text-orange-500">{stat}</span>
                       <span className="block text-xs text-slate-400">{label}</span>
                     </div>
-                    <p className="text-sm text-slate-600 leading-relaxed border-l border-slate-200 pl-4 pt-0.5">
+                    <p className="text-sm text-slate-400 leading-relaxed border-l border-white/10 pl-4 pt-0.5">
                       {detail}
                     </p>
                   </div>
@@ -250,14 +250,14 @@ export default async function ManufacturersPage({
         </section>
 
         {/* ── WHAT MAKES A SUCCESSFUL ENTRY ── */}
-        <section className="px-6 py-20 bg-slate-50 border-t border-slate-100">
+        <section className="px-6 py-20 border-t border-dark-border">
           <div className="max-w-5xl mx-auto">
             <Reveal>
               <div className="text-center mb-12">
-                <h2 className="text-2xl md:text-3xl font-semibold text-slate-900">
+                <h2 className="text-2xl md:text-3xl font-semibold text-dark-text-primary">
                   What Makes a Successful Entry
                 </h2>
-                <p className="text-slate-500 mt-3 max-w-xl mx-auto">
+                <p className="text-slate-400 mt-3 max-w-xl mx-auto">
                   We&apos;ve seen what works and what doesn&apos;t. Here&apos;s what the successful ones have in common.
                 </p>
               </div>
@@ -282,10 +282,10 @@ export default async function ManufacturersPage({
                 },
               ].map((item, i) => (
                 <Reveal key={i}>
-                  <div className="bg-white border border-slate-200 rounded-2xl p-7 shadow-sm h-full">
-                    <span className="text-3xl font-black text-slate-200">{item.n}</span>
-                    <h3 className="font-semibold text-slate-900 mt-3 mb-2">{item.title}</h3>
-                    <p className="text-sm text-slate-600 leading-relaxed">{item.body}</p>
+                  <div className="dark-card p-7 h-full">
+                    <span className="text-3xl font-black text-dark-border">{item.n}</span>
+                    <h3 className="font-semibold text-dark-text-primary mt-3 mb-2">{item.title}</h3>
+                    <p className="text-sm text-slate-400 leading-relaxed">{item.body}</p>
                   </div>
                 </Reveal>
               ))}
@@ -294,7 +294,7 @@ export default async function ManufacturersPage({
         </section>
 
         {/* ── HOW WE SUPPORT YOU ── */}
-        <section className="px-6 py-24 bg-white border-t border-slate-100">
+        <section className="px-6 py-24 border-t border-dark-border">
           <div className="max-w-4xl mx-auto">
             <Reveal>
               <h2 className="text-2xl md:text-3xl font-semibold text-center mb-12">
@@ -322,11 +322,11 @@ export default async function ManufacturersPage({
                 },
               ].map((item, i) => (
                 <Reveal key={i}>
-                  <div className="flex gap-5 p-6 bg-slate-50 border border-slate-200 rounded-2xl">
+                  <div className="dark-card flex gap-5 p-6">
                     <span className="text-orange-500 font-black text-xl shrink-0 mt-0.5">→</span>
                     <div>
-                      <h3 className="font-semibold text-slate-900 mb-1">{item.title}</h3>
-                      <p className="text-sm text-slate-600 leading-relaxed">{item.body}</p>
+                      <h3 className="font-semibold text-dark-text-primary mb-1">{item.title}</h3>
+                      <p className="text-sm text-slate-400 leading-relaxed">{item.body}</p>
                     </div>
                   </div>
                 </Reveal>
@@ -336,13 +336,13 @@ export default async function ManufacturersPage({
         </section>
 
         {/* ── KOSHER & REGULATORY ── */}
-        <section className="px-6 py-20 bg-slate-50 border-t border-slate-100">
+        <section className="px-6 py-20 border-t border-dark-border">
           <div className="max-w-5xl mx-auto">
             <Reveal>
               <h2 className="text-2xl md:text-3xl font-semibold text-center mb-4">
                 Kosher &amp; Regulatory — Simplified
               </h2>
-              <p className="text-slate-600 text-center max-w-2xl mx-auto mb-12">
+              <p className="text-slate-400 text-center max-w-2xl mx-auto mb-12">
                 We guide the process step by step and focus only on what really matters for
                 your specific product and category.
               </p>
@@ -354,7 +354,7 @@ export default async function ManufacturersPage({
                 "Simple, focused process — no unnecessary complexity",
               ].map((item, i) => (
                 <Reveal key={i}>
-                  <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm text-sm text-slate-600 leading-relaxed">
+                  <div className="dark-card p-6 text-sm text-slate-400 leading-relaxed">
                     <span className="text-orange-500 font-bold mr-2">✓</span>
                     {item}
                   </div>
@@ -366,17 +366,17 @@ export default async function ManufacturersPage({
 
         {/* ── COMPONENT 4: Buyer Demand Preview ── */}
         {requestPreview.length > 0 && (
-          <section id="buyer-demand" className="px-6 py-20 bg-white border-t border-slate-100">
+          <section id="buyer-demand" className="px-6 py-20 border-t border-dark-border">
             <div className="max-w-5xl mx-auto">
               <Reveal>
                 <div className="text-center mb-10">
                   <p className="text-xs font-semibold text-orange-500 uppercase tracking-widest mb-3">
                     Live demand
                   </p>
-                  <h2 className="text-2xl md:text-3xl font-semibold text-slate-900">
+                  <h2 className="text-2xl md:text-3xl font-semibold text-dark-text-primary">
                     What Israeli buyers are sourcing right now
                   </h2>
-                  <p className="text-slate-500 mt-3 max-w-xl mx-auto text-sm">
+                  <p className="text-slate-400 mt-3 max-w-xl mx-auto text-sm">
                     These are real active sourcing requests from our buyer network.
                     If you produce any of these categories, we want to hear from you.
                   </p>
@@ -386,29 +386,27 @@ export default async function ManufacturersPage({
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {requestPreview.map((req) => {
                   const catColor = req.category
-                    ? (CATEGORY_COLORS[req.category] ?? "bg-slate-100 text-slate-600")
-                    : "bg-slate-100 text-slate-600";
+                    ? (CATEGORY_COLORS[req.category] ?? "bg-white/6 text-slate-400")
+                    : "bg-white/6 text-slate-400";
                   const isKosher = (req.certifications ?? []).some((c) =>
                     c.toLowerCase().includes("kosher")
                   );
                   return (
                     <Reveal key={req.id}>
-                      <div className="bg-white border border-slate-200 rounded-xl p-4 h-full">
+                      <div className="dark-card p-4 h-full">
                         {req.category && (
                           <span className={`inline-block text-xs font-semibold px-2 py-0.5 rounded-full mb-2 ${catColor}`}>
                             {req.category}
                           </span>
                         )}
-                        <p className="font-medium text-slate-800 text-sm leading-snug">
+                        <p className="font-medium text-dark-text-primary text-sm leading-snug">
                           {req.product_name}
                         </p>
                         <div className="flex items-center gap-2 mt-2">
                           {isKosher && (
-                            <span className="text-[10px] bg-orange-50 text-orange-700 border border-orange-200 px-1.5 py-0.5 rounded">
-                              ✡ Kosher required
-                            </span>
+                            <span className="badge-kosher text-[10px]">✡ Kosher required</span>
                           )}
-                          <span className="text-xs text-slate-400">{timeAgo(req.created_at)}</span>
+                          <span className="text-xs text-slate-500">{timeAgo(req.created_at)}</span>
                         </div>
                       </div>
                     </Reveal>
@@ -423,7 +421,7 @@ export default async function ManufacturersPage({
               <div className="text-center mt-6">
                 <a
                   href="#manufacturer-intake"
-                  className="inline-flex bg-orange-500 text-white px-6 py-3 rounded-lg font-semibold hover:bg-orange-600 transition text-sm shadow"
+                  className="btn-brand px-6 py-3 rounded-lg text-sm"
                 >
                   Submit your product line →
                 </a>
@@ -433,7 +431,7 @@ export default async function ManufacturersPage({
         )}
 
         {/* ── SUPERMARKET IMAGE ── */}
-        <section className="px-6 py-12 bg-white border-t border-slate-100">
+        <section className="px-6 py-12 border-t border-dark-border">
           <div className="max-w-5xl mx-auto">
             <Reveal>
               <div className="relative w-full rounded-2xl overflow-hidden" style={{ height: "360px" }}>
@@ -451,7 +449,7 @@ export default async function ManufacturersPage({
         </section>
 
         {/* ── COMPONENT 5: FAQ ── */}
-        <section className="px-6 py-20 bg-white border-t border-slate-100">
+        <section className="px-6 py-20 border-t border-dark-border">
           <div className="max-w-3xl mx-auto">
             <Reveal>
               <FAQAccordion

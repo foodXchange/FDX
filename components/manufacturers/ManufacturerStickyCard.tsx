@@ -24,9 +24,9 @@ export default function ManufacturerStickyCard() {
 
   return (
     <div className="hidden lg:block fixed right-6 bottom-28 z-40 w-52">
-      <div className="bg-white rounded-2xl shadow-xl border border-slate-200 p-4">
+      <div className="dark-card-elevated rounded-2xl shadow-xl p-4">
         <p className="text-xs text-slate-500 mb-1">Ready to apply?</p>
-        <p className="text-sm font-semibold text-slate-800 mb-3 leading-snug">
+        <p className="text-sm font-semibold text-dark-text-primary mb-3 leading-snug">
           Submit your product line
         </p>
         <button

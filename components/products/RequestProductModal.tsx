@@ -100,14 +100,14 @@ export default function RequestProductModal({ product, onClose }: Props) {
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-[540px] max-h-[90vh] overflow-y-auto">
+      <div className="bg-dark-700 rounded-2xl border border-white/10 shadow-2xl w-full max-w-135 max-h-[90vh] overflow-y-auto">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-slate-100">
-          <h2 className="text-base font-semibold text-slate-900">Request this product</h2>
+        <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-white/7">
+          <h2 className="text-base font-semibold text-dark-text-primary">Request this product</h2>
           <button
             type="button"
             onClick={onClose}
-            className="text-slate-400 hover:text-slate-600 text-xl leading-none"
+            className="text-slate-500 hover:text-slate-300 text-xl leading-none transition"
             aria-label="Close"
           >
             ×
@@ -115,7 +115,7 @@ export default function RequestProductModal({ product, onClose }: Props) {
         </div>
 
         {/* Product summary */}
-        <div className="mx-6 mt-4 rounded-xl border border-slate-100 p-3 bg-slate-50 flex items-start gap-3">
+        <div className="mx-6 mt-4 rounded-xl border border-white/7 p-3 bg-dark-600 flex items-start gap-3">
           <div
             className="w-1 self-stretch rounded-full shrink-0"
             style={{ backgroundColor: catColor }}
@@ -129,12 +129,10 @@ export default function RequestProductModal({ product, onClose }: Props) {
                 {product.category}
               </span>
               {kosherType && (
-                <span className="text-[10px] bg-amber-50 border border-amber-200 text-amber-800 font-semibold px-2 py-0.5 rounded-full">
-                  ✡ {kosherType}
-                </span>
+                <span className="badge-kosher">✡ {kosherType}</span>
               )}
             </div>
-            <p className="text-sm font-semibold text-slate-900 leading-snug">{displayName}</p>
+            <p className="text-sm font-semibold text-dark-text-primary leading-snug">{displayName}</p>
             {product.supplier && (
               <p className="text-xs text-slate-400 mt-0.5">
                 {product.supplier.company_name}
@@ -142,10 +140,7 @@ export default function RequestProductModal({ product, onClose }: Props) {
               </p>
             )}
             {product.certifications.filter((c) => !product.kosher_types.includes(c)).slice(0, 2).map((cert) => (
-              <span
-                key={cert}
-                className="inline-block mr-1 mt-1 text-[10px] bg-blue-50 text-blue-700 border border-blue-100 rounded-full px-2 py-0.5"
-              >
+              <span key={cert} className="badge-cert inline-block mr-1 mt-1">
                 {cert}
               </span>
             ))}
@@ -154,20 +149,20 @@ export default function RequestProductModal({ product, onClose }: Props) {
 
         {status === "success" ? (
           <div className="px-6 py-10 text-center">
-            <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <span className="text-green-600 text-2xl">✓</span>
+            <div className="w-12 h-12 bg-green-500/15 rounded-full flex items-center justify-center mx-auto mb-4">
+              <span className="text-green-400 text-2xl">✓</span>
             </div>
-            <h3 className="text-lg font-semibold text-slate-900 mb-2">Request received</h3>
-            <p className="text-sm text-slate-500 mb-1">
+            <h3 className="text-lg font-semibold text-dark-text-primary mb-2">Request received</h3>
+            <p className="text-sm text-slate-400 mb-1">
               We will be in touch within 24 hours via WhatsApp.
             </p>
-            <p className="text-sm text-slate-400 mb-6">
+            <p className="text-sm text-slate-500 mb-6">
               In the meantime, browse more products →
             </p>
             <button
               type="button"
               onClick={onClose}
-              className="bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold px-6 py-2.5 rounded-xl transition"
+              className="btn-brand text-sm px-6 py-2.5 rounded-xl"
             >
               Close
             </button>
@@ -176,8 +171,8 @@ export default function RequestProductModal({ product, onClose }: Props) {
           <form onSubmit={handleSubmit} className="px-6 py-5 space-y-4">
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs font-medium text-slate-700 mb-1">
-                  Your company <span className="text-red-500">*</span>
+                <label className="block text-xs font-medium text-slate-400 mb-1">
+                  Your company <span className="text-red-400">*</span>
                 </label>
                 <input
                   type="text"
@@ -185,12 +180,12 @@ export default function RequestProductModal({ product, onClose }: Props) {
                   value={form.company}
                   onChange={(e) => setField("company", e.target.value)}
                   placeholder="e.g. Shufersal, Yochananof"
-                  className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:border-orange-400"
+                  className="dark-input text-sm"
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-slate-700 mb-1">
-                  Your name <span className="text-red-500">*</span>
+                <label className="block text-xs font-medium text-slate-400 mb-1">
+                  Your name <span className="text-red-400">*</span>
                 </label>
                 <input
                   type="text"
@@ -198,15 +193,15 @@ export default function RequestProductModal({ product, onClose }: Props) {
                   value={form.name}
                   onChange={(e) => setField("name", e.target.value)}
                   placeholder="Full name"
-                  className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:border-orange-400"
+                  className="dark-input text-sm"
                 />
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs font-medium text-slate-700 mb-1">
-                  Email <span className="text-red-500">*</span>
+                <label className="block text-xs font-medium text-slate-400 mb-1">
+                  Email <span className="text-red-400">*</span>
                 </label>
                 <input
                   type="email"
@@ -214,11 +209,11 @@ export default function RequestProductModal({ product, onClose }: Props) {
                   value={form.email}
                   onChange={(e) => setField("email", e.target.value)}
                   placeholder="you@company.com"
-                  className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:border-orange-400"
+                  className="dark-input text-sm"
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-slate-700 mb-1">
+                <label className="block text-xs font-medium text-slate-400 mb-1">
                   WhatsApp number
                 </label>
                 <input
@@ -226,16 +221,16 @@ export default function RequestProductModal({ product, onClose }: Props) {
                   value={form.whatsapp}
                   onChange={(e) => setField("whatsapp", e.target.value)}
                   placeholder="+972 50 xxx xxxx"
-                  className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:border-orange-400"
+                  className="dark-input text-sm"
                 />
-                <p className="text-[10px] text-slate-400 mt-0.5">
+                <p className="text-[10px] text-slate-500 mt-0.5">
                   We respond on WhatsApp — usually within 2 hours
                 </p>
               </div>
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-slate-700 mb-1">
+              <label className="block text-xs font-medium text-slate-400 mb-1">
                 Volume needed
               </label>
               <input
@@ -243,12 +238,12 @@ export default function RequestProductModal({ product, onClose }: Props) {
                 value={form.volume}
                 onChange={(e) => setField("volume", e.target.value)}
                 placeholder="e.g. 20 tons/year, 2 containers/month"
-                className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:border-orange-400"
+                className="dark-input text-sm"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-slate-700 mb-2">
+              <label className="block text-xs font-medium text-slate-400 mb-2">
                 Kosher requirement
               </label>
               <div className="space-y-1.5">
@@ -263,7 +258,7 @@ export default function RequestProductModal({ product, onClose }: Props) {
                         onChange={() => setField("kosher_requirement", opt)}
                         className="accent-orange-500"
                       />
-                      <span className="text-sm text-slate-700">{opt}</span>
+                      <span className="text-sm text-slate-300">{opt}</span>
                     </label>
                   )
                 )}
@@ -271,7 +266,7 @@ export default function RequestProductModal({ product, onClose }: Props) {
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-slate-700 mb-1">
+              <label className="block text-xs font-medium text-slate-400 mb-1">
                 Additional notes
               </label>
               <textarea
@@ -279,18 +274,18 @@ export default function RequestProductModal({ product, onClose }: Props) {
                 value={form.notes}
                 onChange={(e) => setField("notes", e.target.value)}
                 placeholder="Specific format, size, packaging requirements..."
-                className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 resize-none focus:outline-none focus:border-orange-400"
+                className="dark-input text-sm resize-none"
               />
             </div>
 
             {status === "error" && (
-              <p className="text-sm text-red-500">{errorMsg}</p>
+              <p className="text-sm text-red-400">{errorMsg}</p>
             )}
 
             <button
               type="submit"
               disabled={status === "submitting"}
-              className="w-full bg-orange-500 hover:bg-orange-600 disabled:opacity-60 text-white font-semibold py-3 rounded-xl text-sm transition"
+              className="btn-brand w-full justify-center py-3 rounded-xl text-sm disabled:opacity-60"
             >
               {status === "submitting" ? "Sending…" : "Send sourcing request →"}
             </button>

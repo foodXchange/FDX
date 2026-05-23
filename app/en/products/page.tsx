@@ -116,7 +116,7 @@ export default async function ProductsPage() {
   const allCategories = Object.keys(CATEGORY_SLUGS);
 
   return (
-    <main className="bg-white text-slate-900">
+    <main>
       {/* HERO */}
       <section
         className="text-white py-20 px-6 text-center"
@@ -172,7 +172,7 @@ export default async function ProductsPage() {
               <Link
                 key={cat}
                 href={`/en/products/${slug}`}
-                className="group block rounded-2xl overflow-hidden border border-slate-100 hover:border-orange-300 hover:shadow-xl transition-all duration-300"
+                className="group block rounded-2xl overflow-hidden border border-dark-border hover:border-orange-500/40 hover:shadow-xl hover:shadow-black/40 transition-all duration-300"
                 style={{ transform: "scale(1)", willChange: "transform" }}
               >
                 {/* Image area — 160px */}
@@ -205,8 +205,8 @@ export default async function ProductsPage() {
                 </div>
 
                 {/* Card footer */}
-                <div className="bg-white px-4 py-3">
-                  <p className="text-[13px] font-medium text-slate-900 leading-snug mb-0.5">
+                <div className="bg-dark-700 px-4 py-3">
+                  <p className="text-[13px] font-medium text-dark-text-primary leading-snug mb-0.5">
                     {cat}
                   </p>
                   {stat ? (
@@ -215,7 +215,7 @@ export default async function ProductsPage() {
                         {stat.count} product{stat.count !== 1 ? "s" : ""}{stat.country_count > 0 ? ` · ${stat.country_count} countr${stat.country_count !== 1 ? "ies" : "y"}` : ""}
                       </p>
                       <div className="flex items-center justify-between mt-1">
-                        <span className="text-[11px] text-green-600 font-medium">
+                        <span className="text-[11px] text-green-400 font-medium">
                           ✡ {stat.kosher_pct === 100 ? "All kosher" : `${stat.kosher_pct}% kosher`}
                         </span>
                         {topFlags && (
@@ -234,8 +234,8 @@ export default async function ProductsPage() {
       </section>
 
       {/* Below grid CTA */}
-      <section className="border-t border-slate-100 py-12 px-6 text-center">
-        <p className="text-slate-600 text-sm mb-1">Can&apos;t find what you need?</p>
+      <section className="border-t border-dark-border py-12 px-6 text-center">
+        <p className="text-slate-400 text-sm mb-1">Can&apos;t find what you need?</p>
         <Link
           href="/en/buyers"
           className="text-orange-600 hover:text-orange-700 font-semibold text-sm transition"

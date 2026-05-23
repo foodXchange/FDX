@@ -24,14 +24,14 @@ export default function FAQAccordion({
         {items.map((item, i) => (
           <div
             key={i}
-            className="border border-slate-200 rounded-2xl bg-white overflow-hidden"
+            className="dark-card overflow-hidden"
           >
             <button
-              className="w-full text-left px-6 py-4 flex items-center justify-between gap-4 hover:bg-slate-50 transition"
+              className="w-full text-left px-6 py-4 flex items-center justify-between gap-4 hover:bg-white/3 transition"
               onClick={() => setOpenIdx(openIdx === i ? null : i)}
               aria-expanded={openIdx === i}
             >
-              <span className="font-semibold text-slate-900 text-sm leading-snug">
+              <span className="font-semibold text-dark-text-primary text-sm leading-snug">
                 {item.q}
               </span>
               <span
@@ -44,7 +44,7 @@ export default function FAQAccordion({
               </span>
             </button>
             {openIdx === i && (
-              <div className="px-6 pb-5 pt-4 text-slate-600 text-sm leading-relaxed border-t border-slate-100">
+              <div className="px-6 pb-5 pt-4 text-slate-400 text-sm leading-relaxed border-t border-dark-border">
                 {item.a}
               </div>
             )}

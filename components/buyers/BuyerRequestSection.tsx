@@ -3,8 +3,6 @@
 import { FormEvent, useRef, useState } from "react";
 import MultiImageUpload, { UploadedImage } from "@/components/ui/MultiImageUpload";
 
-// ─── Types ────────────────────────────────────────────────────────────────────
-
 type KosherOption = "chief-rabbinate" | "badatz" | "mehadrin" | "any" | "none";
 type VolumeUnit = "tons" | "kg" | "units" | "containers";
 
@@ -14,8 +12,6 @@ interface Example {
   description: string;
   kosher: KosherOption;
 }
-
-// ─── Data ─────────────────────────────────────────────────────────────────────
 
 const KOSHER_CERTS: Record<KosherOption, string[]> = {
   "chief-rabbinate": ["Chief Rabbinate Kosher"],
@@ -72,48 +68,38 @@ const EXAMPLES: Example[] = [
   },
 ];
 
-// ─── Sub-components ───────────────────────────────────────────────────────────
-
 function Tooltip({ text }: { text: string }) {
   return (
     <span className="relative group inline-block ml-1.5 align-middle">
       <button
         type="button"
         aria-label="More info"
-        className="w-4 h-4 rounded-full border border-slate-300 text-slate-400 text-[10px] font-bold flex items-center justify-center hover:border-slate-500 hover:text-slate-600 transition-colors focus:outline-none"
+        className="w-4 h-4 rounded-full border border-white/20 text-slate-500 text-[10px] font-bold flex items-center justify-center hover:border-white/40 hover:text-slate-300 transition-colors focus:outline-none"
       >
         ?
       </button>
-      <span className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-65 bg-slate-900 text-white text-xs rounded-lg px-3 py-2 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity duration-200 delay-100 z-50 leading-relaxed shadow-lg sm:left-1/2 max-sm:bottom-auto max-sm:top-full max-sm:mt-2 max-sm:mb-0">
+      <span className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-65 bg-dark-900 text-slate-200 text-xs rounded-lg px-3 py-2 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity duration-200 delay-100 z-50 leading-relaxed shadow-lg border border-white/10 sm:left-1/2 max-sm:bottom-auto max-sm:top-full max-sm:mt-2 max-sm:mb-0">
         {text}
       </span>
     </span>
   );
 }
 
-function Label({
-  htmlFor,
-  children,
-}: {
-  htmlFor?: string;
-  children: React.ReactNode;
-}) {
+function Label({ htmlFor, children }: { htmlFor?: string; children: React.ReactNode }) {
   return (
-    <label htmlFor={htmlFor} className="block text-sm font-medium text-slate-800 mb-1">
+    <label htmlFor={htmlFor} className="block text-sm font-medium text-slate-300 mb-1">
       {children}
     </label>
   );
 }
 
 function Helper({ children }: { children: React.ReactNode }) {
-  return <p className="mt-1 text-xs text-slate-400 leading-relaxed">{children}</p>;
+  return <p className="mt-1 text-xs text-slate-500 leading-relaxed">{children}</p>;
 }
 
 function FieldGroup({ children }: { children: React.ReactNode }) {
   return <div className="space-y-1">{children}</div>;
 }
-
-// ─── Main component ───────────────────────────────────────────────────────────
 
 export default function BuyerRequestSection() {
   const [images, setImages] = useState<UploadedImage[]>([]);
@@ -204,9 +190,9 @@ export default function BuyerRequestSection() {
   }
 
   return (
-    <div className="bg-white">
+    <div>
       {/* ── 1. Onboarding Steps ── */}
-      <section className="px-6 py-14 bg-slate-50 border-b border-slate-100">
+      <section className="px-6 py-14 border-b border-dark-border">
         <div className="max-w-4xl mx-auto">
           <div className="grid md:grid-cols-3 gap-6">
             {[
@@ -241,12 +227,12 @@ export default function BuyerRequestSection() {
                 ),
               },
             ].map((step, i) => (
-              <div key={i} className="flex flex-col items-start gap-3 p-6 bg-white rounded-2xl border border-slate-100 shadow-sm">
+              <div key={i} className="dark-card flex flex-col items-start gap-3 p-6">
                 {step.icon}
                 <div>
                   <p className="text-xs font-semibold text-orange-500 uppercase tracking-wider mb-1">{step.n}</p>
-                  <h3 className="font-semibold text-slate-900 mb-2">{step.title}</h3>
-                  <p className="text-sm text-slate-500 leading-relaxed">{step.body}</p>
+                  <h3 className="font-semibold text-dark-text-primary mb-2">{step.title}</h3>
+                  <p className="text-sm text-slate-400 leading-relaxed">{step.body}</p>
                 </div>
               </div>
             ))}
@@ -255,9 +241,9 @@ export default function BuyerRequestSection() {
       </section>
 
       {/* ── 2. Example Requests ── */}
-      <section className="px-6 py-12 border-b border-slate-100">
+      <section className="px-6 py-12 border-b border-dark-border">
         <div className="max-w-4xl mx-auto">
-          <p className="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-4 text-center">
+          <p className="text-xs font-semibold text-slate-500 uppercase tracking-widest mb-4 text-center">
             Example requests — click to pre-fill the form
           </p>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -266,11 +252,11 @@ export default function BuyerRequestSection() {
                 key={i}
                 type="button"
                 onClick={() => prefill(ex)}
-                className="group text-left p-4 bg-white border border-slate-200 hover:border-orange-300 rounded-xl transition-all hover:shadow-sm"
+                className="group text-left p-4 dark-card hover:border-orange-500/40 transition-all hover:shadow-black/30 hover:shadow-md"
               >
-                <p className="font-semibold text-slate-800 text-sm mb-1">{ex.title}</p>
-                <p className="text-xs text-slate-400 leading-relaxed">{ex.details}</p>
-                <p className="text-xs text-orange-500 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                <p className="font-semibold text-dark-text-primary text-sm mb-1">{ex.title}</p>
+                <p className="text-xs text-slate-500 leading-relaxed">{ex.details}</p>
+                <p className="text-xs text-orange-400 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
                   Try this example →
                 </p>
               </button>
@@ -280,15 +266,15 @@ export default function BuyerRequestSection() {
       </section>
 
       {/* ── 3. Social Proof Strip ── */}
-      <section className="px-6 py-8 bg-slate-50 border-b border-slate-100">
+      <section className="px-6 py-8 border-b border-dark-border">
         <div className="max-w-3xl mx-auto text-center">
-          <p className="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-3">
+          <p className="text-xs font-semibold text-slate-500 uppercase tracking-widest mb-3">
             Trusted by Israel&apos;s leading retailers and importers
           </p>
-          <p className="text-sm text-slate-600 font-medium">
+          <p className="text-sm text-slate-400 font-medium">
             Shufersal &nbsp;·&nbsp; Yochananof &nbsp;·&nbsp; Rami Levy &nbsp;·&nbsp; Ta&apos;aman &nbsp;·&nbsp; H. Cohen Import &nbsp;·&nbsp; Leiman Schlussel
           </p>
-          <p className="mt-4 text-xs text-slate-400">
+          <p className="mt-4 text-xs text-slate-500">
             500+ verified manufacturers &nbsp;·&nbsp; 17 product categories &nbsp;·&nbsp; 24h response time
           </p>
         </div>
@@ -298,28 +284,27 @@ export default function BuyerRequestSection() {
       <section className="px-6 py-14">
         <div className="max-w-xl mx-auto">
           <div ref={formRef}>
-            <h2 className="text-2xl font-bold text-slate-900 mb-2 text-center">
+            <h2 className="text-2xl font-bold text-dark-text-primary mb-2 text-center">
               Tell us what you need to source
             </h2>
-            <p className="text-slate-500 text-center text-sm mb-8">
+            <p className="text-slate-400 text-center text-sm mb-8">
               Be as specific as possible — format, size, certifications, quantity.
             </p>
 
             {submitted ? (
-              // ── Success state ──────────────────────────────────────────────
-              <div className="text-center py-14 px-6 bg-green-50 rounded-2xl border border-green-100">
+              <div className="text-center py-14 px-6 bg-green-500/10 rounded-2xl border border-green-500/20">
                 <div className="w-16 h-16 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-5" style={{ animation: "pop 0.4s cubic-bezier(0.175,0.885,0.32,1.275)" }}>
                   <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
                   </svg>
                 </div>
-                <h3 className="text-xl font-semibold text-slate-900 mb-2">Request received</h3>
-                <p className="text-slate-500 text-sm mb-6">
+                <h3 className="text-xl font-semibold text-dark-text-primary mb-2">Request received</h3>
+                <p className="text-slate-400 text-sm mb-6">
                   We&apos;ll be in touch within 24 hours.
                 </p>
                 <a
                   href="/en/contact"
-                  className="text-sm text-orange-600 hover:text-orange-700 font-medium underline underline-offset-2"
+                  className="text-sm text-orange-400 hover:text-orange-300 font-medium underline underline-offset-2"
                 >
                   In the meantime, reach us directly →
                 </a>
@@ -348,10 +333,8 @@ export default function BuyerRequestSection() {
                     onChange={(e) => setDescription(e.target.value)}
                     maxLength={2000}
                     placeholder="e.g. Extra virgin olive oil, 750ml glass bottle, Chief Rabbinate kosher certification, private label"
-                    className={`w-full border rounded-xl px-4 py-3 text-sm text-slate-800 placeholder-slate-300 focus:outline-none focus:ring-2 transition-all resize-none ${
-                      descHighlight
-                        ? "ring-2 ring-orange-400 border-orange-300"
-                        : "border-slate-200 focus:ring-orange-200"
+                    className={`dark-input resize-none ${
+                      descHighlight ? "border-orange-500/60" : ""
                     }`}
                   />
                   <Helper>Be as specific as possible — format, size, certifications, quantity.</Helper>
@@ -374,7 +357,7 @@ export default function BuyerRequestSection() {
                           onChange={() => setKosher(opt.value)}
                           className="w-4 h-4 accent-orange-500 cursor-pointer"
                         />
-                        <span className="text-sm text-slate-700 group-hover:text-slate-900 transition-colors">
+                        <span className="text-sm text-slate-300 group-hover:text-dark-text-primary transition-colors">
                           {opt.label}
                         </span>
                       </label>
@@ -398,12 +381,14 @@ export default function BuyerRequestSection() {
                       value={volume}
                       onChange={(e) => setVolume(e.target.value)}
                       placeholder="e.g. 20"
-                      className="flex-1 border border-slate-200 rounded-xl px-4 py-2.5 text-sm text-slate-800 placeholder-slate-300 focus:outline-none focus:ring-2 focus:ring-orange-200"
+                      className="dark-input flex-1"
+                      style={{ width: undefined }}
                     />
                     <select
                       value={volumeUnit}
                       onChange={(e) => setVolumeUnit(e.target.value as VolumeUnit)}
-                      className="border border-slate-200 rounded-xl px-3 py-2.5 text-sm text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-orange-200"
+                      className="dark-input w-auto px-3"
+                      style={{ width: undefined }}
                     >
                       <option value="tons">tons</option>
                       <option value="kg">kg</option>
@@ -423,8 +408,8 @@ export default function BuyerRequestSection() {
                       role="switch"
                       aria-checked={privateLabel}
                       onClick={() => setPrivateLabel(!privateLabel)}
-                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-orange-300 ${
-                        privateLabel ? "bg-orange-500" : "bg-slate-200"
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-orange-500/40 ${
+                        privateLabel ? "bg-orange-500" : "bg-dark-500"
                       }`}
                     >
                       <span
@@ -446,7 +431,7 @@ export default function BuyerRequestSection() {
                     value={company}
                     onChange={(e) => setCompany(e.target.value)}
                     placeholder="e.g. Yochananof, ABC Imports"
-                    className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm text-slate-800 placeholder-slate-300 focus:outline-none focus:ring-2 focus:ring-orange-200"
+                    className="dark-input"
                   />
                   <Helper>Retailer, importer, or food service.</Helper>
                 </FieldGroup>
@@ -462,7 +447,7 @@ export default function BuyerRequestSection() {
                       value={name}
                       onChange={(e) => setName(e.target.value)}
                       placeholder="Full name"
-                      className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm text-slate-800 placeholder-slate-300 focus:outline-none focus:ring-2 focus:ring-orange-200"
+                      className="dark-input"
                     />
                   </FieldGroup>
                   <FieldGroup>
@@ -473,7 +458,7 @@ export default function BuyerRequestSection() {
                       value={whatsapp}
                       onChange={(e) => setWhatsapp(e.target.value)}
                       placeholder="+972 50 000 0000"
-                      className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm text-slate-800 placeholder-slate-300 focus:outline-none focus:ring-2 focus:ring-orange-200"
+                      className="dark-input"
                     />
                     <Helper>We respond faster on WhatsApp — usually within 2 hours.</Helper>
                   </FieldGroup>
@@ -489,13 +474,13 @@ export default function BuyerRequestSection() {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="you@company.com"
-                    className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm text-slate-800 placeholder-slate-300 focus:outline-none focus:ring-2 focus:ring-orange-200"
+                    className="dark-input"
                   />
                 </FieldGroup>
 
                 {/* Error */}
                 {error && (
-                  <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-4 py-3">
+                  <p className="text-sm text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-4 py-3">
                     {error}
                   </p>
                 )}
@@ -504,7 +489,7 @@ export default function BuyerRequestSection() {
                 <button
                   type="submit"
                   disabled={submitting || anyUploading}
-                  className="w-full bg-orange-500 hover:bg-orange-600 disabled:opacity-60 disabled:cursor-not-allowed text-white font-semibold py-3.5 rounded-xl transition-colors flex items-center justify-center gap-2"
+                  className="btn-brand w-full justify-center py-3.5 rounded-xl disabled:opacity-60 disabled:cursor-not-allowed"
                 >
                   {submitting ? (
                     <>
@@ -527,9 +512,9 @@ export default function BuyerRequestSection() {
                   )}
                 </button>
 
-                {/* ── 6. What happens next ── */}
-                <div className="mt-8 bg-slate-50 rounded-2xl border border-slate-100 px-6 py-5">
-                  <p className="text-sm font-semibold text-slate-800 mb-3">What happens after you submit?</p>
+                {/* What happens next */}
+                <div className="mt-8 dark-card px-6 py-5">
+                  <p className="text-sm font-semibold text-dark-text-primary mb-3">What happens after you submit?</p>
                   <ul className="space-y-2">
                     {[
                       "You receive a confirmation immediately",
@@ -537,15 +522,15 @@ export default function BuyerRequestSection() {
                       "We send you matched supplier profiles within 24 hours",
                       "You decide who to connect with — no obligation",
                     ].map((item, i) => (
-                      <li key={i} className="flex items-start gap-2 text-sm text-slate-600">
-                        <svg className="w-4 h-4 text-green-500 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <li key={i} className="flex items-start gap-2 text-sm text-slate-400">
+                        <svg className="w-4 h-4 text-green-400 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
                         </svg>
                         {item}
                       </li>
                     ))}
                   </ul>
-                  <p className="mt-4 text-xs text-slate-400 italic">
+                  <p className="mt-4 text-xs text-slate-500 italic">
                     Every request is reviewed by a human. No automated emails. No spam.
                   </p>
                 </div>

@@ -102,15 +102,15 @@ export default async function CategoryProductsPage({ params }: { params: Params 
     : `linear-gradient(135deg, ${catColor}cc, ${catColor}88)`;
 
   return (
-    <main className="bg-white text-slate-900">
+    <main>
       {/* Breadcrumb */}
       <div className="max-w-7xl mx-auto px-6 pt-5 pb-2">
-        <nav className="text-sm text-slate-500 flex items-center gap-2">
-          <Link href="/en/products" className="hover:text-orange-600 transition">
+        <nav className="text-sm text-slate-400 flex items-center gap-2">
+          <Link href="/en/products" className="hover:text-orange-400 transition">
             ← All categories
           </Link>
-          <span className="text-slate-300">›</span>
-          <span className="text-slate-700 font-medium">{category}</span>
+          <span className="text-slate-600">›</span>
+          <span className="text-slate-200 font-medium">{category}</span>
         </nav>
       </div>
 
