@@ -73,7 +73,7 @@ export default async function SourcingBoardPage() {
   }
 
   return (
-    <main className="bg-white text-slate-900">
+    <main className="bg-slate-900">
 
       {/* HERO */}
       <section className="bg-linear-to-b from-slate-900 to-slate-800 text-white py-20 px-6 text-center">

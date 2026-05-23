@@ -196,7 +196,7 @@ export default async function ImportGuideArticlePage({ params }: { params: Param
   ]);
 
   return (
-    <main className="bg-white text-slate-900">
+    <main className="bg-slate-900">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: jsonLd }}
@@ -242,8 +242,8 @@ export default async function ImportGuideArticlePage({ params }: { params: Param
         <div className="min-w-0">
           {/* TOC */}
           {showToc && (
-            <div className="bg-slate-50 border border-slate-200 rounded-xl p-5 mb-8">
-              <p className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-3">
+            <div className="bg-slate-800 border border-slate-700 rounded-xl p-5 mb-8">
+              <p className="text-xs font-medium text-slate-400 uppercase tracking-wider mb-3">
                 On this page
               </p>
               <ul className="space-y-1.5">
@@ -251,9 +251,9 @@ export default async function ImportGuideArticlePage({ params }: { params: Param
                   <li key={h.anchor}>
                     <a
                       href={`#${h.anchor}`}
-                      className="text-sm text-slate-600 hover:text-orange-600 transition flex items-center gap-2"
+                      className="text-sm text-slate-300 hover:text-orange-400 transition flex items-center gap-2"
                     >
-                      <span className="text-slate-300">—</span>
+                      <span className="text-slate-600">—</span>
                       {h.text}
                     </a>
                   </li>
@@ -264,18 +264,18 @@ export default async function ImportGuideArticlePage({ params }: { params: Param
 
           {/* Article content */}
           <div
-            className="prose prose-lg max-w-none prose-headings:text-slate-900 prose-h2:text-2xl prose-h2:font-semibold prose-h2:mt-10 prose-h2:mb-4 prose-p:text-slate-700 prose-p:leading-relaxed prose-a:text-orange-600 hover:prose-a:text-orange-700 prose-ul:text-slate-700 prose-strong:text-slate-900 prose-blockquote:border-l-orange-500 prose-blockquote:text-slate-600"
+            className="prose prose-invert prose-lg max-w-none prose-h2:text-2xl prose-h2:font-semibold prose-h2:mt-10 prose-h2:mb-4 prose-p:leading-relaxed prose-a:text-orange-400 hover:prose-a:text-orange-300 prose-blockquote:border-l-orange-500"
             dangerouslySetInnerHTML={{ __html: contentHtml }}
           />
 
           {/* Tags */}
           {article.tags?.length > 0 && (
-            <div className="flex flex-wrap gap-2 mt-8 pt-8 border-t border-slate-100 items-center">
+            <div className="flex flex-wrap gap-2 mt-8 pt-8 border-t border-slate-800 items-center">
               <span className="text-sm text-slate-500 mr-2">Topics:</span>
               {article.tags.map((tag) => (
                 <span
                   key={tag}
-                  className="bg-slate-100 text-slate-600 rounded-full px-3 py-1 text-xs"
+                  className="bg-slate-700 text-slate-400 rounded-full px-3 py-1 text-xs"
                 >
                   {tag}
                 </span>
@@ -285,11 +285,11 @@ export default async function ImportGuideArticlePage({ params }: { params: Param
 
           {/* Prev / Next */}
           {(prev || next) && (
-            <div className="flex justify-between mt-8 pt-8 border-t border-slate-200 gap-4">
+            <div className="flex justify-between mt-8 pt-8 border-t border-slate-700 gap-4">
               {prev ? (
                 <Link
                   href={`/en/import-guide/${prev.slug}`}
-                  className="text-sm text-slate-600 hover:text-orange-600 transition max-w-[45%]"
+                  className="text-sm text-slate-300 hover:text-orange-400 transition max-w-[45%]"
                 >
                   ← {prev.title}
                 </Link>
@@ -299,7 +299,7 @@ export default async function ImportGuideArticlePage({ params }: { params: Param
               {next ? (
                 <Link
                   href={`/en/import-guide/${next.slug}`}
-                  className="text-sm text-slate-600 hover:text-orange-600 transition text-right max-w-[45%]"
+                  className="text-sm text-slate-300 hover:text-orange-400 transition text-right max-w-[45%]"
                 >
                   {next.title} →
                 </Link>
@@ -314,15 +314,15 @@ export default async function ImportGuideArticlePage({ params }: { params: Param
         <aside className="lg:sticky lg:top-8 self-start space-y-6">
           {/* Quick facts */}
           {article.tags?.length > 0 && (
-            <div className="bg-slate-50 border border-slate-200 rounded-xl p-5">
-              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-4">
+            <div className="bg-slate-800 border border-slate-700 rounded-xl p-5">
+              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-4">
                 Quick reference
               </p>
               <div className="flex flex-wrap gap-2">
                 {article.tags.map((tag) => (
                   <span
                     key={tag}
-                    className="bg-white border border-slate-200 rounded-full px-3 py-1 text-xs text-slate-600"
+                    className="bg-slate-700 border border-slate-600 rounded-full px-3 py-1 text-xs text-slate-300"
                   >
                     {tag}
                   </span>
@@ -348,7 +348,7 @@ export default async function ImportGuideArticlePage({ params }: { params: Param
           {/* Related scenarios */}
           {relatedScenarios.length > 0 && (
             <div>
-              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-4">
+              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-4">
                 Related sourcing work
               </p>
               <div className="space-y-3">
@@ -356,15 +356,15 @@ export default async function ImportGuideArticlePage({ params }: { params: Param
                   <Link
                     key={scenario.slug}
                     href={`/en/portfolio/${scenario.slug}`}
-                    className="block border border-slate-200 rounded-lg p-3 hover:border-orange-300 transition"
+                    className="block border border-slate-700 rounded-lg p-3 hover:border-orange-500/50 hover:bg-slate-800 transition"
                   >
-                    <p className="text-sm font-medium text-slate-900">
+                    <p className="text-sm font-medium text-white">
                       {scenario.title}
                     </p>
                     {scenario.category && (
                       <p className="text-xs text-slate-500 mt-1">{scenario.category}</p>
                     )}
-                    <p className="text-xs text-orange-600 mt-1">View scenario →</p>
+                    <p className="text-xs text-orange-400 mt-1">View scenario →</p>
                   </Link>
                 ))}
               </div>
@@ -372,8 +372,8 @@ export default async function ImportGuideArticlePage({ params }: { params: Param
           )}
           {/* Products we source */}
           {matchingProducts.length > 0 && (
-            <div className="bg-white border border-slate-200 rounded-xl p-5">
-              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-4">
+            <div className="bg-slate-800 border border-slate-700 rounded-xl p-5">
+              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-4">
                 Products we source
               </p>
               <div className="space-y-3">
@@ -388,19 +388,19 @@ export default async function ImportGuideArticlePage({ params }: { params: Param
                       <img
                         src={p.catalogue_image_url}
                         alt={p.product_name}
-                        className="w-12 h-12 rounded-lg object-contain border border-slate-100 bg-white p-1 shrink-0"
+                        className="w-12 h-12 rounded-lg object-contain border border-slate-700 bg-slate-700 p-1 shrink-0"
                       />
                     ) : (
-                      <div className="w-12 h-12 rounded-lg bg-slate-50 flex items-center justify-center text-xl shrink-0">
+                      <div className="w-12 h-12 rounded-lg bg-slate-700 flex items-center justify-center text-xl shrink-0">
                         📦
                       </div>
                     )}
                     <div>
-                      <p className="text-sm font-medium text-slate-900 group-hover:text-orange-600 transition leading-snug">
+                      <p className="text-sm font-medium text-white group-hover:text-orange-400 transition leading-snug">
                         {p.brand_name ? `${p.brand_name} — ` : ""}
                         {p.product_name}
                       </p>
-                      <p className="text-xs text-slate-400">
+                      <p className="text-xs text-slate-500">
                         {p.format ?? p.category}
                       </p>
                     </div>
@@ -409,7 +409,7 @@ export default async function ImportGuideArticlePage({ params }: { params: Param
               </div>
               <Link
                 href="/en/products"
-                className="text-xs text-orange-600 hover:underline mt-4 block"
+                className="text-xs text-orange-400 hover:underline mt-4 block"
               >
                 Browse all products →
               </Link>

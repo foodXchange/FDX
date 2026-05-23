@@ -35,7 +35,7 @@ export default function HomePage() {
   );
 
   return (
-    <main className="bg-white text-slate-800">
+    <main className="bg-slate-900">
 
       {/* ── HERO ── */}
       <section className="flex flex-col items-center justify-center text-center px-6 py-28 bg-gradient-to-b from-slate-900 to-slate-800">
@@ -94,17 +94,17 @@ export default function HomePage() {
       </section>
 
       {/* ── RESULTS THAT SPEAK ── */}
-      <section className="px-6 py-20 bg-white border-t border-slate-100">
+      <section className="px-6 py-20 bg-slate-900 border-t border-slate-800">
         <div className="max-w-5xl mx-auto">
           <Reveal>
             <div className="text-center mb-12">
               <p className="text-xs font-semibold text-orange-500 uppercase tracking-widest mb-3">
                 Proof of work
               </p>
-              <h2 className="text-3xl font-bold text-slate-900">
+              <h2 className="text-3xl font-bold text-white">
                 Food Sourcing That Actually Works
               </h2>
-              <p className="text-slate-500 mt-3 max-w-xl mx-auto">
+              <p className="text-slate-400 mt-3 max-w-xl mx-auto">
                 Here&apos;s what a real partnership looks like — not a one-off introduction, but a supply flow that grew over time.
               </p>
             </div>
@@ -159,12 +159,12 @@ export default function HomePage() {
       </section>
 
       {/* ── HOW WE HELPED (full case study) ── */}
-      <section className="px-6 py-20 bg-slate-50 border-t border-slate-100">
+      <section className="px-6 py-20 bg-slate-800 border-t border-slate-700">
         <div className="max-w-5xl mx-auto">
           <Reveal>
             <div className="text-center mb-12">
-              <h2 className="text-3xl font-bold text-slate-900">How We Made It Happen</h2>
-              <p className="text-slate-500 mt-3">
+              <h2 className="text-3xl font-bold text-white">How We Made It Happen</h2>
+              <p className="text-slate-400 mt-3">
                 Every partnership starts with understanding what each side actually needs.
               </p>
             </div>
@@ -172,51 +172,51 @@ export default function HomePage() {
 
           <div className="grid md:grid-cols-2 gap-8">
             <Reveal>
-              <div className="bg-white border border-slate-200 rounded-2xl p-7 shadow-sm h-full">
+              <div className="bg-slate-700/50 border border-slate-700 rounded-2xl p-7 h-full">
                 <span className="text-xs font-semibold text-orange-500 uppercase tracking-widest">
                   OUTCOME
                 </span>
-                <h3 className="text-xl font-bold text-slate-900 mt-3 mb-2">
+                <h3 className="text-xl font-bold text-white mt-3 mb-2">
                   3–4 Containers per Month
                 </h3>
-                <p className="text-sm text-slate-500 mb-5">
+                <p className="text-sm text-slate-400 mb-5">
                   Frozen vegetables &amp; fruits, private label, Belgium → Israel
                 </p>
-                <div className="border-t border-slate-100 pt-5 space-y-3">
+                <div className="border-t border-slate-700 pt-5 space-y-3">
                   <div>
-                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Long-term supply</span>
-                    <p className="text-sm text-slate-600 mt-0.5">Commercial cooperation still growing — from first trial to consistent monthly volume.</p>
+                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Long-term supply</span>
+                    <p className="text-sm text-slate-300 mt-0.5">Commercial cooperation still growing — from first trial to consistent monthly volume.</p>
                   </div>
                   <div>
-                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Private label</span>
-                    <p className="text-sm text-slate-600 mt-0.5">Full retailer own-brand range with aligned specs and kosher certification.</p>
+                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Private label</span>
+                    <p className="text-sm text-slate-300 mt-0.5">Full retailer own-brand range with aligned specs and kosher certification.</p>
                   </div>
                 </div>
-                <p className="text-xs text-slate-400 mt-6">Major Israeli Retail Chain · European Manufacturer</p>
+                <p className="text-xs text-slate-500 mt-6">Major Israeli Retail Chain · European Manufacturer</p>
               </div>
             </Reveal>
 
             <Reveal>
-              <div className="bg-white border border-slate-200 rounded-2xl p-7 shadow-sm h-full">
+              <div className="bg-slate-700/50 border border-slate-700 rounded-2xl p-7 h-full">
                 <div className="space-y-5 text-sm">
                   <div>
-                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Challenge</span>
-                    <p className="text-slate-600 mt-2 leading-relaxed">
+                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Challenge</span>
+                    <p className="text-slate-300 mt-2 leading-relaxed">
                       A major Israeli supermarket chain needed to expand its private label frozen range
                       but had no reliable European supplier aligned with its commercial and operational requirements.
                     </p>
                   </div>
-                  <div className="border-t border-slate-100 pt-4">
-                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">What we did</span>
-                    <ul className="text-slate-600 mt-2 space-y-1.5">
+                  <div className="border-t border-slate-700 pt-4">
+                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">What we did</span>
+                    <ul className="text-slate-300 mt-2 space-y-1.5">
                       <li className="flex gap-2"><span className="text-orange-500 font-bold">→</span> Found a Belgian manufacturer that actually fit — specs, capacity, and price point</li>
                       <li className="flex gap-2"><span className="text-orange-500 font-bold">→</span> Made sure both sides were aligned before any introduction happened</li>
                       <li className="flex gap-2"><span className="text-orange-500 font-bold">→</span> Supported the commercial discussion through to first order</li>
                     </ul>
                   </div>
-                  <div className="border-t border-slate-100 pt-4">
-                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Result</span>
-                    <ul className="text-slate-600 mt-2 space-y-1.5">
+                  <div className="border-t border-slate-700 pt-4">
+                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Result</span>
+                    <ul className="text-slate-300 mt-2 space-y-1.5">
                       <li className="flex gap-2"><span className="text-orange-500 font-bold">→</span> Long-term supply relationship with consistent monthly shipments</li>
                       <li className="flex gap-2"><span className="text-orange-500 font-bold">→</span> Volume scaled from trial to 3–4 containers per month</li>
                     </ul>
@@ -227,7 +227,7 @@ export default function HomePage() {
           </div>
 
           <Reveal>
-            <p className="text-center text-sm text-slate-500 mt-10">
+            <p className="text-center text-sm text-slate-400 mt-10">
               We run similar partnerships across multiple categories. Tell us what you need.
             </p>
           </Reveal>
@@ -235,13 +235,13 @@ export default function HomePage() {
       </section>
 
       {/* ── MARKET OPPORTUNITY ── */}
-      <section className="px-6 py-24 bg-white border-t border-slate-100">
+      <section className="px-6 py-24 bg-slate-900 border-t border-slate-800">
         <div className="max-w-5xl mx-auto text-center">
           <Reveal>
-            <h2 className="text-3xl font-bold text-slate-900 mb-5">
+            <h2 className="text-3xl font-bold text-white mb-5">
               A High-Opportunity Import Market
             </h2>
-            <p className="text-slate-600 max-w-3xl mx-auto mb-12">
+            <p className="text-slate-300 max-w-3xl mx-auto mb-12">
               Israel imports over 70% of its food products. For manufacturers, that&apos;s consistent demand.
               For buyers, that means a wide supplier base — if you know where to look.
             </p>
@@ -263,9 +263,9 @@ export default function HomePage() {
               },
             ].map((item, i) => (
               <Reveal key={i}>
-                <div className="bg-slate-50 border border-slate-200 p-6 rounded-2xl h-full">
-                  <h3 className="font-semibold text-slate-900 mb-2">{item.title}</h3>
-                  <p className="text-sm text-slate-600 leading-relaxed">{item.body}</p>
+                <div className="bg-slate-800 border border-slate-700 p-6 rounded-2xl h-full">
+                  <h3 className="font-semibold text-white mb-2">{item.title}</h3>
+                  <p className="text-sm text-slate-300 leading-relaxed">{item.body}</p>
                 </div>
               </Reveal>
             ))}
@@ -274,11 +274,11 @@ export default function HomePage() {
       </section>
 
       {/* ── WHO WE WORK WITH ── */}
-      <section className="px-6 py-20 bg-slate-50 border-t border-slate-100">
+      <section className="px-6 py-20 bg-slate-800 border-t border-slate-700">
         <div className="max-w-5xl mx-auto text-center">
           <Reveal>
-            <h2 className="text-3xl font-bold text-slate-900 mb-4">Who We Work With</h2>
-            <p className="text-slate-600 max-w-2xl mx-auto mb-10">
+            <h2 className="text-3xl font-bold text-white mb-4">Who We Work With</h2>
+            <p className="text-slate-300 max-w-2xl mx-auto mb-10">
               Israeli retailers looking for the right supplier. European manufacturers ready to export.
               We&apos;re the bridge that makes sure both sides are actually ready for each other.
             </p>
@@ -303,10 +303,10 @@ export default function HomePage() {
               },
             ].map((item, i) => (
               <Reveal key={i}>
-                <div className="bg-white border border-slate-200 rounded-2xl p-6 h-full flex flex-col">
-                  <h3 className="font-semibold text-slate-900 mb-2">{item.title}</h3>
-                  <p className="text-sm text-slate-600 leading-relaxed flex-1">{item.body}</p>
-                  <p className="text-xs text-slate-400 mt-4 pt-4 border-t border-slate-100">{item.note}</p>
+                <div className="bg-slate-700/50 border border-slate-700 rounded-2xl p-6 h-full flex flex-col">
+                  <h3 className="font-semibold text-white mb-2">{item.title}</h3>
+                  <p className="text-sm text-slate-300 leading-relaxed flex-1">{item.body}</p>
+                  <p className="text-xs text-slate-500 mt-4 pt-4 border-t border-slate-700">{item.note}</p>
                 </div>
               </Reveal>
             ))}
@@ -315,12 +315,12 @@ export default function HomePage() {
       </section>
 
       {/* ── WHY CHOOSE FOODXCHANGE ── */}
-      <section className="px-6 py-20 bg-white border-t border-slate-100">
+      <section className="px-6 py-20 bg-slate-900 border-t border-slate-800">
         <div className="max-w-5xl mx-auto">
           <Reveal>
             <div className="text-center mb-12">
-              <h2 className="text-3xl font-bold text-slate-900">Why Choose FoodXchange</h2>
-              <p className="text-slate-500 mt-3 max-w-xl mx-auto">
+              <h2 className="text-3xl font-bold text-white">Why Choose FoodXchange</h2>
+              <p className="text-slate-400 mt-3 max-w-xl mx-auto">
                 There are a lot of directories and databases. We&apos;re not one of them.
                 Here&apos;s the actual difference.
               </p>
@@ -348,10 +348,10 @@ export default function HomePage() {
             ].map((item, i) => (
               <Reveal key={i}>
                 <div className="flex gap-4">
-                  <span className="text-orange-500 font-black text-xl mt-0.5 flex-shrink-0">→</span>
+                  <span className="text-orange-500 font-black text-xl mt-0.5 shrink-0">→</span>
                   <div>
-                    <h3 className="font-semibold text-slate-900 mb-1">{item.title}</h3>
-                    <p className="text-sm text-slate-600 leading-relaxed">{item.body}</p>
+                    <h3 className="font-semibold text-white mb-1">{item.title}</h3>
+                    <p className="text-sm text-slate-300 leading-relaxed">{item.body}</p>
                   </div>
                 </div>
               </Reveal>

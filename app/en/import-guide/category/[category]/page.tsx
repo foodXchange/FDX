@@ -53,7 +53,7 @@ export default async function ImportGuideCategoryPage({ params }: { params: Para
   const articles = (data ?? []) as ImportGuideListItem[];
 
   return (
-    <main className="bg-white text-slate-900">
+    <main className="bg-slate-900">
       {/* HERO */}
       <section className="bg-linear-to-b from-slate-900 to-slate-800 text-white py-12 px-6 text-center">
         <div className="max-w-3xl mx-auto">
@@ -82,15 +82,15 @@ export default async function ImportGuideCategoryPage({ params }: { params: Para
       <section className="max-w-4xl mx-auto px-6 py-12">
         {articles.length === 0 ? (
           <div className="text-center py-16">
-            <p className="text-slate-500 text-lg font-medium mb-3">
+            <p className="text-slate-400 text-lg font-medium mb-3">
               Articles coming soon for this category.
             </p>
-            <p className="text-slate-400 text-sm mb-6">
+            <p className="text-slate-500 text-sm mb-6">
               Subscribe to be notified when we publish.
             </p>
             <Link
               href="/en/newsletter"
-              className="inline-flex text-orange-600 font-medium text-sm hover:text-orange-700 transition"
+              className="inline-flex text-orange-400 font-medium text-sm hover:text-orange-300 transition"
             >
               Subscribe for updates →
             </Link>
@@ -100,7 +100,7 @@ export default async function ImportGuideCategoryPage({ params }: { params: Para
             {articles.map((article) => (
               <article
                 key={article.id}
-                className="group border border-slate-200 rounded-xl p-6 bg-white hover:shadow-md hover:-translate-y-0.5 transition-all duration-300"
+                className="group border border-slate-700 rounded-xl p-6 bg-slate-800 hover:-translate-y-0.5 transition-all duration-300"
               >
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex-1 min-w-0">
@@ -108,13 +108,13 @@ export default async function ImportGuideCategoryPage({ params }: { params: Para
                       href={`/en/import-guide/${article.slug}`}
                       className="block"
                     >
-                      <h2 className="text-lg font-semibold text-slate-900 group-hover:text-orange-600 transition mb-2">
+                      <h2 className="text-lg font-semibold text-white group-hover:text-orange-400 transition mb-2">
                         {article.title}
                       </h2>
                     </Link>
 
                     {article.summary && (
-                      <p className="text-slate-600 text-sm leading-relaxed mb-4 line-clamp-2">
+                      <p className="text-slate-300 text-sm leading-relaxed mb-4 line-clamp-2">
                         {article.summary}
                       </p>
                     )}
@@ -124,7 +124,7 @@ export default async function ImportGuideCategoryPage({ params }: { params: Para
                         {article.tags.slice(0, 4).map((tag) => (
                           <span
                             key={tag}
-                            className="bg-slate-100 text-slate-500 rounded-full px-2.5 py-0.5 text-xs"
+                            className="bg-slate-700 text-slate-400 rounded-full px-2.5 py-0.5 text-xs"
                           >
                             {tag}
                           </span>
@@ -132,7 +132,7 @@ export default async function ImportGuideCategoryPage({ params }: { params: Para
                       </div>
                     )}
 
-                    <div className="flex items-center gap-3 text-xs text-slate-400">
+                    <div className="flex items-center gap-3 text-xs text-slate-500">
                       <span>{article.reading_time_mins} min read</span>
                       <span>·</span>
                       <span>Updated {formatDate(article.updated_at)}</span>
@@ -141,7 +141,7 @@ export default async function ImportGuideCategoryPage({ params }: { params: Para
 
                   <Link
                     href={`/en/import-guide/${article.slug}`}
-                    className="shrink-0 text-orange-600 text-sm font-medium hover:text-orange-700 transition"
+                    className="shrink-0 text-orange-400 text-sm font-medium hover:text-orange-300 transition"
                   >
                     Read article →
                   </Link>
@@ -152,10 +152,10 @@ export default async function ImportGuideCategoryPage({ params }: { params: Para
         )}
 
         {/* Back link */}
-        <div className="mt-10 pt-8 border-t border-slate-100">
+        <div className="mt-10 pt-8 border-t border-slate-800">
           <Link
             href="/en/import-guide"
-            className="text-sm text-slate-500 hover:text-orange-600 transition"
+            className="text-sm text-slate-500 hover:text-orange-400 transition"
           >
             ← Back to Import Guide
           </Link>

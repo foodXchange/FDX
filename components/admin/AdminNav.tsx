@@ -18,6 +18,10 @@ const links = [
   { href: "/en/admin/blog-editor", label: "Blog" },
 ];
 
+const marketingLinks = [
+  { href: "/admin/card-analytics", label: "Card Analytics" },
+];
+
 const settingsLinks = [
   { href: "/admin/settings/category-images", label: "Category Images" },
 ];
@@ -39,6 +43,24 @@ export default function AdminNav() {
           {link.label}
         </Link>
       ))}
+      <div className="border-t border-slate-700/50 my-2 pt-1">
+        <p className="px-3 py-1 text-[10px] font-semibold uppercase tracking-widest text-slate-600">
+          Marketing
+        </p>
+        {marketingLinks.map((link) => (
+          <Link
+            key={link.href}
+            href={link.href}
+            className={`block px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+              pathname.startsWith(link.href)
+                ? "border-l-2 border-orange-500 bg-slate-800 text-white pl-2.5"
+                : "text-slate-400 hover:text-slate-200 hover:bg-slate-800"
+            }`}
+          >
+            {link.label}
+          </Link>
+        ))}
+      </div>
       <div className="border-t border-slate-700/50 my-2 pt-1">
         <p className="px-3 py-1 text-[10px] font-semibold uppercase tracking-widest text-slate-600">
           Settings

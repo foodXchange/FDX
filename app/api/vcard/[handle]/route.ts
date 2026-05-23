@@ -13,7 +13,23 @@ export async function GET(
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
-  return new NextResponse(generateVCard(card), {
+  let photoBase64: string | undefined;
+  if (card.imageUrl) {
+    try {
+      const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://foodz-x.com";
+      const imgUrl = card.imageUrl.startsWith("http")
+        ? card.imageUrl
+        : `${siteUrl}${card.imageUrl}`;
+      const res = await fetch(imgUrl);
+      if (res.ok) {
+        const buf = await res.arrayBuffer();
+        photoBase64 = Buffer.from(buf).toString("base64");
+      }
+    } catch { /* skip photo on error */ }
+  }
+
+  const vcf = await generateVCard(card, photoBase64);
+  return new NextResponse(vcf, {
     headers: {
       "Content-Type": "text/vcard; charset=utf-8",
       "Content-Disposition": `attachment; filename="${card.firstName}-${card.lastName}.vcf"`,

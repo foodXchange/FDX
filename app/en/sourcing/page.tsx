@@ -12,7 +12,7 @@ export const metadata: Metadata = {
 
 export default function SourcingPage() {
   return (
-    <main className="bg-white text-slate-800">
+    <main className="bg-slate-900">
 
       {/* HERO */}
       <section className="bg-gradient-to-b from-slate-900 to-slate-800 text-white py-20 px-6 text-center">
@@ -44,8 +44,8 @@ export default function SourcingPage() {
       </div>
 
       {/* HOW IT WORKS */}
-      <section className="max-w-3xl mx-auto px-6 py-16 border-t border-slate-100">
-        <h2 className="text-2xl font-semibold text-slate-900 mb-10 text-center">
+      <section className="max-w-3xl mx-auto px-6 py-16 border-t border-slate-800">
+        <h2 className="text-2xl font-semibold text-white mb-10 text-center">
           How it works
         </h2>
         <div className="grid md:grid-cols-3 gap-8">
@@ -68,17 +68,17 @@ export default function SourcingPage() {
           ].map((item) => (
             <div key={item.n} className="text-center md:text-left">
               <span className="text-3xl font-black text-orange-500">{item.n}</span>
-              <h3 className="font-semibold text-slate-900 mt-2 mb-1">{item.title}</h3>
-              <p className="text-sm text-slate-500 leading-relaxed">{item.body}</p>
+              <h3 className="font-semibold text-white mt-2 mb-1">{item.title}</h3>
+              <p className="text-sm text-slate-400 leading-relaxed">{item.body}</p>
             </div>
           ))}
         </div>
       </section>
 
       {/* TRUST */}
-      <section className="bg-slate-50 border-t border-slate-100 py-16 px-6">
+      <section className="bg-slate-800 border-t border-slate-700 py-16 px-6">
         <div className="max-w-3xl mx-auto">
-          <h2 className="text-xl font-semibold text-slate-900 mb-8 text-center">
+          <h2 className="text-xl font-semibold text-white mb-8 text-center">
             Why buyers work with FoodXchange
           </h2>
           <div className="grid md:grid-cols-3 gap-6">
@@ -89,7 +89,7 @@ export default function SourcingPage() {
             ].map((point, i) => (
               <div
                 key={i}
-                className="bg-white border border-slate-200 rounded-xl p-5 text-sm text-slate-600 leading-relaxed"
+                className="bg-slate-700/50 border border-slate-700 rounded-xl p-5 text-sm text-slate-300 leading-relaxed"
               >
                 <span className="text-orange-500 font-bold mr-2">✓</span>
                 {point}

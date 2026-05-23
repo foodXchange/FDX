@@ -50,7 +50,7 @@ export default function BuyersPage() {
         Skip to content
       </a>
 
-      <main id="main" className="bg-white text-slate-800">
+      <main id="main" className="bg-slate-900">
 
         {/* ── HERO ── */}
         <section className="bg-linear-to-b from-slate-900 to-slate-800 px-6 py-20 sm:py-24 text-center">
@@ -91,13 +91,13 @@ export default function BuyersPage() {
         </section>
 
         {/* ── 3-STEP PROCESS ── */}
-        <section className="px-6 py-20 bg-white border-t border-slate-100">
+        <section className="px-6 py-20 bg-slate-900 border-t border-slate-800">
           <div className="max-w-5xl mx-auto">
             <Reveal>
               <div className="text-center mb-12">
                 <p className="text-xs font-semibold text-orange-500 uppercase tracking-widest mb-3">How it works</p>
-                <h2 className="text-3xl font-semibold text-slate-900">Three steps, no noise</h2>
-                <p className="text-slate-500 mt-3 max-w-xl mx-auto">
+                <h2 className="text-3xl font-semibold text-white">Three steps, no noise</h2>
+                <p className="text-slate-400 mt-3 max-w-xl mx-auto">
                   We don&apos;t send you a list of 50 suppliers. We find one that actually fits.
                 </p>
               </div>
@@ -122,12 +122,12 @@ export default function BuyersPage() {
                 },
               ].map((step, i) => (
                 <Reveal key={i}>
-                  <div className="bg-white border border-slate-200 rounded-2xl p-7 shadow-sm h-full">
+                  <div className="bg-slate-800 border border-slate-700 rounded-2xl p-7 h-full">
                     <div className="w-11 h-11 mb-5 bg-orange-500 text-white rounded-full flex items-center justify-center font-black text-lg">
                       {step.n}
                     </div>
-                    <h3 className="font-semibold text-slate-900 text-base mb-2">{step.title}</h3>
-                    <p className="text-sm text-slate-600 leading-relaxed">{step.body}</p>
+                    <h3 className="font-semibold text-white text-base mb-2">{step.title}</h3>
+                    <p className="text-sm text-slate-300 leading-relaxed">{step.body}</p>
                   </div>
                 </Reveal>
               ))}
@@ -149,44 +149,44 @@ export default function BuyersPage() {
         </section>
 
         {/* ── CASE STUDY ── */}
-        <section className="px-6 py-20 bg-slate-50 border-t border-slate-100">
+        <section className="px-6 py-20 bg-slate-800 border-t border-slate-700">
           <div className="max-w-5xl mx-auto">
             <Reveal>
               <div className="text-center mb-10">
                 <p className="text-xs font-semibold text-orange-500 uppercase tracking-widest mb-2">Real result</p>
-                <h2 className="text-2xl font-semibold text-slate-900">What a real partnership looks like</h2>
+                <h2 className="text-2xl font-semibold text-white">What a real partnership looks like</h2>
               </div>
             </Reveal>
 
             <div className="grid md:grid-cols-2 gap-8">
               <Reveal>
-                <div className="bg-white border border-slate-200 rounded-2xl p-7 shadow-sm h-full flex flex-col">
+                <div className="bg-slate-700/50 border border-slate-700 rounded-2xl p-7 h-full flex flex-col">
                   <span className="text-xs font-bold text-orange-500 uppercase tracking-widest">OUTCOME</span>
-                  <h3 className="text-2xl font-black text-slate-900 mt-3">3–4 Containers per Month</h3>
-                  <p className="text-sm text-slate-500 mt-1">Frozen private label — Belgium to Israel</p>
+                  <h3 className="text-2xl font-black text-white mt-3">3–4 Containers per Month</h3>
+                  <p className="text-sm text-slate-400 mt-1">Frozen private label — Belgium to Israel</p>
 
                   <div className="flex-1 mt-5 space-y-4 text-sm">
                     <div>
-                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Challenge</span>
-                      <p className="text-slate-600 mt-1 leading-relaxed">
+                      <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Challenge</span>
+                      <p className="text-slate-300 mt-1 leading-relaxed">
                         A major supermarket chain needed to expand its private label frozen range but had no reliable European supplier with the right specs and kosher path.
                       </p>
                     </div>
                     <div>
-                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Action</span>
-                      <p className="text-slate-600 mt-1 leading-relaxed">
+                      <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Action</span>
+                      <p className="text-slate-300 mt-1 leading-relaxed">
                         Found a Belgian manufacturer with aligned specs, assessed kosher pathway, structured commercial terms, and facilitated the introduction with full context.
                       </p>
                     </div>
                     <div>
-                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Result</span>
-                      <p className="text-slate-600 mt-1 leading-relaxed">
+                      <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Result</span>
+                      <p className="text-slate-300 mt-1 leading-relaxed">
                         Long-term supply relationship with consistent monthly volume — growing steadily since launch.
                       </p>
                     </div>
                   </div>
 
-                  <p className="text-xs text-slate-400 mt-6 pt-4 border-t border-slate-100">
+                  <p className="text-xs text-slate-500 mt-6 pt-4 border-t border-slate-700">
                     Major Israeli Retail Chain · European Manufacturer
                   </p>
                 </div>
@@ -198,11 +198,11 @@ export default function BuyersPage() {
                     { label: "What we checked", items: ["Category fit and volume match", "Kosher certification pathway", "Packaging spec alignment", "Price point vs. retailer expectations"] },
                     { label: "What you get", items: ["One specific recommendation, not a list", "Full context on the supplier before you meet", "Support through the commercial discussion"] },
                   ].map((block, i) => (
-                    <div key={i} className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm flex-1">
-                      <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">{block.label}</p>
+                    <div key={i} className="bg-slate-700/50 border border-slate-700 rounded-2xl p-6 flex-1">
+                      <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-3">{block.label}</p>
                       <ul className="space-y-2">
                         {block.items.map((item, j) => (
-                          <li key={j} className="flex gap-2 text-sm text-slate-600">
+                          <li key={j} className="flex gap-2 text-sm text-slate-300">
                             <span className="text-orange-500 font-bold shrink-0">✓</span>
                             {item}
                           </li>
@@ -217,10 +217,10 @@ export default function BuyersPage() {
         </section>
 
         {/* ── CATEGORIES ── */}
-        <section className="px-6 py-20 bg-white border-t border-slate-100">
+        <section className="px-6 py-20 bg-slate-900 border-t border-slate-800">
           <div className="max-w-5xl mx-auto">
             <Reveal>
-              <h2 className="text-2xl font-semibold text-slate-900 text-center mb-10">
+              <h2 className="text-2xl font-semibold text-white text-center mb-10">
                 Categories we source regularly
               </h2>
             </Reveal>
@@ -234,11 +234,11 @@ export default function BuyersPage() {
                 ["📦", "Private label", "Own-brand across all categories"],
               ].map(([icon, title, sub], i) => (
                 <Reveal key={i}>
-                  <div className="flex items-start gap-4 bg-slate-50 border border-slate-200 rounded-2xl p-5">
+                  <div className="flex items-start gap-4 bg-slate-800 border border-slate-700 rounded-2xl p-5">
                     <span className="text-2xl shrink-0">{icon}</span>
                     <div>
-                      <p className="font-semibold text-slate-900 text-sm">{title}</p>
-                      <p className="text-xs text-slate-500 mt-0.5">{sub}</p>
+                      <p className="font-semibold text-white text-sm">{title}</p>
+                      <p className="text-xs text-slate-400 mt-0.5">{sub}</p>
                     </div>
                   </div>
                 </Reveal>
@@ -248,7 +248,7 @@ export default function BuyersPage() {
         </section>
 
         {/* ── FAQ ── */}
-        <section className="px-6 py-20 bg-slate-50 border-t border-slate-100">
+        <section className="px-6 py-20 bg-slate-800 border-t border-slate-700">
           <div className="max-w-3xl mx-auto">
             <Reveal>
               <FAQAccordion

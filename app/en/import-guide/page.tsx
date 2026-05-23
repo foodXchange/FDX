@@ -53,7 +53,7 @@ export default async function ImportGuideHubPage() {
     (allArticles ?? []).filter((a) => a.category === slug).length;
 
   return (
-    <main className="bg-white text-slate-900">
+    <main className="bg-slate-900">
       {/* HERO */}
       <section className="bg-linear-to-b from-slate-900 to-slate-800 text-white py-20 px-6 text-center">
         <div className="max-w-3xl mx-auto">
@@ -97,7 +97,7 @@ export default async function ImportGuideHubPage() {
 
       {/* CATEGORIES */}
       <section id="categories" className="max-w-6xl mx-auto px-6 py-16">
-        <h2 className="text-2xl font-semibold text-slate-900 mb-8">
+        <h2 className="text-2xl font-semibold text-white mb-8">
           Browse by topic
         </h2>
         <div className="grid md:grid-cols-3 gap-6">
@@ -107,20 +107,20 @@ export default async function ImportGuideHubPage() {
               <Link
                 key={cat.slug}
                 href={`/en/import-guide/category/${cat.slug}`}
-                className="border border-slate-200 rounded-2xl p-6 hover:border-orange-300 hover:shadow-md transition-all duration-200 block group"
+                className="border border-slate-700 rounded-2xl p-6 hover:border-orange-500/50 hover:bg-slate-800 transition-all duration-200 block group"
               >
                 <div className="text-3xl mb-4">{cat.icon}</div>
-                <h3 className="text-lg font-semibold text-slate-900 mb-2 group-hover:text-orange-600 transition">
+                <h3 className="text-lg font-semibold text-white mb-2 group-hover:text-orange-400 transition">
                   {cat.title}
                 </h3>
-                <p className="text-slate-500 text-sm leading-relaxed">
+                <p className="text-slate-400 text-sm leading-relaxed">
                   {cat.description}
                 </p>
                 <p className="text-xs font-medium mt-4">
                   {count > 0 ? (
-                    <span className="text-orange-600">{count} article{count !== 1 ? "s" : ""} →</span>
+                    <span className="text-orange-400">{count} article{count !== 1 ? "s" : ""} →</span>
                   ) : (
-                    <span className="text-slate-400">Coming soon</span>
+                    <span className="text-slate-500">Coming soon</span>
                   )}
                 </p>
               </Link>
@@ -132,10 +132,10 @@ export default async function ImportGuideHubPage() {
       {/* RECENTLY UPDATED */}
       {articles.length > 0 && (
         <section className="max-w-4xl mx-auto px-6 pb-16">
-          <h2 className="text-xl font-semibold text-slate-900 mb-6">
+          <h2 className="text-xl font-semibold text-white mb-6">
             Recently updated
           </h2>
-          <div className="divide-y divide-slate-100">
+          <div className="divide-y divide-slate-800">
             {articles.map((article) => {
               const category = IMPORT_GUIDE_CATEGORIES.find(
                 (c) => c.slug === article.category
@@ -144,23 +144,23 @@ export default async function ImportGuideHubPage() {
                 <Link
                   key={article.id}
                   href={`/en/import-guide/${article.slug}`}
-                  className="flex items-start gap-4 py-4 hover:bg-slate-50 -mx-4 px-4 rounded-lg transition group"
+                  className="flex items-start gap-4 py-4 hover:bg-slate-800 -mx-4 px-4 rounded-lg transition group"
                 >
-                  <span className="shrink-0 bg-orange-50 text-orange-700 border border-orange-100 rounded-full px-3 py-1 text-xs font-medium whitespace-nowrap mt-0.5">
+                  <span className="shrink-0 bg-orange-500/10 text-orange-400 border border-orange-500/20 rounded-full px-3 py-1 text-xs font-medium whitespace-nowrap mt-0.5">
                     {category?.title ?? article.category}
                   </span>
                   <div className="flex-1 min-w-0">
-                    <p className="text-slate-900 font-medium group-hover:text-orange-600 transition">
+                    <p className="text-white font-medium group-hover:text-orange-400 transition">
                       {article.title}
                     </p>
                     {article.summary && (
-                      <p className="text-slate-500 text-sm mt-1 line-clamp-1">
+                      <p className="text-slate-400 text-sm mt-1 line-clamp-1">
                         {article.summary.slice(0, 120)}
                         {article.summary.length > 120 ? "…" : ""}
                       </p>
                     )}
                   </div>
-                  <span className="text-slate-400 text-xs shrink-0 mt-0.5">
+                  <span className="text-slate-500 text-xs shrink-0 mt-0.5">
                     {article.reading_time_mins} min read
                   </span>
                 </Link>

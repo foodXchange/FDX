@@ -61,7 +61,7 @@ export default async function ImportGuideSearchPage({
   }
 
   return (
-    <main className="bg-white text-slate-900">
+    <main className="bg-slate-900">
       {/* HERO / SEARCH BAR */}
       <section className="bg-linear-to-b from-slate-900 to-slate-800 text-white py-16 px-6 text-center">
         <div className="max-w-3xl mx-auto">
@@ -98,7 +98,7 @@ export default async function ImportGuideSearchPage({
         {!query ? (
           /* No query state */
           <div className="text-center py-8">
-            <p className="text-slate-500 text-lg mb-6">
+            <p className="text-slate-400 text-lg mb-6">
               Search {totalArticles} article{totalArticles !== 1 ? "s" : ""} about Israeli food
               import regulations
             </p>
@@ -109,7 +109,7 @@ export default async function ImportGuideSearchPage({
                   <Link
                     key={cat.slug}
                     href={`/en/import-guide/category/${cat.slug}`}
-                    className="flex items-center gap-2 border border-slate-200 rounded-full px-4 py-2 text-sm text-slate-600 hover:border-orange-300 hover:text-orange-600 transition"
+                    className="flex items-center gap-2 border border-slate-700 rounded-full px-4 py-2 text-sm text-slate-300 hover:border-orange-500/50 hover:text-orange-400 transition"
                   >
                     <span>{cat.icon}</span>
                     {cat.title}
@@ -122,16 +122,16 @@ export default async function ImportGuideSearchPage({
           /* No results */
           <div className="text-center py-16">
             <p className="text-3xl mb-4">🔍</p>
-            <h2 className="text-xl font-semibold text-slate-700 mb-2">
+            <h2 className="text-xl font-semibold text-slate-200 mb-2">
               No articles found for &ldquo;{query}&rdquo;
             </h2>
-            <p className="text-slate-500 text-sm mb-6">
+            <p className="text-slate-400 text-sm mb-6">
               Try different keywords or browse by category.
             </p>
             <div className="flex gap-3 justify-center flex-wrap">
               <Link
                 href="/en/import-guide"
-                className="border border-slate-200 hover:border-slate-300 px-5 py-2.5 rounded-lg text-sm text-slate-600 transition"
+                className="border border-slate-700 hover:border-slate-600 px-5 py-2.5 rounded-lg text-sm text-slate-300 transition"
               >
                 Browse all categories
               </Link>
@@ -146,7 +146,7 @@ export default async function ImportGuideSearchPage({
         ) : (
           /* Results */
           <>
-            <p className="text-sm text-slate-500 mb-6">
+            <p className="text-sm text-slate-400 mb-6">
               {results.length} result{results.length !== 1 ? "s" : ""} for &ldquo;{query}&rdquo;
             </p>
             <div className="space-y-4">
@@ -157,24 +157,24 @@ export default async function ImportGuideSearchPage({
                 return (
                   <article
                     key={article.id}
-                    className="group border border-slate-200 rounded-xl p-5 hover:border-orange-200 hover:bg-orange-50/20 transition"
+                    className="group border border-slate-700 rounded-xl p-5 hover:border-orange-500/50 hover:bg-slate-800 transition"
                   >
                     <div className="flex items-start gap-3">
-                      <span className="shrink-0 bg-orange-50 text-orange-700 border border-orange-100 rounded-full px-3 py-1 text-xs font-medium whitespace-nowrap mt-0.5">
+                      <span className="shrink-0 bg-orange-500/10 text-orange-400 border border-orange-500/20 rounded-full px-3 py-1 text-xs font-medium whitespace-nowrap mt-0.5">
                         {category?.title ?? article.category}
                       </span>
                       <div className="flex-1 min-w-0">
                         <Link href={`/en/import-guide/${article.slug}`}>
-                          <h2 className="font-medium text-slate-900 group-hover:text-orange-600 transition">
+                          <h2 className="font-medium text-white group-hover:text-orange-400 transition">
                             {article.title}
                           </h2>
                         </Link>
                         {article.summary && (
-                          <p className="text-slate-500 text-sm mt-1 line-clamp-2">
+                          <p className="text-slate-400 text-sm mt-1 line-clamp-2">
                             {article.summary}
                           </p>
                         )}
-                        <p className="text-xs text-slate-400 mt-2">
+                        <p className="text-xs text-slate-500 mt-2">
                           {article.reading_time_mins} min read · Updated{" "}
                           {formatDate(article.updated_at)}
                         </p>

@@ -1,6 +1,9 @@
 import type { ContactCard } from "./contactCards";
 
-export function generateVCard(card: ContactCard): string {
+export async function generateVCard(
+  card: ContactCard,
+  photoBase64?: string
+): Promise<string> {
   const lines: string[] = [
     "BEGIN:VCARD",
     "VERSION:3.0",
@@ -13,6 +16,8 @@ export function generateVCard(card: ContactCard): string {
     `URL:${card.website}`,
   ];
   if (card.linkedin) lines.push(`X-SOCIALPROFILE;TYPE=linkedin:${card.linkedin}`);
+  if (card.pitch) lines.push(`NOTE:${card.pitch.replace(/\n/g, "\\n")}`);
+  if (photoBase64) lines.push(`PHOTO;ENCODING=b;TYPE=JPEG:${photoBase64}`);
   lines.push("END:VCARD");
   return lines.join("\r\n");
 }

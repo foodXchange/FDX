@@ -27,8 +27,12 @@ export function ContactCard({ card, cardUrl }: Props) {
   const [imgError, setImgError] = useState(false);
   const [linkCopied, setLinkCopied] = useState(false);
   const [canShare, setCanShare] = useState(false);
+  const [lang, setLang] = useState<"en" | "he">("en");
 
   useEffect(() => {
+    const saved = localStorage.getItem("card-lang") as "en" | "he" | null;
+    if (saved === "he") setLang("he");
+
     const p = new URLSearchParams(window.location.search);
     const utm: Record<string, string> = {};
     if (p.get("utm_source")) utm.utm_source = p.get("utm_source")!;
@@ -36,12 +40,35 @@ export function ContactCard({ card, cardUrl }: Props) {
     utmRef.current = utm;
     track("contact_card_viewed");
     setCanShare(typeof navigator.share === "function");
+
+    fetch("/api/card/track", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        handle: card.handle,
+        persona: card.persona,
+        event: "view",
+        referrer: document.referrer || undefined,
+        userAgent: navigator.userAgent,
+      }),
+    }).catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const isHe = lang === "he";
+  function toggleLang() {
+    const next = isHe ? "en" : "he";
+    setLang(next);
+    localStorage.setItem("card-lang", next);
+  }
+  function t(en: string, he?: string) {
+    return isHe && he ? he : en;
+  }
 
   function track(event: string, extra: Record<string, string> = {}) {
     trackEvent(event, {
       handle: card.handle,
+      persona: card.persona,
       page_path: `/c/${card.handle}`,
       ...utmRef.current,
       ...extra,
@@ -63,27 +90,25 @@ export function ContactCard({ card, cardUrl }: Props) {
   const initials = card.firstName[0] + card.lastName[0];
   const showPhoto = !!(card.imageUrl && !imgError);
 
-  const waBase = `https://wa.me/${card.whatsapp}?text=`;
-  const waBuyer =
-    waBase +
-    encodeURIComponent(
-      `Hi ${card.firstName}, I'm a buyer in Israel. I saw your contact card and want to discuss sourcing.`
-    );
-  const waManufacturer =
-    waBase +
-    encodeURIComponent(
-      `Hi ${card.firstName}, I'm a manufacturer/exporter. I want to explore entering the Israeli market through FoodXchange.`
-    );
-
   const btnBase =
     "min-h-[44px] rounded-xl font-medium text-sm transition-all duration-200 flex items-center gap-2 justify-center w-full active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900";
   const btnSecondary = `${btnBase} bg-white/5 hover:bg-white/10 border border-white/10 text-white`;
 
   return (
-    <div className="bg-slate-900 border border-white/10 rounded-3xl p-8 w-full max-w-sm shadow-2xl mx-auto">
-
+    <div
+      dir={isHe ? "rtl" : "ltr"}
+      className="bg-slate-900 border border-white/10 rounded-3xl p-8 w-full max-w-sm shadow-2xl mx-auto"
+    >
       {/* ── Profile ── */}
-      <div className="flex flex-col items-center text-center mb-8">
+      <div className="relative flex flex-col items-center text-center mb-8">
+        <button
+          onClick={toggleLang}
+          className="absolute top-0 inset-e-0 text-xs text-slate-500 hover:text-slate-300 transition-colors px-2 py-1 rounded focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-orange-400"
+          aria-label="Toggle language"
+        >
+          {isHe ? "EN" : "עב"}
+        </button>
+
         {showPhoto ? (
           <div className="w-24 h-24 rounded-full overflow-hidden ring-2 ring-white/20 shadow-lg mb-4 shrink-0">
             <Image
@@ -100,49 +125,90 @@ export function ContactCard({ card, cardUrl }: Props) {
             <span className="text-2xl font-black text-white select-none">{initials}</span>
           </div>
         )}
-        <h1 className="text-2xl font-semibold text-white tracking-tight">{card.name}</h1>
-        <p className="text-sm text-orange-400 font-semibold mt-1">{card.title}</p>
+        <h1 className="text-2xl font-semibold text-white tracking-tight">
+          {t(card.name, card.nameHe)}
+        </h1>
+        <p className="text-sm text-orange-400 font-semibold mt-1">
+          {t(card.title, card.titleHe)}
+        </p>
         <p className="text-sm text-slate-400">{card.company}</p>
-        <p className="text-sm text-slate-300 leading-relaxed mt-3 max-w-[240px]">{card.tagline}</p>
+        <p className="text-sm text-slate-300 leading-relaxed mt-3 max-w-[240px]">
+          {t(card.tagline, card.taglineHe)}
+        </p>
+
+        {card.pitch && (
+          <div className="mt-4 rounded-xl bg-white/5 border border-white/10 px-4 py-3 w-full max-w-70">
+            <p className="text-xs text-slate-400 leading-relaxed text-start">
+              {t(card.pitch, card.pitchHe)}
+            </p>
+          </div>
+        )}
       </div>
 
       {/* ── WhatsApp flows ── */}
       <div className="mb-6">
         <p className="text-xs text-slate-500 text-center mb-3 leading-relaxed">
-          Choose a message that matches you —
-          <br />
-          it helps us respond faster.
+          {isHe
+            ? "בחרו הודעה שמתאימה לכם — כך נוכל לענות מהר יותר."
+            : "Choose a message that matches you — it helps us respond faster."}
         </p>
         <div className="space-y-2">
-          <a
-            href={waBuyer}
-            target="_blank"
-            rel="noopener noreferrer"
-            aria-label="Open WhatsApp as a buyer"
-            onClick={() =>
-              track("contact_card_whatsapp_clicked", { audience: "buyer", source: "button" })
-            }
-            className={`${btnBase} bg-green-600 hover:bg-green-500 text-white`}
-          >
-            <WhatsAppIcon /> WhatsApp — I&apos;m a Buyer
-          </a>
-          <a
-            href={waManufacturer}
-            target="_blank"
-            rel="noopener noreferrer"
-            aria-label="Open WhatsApp as a manufacturer"
-            onClick={() =>
-              track("contact_card_whatsapp_clicked", {
-                audience: "manufacturer",
-                source: "button",
-              })
-            }
-            className={`${btnBase} bg-green-800 hover:bg-green-700 text-white`}
-          >
-            <WhatsAppIcon /> WhatsApp — I&apos;m a Manufacturer
-          </a>
+          {card.ctaButtons.map((btn) => {
+            const waMsg = t(btn.waMessage, btn.waMessageHe);
+            const waUrl = `https://wa.me/${card.whatsapp}?text=${encodeURIComponent(waMsg)}`;
+            const bgClass =
+              btn.audience === "buyer"
+                ? "bg-green-600 hover:bg-green-500"
+                : btn.audience === "supplier"
+                ? "bg-green-800 hover:bg-green-700"
+                : "bg-green-700 hover:bg-green-600";
+            return (
+              <a
+                key={btn.audience + btn.label}
+                href={waUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label={`Open WhatsApp as ${btn.audience}`}
+                onClick={() =>
+                  track("contact_card_whatsapp_clicked", {
+                    audience: btn.audience,
+                    source: "button",
+                  })
+                }
+                className={`${btnBase} ${bgClass} text-white`}
+              >
+                <WhatsAppIcon /> {t(btn.label, btn.labelHe)}
+              </a>
+            );
+          })}
         </div>
       </div>
+
+      {/* ── Active sourcing strip ── */}
+      {card.currentlySourcing && card.currentlySourcing.length > 0 && (
+        <div
+          className="mb-6 rounded-xl px-4 py-3"
+          style={{
+            background: "rgba(249,115,22,0.08)",
+            border: "1px solid rgba(249,115,22,0.2)",
+          }}
+        >
+          <p className="text-xs font-semibold text-orange-400 mb-2">
+            {isHe ? "כרגע מחפש:" : "Currently sourcing:"}
+          </p>
+          <ul className="space-y-1">
+            {(isHe
+              ? (card.currentlySourcingHe ?? card.currentlySourcing)
+              : card.currentlySourcing
+            ).map((item) => (
+              <li key={item} className="flex items-center gap-2 text-xs text-slate-300">
+                <span className="w-1.5 h-1.5 rounded-full bg-orange-400 shrink-0" />
+                {item}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       {/* ── Other actions ── */}
       <div className="space-y-2 mb-6">
@@ -152,7 +218,7 @@ export function ContactCard({ card, cardUrl }: Props) {
           onClick={() => track("contact_card_email_clicked", { source: "button" })}
           className={btnSecondary}
         >
-          <EmailIcon /> Email
+          <EmailIcon /> {isHe ? "אימייל" : "Email"}
         </a>
 
         <div className="grid grid-cols-2 gap-2">
@@ -164,7 +230,7 @@ export function ContactCard({ card, cardUrl }: Props) {
             onClick={() => track("contact_card_website_clicked", { source: "button" })}
             className={`${btnSecondary} w-auto`}
           >
-            Website
+            {isHe ? "אתר" : "Website"}
           </a>
           {card.linkedin && (
             <a
@@ -189,14 +255,14 @@ export function ContactCard({ card, cardUrl }: Props) {
           }
           className={`${btnBase} bg-orange-500 hover:bg-orange-600 text-white`}
         >
-          Save Contact
+          {isHe ? "שמור איש קשר" : "Save Contact"}
         </a>
       </div>
 
       {/* ── Copy row ── */}
       <div className="border border-white/10 rounded-2xl divide-y divide-white/10 mb-8">
         <div className="flex items-center justify-between px-4 py-3">
-          <span className="text-xs text-slate-500">Email</span>
+          <span className="text-xs text-slate-500">{isHe ? "דוא״ל" : "Email"}</span>
           <div className="flex items-center gap-3 min-w-0">
             <span className="text-xs text-slate-300 truncate">{card.email}</span>
             <CopyButton
@@ -207,7 +273,7 @@ export function ContactCard({ card, cardUrl }: Props) {
           </div>
         </div>
         <div className="flex items-center justify-between px-4 py-3">
-          <span className="text-xs text-slate-500">Phone</span>
+          <span className="text-xs text-slate-500">{isHe ? "טלפון" : "Phone"}</span>
           <div className="flex items-center gap-3">
             <span className="text-xs text-slate-300">{card.phone}</span>
             <CopyButton
@@ -218,7 +284,7 @@ export function ContactCard({ card, cardUrl }: Props) {
           </div>
         </div>
         <div className="flex items-center justify-between px-4 py-3">
-          <span className="text-xs text-slate-500">Link</span>
+          <span className="text-xs text-slate-500">{isHe ? "קישור" : "Link"}</span>
           <CopyButton
             text={cardUrl}
             label="link"
@@ -234,14 +300,16 @@ export function ContactCard({ card, cardUrl }: Props) {
           size={164}
           onRendered={() => track("contact_card_qr_rendered")}
         />
-        <p className="text-xs text-slate-600">Scan to open this card</p>
+        <p className="text-xs text-slate-600">
+          {isHe ? "סרקו לפתיחת הכרטיס" : "Scan to open this card"}
+        </p>
         <div className="flex items-center gap-4">
           <button
             onClick={handleCopyLink}
             aria-label="Copy card link"
             className="text-xs text-slate-400 hover:text-white transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-orange-400 rounded"
           >
-            {linkCopied ? "Copied!" : "Copy link"}
+            {linkCopied ? (isHe ? "הועתק!" : "Copied!") : (isHe ? "העתק קישור" : "Copy link")}
           </button>
           {canShare && (
             <button
@@ -249,7 +317,7 @@ export function ContactCard({ card, cardUrl }: Props) {
               aria-label="Share this card"
               className="text-xs text-slate-400 hover:text-white transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-orange-400 rounded"
             >
-              Share
+              {isHe ? "שתף" : "Share"}
             </button>
           )}
         </div>
