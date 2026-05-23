@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import ProductCard from "@/components/ProductCard";
 import ProductListRow from "@/components/ProductListRow";
 import SourcingWidget from "@/components/SourcingWidget";
+import BasketModal from "@/components/BasketModal";
 import { cleanProductName } from "@/lib/products/cleanProductName";
 import type { PublicCatalogueProduct, CategoryImageData } from "@/app/en/products/page";
 
@@ -27,10 +28,37 @@ export default function ProductGallery({ products, categoryImages }: Props) {
   const [requestProduct, setRequestProduct] =
     useState<PublicCatalogueProduct | null>(null);
 
+  const [basket, setBasket] = useState<PublicCatalogueProduct[]>([]);
+  const [basketModalOpen, setBasketModalOpen] = useState(false);
+
   useEffect(() => {
     const saved = localStorage.getItem("fdx-products-view");
     if (saved === "grid" || saved === "list") setView(saved);
   }, []);
+
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape" && basket.length > 0 && !basketModalOpen && !requestProduct) {
+        if (window.confirm(`Clear ${basket.length} selected product${basket.length !== 1 ? "s" : ""}?`)) {
+          setBasket([]);
+        }
+      }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [basket, basketModalOpen, requestProduct]);
+
+  function toggleBasket(product: PublicCatalogueProduct) {
+    setBasket((prev) =>
+      prev.some((p) => p.id === product.id)
+        ? prev.filter((p) => p.id !== product.id)
+        : [...prev, product]
+    );
+  }
+
+  function isInBasket(id: string) {
+    return basket.some((p) => p.id === id);
+  }
 
   function handleSetView(v: View) {
     setView(v);
@@ -154,7 +182,7 @@ export default function ProductGallery({ products, categoryImages }: Props) {
             </div>
             <div className="relative shrink-0 w-full sm:w-64">
               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm pointer-events-none">
-                🔍
+                &#x1F50D;
               </span>
               <input
                 type="text"
@@ -207,7 +235,7 @@ export default function ProductGallery({ products, categoryImages }: Props) {
                       : "text-slate-500 hover:bg-slate-50"
                   }`}
                 >
-                  ≡ List
+                  &#x2261; List
                 </button>
                 <button
                   type="button"
@@ -219,7 +247,7 @@ export default function ProductGallery({ products, categoryImages }: Props) {
                       : "text-slate-500 hover:bg-slate-50"
                   }`}
                 >
-                  ⊞ Grid
+                  &#x229E; Grid
                 </button>
               </div>
             </div>
@@ -231,7 +259,7 @@ export default function ProductGallery({ products, categoryImages }: Props) {
       <div className="max-w-7xl mx-auto px-6 py-10">
         {paginated.length === 0 ? (
           <div className="text-center py-20">
-            <p className="text-5xl mb-4">🔍</p>
+            <p className="text-5xl mb-4">&#x1F50D;</p>
             <p className="text-xl font-semibold text-slate-900 mb-2">
               No products found
             </p>
@@ -258,6 +286,8 @@ export default function ProductGallery({ products, categoryImages }: Props) {
                 onRequest={setRequestProduct}
                 showImages={showImages}
                 categoryImage={categoryImages[product.category]}
+                isInBasket={isInBasket(product.id)}
+                onToggleBasket={toggleBasket}
               />
             ))}
           </div>
@@ -268,6 +298,8 @@ export default function ProductGallery({ products, categoryImages }: Props) {
                 key={product.id}
                 product={product}
                 onRequest={setRequestProduct}
+                isInBasket={isInBasket(product.id)}
+                onToggleBasket={toggleBasket}
               />
             ))}
           </div>
@@ -313,14 +345,14 @@ export default function ProductGallery({ products, categoryImages }: Props) {
                 className="text-slate-400 hover:text-slate-600 text-xl leading-none shrink-0 ml-3"
                 aria-label="Close"
               >
-                ×
+                &times;
               </button>
             </div>
 
             {/* Pre-fill info */}
             <div className="mx-6 mt-4 bg-orange-50 border border-orange-100 rounded-xl p-4">
               <p className="text-xs font-semibold text-orange-700 mb-2">
-                ✦ We&apos;ll pre-fill your request with:
+                &#x2736; We&apos;ll pre-fill your request with:
               </p>
               <div className="flex flex-wrap gap-1.5">
                 <span className="bg-orange-100 text-orange-700 text-xs rounded-full px-2 py-0.5">
@@ -336,7 +368,7 @@ export default function ProductGallery({ products, categoryImages }: Props) {
                     key={k}
                     className="bg-orange-100 text-orange-700 text-xs rounded-full px-2 py-0.5"
                   >
-                    ✡ {k}
+                    &#x2721; {k}
                   </span>
                 ))}
                 {requestProduct.certifications.slice(0, 2).map((c) => (
@@ -361,6 +393,58 @@ export default function ProductGallery({ products, categoryImages }: Props) {
             </div>
           </div>
         </div>
+      )}
+
+      {/* BASKET BOTTOM BAR */}
+      <div
+        className={`fixed bottom-0 left-0 right-0 z-40 transition-transform duration-300 ${
+          basket.length > 0 ? "translate-y-0" : "translate-y-full"
+        }`}
+      >
+        <div className="bg-slate-900 border-t border-white/10 shadow-2xl px-6 py-3">
+          <div className="max-w-7xl mx-auto flex items-center gap-4 flex-wrap">
+            <span className="text-sm font-semibold text-white shrink-0">
+              {basket.length} product{basket.length !== 1 ? "s" : ""} selected
+            </span>
+
+            <div className="flex flex-wrap gap-1.5 flex-1 min-w-0">
+              {basket.slice(0, 3).map((p) => (
+                <span
+                  key={p.id}
+                  className="text-xs bg-white/10 text-slate-300 rounded-full px-2.5 py-0.5 truncate max-w-40"
+                >
+                  {cleanProductName(p.product_name, p.category)}
+                </span>
+              ))}
+              {basket.length > 3 && (
+                <span className="text-xs text-slate-500">
+                  +{basket.length - 3} more
+                </span>
+              )}
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setBasketModalOpen(true)}
+              className="shrink-0 bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold px-5 py-2 rounded-xl transition"
+            >
+              Request all &#x2192;
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* BASKET MODAL */}
+      {basketModalOpen && (
+        <BasketModal
+          basket={basket}
+          onRemove={(id) => setBasket((prev) => prev.filter((p) => p.id !== id))}
+          onClose={() => setBasketModalOpen(false)}
+          onSuccess={() => {
+            setBasket([]);
+            setBasketModalOpen(false);
+          }}
+        />
       )}
     </>
   );

@@ -6,24 +6,26 @@ import { cleanProductName, CATEGORY_COLORS } from "@/lib/products/cleanProductNa
 export interface ProductCardProps {
   product: PublicCatalogueProduct;
   onRequest: (product: PublicCatalogueProduct) => void;
+  isInBasket?: boolean;
+  onToggleBasket?: (product: PublicCatalogueProduct) => void;
 }
 
 const COUNTRY_FLAG: Record<string, string> = {
-  Spain: "🇪🇸",
-  Italy: "🇮🇹",
-  France: "🇫🇷",
-  Portugal: "🇵🇹",
-  Greece: "🇬🇷",
-  Turkey: "🇹🇷",
-  Morocco: "🇲🇦",
-  Israel: "🇮🇱",
-  Germany: "🇩🇪",
-  Netherlands: "🇳🇱",
-  Poland: "🇵🇱",
-  Belgium: "🇧🇪",
-  Ukraine: "🇺🇦",
-  Romania: "🇷🇴",
-  Bulgaria: "🇧🇬",
+  Spain: "\u{1F1EA}\u{1F1F8}",
+  Italy: "\u{1F1EE}\u{1F1F9}",
+  France: "\u{1F1EB}\u{1F1F7}",
+  Portugal: "\u{1F1F5}\u{1F1F9}",
+  Greece: "\u{1F1EC}\u{1F1F7}",
+  Turkey: "\u{1F1F9}\u{1F1F7}",
+  Morocco: "\u{1F1F2}\u{1F1E6}",
+  Israel: "\u{1F1EE}\u{1F1F1}",
+  Germany: "\u{1F1E9}\u{1F1EA}",
+  Netherlands: "\u{1F1F3}\u{1F1F1}",
+  Poland: "\u{1F1F5}\u{1F1F1}",
+  Belgium: "\u{1F1E7}\u{1F1EA}",
+  Ukraine: "\u{1F1FA}\u{1F1E6}",
+  Romania: "\u{1F1F7}\u{1F1F4}",
+  Bulgaria: "\u{1F1E7}\u{1F1EC}",
 };
 
 function certChipCls(cert: string): string {
@@ -40,10 +42,15 @@ function certChipCls(cert: string): string {
   return "bg-white/6 text-slate-400 border-white/10";
 }
 
-export default function ProductCard({ product, onRequest }: ProductCardProps) {
+export default function ProductCard({
+  product,
+  onRequest,
+  isInBasket = false,
+  onToggleBasket,
+}: ProductCardProps) {
   const color = CATEGORY_COLORS[product.category] ?? "#888780";
   const country = product.supplier?.country_of_origin ?? null;
-  const flag = country ? (COUNTRY_FLAG[country] ?? "🌍") : null;
+  const flag = country ? (COUNTRY_FLAG[country] ?? null) : null;
   const kosherType = product.kosher_types?.[0] ?? null;
   const displayCerts = product.certifications
     .filter((c) => !product.kosher_types.includes(c))
@@ -60,7 +67,7 @@ export default function ProductCard({ product, onRequest }: ProductCardProps) {
         {/* Kosher badge */}
         {kosherType && (
           <span className="badge-kosher absolute top-4 right-4">
-            ✡ {kosherType}
+            &#x2721; {kosherType}
           </span>
         )}
 
@@ -75,10 +82,9 @@ export default function ProductCard({ product, onRequest }: ProductCardProps) {
           {displayName}
         </p>
 
-        {product.supplier && (
+        {country && (
           <p className="text-xs text-slate-400">
-            {product.supplier.company_name}
-            {country ? ` · ${flag ?? country}` : ""}
+            {flag ? `${flag} ` : ""}{country}
           </p>
         )}
 
@@ -96,13 +102,26 @@ export default function ProductCard({ product, onRequest }: ProductCardProps) {
           </div>
         )}
 
-        {/* Request button */}
+        {/* Add to basket */}
+        <button
+          type="button"
+          onClick={() => onToggleBasket?.(product)}
+          className={`mt-3 w-full py-2 rounded-xl text-xs font-semibold border transition duration-200 ${
+            isInBasket
+              ? "bg-green-600 border-green-600 text-white"
+              : "bg-white/5 border-white/10 text-slate-400 hover:border-orange-500/40 hover:text-orange-400"
+          }`}
+        >
+          {isInBasket ? "Added ✓" : "Add +"}
+        </button>
+
+        {/* Request single */}
         <button
           type="button"
           onClick={() => onRequest(product)}
-          className="mt-3 w-full py-2.5 rounded-xl border border-brand-border text-orange-400 font-semibold text-sm hover:bg-brand hover:text-white hover:border-transparent transition duration-200"
+          className="mt-1.5 w-full py-2 rounded-xl text-xs font-medium text-slate-500 hover:text-orange-400 transition"
         >
-          Request →
+          Request &#x2192;
         </button>
       </div>
 

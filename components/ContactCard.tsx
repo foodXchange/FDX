@@ -145,7 +145,7 @@ export function ContactCard({ card, cardUrl }: Props) {
                 alt={photos[activePhoto].alt}
                 width={400}
                 height={220}
-                className="w-full h-full object-cover transition-opacity duration-200"
+                className="w-full h-full object-cover object-top transition-opacity duration-200"
                 priority={activePhoto === 0}
               />
             </div>

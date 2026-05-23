@@ -252,7 +252,7 @@ export default async function PortfolioItemPage({
               <div>
                 <SectionHeading num="01" label="The sourcing brief" />
                 <div
-                  className="prose prose-slate max-w-none"
+                  className="prose prose-invert max-w-none"
                   dangerouslySetInnerHTML={{ __html: sections.brief }}
                 />
               </div>
@@ -280,7 +280,7 @@ export default async function PortfolioItemPage({
                   </ul>
                 ) : (
                   <div
-                    className="prose prose-slate max-w-none"
+                    className="prose prose-invert max-w-none"
                     dangerouslySetInnerHTML={{ __html: sections.validated }}
                   />
                 )}
@@ -290,7 +290,7 @@ export default async function PortfolioItemPage({
               <div>
                 <SectionHeading num="04" label="What we found" />
                 <div
-                  className="prose prose-slate max-w-none"
+                  className="prose prose-invert max-w-none"
                   dangerouslySetInnerHTML={{ __html: sections.findings }}
                 />
               </div>
@@ -303,7 +303,7 @@ export default async function PortfolioItemPage({
                     {toBullets(sections.takeaways).map((point, i) => (
                       <div
                         key={i}
-                        className="bg-orange-50 border border-orange-100 rounded-xl p-4 text-sm text-slate-700"
+                        className="bg-orange-500/10 border border-orange-400/20 rounded-xl p-4 text-sm"
                       >
                         {point}
                       </div>
@@ -311,7 +311,7 @@ export default async function PortfolioItemPage({
                   </div>
                 ) : (
                   <div
-                    className="prose prose-slate max-w-none"
+                    className="prose prose-invert max-w-none"
                     dangerouslySetInnerHTML={{ __html: sections.takeaways }}
                   />
                 )}
@@ -324,11 +324,11 @@ export default async function PortfolioItemPage({
       {/* METADATA CHIPS */}
       {hasChips && (
         <section className="max-w-3xl mx-auto px-6 pb-12">
-          <div className="border-t border-slate-100 pt-8 flex flex-wrap gap-2">
+          <div className="border-t border-white/10 pt-8 flex flex-wrap gap-2">
             {markets.map((m) => (
               <span
                 key={m}
-                className="text-xs px-3 py-1 rounded-full border bg-blue-50 text-blue-700 border-blue-200"
+                className="text-xs px-3 py-1 rounded-full border bg-blue-500/10 text-blue-300 border-blue-400/20"
               >
                 {m}
               </span>
@@ -336,7 +336,7 @@ export default async function PortfolioItemPage({
             {formats.map((f) => (
               <span
                 key={f}
-                className="text-xs px-3 py-1 rounded-full border bg-slate-100 text-slate-600 border-slate-200"
+                className="text-xs px-3 py-1 rounded-full border bg-white/5 text-slate-300 border-white/10"
               >
                 {f}
               </span>
@@ -344,7 +344,7 @@ export default async function PortfolioItemPage({
             {certifications.map((c) => (
               <span
                 key={c}
-                className="text-xs px-3 py-1 rounded-full border bg-green-50 text-green-700 border-green-200"
+                className="text-xs px-3 py-1 rounded-full border bg-green-500/10 text-green-300 border-green-400/20"
               >
                 {c}
               </span>
@@ -352,7 +352,7 @@ export default async function PortfolioItemPage({
             {tags.map((t) => (
               <span
                 key={t}
-                className="text-xs px-3 py-1 rounded-full border bg-orange-50 text-orange-700 border-orange-200"
+                className="text-xs px-3 py-1 rounded-full border bg-orange-500/10 text-orange-300 border-orange-400/20"
               >
                 {t}
               </span>
@@ -365,21 +365,21 @@ export default async function PortfolioItemPage({
       {(markets.length > 0 || formats.length > 0 || certifications.length > 0) && (
         <section className="max-w-3xl mx-auto px-6 pb-12">
           <div className="grid grid-cols-3 gap-4">
-            <div className="text-center p-4 bg-slate-50 rounded-xl">
-              <p className="text-2xl font-bold text-slate-900">{markets.length}</p>
-              <p className="text-xs text-slate-500 mt-1">
+            <div className="text-center p-4 dark-card">
+              <p className="text-2xl font-bold">{markets.length}</p>
+              <p className="text-xs text-slate-400 mt-1">
                 Target {markets.length === 1 ? "market" : "markets"}
               </p>
             </div>
-            <div className="text-center p-4 bg-slate-50 rounded-xl">
-              <p className="text-2xl font-bold text-slate-900">{formats.length}</p>
-              <p className="text-xs text-slate-500 mt-1">
+            <div className="text-center p-4 dark-card">
+              <p className="text-2xl font-bold">{formats.length}</p>
+              <p className="text-xs text-slate-400 mt-1">
                 {formats.length === 1 ? "Format" : "Formats"} validated
               </p>
             </div>
-            <div className="text-center p-4 bg-slate-50 rounded-xl">
-              <p className="text-2xl font-bold text-slate-900">{certifications.length}</p>
-              <p className="text-xs text-slate-500 mt-1">
+            <div className="text-center p-4 dark-card">
+              <p className="text-2xl font-bold">{certifications.length}</p>
+              <p className="text-xs text-slate-400 mt-1">
                 {certifications.length === 1 ? "Certification" : "Certifications"} required
               </p>
             </div>
@@ -389,8 +389,8 @@ export default async function PortfolioItemPage({
 
       {/* RELATED SCENARIOS */}
       {related.length > 0 && (
-        <section className="max-w-3xl mx-auto px-6 py-12 border-t border-slate-100">
-          <h2 className="text-xl font-semibold text-slate-900 mb-6">
+        <section className="max-w-3xl mx-auto px-6 py-12 border-t border-white/10">
+          <h2 className="text-xl font-semibold mb-6">
             Related scenarios
           </h2>
           <div className="grid md:grid-cols-3 gap-6">
@@ -398,7 +398,7 @@ export default async function PortfolioItemPage({
               <Link
                 key={r.slug}
                 href={`/en/portfolio/${r.slug}`}
-                className="group block border border-slate-200 rounded-xl overflow-hidden hover:shadow-md transition"
+                className="dark-card group block overflow-hidden hover:shadow-md transition"
               >
                 <div className="relative w-full h-32">
                   {r.hero_image ? (
@@ -416,11 +416,11 @@ export default async function PortfolioItemPage({
                 </div>
                 <div className="p-4">
                   {r.category && (
-                    <span className="text-xs text-orange-600 font-medium">
+                    <span className="text-xs text-orange-400 font-medium">
                       {r.category}
                     </span>
                   )}
-                  <p className="text-sm font-medium text-slate-900 mt-1 line-clamp-2">
+                  <p className="text-sm font-medium mt-1 line-clamp-2">
                     {r.title}
                   </p>
                 </div>
@@ -431,23 +431,23 @@ export default async function PortfolioItemPage({
       )}
 
       {/* CTA */}
-      <section className="bg-slate-50 py-16 text-center px-6">
+      <section className="border-t border-white/10 py-16 text-center px-6">
         <h2 className="text-2xl font-semibold mb-4">
           Relevant to your sourcing?
         </h2>
-        <p className="text-slate-600 mb-6">
+        <p className="text-slate-400 mb-6">
           Tell us what you&apos;re working on and we&apos;ll see if we can help.
         </p>
         <div className="flex gap-4 justify-center flex-wrap">
           <Link
             href="/en/contact"
-            className="bg-orange-500 hover:bg-orange-600 text-white px-6 py-3 rounded-md font-semibold transition focus:outline-none focus:ring-2 focus:ring-orange-400 focus:ring-offset-2 focus:ring-offset-slate-50"
+            className="bg-orange-500 hover:bg-orange-600 text-white px-6 py-3 rounded-md font-semibold transition focus:outline-none focus:ring-2 focus:ring-orange-400 focus:ring-offset-2"
           >
             Start a conversation →
           </Link>
           <Link
             href="/en/portfolio"
-            className="border border-slate-300 hover:border-slate-400 px-6 py-3 rounded-md font-medium transition focus:outline-none focus:ring-2 focus:ring-slate-300 focus:ring-offset-2 focus:ring-offset-slate-50"
+            className="btn-ghost px-6 py-3 rounded-md font-medium focus:outline-none focus:ring-2 focus:ring-slate-400 focus:ring-offset-2"
           >
             Back to scenarios
           </Link>
