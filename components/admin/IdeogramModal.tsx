@@ -6,7 +6,7 @@ interface Props {
   onClose: () => void;
 }
 
-const PROMPTS: Array<{ category: string; prompt: string }> = [
+export const PROMPTS: Array<{ category: string; prompt: string }> = [
   {
     category: "Oils & Fats",
     prompt: `Generate image: Premium extra virgin olive oil bottles in 750ml glass on worn marble surface, scattered green olive branches, golden afternoon Mediterranean light, one bottle open with thin stream of oil catching light, blurred stone wall background. Act as a professional photo editing manager for a premium food trade magazine. Style: editorial food photography. Lighting: natural warm Mediterranean golden hour. Color palette: warm gold, deep green, warm stone. No text, no logos, no faces. Format: 16:9 landscape.`,

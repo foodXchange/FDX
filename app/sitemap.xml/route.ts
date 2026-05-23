@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { supabaseServer } from "@/lib/supabase-server";
 import { supabase } from "@/lib/supabase";
+import { CATEGORY_SLUGS } from "@/lib/products/categorySlug";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -73,16 +74,11 @@ export async function GET() {
     priority: 0.6,
   }));
 
-  // Catalogue products (public gallery)
-  const { data: catalogueProducts } = await supabase
-    .from("catalogue_products")
-    .select("id, updated_at")
-    .eq("status", "ready");
-
-  const productUrls = (catalogueProducts || []).map((p) => ({
-    loc: `${baseUrl}/en/products/${p.id}`,
-    lastmod: new Date(p.updated_at).toISOString().split("T")[0],
-    changefreq: "monthly",
+  // Category product pages
+  const categoryUrls = Object.values(CATEGORY_SLUGS).map((slug) => ({
+    loc: `${baseUrl}/en/products/${slug}`,
+    lastmod: today,
+    changefreq: "weekly",
     priority: 0.8,
   }));
 
@@ -110,10 +106,10 @@ export async function GET() {
 
   const allUrls = [
     ...staticUrls,
+    ...categoryUrls,
     ...blogUrls,
     ...newsletterUrls,
     ...portfolioUrls,
-    ...productUrls,
     ...importGuideStaticUrls,
     ...importGuideArticleUrls,
   ];
