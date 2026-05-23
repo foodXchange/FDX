@@ -28,6 +28,10 @@ export function ContactCard({ card, cardUrl }: Props) {
   const [linkCopied, setLinkCopied] = useState(false);
   const [canShare, setCanShare] = useState(false);
   const [lang, setLang] = useState<"en" | "he">("en");
+  const [activePhoto, setActivePhoto] = useState(0);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  const touchStartX = useRef(0);
+  const touchStartY = useRef(0);
 
   useEffect(() => {
     const saved = localStorage.getItem("card-lang") as "en" | "he" | null;
@@ -52,6 +56,12 @@ export function ContactCard({ card, cardUrl }: Props) {
         userAgent: navigator.userAgent,
       }),
     }).catch(() => {});
+
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") setLightboxOpen(false);
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -89,6 +99,8 @@ export function ContactCard({ card, cardUrl }: Props) {
 
   const initials = card.firstName[0] + card.lastName[0];
   const showPhoto = !!(card.imageUrl && !imgError);
+  const photos = card.photos ?? [];
+  const hasGallery = photos.length >= 2;
 
   const btnBase =
     "min-h-[44px] rounded-xl font-medium text-sm transition-all duration-200 flex items-center gap-2 justify-center w-full active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900";
@@ -109,8 +121,80 @@ export function ContactCard({ card, cardUrl }: Props) {
           {isHe ? "EN" : "עב"}
         </button>
 
-        {showPhoto ? (
-          <div className="w-24 h-24 rounded-full overflow-hidden ring-2 ring-white/20 shadow-lg mb-4 shrink-0">
+        {hasGallery ? (
+          <div className="w-full mb-4">
+            {/* Main photo */}
+            <div
+              className="w-full overflow-hidden rounded-xl cursor-pointer"
+              style={{ height: 220 }}
+              onClick={() => setLightboxOpen(true)}
+              onTouchStart={(e) => {
+                touchStartX.current = e.touches[0].clientX;
+                touchStartY.current = e.touches[0].clientY;
+              }}
+              onTouchEnd={(e) => {
+                const dx = e.changedTouches[0].clientX - touchStartX.current;
+                if (Math.abs(dx) > 50) {
+                  if (dx < 0) setActivePhoto((prev) => (prev + 1) % photos.length);
+                  else setActivePhoto((prev) => (prev - 1 + photos.length) % photos.length);
+                }
+              }}
+            >
+              <Image
+                src={photos[activePhoto].src}
+                alt={photos[activePhoto].alt}
+                width={400}
+                height={220}
+                className="w-full h-full object-cover transition-opacity duration-200"
+                priority={activePhoto === 0}
+              />
+            </div>
+
+            {/* Thumbnail strip */}
+            <div className="flex justify-center gap-2 mt-2">
+              {photos.map((ph, i) => (
+                <button
+                  key={ph.src}
+                  onClick={() => setActivePhoto(i)}
+                  className="shrink-0 rounded-lg overflow-hidden focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-orange-400"
+                  style={{
+                    width: 52,
+                    height: 52,
+                    border: i === activePhoto ? "2px solid #f97316" : "2px solid transparent",
+                    opacity: i === activePhoto ? 1 : 0.6,
+                    transform: i === activePhoto ? "scale(1.05)" : "scale(1)",
+                    transition: "all 0.15s",
+                  }}
+                  aria-label={ph.alt}
+                >
+                  <Image
+                    src={ph.src}
+                    alt={ph.alt}
+                    width={52}
+                    height={52}
+                    className="w-full h-full object-cover"
+                  />
+                </button>
+              ))}
+            </div>
+
+            {/* Caption */}
+            {photos[activePhoto].caption && (
+              <p
+                className="text-center mt-1.5"
+                style={{ fontSize: 11, color: "rgba(255,255,255,0.4)" }}
+              >
+                {photos[activePhoto].caption}
+              </p>
+            )}
+          </div>
+        ) : showPhoto ? (
+          <div
+            className="w-24 h-24 rounded-full overflow-hidden ring-2 ring-white/20 shadow-lg mb-4 shrink-0 cursor-pointer"
+            onClick={() => {
+              if (photos.length === 1) setLightboxOpen(true);
+            }}
+          >
             <Image
               src={card.imageUrl!}
               alt={card.name}
@@ -125,6 +209,7 @@ export function ContactCard({ card, cardUrl }: Props) {
             <span className="text-2xl font-black text-white select-none">{initials}</span>
           </div>
         )}
+
         <h1 className="text-2xl font-semibold text-white tracking-tight">
           {t(card.name, card.nameHe)}
         </h1>
@@ -132,7 +217,7 @@ export function ContactCard({ card, cardUrl }: Props) {
           {t(card.title, card.titleHe)}
         </p>
         <p className="text-sm text-slate-400">{card.company}</p>
-        <p className="text-sm text-slate-300 leading-relaxed mt-3 max-w-[240px]">
+        <p className="text-sm text-slate-300 leading-relaxed mt-3 max-w-60">
           {t(card.tagline, card.taglineHe)}
         </p>
 
@@ -283,14 +368,6 @@ export function ContactCard({ card, cardUrl }: Props) {
             />
           </div>
         </div>
-        <div className="flex items-center justify-between px-4 py-3">
-          <span className="text-xs text-slate-500">{isHe ? "קישור" : "Link"}</span>
-          <CopyButton
-            text={cardUrl}
-            label="link"
-            onCopied={() => track("contact_card_copy_clicked", { field: "link" })}
-          />
-        </div>
       </div>
 
       {/* ── QR Code ── */}
@@ -322,6 +399,98 @@ export function ContactCard({ card, cardUrl }: Props) {
           )}
         </div>
       </div>
+
+      {/* ── Lightbox ── */}
+      {lightboxOpen && photos.length > 0 && (
+        <div
+          className="fixed inset-0 flex flex-col items-center justify-center"
+          style={{ background: "rgba(0,0,0,0.95)", zIndex: 100 }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setLightboxOpen(false);
+          }}
+          onTouchStart={(e) => {
+            touchStartX.current = e.touches[0].clientX;
+            touchStartY.current = e.touches[0].clientY;
+          }}
+          onTouchEnd={(e) => {
+            const dx = e.changedTouches[0].clientX - touchStartX.current;
+            const dy = e.changedTouches[0].clientY - touchStartY.current;
+            if (Math.abs(dy) > 60 && Math.abs(dy) > Math.abs(dx)) {
+              setLightboxOpen(false);
+            } else if (Math.abs(dx) > 50) {
+              if (dx < 0) setActivePhoto((prev) => (prev + 1) % photos.length);
+              else setActivePhoto((prev) => (prev - 1 + photos.length) % photos.length);
+            }
+          }}
+        >
+          {/* Close */}
+          <button
+            onClick={() => setLightboxOpen(false)}
+            className="absolute top-4 right-4 text-white flex items-center justify-center rounded-full"
+            style={{ width: 44, height: 44, fontSize: 24, background: "rgba(255,255,255,0.15)" }}
+            aria-label="Close"
+          >
+            ×
+          </button>
+
+          {/* Prev */}
+          {photos.length > 1 && (
+            <button
+              onClick={() =>
+                setActivePhoto((prev) => (prev - 1 + photos.length) % photos.length)
+              }
+              className="absolute left-4 text-white flex items-center justify-center rounded-full"
+              style={{
+                width: 44,
+                height: 44,
+                fontSize: 22,
+                background: "rgba(255,255,255,0.15)",
+                top: "50%",
+                transform: "translateY(-50%)",
+              }}
+              aria-label="Previous photo"
+            >
+              ‹
+            </button>
+          )}
+
+          {/* Photo + caption */}
+          <div className="flex flex-col items-center px-16" style={{ maxWidth: "100vw" }}>
+            <Image
+              src={photos[activePhoto].src}
+              alt={photos[activePhoto].alt}
+              width={800}
+              height={600}
+              className="rounded-lg object-contain"
+              style={{ maxWidth: "100vw", maxHeight: "85vh" }}
+            />
+            {photos[activePhoto].caption && (
+              <p className="text-white text-center mt-3" style={{ fontSize: 13 }}>
+                {photos[activePhoto].caption}
+              </p>
+            )}
+          </div>
+
+          {/* Next */}
+          {photos.length > 1 && (
+            <button
+              onClick={() => setActivePhoto((prev) => (prev + 1) % photos.length)}
+              className="absolute right-4 text-white flex items-center justify-center rounded-full"
+              style={{
+                width: 44,
+                height: 44,
+                fontSize: 22,
+                background: "rgba(255,255,255,0.15)",
+                top: "50%",
+                transform: "translateY(-50%)",
+              }}
+              aria-label="Next photo"
+            >
+              ›
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 }

@@ -57,7 +57,7 @@ export default function AboutPage() {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
 
-      <main id="main" className="bg-white text-slate-800">
+      <main id="main">
 
         {/* ── HERO ── */}
         <section className="bg-linear-to-b from-slate-900 to-slate-800 px-6 py-20 sm:py-24 text-center">
@@ -88,7 +88,7 @@ export default function AboutPage() {
         </section>
 
         {/* ── PROOF CARDS ── */}
-        <section className="px-6 py-16 border-t border-slate-100">
+        <section className="px-6 py-16 border-t border-white/10">
           <div className="max-w-5xl mx-auto grid md:grid-cols-3 gap-6">
             {[
               { stat: "15+", label: "years", detail: "In international food sourcing and trade" },
@@ -96,10 +96,10 @@ export default function AboutPage() {
               { stat: "Long-term", label: "supply", detail: "We build for continuity, not one-off deals" },
             ].map((item, i) => (
               <Reveal key={i}>
-                <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm hover:-translate-y-0.5 hover:shadow-md transition text-center">
+                <div className="dark-card p-6 hover:-translate-y-0.5 transition text-center">
                   <div className="text-2xl font-black text-orange-500">{item.stat}</div>
-                  <div className="text-sm font-semibold text-slate-700 mt-0.5">{item.label}</div>
-                  <p className="text-xs text-slate-500 mt-2 leading-relaxed">{item.detail}</p>
+                  <div className="text-sm font-semibold mt-0.5">{item.label}</div>
+                  <p className="text-xs text-slate-400 mt-2 leading-relaxed">{item.detail}</p>
                 </div>
               </Reveal>
             ))}
@@ -107,14 +107,14 @@ export default function AboutPage() {
         </section>
 
         {/* ── WHAT WE DO DIFFERENTLY ── */}
-        <section className="px-6 py-20 border-t border-slate-100">
+        <section className="px-6 py-20 border-t border-white/10">
           <div className="max-w-4xl mx-auto">
             <Reveal>
               <h2 className="text-2xl md:text-3xl font-semibold mb-8">What We Do Differently</h2>
             </Reveal>
 
             <Reveal>
-              <div className="space-y-5 text-slate-600 text-base leading-relaxed">
+              <div className="space-y-5 text-base leading-relaxed opacity-85">
                 <p>
                   Most sourcing platforms focus on volume — getting as many connections in front of
                   as many people as possible. We focus on fit.
@@ -135,18 +135,18 @@ export default function AboutPage() {
             <Reveal>
               <div className="mt-12 border-l-4 border-orange-500 pl-8 py-2">
                 <span className="block text-5xl text-orange-400 font-serif leading-none mb-2">&ldquo;</span>
-                <p className="text-xl text-slate-700 italic leading-relaxed font-medium">
+                <p className="text-xl italic leading-relaxed font-medium">
                   The market is small enough that reputation matters above everything.
                   We only make introductions we believe in.
                 </p>
-                <p className="mt-4 text-sm text-slate-500 font-semibold">— Udi Stryk, Founder</p>
+                <p className="mt-4 text-sm text-slate-400 font-semibold">— Udi Stryk, Founder</p>
               </div>
             </Reveal>
           </div>
         </section>
 
         {/* ── FOUNDER ── */}
-        <section className="px-6 py-24 border-t border-slate-100">
+        <section className="px-6 py-24 border-t border-white/10">
           <div className="max-w-5xl mx-auto grid md:grid-cols-2 gap-12 items-center">
             <Reveal className="flex justify-center md:justify-start">
               <div className="relative w-[280px] h-[280px] sm:w-[360px] sm:h-[360px] lg:w-[432px] lg:h-[432px] rounded-2xl overflow-hidden border border-slate-200 shadow-sm hover:shadow-xl transition hover:scale-[1.02]">
@@ -166,10 +166,10 @@ export default function AboutPage() {
             </Reveal>
 
             <Reveal>
-              <div className="bg-white border border-slate-200 rounded-2xl p-8 shadow-sm hover:-translate-y-0.5 hover:shadow-md transition">
-                <h2 className="text-2xl font-bold text-slate-900 mb-5">Udi Stryk — Founder &amp; Operator</h2>
+              <div className="dark-card p-8 hover:-translate-y-0.5 transition">
+                <h2 className="text-2xl font-bold mb-5">Udi Stryk — Founder &amp; Operator</h2>
 
-                <div className="space-y-3 text-slate-600 text-sm leading-relaxed">
+                <div className="space-y-3 text-sm leading-relaxed opacity-85">
                   <p>
                     15 years building real sourcing partnerships — not just sending introductions
                     and hoping for the best.
@@ -185,23 +185,23 @@ export default function AboutPage() {
                   </p>
                 </div>
 
-                <p className="mt-6 text-sm text-slate-600 italic border-l-2 border-orange-300 pl-4">
+                <p className="mt-6 text-sm italic border-l-2 border-orange-400 pl-4 opacity-85">
                   "Trusted by buyers and manufacturers across multiple categories — with
                   confidentiality as a core principle."
                 </p>
 
-                <div className="grid grid-cols-3 gap-4 mt-6 text-center border-t border-slate-100 pt-6">
+                <div className="grid grid-cols-3 gap-4 mt-6 text-center border-t border-white/10 pt-6">
                   <div>
                     <p className="text-lg font-bold text-orange-500">15+</p>
-                    <p className="text-xs text-slate-500 mt-0.5">Years</p>
+                    <p className="text-xs text-slate-400 mt-0.5">Years</p>
                   </div>
                   <div>
                     <p className="text-lg font-bold text-orange-500">Multi</p>
-                    <p className="text-xs text-slate-500 mt-0.5">Categories</p>
+                    <p className="text-xs text-slate-400 mt-0.5">Categories</p>
                   </div>
                   <div>
                     <p className="text-lg font-bold text-orange-500">Ongoing</p>
-                    <p className="text-xs text-slate-500 mt-0.5">Supply</p>
+                    <p className="text-xs text-slate-400 mt-0.5">Supply</p>
                   </div>
                 </div>
 
@@ -213,7 +213,7 @@ export default function AboutPage() {
                     href="https://www.linkedin.com/in/udi-stryk/"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center justify-center rounded-md font-semibold transition border border-slate-300 text-slate-800 hover:bg-slate-50 px-4 py-2 text-sm"
+                    className="btn-ghost inline-flex items-center justify-center rounded-md font-semibold px-4 py-2 text-sm"
                   >
                     LinkedIn →
                   </a>
@@ -224,12 +224,12 @@ export default function AboutPage() {
         </section>
 
         {/* ── HOW WE WORK ── */}
-        <section className="px-6 py-20 bg-slate-50 border-t border-slate-100">
+        <section className="px-6 py-20 border-t border-white/10">
           <div className="max-w-5xl mx-auto">
             <Reveal>
               <div className="text-center mb-12">
-                <h2 className="text-2xl md:text-3xl font-semibold text-slate-900">How We Work</h2>
-                <p className="text-slate-500 mt-3 max-w-xl mx-auto">
+                <h2 className="text-2xl md:text-3xl font-semibold">How We Work</h2>
+                <p className="text-slate-400 mt-3 max-w-xl mx-auto">
                   Three steps. No noise. A real answer at the end of each one.
                 </p>
               </div>
@@ -254,12 +254,12 @@ export default function AboutPage() {
                 },
               ].map((step, i) => (
                 <Reveal key={i}>
-                  <div className="bg-white border border-slate-200 rounded-2xl p-7 shadow-sm h-full">
+                  <div className="dark-card p-7 h-full">
                     <div className="w-11 h-11 mb-5 bg-orange-500 text-white rounded-full flex items-center justify-center font-black text-lg">
                       {step.n}
                     </div>
-                    <h3 className="font-semibold text-slate-900 mb-2">{step.title}</h3>
-                    <p className="text-sm text-slate-600 leading-relaxed">{step.body}</p>
+                    <h3 className="font-semibold mb-2">{step.title}</h3>
+                    <p className="text-sm text-slate-400 leading-relaxed">{step.body}</p>
                   </div>
                 </Reveal>
               ))}
@@ -268,7 +268,7 @@ export default function AboutPage() {
         </section>
 
         {/* ── MARKET IMAGE ── */}
-        <section className="px-6 py-12 bg-white border-t border-slate-100">
+        <section className="px-6 py-12 border-t border-white/10">
           <div className="max-w-4xl mx-auto">
             <Reveal>
               <div className="relative w-full rounded-2xl overflow-hidden" style={{ height: "320px" }}>

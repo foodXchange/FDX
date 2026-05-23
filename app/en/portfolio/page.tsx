@@ -37,7 +37,7 @@ export default async function PortfolioPage() {
   const items = await getItems();
 
   return (
-    <main className="bg-white text-slate-900">
+    <main>
 
       {/* HERO */}
       <section className="bg-linear-to-b from-slate-900 to-slate-800 text-white py-20 px-6 text-center">

@@ -18,6 +18,12 @@ interface PersonaContent {
   ctaButtons?: CtaButton[];
 }
 
+interface PhotoEntry {
+  src: string;
+  alt: string;
+  caption?: string;
+}
+
 interface ContactCardData {
   handle: string;
   name: string;
@@ -37,6 +43,7 @@ interface ContactCardData {
   website: string;
   linkedin?: string;
   imageUrl?: string;
+  photos?: PhotoEntry[];
   currentlySourcing?: string[];
   currentlySourcingHe?: string[];
   defaultCtaButtons?: CtaButton[];
@@ -63,6 +70,7 @@ export interface ContactCard {
   website: string;
   linkedin?: string;
   imageUrl?: string;
+  photos?: PhotoEntry[];
   currentlySourcing?: string[];
   currentlySourcingHe?: string[];
   ctaButtons: CtaButton[];
@@ -87,9 +95,25 @@ const rawCards: ContactCardData[] = [
     email: "info@foodz-x.com",
     phone: "+972525222291",
     whatsapp: "972525222291",
-    website: "https://foodz-x.com",
+    website: "https://fdx.trading",
     linkedin: "https://www.linkedin.com/in/udi-stryk/",
     imageUrl: "/founder-udi.jpeg",
+    photos: [
+      {
+        src: "/founder-udi.jpeg",
+        alt: "Udi Stryk — FoodXchange",
+      },
+      {
+        src: "/udi-tradeshow.jpg",
+        alt: "Meeting suppliers at international food trade show",
+        caption: "International food trade show",
+      },
+      {
+        src: "/udi-factory.jpg",
+        alt: "Visiting supplier logistics facility",
+        caption: "Supplier facility visit",
+      },
+    ],
     defaultCtaButtons: [
       {
         label: "WhatsApp — I'm a Buyer",
@@ -204,6 +228,7 @@ export function getCard(handle: string): ContactCard | null {
     website: data.website,
     linkedin: data.linkedin,
     imageUrl: data.imageUrl,
+    photos: data.photos,
     currentlySourcing: p?.currentlySourcing ?? data.currentlySourcing,
     currentlySourcingHe: p?.currentlySourcingHe ?? data.currentlySourcingHe,
     ctaButtons: p?.ctaButtons ?? data.defaultCtaButtons ?? [],

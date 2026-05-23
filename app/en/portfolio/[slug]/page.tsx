@@ -182,7 +182,7 @@ export default async function PortfolioItemPage({
     tags.length > 0;
 
   return (
-    <main className="bg-white text-slate-900">
+    <main>
 
       {/* HERO */}
       <section className="bg-linear-to-b from-slate-900 to-slate-800 text-white py-16 px-6">
@@ -235,14 +235,14 @@ export default async function PortfolioItemPage({
           return (
             <section className="max-w-3xl mx-auto px-6 py-12">
               <div
-                className="prose prose-lg max-w-none prose-headings:text-slate-900 prose-p:text-slate-800 prose-a:text-orange-600 hover:prose-a:underline"
+                className="prose prose-invert prose-lg max-w-none prose-a:text-orange-400 hover:prose-a:underline"
                 dangerouslySetInnerHTML={{ __html: item.content }}
               />
             </section>
           );
         }
         const SectionHeading = ({ num, label }: { num: string; label: string }) => (
-          <h2 className="text-xl font-semibold text-slate-900 mb-4 flex items-center gap-2">
+          <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
             <span className="text-orange-500">{num}</span> {label}
           </h2>
         );
@@ -261,7 +261,7 @@ export default async function PortfolioItemPage({
               <div>
                 <SectionHeading num="02" label="The market challenge" />
                 <div
-                  className="bg-slate-50 border-l-4 border-orange-500 rounded-r-xl px-6 py-5 prose prose-slate max-w-none"
+                  className="bg-white/5 border-l-4 border-orange-500 rounded-r-xl px-6 py-5 prose prose-invert max-w-none"
                   dangerouslySetInnerHTML={{ __html: sections.challenge }}
                 />
               </div>
@@ -272,7 +272,7 @@ export default async function PortfolioItemPage({
                 {toBullets(sections.validated).length > 0 ? (
                   <ul className="space-y-2">
                     {toBullets(sections.validated).map((point, i) => (
-                      <li key={i} className="flex items-start gap-3 text-sm text-slate-700">
+                      <li key={i} className="flex items-start gap-3 text-sm">
                         <span className="text-green-600 mt-0.5 shrink-0">✓</span>
                         {point}
                       </li>

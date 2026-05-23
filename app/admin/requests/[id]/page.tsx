@@ -1,0 +1,147 @@
+import Link from "next/link";
+import type { Metadata } from "next";
+import { notFound } from "next/navigation";
+import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { cleanRequestName } from "@/lib/matching/cleanRequestName";
+import MatchCards from "./MatchCards";
+
+export const metadata: Metadata = { title: "Request Detail | Admin" };
+
+interface PageProps {
+  params: Promise<{ id: string }>;
+}
+
+export type SavedMatch = {
+  id: string;
+  supplier_id: string;
+  match_score: number;
+  product_name: string;
+  company_name: string;
+  country: string | null;
+  match_summary: string | null;
+  whatsapp_message: string | null;
+  match_breakdown: {
+    reasons?: string[];
+    score_breakdown?: Record<string, number>;
+    kosher_types?: string[];
+    certifications?: string[];
+  } | null;
+  status: string;
+  approved_at: string | null;
+  rejected_at: string | null;
+};
+
+export default async function RequestDetailPage({ params }: PageProps) {
+  const { id } = await params;
+
+  const [{ data: request, error }, { data: rawMatches }] = await Promise.all([
+    supabaseAdmin.from("sourcing_requests").select("*").eq("id", id).single(),
+    supabaseAdmin
+      .from("sourcing_matches")
+      .select(
+        "id, supplier_id, match_score, product_name, company_name, country, match_summary, whatsapp_message, match_breakdown, status, approved_at, rejected_at"
+      )
+      .eq("request_id", id)
+      .order("match_score", { ascending: false }),
+  ]);
+
+  if (error || !request) notFound();
+
+  const productName = (request.product_name as string | null) ?? "";
+  const cleanedName = productName ? cleanRequestName(productName) : "";
+  const isNameCleaned = cleanedName !== productName && cleanedName.length > 0;
+
+  const matches = (rawMatches ?? []) as SavedMatch[];
+  const certs = (request.certifications as string[] | null) ?? [];
+  const hasKosher = certs.some((c) => c.toLowerCase().includes("kosher"));
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      {/* Header */}
+      <div className="border-b border-gray-200 bg-white px-6 py-4 sticky top-0 z-10 shadow-sm">
+        <div className="flex items-center gap-3 max-w-5xl mx-auto">
+          <Link
+            href="/admin/requests"
+            className="text-sm text-slate-500 hover:text-slate-800 transition-colors"
+          >
+            ← Requests
+          </Link>
+          <span className="text-slate-300">/</span>
+          <span className="text-sm font-medium text-slate-700 truncate max-w-xs">
+            {cleanedName || productName || "Request"}
+          </span>
+        </div>
+      </div>
+
+      <div className="max-w-5xl mx-auto px-6 py-8 space-y-8">
+        {/* ── Request details ── */}
+        <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
+          <div className="flex items-start justify-between gap-4 flex-wrap mb-4">
+            <div>
+              <h1 className="text-xl font-semibold text-gray-900">
+                {cleanedName || productName || "—"}
+              </h1>
+              {isNameCleaned && (
+                <p className="text-xs text-gray-400 mt-0.5">
+                  Original: {productName}
+                </p>
+              )}
+            </div>
+            <StatusBadge status={request.status as string | null} />
+          </div>
+
+          <div className="flex flex-wrap gap-2">
+            {request.company && (
+              <span className="text-xs bg-slate-100 text-slate-700 rounded-full px-3 py-1 font-medium">
+                {request.company as string}
+              </span>
+            )}
+            {request.category && (
+              <span className="text-xs bg-blue-50 text-blue-700 rounded-full px-3 py-1 font-medium">
+                {request.category as string}
+              </span>
+            )}
+            {hasKosher && (
+              <span className="text-xs bg-orange-50 text-orange-700 rounded-full px-3 py-1 font-medium">
+                ✡ Kosher required
+              </span>
+            )}
+            {(request.private_label as boolean | null) && (
+              <span className="text-xs bg-purple-50 text-purple-700 rounded-full px-3 py-1 font-medium">
+                Private label
+              </span>
+            )}
+          </div>
+
+          {(request.message as string | null) && (
+            <p className="mt-4 text-sm text-gray-600 leading-relaxed border-t border-gray-100 pt-4">
+              {request.message as string}
+            </p>
+          )}
+        </div>
+
+        {/* ── Matches section ── */}
+        <MatchCards requestId={id} initialMatches={matches} productName={productName} company={request.company as string | null} />
+      </div>
+    </div>
+  );
+}
+
+function StatusBadge({ status }: { status: string | null }) {
+  const s = status ?? "new";
+  const styles: Record<string, string> = {
+    new: "bg-blue-100 text-blue-700",
+    reviewed: "bg-yellow-100 text-yellow-700",
+    matched: "bg-green-100 text-green-700",
+    closed: "bg-gray-100 text-gray-600",
+  };
+  return (
+    <span
+      className={`text-xs font-semibold px-3 py-1 rounded-full capitalize ${
+        styles[s] ?? "bg-gray-100 text-gray-600"
+      }`}
+    >
+      {s}
+    </span>
+  );
+}

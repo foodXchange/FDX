@@ -39,7 +39,7 @@ export default function PortfolioGrid({ items }: PortfolioGridProps) {
   if (items.length === 0) {
     return (
       <div className="text-center py-16">
-        <p className="text-slate-500 text-lg font-medium">Scenarios coming soon</p>
+        <p className="text-slate-400 text-lg font-medium">Scenarios coming soon</p>
       </div>
     );
   }
@@ -56,7 +56,7 @@ export default function PortfolioGrid({ items }: PortfolioGridProps) {
               className={`px-4 py-2 rounded-full text-sm font-medium border transition-all duration-200 ${
                 activeCategory === cat
                   ? "bg-orange-500 border-orange-500 text-white"
-                  : "bg-white border-slate-200 text-slate-600 hover:border-orange-300 hover:text-orange-600"
+                  : "bg-white/5 border-white/10 text-slate-300 hover:border-orange-400 hover:text-orange-400"
               }`}
             >
               {cat}
@@ -90,7 +90,7 @@ export default function PortfolioGrid({ items }: PortfolioGridProps) {
           filtered.map((item) => (
             <article
               key={item.slug}
-              className="group border border-slate-200 rounded-xl overflow-hidden bg-white hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300"
+              className="dark-card group overflow-hidden hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300"
             >
               {/* IMAGE */}
               <Link href={`/en/portfolio/${item.slug}`} className="block">
@@ -130,12 +130,12 @@ export default function PortfolioGrid({ items }: PortfolioGridProps) {
               {/* CONTENT */}
               <div className="p-5">
                 {item.category && (
-                  <span className="inline-block bg-orange-100 text-orange-700 rounded-full px-3 py-1 text-xs font-medium mb-3">
+                  <span className="inline-block bg-orange-500/20 text-orange-300 rounded-full px-3 py-1 text-xs font-medium mb-3">
                     {item.category}
                   </span>
                 )}
                 {item.summary && (
-                  <p className="text-slate-600 text-sm leading-relaxed mb-4 line-clamp-2">
+                  <p className="text-slate-400 text-sm leading-relaxed mb-4 line-clamp-2">
                     {item.summary}
                   </p>
                 )}
