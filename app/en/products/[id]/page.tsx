@@ -3,13 +3,29 @@ import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { supabase } from "@/lib/supabase";
-import ProductCard from "@/components/ProductCard";
 import ProductRequestButton from "@/components/ProductRequestButton";
-import type { PublicCatalogueProduct } from "@/app/en/products/page";
 
 export const revalidate = 3600;
 
 type Params = Promise<{ id: string }>;
+
+type CatalogueProduct = {
+  id: string;
+  product_name: string;
+  brand_name: string | null;
+  tagline: string | null;
+  category: string;
+  subcategory: string | null;
+  format: string | null;
+  size: string | null;
+  country_of_origin: string | null;
+  certifications: string[];
+  catalogue_image_url: string | null;
+  featured: boolean;
+  tags: string[];
+  private_label?: string | null;
+  internal_notes?: string | null;
+};
 
 const CATEGORY_EMOJI: Record<string, string> = {
   "Oils & Fats": "🫒",
@@ -57,7 +73,7 @@ export async function generateMetadata({
       type: "website",
       siteName: "FoodXchange",
       images: data.catalogue_image_url
-        ? [{ url: data.catalogue_image_url }]
+        ? [{ url: data.catalogue_image_url as string }]
         : [],
     },
   };
@@ -79,10 +95,7 @@ export default async function ProductDetailPage({
 
   if (!data) notFound();
 
-  const product = data as PublicCatalogueProduct & {
-    private_label?: string | null;
-    internal_notes?: string | null;
-  };
+  const product = data as CatalogueProduct;
 
   const { data: relatedData } = await supabase
     .from("catalogue_products")
@@ -94,7 +107,7 @@ export default async function ProductDetailPage({
     .neq("id", id)
     .limit(4);
 
-  const related = (relatedData ?? []) as PublicCatalogueProduct[];
+  const related = (relatedData ?? []) as CatalogueProduct[];
 
   const jsonLd = JSON.stringify({
     "@context": "https://schema.org",
@@ -184,7 +197,7 @@ export default async function ProductDetailPage({
           <div className="space-y-2 mb-6">
             {details.map((d) => (
               <div key={d.label} className="flex gap-3 text-sm">
-                <span className="text-slate-400 w-24 flex-shrink-0">{d.label}</span>
+                <span className="text-slate-400 w-24 shrink-0">{d.label}</span>
                 <span className="text-slate-700 font-medium">{d.value}</span>
               </div>
             ))}
@@ -235,13 +248,36 @@ export default async function ProductDetailPage({
             </h2>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
               {related.map((p) => (
-                <Link key={p.id} href={`/en/products/${p.id}`} className="block">
-                  <ProductCard
-                    product={p}
-                    onRequest={() => {
-                      window.location.href = `/en/products/${p.id}`;
-                    }}
-                  />
+                <Link
+                  key={p.id}
+                  href={`/en/products/${p.id}`}
+                  className="block group bg-white rounded-2xl overflow-hidden border border-slate-100 hover:border-orange-300 hover:shadow-lg transition-all duration-300"
+                >
+                  <div className="aspect-square bg-linear-to-br from-slate-50 to-slate-100 flex items-center justify-center">
+                    {p.catalogue_image_url ? (
+                      <Image
+                        src={p.catalogue_image_url}
+                        alt={p.product_name}
+                        width={200}
+                        height={200}
+                        className="object-contain p-4"
+                      />
+                    ) : (
+                      <span className="text-4xl text-slate-300">
+                        {CATEGORY_EMOJI[p.category] ?? "📦"}
+                      </span>
+                    )}
+                  </div>
+                  <div className="p-3">
+                    {p.brand_name && (
+                      <p className="text-[10px] text-orange-600 font-semibold uppercase tracking-wider">
+                        {p.brand_name}
+                      </p>
+                    )}
+                    <p className="text-sm font-semibold text-slate-900 leading-snug line-clamp-2">
+                      {p.product_name}
+                    </p>
+                  </div>
                 </Link>
               ))}
             </div>

@@ -1,24 +1,12 @@
 "use client";
 
-import Image from "next/image";
 import type { PublicCatalogueProduct } from "@/app/en/products/page";
+import { cleanProductName, CATEGORY_COLORS } from "@/lib/products/cleanProductName";
 
 export interface ProductCardProps {
   product: PublicCatalogueProduct;
   onRequest: (product: PublicCatalogueProduct) => void;
 }
-
-const CATEGORY_EMOJI: Record<string, string> = {
-  "Oils & Fats": "🫒",
-  "Fish & Seafood": "🐟",
-  "Sauces & Condiments": "🍯",
-  "Tomato Products": "🍅",
-  Snacks: "🍿",
-  "Spices & Herbs": "🌿",
-  "Canned Foods": "🥫",
-  Dairy: "🧀",
-  Bakery: "🥖",
-};
 
 const COUNTRY_FLAG: Record<string, string> = {
   Spain: "🇪🇸",
@@ -32,90 +20,75 @@ const COUNTRY_FLAG: Record<string, string> = {
   Germany: "🇩🇪",
   Netherlands: "🇳🇱",
   Poland: "🇵🇱",
+  Belgium: "🇧🇪",
+  Ukraine: "🇺🇦",
+  Romania: "🇷🇴",
+  Bulgaria: "🇧🇬",
 };
 
-function certColor(cert: string): string {
+function certChipCls(cert: string): string {
   const lower = cert.toLowerCase();
-  if (lower.includes("kosher")) return "bg-blue-50 text-blue-700 border-blue-100";
-  if (lower.includes("halal")) return "bg-green-50 text-green-700 border-green-100";
+  if (
+    lower.includes("brc") ||
+    lower.includes("ifs") ||
+    lower.includes("fssc") ||
+    lower.includes("iso")
+  )
+    return "bg-blue-50 text-blue-700 border-blue-100";
   if (lower.includes("organic")) return "bg-emerald-50 text-emerald-700 border-emerald-100";
+  if (lower.includes("halal")) return "bg-green-50 text-green-700 border-green-100";
   return "bg-slate-50 text-slate-600 border-slate-200";
 }
 
 export default function ProductCard({ product, onRequest }: ProductCardProps) {
-  const emoji = CATEGORY_EMOJI[product.category] ?? "📦";
-  const flag = product.country_of_origin
-    ? (COUNTRY_FLAG[product.country_of_origin] ?? "🌍")
-    : null;
+  const color = CATEGORY_COLORS[product.category] ?? "#888780";
+  const country = product.supplier?.country_of_origin ?? null;
+  const flag = country ? (COUNTRY_FLAG[country] ?? "🌍") : null;
+  const kosherType = product.kosher_types?.[0] ?? null;
+  const displayCerts = product.certifications
+    .filter((c) => !product.kosher_types.includes(c))
+    .slice(0, 2);
+  const displayName = cleanProductName(product.product_name, product.category);
 
   return (
-    <div className="group relative bg-white rounded-2xl overflow-hidden border border-slate-100 hover:border-orange-300 hover:shadow-xl transition-all duration-300 flex flex-col cursor-pointer">
-      {/* IMAGE AREA */}
-      <div className="aspect-[3/4] bg-white relative overflow-hidden flex items-center justify-center p-4">
-        {product.catalogue_image_url ? (
-          <Image
-            src={product.catalogue_image_url}
-            alt={`${product.brand_name ?? ""} ${product.product_name}`}
-            fill
-            className="object-contain transition-transform duration-500 group-hover:scale-105"
-            sizes="(max-width: 768px) 50vw, (max-width: 1200px) 33vw, 25vw"
-          />
-        ) : (
-          <div className="absolute inset-0 bg-linear-to-br from-slate-50 to-slate-100 flex flex-col items-center justify-center">
-            <span className="text-5xl text-slate-300">{emoji}</span>
-            <span className="text-xs text-slate-400 mt-2">Image coming soon</span>
-          </div>
-        )}
-
-        {/* Featured badge */}
-        {product.featured && (
-          <div className="absolute top-3 left-3 bg-orange-500 text-white text-xs font-semibold px-3 py-1 rounded-full z-10">
-            ★ Featured
-          </div>
-        )}
-
-        {/* Country flag */}
-        {flag && (
-          <div className="absolute top-3 right-3 bg-white/90 backdrop-blur-sm rounded-full px-2 py-1 text-xs text-slate-600 font-medium shadow-sm z-10">
-            {flag}
-          </div>
-        )}
-
-        {/* Hover overlay (desktop only) */}
-        <div className="absolute inset-0 bg-slate-900/80 opacity-0 group-hover:opacity-100 transition-opacity duration-300 hidden md:flex items-center justify-center z-20">
-          <button
-            type="button"
-            onClick={() => onRequest(product)}
-            className="bg-orange-500 hover:bg-orange-600 text-white font-semibold px-6 py-3 rounded-xl text-sm transition transform scale-95 group-hover:scale-100"
-          >
-            Request this product
-          </button>
-        </div>
-      </div>
+    <div className="group relative bg-white rounded-2xl overflow-hidden border border-slate-100 hover:border-orange-300 hover:shadow-xl transition-all duration-300 flex flex-col">
+      {/* Category color top bar */}
+      <div style={{ height: 6, backgroundColor: color }} />
 
       {/* PRODUCT INFO */}
-      <div className="p-4 flex flex-col gap-1 flex-1">
-        {product.brand_name && (
-          <p className="text-xs font-semibold text-orange-600 uppercase tracking-wider">
-            {product.brand_name}
-          </p>
+      <div className="p-4 flex flex-col gap-1 flex-1 relative">
+        {/* Kosher badge */}
+        {kosherType && (
+          <span className="absolute top-4 right-4 bg-amber-50 border border-amber-200 text-amber-800 text-[10px] font-bold px-2 py-0.5 rounded-full">
+            ✡ {kosherType}
+          </span>
         )}
-        <p className="text-base font-semibold text-slate-900 leading-snug">
-          {product.product_name}
+
+        {/* Private label badge */}
+        {product.private_label && (
+          <span className="self-start bg-slate-800/80 text-white text-[10px] font-semibold px-2 py-0.5 rounded-full mb-1">
+            Private label
+          </span>
+        )}
+
+        <p className="text-base font-semibold text-slate-900 leading-snug line-clamp-2 pr-16">
+          {displayName}
         </p>
-        {(product.format || product.size) && (
+
+        {product.supplier && (
           <p className="text-xs text-slate-500">
-            {[product.format, product.size].filter(Boolean).join(" · ")}
+            {product.supplier.company_name}
+            {country ? ` · ${flag ?? country}` : ""}
           </p>
         )}
 
         {/* Certifications */}
-        {product.certifications.length > 0 && (
-          <div className="flex flex-wrap gap-1 mt-2">
-            {product.certifications.slice(0, 3).map((cert) => (
+        {displayCerts.length > 0 && (
+          <div className="flex flex-wrap gap-1 mt-1.5">
+            {displayCerts.map((cert) => (
               <span
                 key={cert}
-                className={`text-[10px] rounded-full px-2 py-0.5 border ${certColor(cert)}`}
+                className={`text-[10px] rounded-full px-2 py-0.5 border ${certChipCls(cert)}`}
               >
                 {cert}
               </span>
@@ -123,11 +96,22 @@ export default function ProductCard({ product, onRequest }: ProductCardProps) {
           </div>
         )}
 
-        {/* Mobile request button */}
+        {/* Request button */}
         <button
           type="button"
           onClick={() => onRequest(product)}
-          className="mt-3 w-full py-2.5 rounded-xl border-2 border-orange-500 text-orange-600 font-semibold text-sm hover:bg-orange-500 hover:text-white transition duration-200 md:hidden"
+          className="mt-3 w-full py-2.5 rounded-xl border-2 border-orange-500 text-orange-600 font-semibold text-sm hover:bg-orange-500 hover:text-white transition duration-200"
+        >
+          Request →
+        </button>
+      </div>
+
+      {/* Hover overlay (desktop) */}
+      <div className="absolute inset-0 bg-slate-900/80 opacity-0 group-hover:opacity-100 transition-opacity duration-300 hidden md:flex items-center justify-center rounded-2xl">
+        <button
+          type="button"
+          onClick={() => onRequest(product)}
+          className="bg-orange-500 hover:bg-orange-600 text-white font-semibold px-6 py-3 rounded-xl text-sm transition transform scale-95 group-hover:scale-100"
         >
           Request this product
         </button>

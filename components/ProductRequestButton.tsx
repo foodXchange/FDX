@@ -2,10 +2,18 @@
 
 import { useState } from "react";
 import SourcingWidget from "@/components/SourcingWidget";
-import type { PublicCatalogueProduct } from "@/app/en/products/page";
+
+type CatalogueProduct = {
+  id: string;
+  product_name: string;
+  brand_name: string | null;
+  format: string | null;
+  certifications: string[];
+  country_of_origin: string | null;
+};
 
 interface Props {
-  product: PublicCatalogueProduct;
+  product: CatalogueProduct;
 }
 
 export default function ProductRequestButton({ product }: Props) {
