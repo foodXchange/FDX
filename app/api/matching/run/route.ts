@@ -2,9 +2,8 @@ import { NextRequest } from "next/server";
 import { cookies } from "next/headers";
 import { verifySession, COOKIE_NAME } from "@/lib/adminAuth";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
-import { buildPipV1 } from "@/lib/pip/buildPipV1";
-import { resolveCategoryId } from "@/lib/pip/resolveCategoryId";
-import { runMatchV1 } from "@/lib/matching/runMatchV1";
+import { buildPipV1Full } from "@/lib/pip/buildPipV1";
+import { runMatchV2 } from "@/lib/matching/runMatchV2";
 
 async function checkAuth(): Promise<boolean> {
   const cookieStore = await cookies();
@@ -44,7 +43,7 @@ export async function POST(req: NextRequest) {
   // If no PIP yet, generate one inline before matching
   if (!request.intent_json) {
     try {
-      const pip = buildPipV1({
+      const pip = await buildPipV1Full({
         product_name: (request.product_name as string | null) ?? null,
         message: (request.message as string | null) ?? null,
         category: (request.category as string | null) ?? null,
@@ -53,11 +52,6 @@ export async function POST(req: NextRequest) {
         private_label: (request.private_label as boolean | null) ?? null,
         ai_analysis: (request.ai_analysis as Record<string, unknown> | null) ?? null,
       });
-      const { category_id, category_name } = await resolveCategoryId(
-        (request.category as string | null) ?? ""
-      );
-      pip.category.category_id = category_id;
-      pip.category.category_name = category_name;
       await supabaseAdmin
         .from("sourcing_requests")
         .update({ intent_json: pip })
@@ -69,7 +63,7 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const result = await runMatchV1(request_id);
+    const result = await runMatchV2(request_id);
     return Response.json({ ok: true, inserted: result.inserted, topScore: result.topScore });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);

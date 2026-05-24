@@ -147,3 +147,14 @@ export function buildPipV1(request: SourcingRequestInput): PipV1 {
     },
   };
 }
+
+import { resolveCategoryId } from "./resolveCategoryId";
+
+/** Convenience wrapper: builds PIP and resolves category_id in one async call. */
+export async function buildPipV1Full(request: SourcingRequestInput): Promise<PipV1> {
+  const pip = buildPipV1(request);
+  const { category_id, category_name } = await resolveCategoryId(request.category ?? "");
+  pip.category.category_id = category_id;
+  pip.category.category_name = category_name;
+  return pip;
+}

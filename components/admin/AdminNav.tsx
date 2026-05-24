@@ -9,6 +9,7 @@ const links = [
   { href: "/admin/suppliers", label: "Suppliers" },
   { href: "/admin/scraper", label: "Scraper" },
   { href: "/admin/products", label: "Products" },
+  { href: "/admin/data-quality", label: "Data Quality" },
   { href: "/admin/catalogue", label: "Catalogue" },
   { href: "/admin/proposals", label: "Proposals" },
   { href: "/admin/scripts", label: "Video Scripts" },
