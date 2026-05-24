@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import SourcingWidget from "@/components/SourcingWidget";
+import SourcingRequestForm from "@/components/forms/SourcingRequestForm";
 
 export const metadata: Metadata = {
   title: "Source Food Products for Israel | FoodXchange",
@@ -38,9 +38,13 @@ export default function SourcingPage() {
         </div>
       </section>
 
-      {/* WIDGET */}
       <div className="max-w-xl mx-auto px-6 -mt-8 pb-16 relative z-10">
-        <SourcingWidget source="sourcing-page" />
+        <SourcingRequestForm
+          source="sourcing-page"
+          heading="Tell us what you need to source"
+          subheading="Upload a photo or describe your product. We match your request with verified suppliers — you only hear from us when there is a real fit."
+          showExamples={false}
+        />
       </div>
 
       {/* HOW IT WORKS */}

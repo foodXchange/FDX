@@ -1,9 +1,9 @@
 "use client";
 
 import { FormEvent, useRef, useState } from "react";
-import PhoneInput, { isValidPhoneNumber } from "react-phone-number-input";
-import "react-phone-number-input/style.css";
+import { isValidPhoneNumber } from "react-phone-number-input";
 import MultiImageUpload, { UploadedImage } from "@/components/ui/MultiImageUpload";
+import ContactFields from "@/components/forms/ContactFields";
 import { isValidName } from "@/lib/validation/isValidName";
 import { isValidCompanyName } from "@/lib/validation/isValidCompanyName";
 
@@ -504,53 +504,23 @@ export default function ManufacturerIntakeSection({ requestPreview, referral }: 
                   </button>
                 </div>
 
-                {/* Contact name + WhatsApp */}
-                <div className="grid sm:grid-cols-2 gap-4">
-                  <div>
-                    <DarkLabel htmlFor="contact-name">Your name *</DarkLabel>
-                    <input
-                      id="contact-name"
-                      type="text"
-                      required
-                      value={contactName}
-                      onChange={(e) => { setContactName(e.target.value); clearFieldError("contactName"); }}
-                      placeholder="Full name"
-                      className={inputCls()}
-                    />
-                    <FieldError msg={fieldErrors.contactName} />
-                  </div>
-                  <div>
-                    <DarkLabel htmlFor="whatsapp">WhatsApp number</DarkLabel>
-                    <div
-                      className="flex items-center bg-[#0d1117] border border-slate-600 rounded-xl px-4 py-2.5 gap-2"
-                      style={{ "--PhoneInputCountrySelectArrow-color": "#94a3b8" } as React.CSSProperties}
-                    >
-                      <PhoneInput
-                        value={whatsapp || undefined}
-                        onChange={(v) => { setWhatsapp(v ?? ""); clearFieldError("whatsapp"); }}
-                        inputClassName="flex-1 bg-transparent outline-none text-sm text-slate-100 placeholder-slate-500 min-w-0"
-                        numberInputProps={{ id: "whatsapp" }}
-                      />
-                    </div>
-                    <FieldError msg={fieldErrors.whatsapp} />
-                    <DarkHelper>We respond on WhatsApp — usually within a few hours.</DarkHelper>
-                  </div>
-                </div>
-
-                {/* Email */}
-                <div>
-                  <DarkLabel htmlFor="email">Email address *</DarkLabel>
-                  <input
-                    id="email"
-                    type="email"
-                    required
-                    value={email}
-                    onChange={(e) => { setEmail(e.target.value); clearFieldError("email"); }}
-                    placeholder="you@company.com"
-                    className={inputCls()}
-                  />
-                  <FieldError msg={fieldErrors.email} />
-                </div>
+                <ContactFields
+                  name={contactName}
+                  onNameChange={(value) => { setContactName(value); clearFieldError("contactName"); }}
+                  company={companyName}
+                  onCompanyChange={(value) => { setCompanyName(value); clearFieldError("companyName"); }}
+                  whatsapp={whatsapp}
+                  onWhatsappChange={(value) => { setWhatsapp(value); clearFieldError("whatsapp"); }}
+                  email={email}
+                  onEmailChange={(value) => { setEmail(value); clearFieldError("email"); }}
+                  errors={{
+                    name: fieldErrors.contactName,
+                    company: fieldErrors.companyName,
+                    whatsapp: fieldErrors.whatsapp,
+                    email: fieldErrors.email,
+                  }}
+                  defaultCountry="IT"
+                />
 
                 {/* Error */}
                 {error && (

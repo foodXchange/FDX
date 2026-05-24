@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import SourcingWidget from "@/components/SourcingWidget";
+import SourcingRequestForm from "@/components/forms/SourcingRequestForm";
 
 type CatalogueProduct = {
   id: string;
@@ -99,11 +99,12 @@ export default function ProductRequestButton({ product }: Props) {
             </div>
 
             <div className="p-6">
-              <SourcingWidget
+              <SourcingRequestForm
                 source="product-detail"
                 initialDescription={initialDescription}
                 onSuccess={() => setOpen(false)}
                 compact
+                showExamples={false}
               />
             </div>
           </div>

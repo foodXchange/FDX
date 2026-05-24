@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import ProductCard from "@/components/ProductCard";
 import ProductListRow from "@/components/ProductListRow";
-import SourcingWidget from "@/components/SourcingWidget";
+import SourcingRequestForm from "@/components/forms/SourcingRequestForm";
 import BasketModal from "@/components/BasketModal";
 import { cleanProductName } from "@/lib/products/cleanProductName";
 import type { PublicCatalogueProduct, CategoryImageData } from "@/app/en/products/page";
@@ -384,11 +384,12 @@ export default function ProductGallery({ products, categoryImages }: Props) {
 
             {/* Sourcing widget */}
             <div className="p-6">
-              <SourcingWidget
+              <SourcingRequestForm
                 source="product-gallery"
                 initialDescription={initialDescription}
                 onSuccess={() => setRequestProduct(null)}
                 compact
+                showExamples={false}
               />
             </div>
           </div>
