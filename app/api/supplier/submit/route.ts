@@ -3,13 +3,25 @@ import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { checkRateLimit } from "@/lib/rateLimit";
 import { sendSupplierNotification, sendSupplierConfirmation } from "@/lib/email/mailer";
 
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+
+function validPhone(v: string): boolean {
+  const digits = v.replace(/\D/g, "");
+  return digits.length >= 7 && digits.length <= 15;
+}
+
 const SupplierSubmitSchema = z.object({
   company_name: z.string().min(1).max(300),
   website: z.string().max(500).optional().nullable(),
   country: z.string().max(100).optional().nullable(),
   contact_name: z.string().min(1).max(200),
-  contact_email: z.string().email(),
-  contact_whatsapp: z.string().max(50).optional().nullable(),
+  contact_email: z.string().regex(EMAIL_REGEX, "Invalid email address"),
+  contact_whatsapp: z
+    .string()
+    .max(50)
+    .optional()
+    .nullable()
+    .refine((v) => !v || validPhone(v), "Invalid phone number"),
   contact_title: z.string().max(200).optional().nullable(),
   description: z.string().max(3000).optional().nullable(),
   categories: z.array(z.string()).default([]),

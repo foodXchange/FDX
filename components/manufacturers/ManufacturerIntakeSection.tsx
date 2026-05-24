@@ -1,7 +1,11 @@
 "use client";
 
 import { FormEvent, useRef, useState } from "react";
+import PhoneInput, { isValidPhoneNumber } from "react-phone-number-input";
+import "react-phone-number-input/style.css";
 import MultiImageUpload, { UploadedImage } from "@/components/ui/MultiImageUpload";
+import { isValidName } from "@/lib/validation/isValidName";
+import { isValidCompanyName } from "@/lib/validation/isValidCompanyName";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -21,6 +25,8 @@ interface Props {
 }
 
 // ─── Data ─────────────────────────────────────────────────────────────────────
+
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
 const KOSHER_CERT_MAP: Record<KosherOption, string[]> = {
   "chief-rabbinate": ["Chief Rabbinate Kosher"],
@@ -130,6 +136,11 @@ function DarkTooltip({ text }: { text: string }) {
   );
 }
 
+function FieldError({ msg }: { msg?: string }) {
+  if (!msg) return null;
+  return <p className="mt-1.5 text-xs text-red-400">{msg}</p>;
+}
+
 function inputCls(extra = "") {
   return `w-full bg-[#0d1117] border border-slate-600 rounded-xl px-4 py-2.5 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500/50 ${extra}`;
 }
@@ -152,6 +163,7 @@ export default function ManufacturerIntakeSection({ requestPreview, referral }: 
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   const formRef = useRef<HTMLDivElement>(null);
   const anyUploading = images.some((img) => img.uploading);
@@ -168,13 +180,38 @@ export default function ManufacturerIntakeSection({ requestPreview, referral }: 
     );
   }
 
+  function clearFieldError(field: string) {
+    setFieldErrors((prev) => {
+      if (!prev[field]) return prev;
+      const next = { ...prev };
+      delete next[field];
+      return next;
+    });
+  }
+
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
-    if (!companyName.trim() || !contactName.trim() || !email.trim()) {
-      setError("Company name, your name, and email are required.");
-      return;
+
+    const errors: Record<string, string> = {};
+
+    if (!isValidCompanyName(companyName)) {
+      errors.companyName = "Please enter your company name";
+    }
+    if (!isValidName(contactName)) {
+      errors.contactName = "Please enter your real name (first name is fine)";
+    }
+    if (!EMAIL_REGEX.test(email.trim())) {
+      errors.email = "Please enter a valid email address";
+    }
+    if (whatsapp && !isValidPhoneNumber(whatsapp)) {
+      errors.whatsapp = "Please enter a valid WhatsApp number including country code";
     }
 
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
+      return;
+    }
+    setFieldErrors({});
     setSubmitting(true);
     setError(null);
 
@@ -192,7 +229,7 @@ export default function ManufacturerIntakeSection({ requestPreview, referral }: 
       country: country || undefined,
       contact_name: contactName.trim(),
       contact_email: email.trim(),
-      contact_whatsapp: whatsapp.trim() || undefined,
+      contact_whatsapp: whatsapp || undefined,
       description: desc || undefined,
       categories,
       certifications,
@@ -283,8 +320,7 @@ export default function ManufacturerIntakeSection({ requestPreview, referral }: 
                 {/* Product images */}
                 <div>
                   <DarkLabel>Product images</DarkLabel>
-                  {/* Override light colors for dark bg — wrap in a div with inverted styles */}
-                  <div className="[&_.border-slate-200]:border-slate-600 [&_.hover\:border-orange-300:hover]:border-orange-500 [&_.hover\:bg-slate-50:hover]:bg-slate-800/50 [&_.text-slate-700]:text-slate-300 [&_.text-slate-400]:text-slate-500 [&_.bg-slate-100]:bg-slate-700 [&_.hover\:bg-slate-200:hover]:bg-slate-600 [&_.text-slate-600]:text-slate-400 [&_.bg-slate-50]:bg-slate-800/30 [&_.border-slate-200]:border-slate-600 [&_.placeholder-slate-300]:placeholder-slate-500 [&_.focus\:ring-orange-200]:focus:ring-orange-500/30">
+                  <div className="[&_.border-slate-200]:border-slate-600 [&_.hover\:border-orange-300:hover]:border-orange-500 [&_.hover\:bg-slate-50:hover]:bg-slate-800/50 [&_.text-slate-700]:text-slate-300 [&_.text-slate-400]:text-slate-500 [&_.bg-slate-100]:bg-slate-700 [&_.hover\:bg-slate-200:hover]:bg-slate-600 [&_.text-slate-600]:text-slate-400 [&_.bg-slate-50]:bg-slate-800/30 [&_.placeholder-slate-300]:placeholder-slate-500 [&_.focus\:ring-orange-200]:focus:ring-orange-500/30">
                     <MultiImageUpload
                       value={images}
                       onChange={setImages}
@@ -307,10 +343,11 @@ export default function ManufacturerIntakeSection({ requestPreview, referral }: 
                     type="text"
                     required
                     value={companyName}
-                    onChange={(e) => setCompanyName(e.target.value)}
+                    onChange={(e) => { setCompanyName(e.target.value); clearFieldError("companyName"); }}
                     placeholder="e.g. Steriltom S.r.l."
                     className={inputCls()}
                   />
+                  <FieldError msg={fieldErrors.companyName} />
                   <DarkHelper>Legal company name as it appears on your export documents.</DarkHelper>
                 </div>
 
@@ -476,21 +513,26 @@ export default function ManufacturerIntakeSection({ requestPreview, referral }: 
                       type="text"
                       required
                       value={contactName}
-                      onChange={(e) => setContactName(e.target.value)}
+                      onChange={(e) => { setContactName(e.target.value); clearFieldError("contactName"); }}
                       placeholder="Full name"
                       className={inputCls()}
                     />
+                    <FieldError msg={fieldErrors.contactName} />
                   </div>
                   <div>
                     <DarkLabel htmlFor="whatsapp">WhatsApp number</DarkLabel>
-                    <input
-                      id="whatsapp"
-                      type="tel"
-                      value={whatsapp}
-                      onChange={(e) => setWhatsapp(e.target.value)}
-                      placeholder="+39 333 000 0000"
-                      className={inputCls()}
-                    />
+                    <div
+                      className="flex items-center bg-[#0d1117] border border-slate-600 rounded-xl px-4 py-2.5 gap-2"
+                      style={{ "--PhoneInputCountrySelectArrow-color": "#94a3b8" } as React.CSSProperties}
+                    >
+                      <PhoneInput
+                        value={whatsapp || undefined}
+                        onChange={(v) => { setWhatsapp(v ?? ""); clearFieldError("whatsapp"); }}
+                        inputClassName="flex-1 bg-transparent outline-none text-sm text-slate-100 placeholder-slate-500 min-w-0"
+                        numberInputProps={{ id: "whatsapp" }}
+                      />
+                    </div>
+                    <FieldError msg={fieldErrors.whatsapp} />
                     <DarkHelper>We respond on WhatsApp — usually within a few hours.</DarkHelper>
                   </div>
                 </div>
@@ -503,10 +545,11 @@ export default function ManufacturerIntakeSection({ requestPreview, referral }: 
                     type="email"
                     required
                     value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    onChange={(e) => { setEmail(e.target.value); clearFieldError("email"); }}
                     placeholder="you@company.com"
                     className={inputCls()}
                   />
+                  <FieldError msg={fieldErrors.email} />
                 </div>
 
                 {/* Error */}

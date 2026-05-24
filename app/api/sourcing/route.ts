@@ -6,11 +6,20 @@ import { buildPipV1 } from "@/lib/pip/buildPipV1";
 import { resolveCategoryId } from "@/lib/pip/resolveCategoryId";
 import { runMatchV1 } from "@/lib/matching/runMatchV1";
 
+function validPhone(v: string): boolean {
+  const digits = v.replace(/\D/g, "");
+  return digits.length >= 7 && digits.length <= 15;
+}
+
 const Schema = z.object({
   product_name: z.string().min(1).max(2000),
   kosher_type: z.string().optional(),
   company: z.string().min(1).max(200),
-  whatsapp: z.string().min(1).max(50),
+  whatsapp: z
+    .string()
+    .min(1)
+    .max(50)
+    .refine(validPhone, "Invalid phone number"),
   contact_name: z.string().max(200).optional(),
   image_url: z.string().url().optional(),
   source: z.string().default("fab_button"),

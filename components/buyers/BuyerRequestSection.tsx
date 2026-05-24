@@ -1,7 +1,11 @@
 "use client";
 
 import { FormEvent, useEffect, useRef, useState } from "react";
+import PhoneInput, { isValidPhoneNumber } from "react-phone-number-input";
+import "react-phone-number-input/style.css";
 import MultiImageUpload, { UploadedImage } from "@/components/ui/MultiImageUpload";
+import { isValidName } from "@/lib/validation/isValidName";
+import { isValidCompanyName } from "@/lib/validation/isValidCompanyName";
 
 type KosherOption = "chief-rabbinate" | "badatz" | "mehadrin" | "any" | "none";
 type VolumeUnit = "tons" | "kg" | "units" | "containers";
@@ -12,6 +16,8 @@ interface Example {
   description: string;
   kosher: KosherOption;
 }
+
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
 const KOSHER_CERTS: Record<KosherOption, string[]> = {
   "chief-rabbinate": ["Chief Rabbinate Kosher"],
@@ -101,6 +107,11 @@ function FieldGroup({ children }: { children: React.ReactNode }) {
   return <div className="space-y-1">{children}</div>;
 }
 
+function FieldError({ msg }: { msg?: string }) {
+  if (!msg) return null;
+  return <p className="mt-1 text-xs text-red-400">{msg}</p>;
+}
+
 export default function BuyerRequestSection() {
   const [images, setImages] = useState<UploadedImage[]>([]);
   const [description, setDescription] = useState("");
@@ -116,12 +127,12 @@ export default function BuyerRequestSection() {
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   const formRef = useRef<HTMLDivElement>(null);
   const descRef = useRef<HTMLTextAreaElement>(null);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Restore saved form state on mount
   useEffect(() => {
     try {
       const saved = localStorage.getItem("buyers_form");
@@ -151,7 +162,6 @@ export default function BuyerRequestSection() {
     } catch { /* ignore */ }
   }, []);
 
-  // Debounced auto-save on any field change
   useEffect(() => {
     if (saveTimer.current) clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(() => {
@@ -184,12 +194,44 @@ export default function BuyerRequestSection() {
     setTimeout(() => setDescHighlight(false), 1400);
   }
 
+  function clearFieldError(field: string) {
+    setFieldErrors((prev) => {
+      if (!prev[field]) return prev;
+      const next = { ...prev };
+      delete next[field];
+      return next;
+    });
+  }
+
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
+
+    const errors: Record<string, string> = {};
+
+    if (!isValidName(name)) {
+      errors.name = "Please enter your real name (first name is fine)";
+    }
+    if (!EMAIL_REGEX.test(email.trim())) {
+      errors.email = "Please enter a valid email address";
+    }
+    if (whatsapp && !isValidPhoneNumber(whatsapp)) {
+      errors.whatsapp = "Please enter a valid WhatsApp number including country code";
+    }
+    if (company.trim() && !isValidCompanyName(company)) {
+      errors.company = "Please enter your company name";
+    }
+
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
+      return;
+    }
+    setFieldErrors({});
+
     if (!description.trim() && images.length === 0) {
       setError("Please describe the product or upload at least one image.");
       return;
     }
+
     setSubmitting(true);
     setError(null);
 
@@ -199,7 +241,7 @@ export default function BuyerRequestSection() {
     const payload = {
       name: name.trim(),
       email: email.trim(),
-      whatsapp: whatsapp.trim() || undefined,
+      whatsapp: whatsapp || undefined,
       company: company.trim() || undefined,
       description: fullDesc || undefined,
       certifications: KOSHER_CERTS[kosher],
@@ -474,10 +516,11 @@ export default function BuyerRequestSection() {
                     id="company"
                     type="text"
                     value={company}
-                    onChange={(e) => setCompany(e.target.value)}
+                    onChange={(e) => { setCompany(e.target.value); clearFieldError("company"); }}
                     placeholder="e.g. Yochananof, ABC Imports"
                     className="dark-input"
                   />
+                  <FieldError msg={fieldErrors.company} />
                   <Helper>Retailer, importer, or food service.</Helper>
                 </FieldGroup>
 
@@ -490,21 +533,27 @@ export default function BuyerRequestSection() {
                       type="text"
                       required
                       value={name}
-                      onChange={(e) => setName(e.target.value)}
+                      onChange={(e) => { setName(e.target.value); clearFieldError("name"); }}
                       placeholder="Full name"
                       className="dark-input"
                     />
+                    <FieldError msg={fieldErrors.name} />
                   </FieldGroup>
                   <FieldGroup>
                     <Label htmlFor="whatsapp">WhatsApp number</Label>
-                    <input
-                      id="whatsapp"
-                      type="tel"
-                      value={whatsapp}
-                      onChange={(e) => setWhatsapp(e.target.value)}
-                      placeholder="+972 50 000 0000"
-                      className="dark-input"
-                    />
+                    <div
+                      className="flex items-center bg-[#162330] border border-white/[0.12] rounded-lg px-3 py-[10px] gap-2"
+                      style={{ "--PhoneInputCountrySelectArrow-color": "#94a3b8" } as React.CSSProperties}
+                    >
+                      <PhoneInput
+                        defaultCountry="IL"
+                        value={whatsapp || undefined}
+                        onChange={(v) => { setWhatsapp(v ?? ""); clearFieldError("whatsapp"); }}
+                        inputClassName="flex-1 bg-transparent outline-none text-[#f1f5f9] placeholder-slate-500 text-sm min-w-0"
+                        numberInputProps={{ id: "whatsapp" }}
+                      />
+                    </div>
+                    <FieldError msg={fieldErrors.whatsapp} />
                     <Helper>We respond faster on WhatsApp — usually within 2 hours.</Helper>
                   </FieldGroup>
                 </div>
@@ -517,10 +566,11 @@ export default function BuyerRequestSection() {
                     type="email"
                     required
                     value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    onChange={(e) => { setEmail(e.target.value); clearFieldError("email"); }}
                     placeholder="you@company.com"
                     className="dark-input"
                   />
+                  <FieldError msg={fieldErrors.email} />
                 </FieldGroup>
 
                 {/* Error */}

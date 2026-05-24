@@ -8,10 +8,21 @@ import { buildPipV1 } from "@/lib/pip/buildPipV1";
 import { resolveCategoryId } from "@/lib/pip/resolveCategoryId";
 import { runMatchV1 } from "@/lib/matching/runMatchV1";
 
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+
+function validPhone(v: string): boolean {
+  const digits = v.replace(/\D/g, "");
+  return digits.length >= 7 && digits.length <= 15;
+}
+
 const SubmitSchema = z.object({
   name: z.string().min(1).max(200),
-  email: z.string().email(),
-  whatsapp: z.string().max(30).optional(),
+  email: z.string().regex(EMAIL_REGEX, "Invalid email address"),
+  whatsapp: z
+    .string()
+    .max(30)
+    .optional()
+    .refine((v) => !v || validPhone(v), "Invalid phone number"),
   company: z.string().max(200).optional(),
   description: z.string().max(2000).optional(),
   product_name: z.string().max(300).optional(),

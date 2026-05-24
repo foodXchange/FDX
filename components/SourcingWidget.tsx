@@ -1,6 +1,11 @@
 "use client";
 
 import { useRef, useState } from "react";
+import PhoneInput, { isValidPhoneNumber } from "react-phone-number-input";
+import "react-phone-number-input/style.css";
+import { isValidName } from "@/lib/validation/isValidName";
+
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
 interface SourcingWidgetProps {
   source?: string;
@@ -68,6 +73,7 @@ export default function SourcingWidget({
     whatsapp: "",
     company: "",
   });
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -147,8 +153,34 @@ export default function SourcingWidget({
     }
   }
 
+  function clearFieldError(field: string) {
+    setFieldErrors((prev) => {
+      if (!prev[field]) return prev;
+      const next = { ...prev };
+      delete next[field];
+      return next;
+    });
+  }
+
   async function handleSubmit() {
-    if (!contact.name || !contact.email) return;
+    const errors: Record<string, string> = {};
+
+    if (!isValidName(contact.name)) {
+      errors.name = "Please enter your real name (first name is fine)";
+    }
+    if (!EMAIL_REGEX.test(contact.email.trim())) {
+      errors.email = "Please enter a valid email address";
+    }
+    if (contact.whatsapp && !isValidPhoneNumber(contact.whatsapp)) {
+      errors.whatsapp = "Please enter a valid WhatsApp number including country code";
+    }
+
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
+      return;
+    }
+    setFieldErrors({});
+
     setSubmitting(true);
     setError(null);
 
@@ -260,7 +292,6 @@ export default function SourcingWidget({
           </>
         )}
 
-        {/* Upload zone */}
         <input
           ref={fileInputRef}
           type="file"
@@ -332,7 +363,6 @@ export default function SourcingWidget({
           </div>
         )}
 
-        {/* AI analysis result */}
         {(analysis || analysing) && (
           <div className="mt-4 bg-orange-50 border border-orange-100 rounded-xl p-4">
             <div className="flex items-center justify-between mb-2">
@@ -374,7 +404,6 @@ export default function SourcingWidget({
           </div>
         )}
 
-        {/* Description */}
         <textarea
           value={description}
           onChange={(e) => setDescription(e.target.value)}
@@ -431,7 +460,6 @@ export default function SourcingWidget({
           Optional — tap what applies. Skip anything that does not.
         </p>
 
-        {/* Market */}
         <div className="mb-6">
           <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">
             Target market
@@ -456,7 +484,6 @@ export default function SourcingWidget({
           </div>
         </div>
 
-        {/* Private label */}
         <div className="mb-6">
           <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">
             Private label or branded?
@@ -486,7 +513,6 @@ export default function SourcingWidget({
           </div>
         </div>
 
-        {/* Certifications */}
         <div className="mb-6">
           <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">
             Certifications needed
@@ -524,6 +550,8 @@ export default function SourcingWidget({
   }
 
   // ── STEP 3 ───────────────────────────────────────────────────
+  const canSubmit = !submitting && Boolean(contact.name) && Boolean(contact.email);
+
   return (
     <div className={cardCls}>
       <ProgressBar step={3} />
@@ -544,31 +572,50 @@ export default function SourcingWidget({
           <input
             type="text"
             value={contact.name}
-            onChange={(e) => setContact((prev) => ({ ...prev, name: e.target.value }))}
+            onChange={(e) => {
+              setContact((prev) => ({ ...prev, name: e.target.value }));
+              clearFieldError("name");
+            }}
             placeholder="Your name *"
             className={inputCls}
             autoComplete="name"
           />
+          {fieldErrors.name && (
+            <p className="mt-1 text-xs text-red-500">{fieldErrors.name}</p>
+          )}
         </div>
         <div>
           <input
             type="email"
             value={contact.email}
-            onChange={(e) => setContact((prev) => ({ ...prev, email: e.target.value }))}
+            onChange={(e) => {
+              setContact((prev) => ({ ...prev, email: e.target.value }));
+              clearFieldError("email");
+            }}
             placeholder="Email address *"
             className={inputCls}
             autoComplete="email"
           />
+          {fieldErrors.email && (
+            <p className="mt-1 text-xs text-red-500">{fieldErrors.email}</p>
+          )}
         </div>
         <div>
-          <input
-            type="tel"
-            value={contact.whatsapp}
-            onChange={(e) => setContact((prev) => ({ ...prev, whatsapp: e.target.value }))}
-            placeholder="+972 50 000 0000 (WhatsApp — fastest way to follow up)"
-            className={inputCls}
-            autoComplete="tel"
-          />
+          <div className="flex items-center border border-slate-200 rounded-xl px-4 py-3 focus-within:ring-2 focus-within:ring-orange-400/30 focus-within:border-orange-400 transition">
+            <PhoneInput
+              defaultCountry="IL"
+              value={contact.whatsapp || undefined}
+              onChange={(v) => {
+                setContact((prev) => ({ ...prev, whatsapp: v ?? "" }));
+                clearFieldError("whatsapp");
+              }}
+              inputClassName="flex-1 bg-transparent outline-none text-sm text-slate-800 placeholder:text-slate-300 min-w-0"
+              placeholder="+972 50 000 0000 (WhatsApp — fastest way to follow up)"
+            />
+          </div>
+          {fieldErrors.whatsapp && (
+            <p className="mt-1 text-xs text-red-500">{fieldErrors.whatsapp}</p>
+          )}
         </div>
         <div>
           <input
@@ -591,7 +638,7 @@ export default function SourcingWidget({
       <button
         type="button"
         onClick={handleSubmit}
-        disabled={submitting || !contact.name || !contact.email}
+        disabled={!canSubmit}
         className={`${continueBtnCls} mt-6`}
       >
         {submitting ? "Sending..." : "Send sourcing request →"}
