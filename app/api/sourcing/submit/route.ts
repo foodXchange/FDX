@@ -6,6 +6,7 @@ import { sendLeadNotification, sendBuyerConfirmation } from "@/lib/email/mailer"
 import { matchSupplierProducts, formatWhatsAppMatch } from "@/lib/matching/matchSuppliers";
 import { buildPipV1 } from "@/lib/pip/buildPipV1";
 import { resolveCategoryId } from "@/lib/pip/resolveCategoryId";
+import { runMatchV1 } from "@/lib/matching/runMatchV1";
 
 const SubmitSchema = z.object({
   name: z.string().min(1).max(200),
@@ -266,6 +267,14 @@ export async function POST(req: Request) {
           .eq("id", newRequest.id);
       } catch (e) {
         console.error("PIP generation failed:", e);
+      }
+    })();
+
+    (async () => {
+      try {
+        await runMatchV1(newRequest.id);
+      } catch (e) {
+        console.error("runMatchV1 failed (submit):", e);
       }
     })();
 

@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { cleanRequestName } from "@/lib/matching/cleanRequestName";
+import PipPanel from "@/components/admin/PipPanel";
 import MatchCards from "./MatchCards";
 
 export const metadata: Metadata = { title: "Request Detail | Admin" };
@@ -25,6 +26,10 @@ export type SavedMatch = {
     score_breakdown?: Record<string, number>;
     kosher_types?: string[];
     certifications?: string[];
+    category?: number;
+    format?: number;
+    compliance?: number;
+    evidence?: number;
   } | null;
   status: string;
   approved_at: string | null;
@@ -54,12 +59,13 @@ export default async function RequestDetailPage({ params }: PageProps) {
   const matches = (rawMatches ?? []) as SavedMatch[];
   const certs = (request.certifications as string[] | null) ?? [];
   const hasKosher = certs.some((c) => c.toLowerCase().includes("kosher"));
+  const intentJson = (request.intent_json as Record<string, unknown> | null) ?? null;
 
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <div className="border-b border-gray-200 bg-white px-6 py-4 sticky top-0 z-10 shadow-sm">
-        <div className="flex items-center gap-3 max-w-5xl mx-auto">
+        <div className="flex items-center gap-3 max-w-6xl mx-auto">
           <Link
             href="/admin/requests"
             className="text-sm text-slate-500 hover:text-slate-800 transition-colors"
@@ -73,55 +79,81 @@ export default async function RequestDetailPage({ params }: PageProps) {
         </div>
       </div>
 
-      <div className="max-w-5xl mx-auto px-6 py-8 space-y-8">
-        {/* ── Request details ── */}
-        <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
-          <div className="flex items-start justify-between gap-4 flex-wrap mb-4">
-            <div>
-              <h1 className="text-xl font-semibold text-gray-900">
-                {cleanedName || productName || "—"}
-              </h1>
-              {isNameCleaned && (
-                <p className="text-xs text-gray-400 mt-0.5">
-                  Original: {productName}
+      <div className="max-w-6xl mx-auto px-6 py-8">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+          {/* ── Left column: request details + PIP ── */}
+          <div className="space-y-4">
+            <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
+              <div className="flex items-start justify-between gap-4 flex-wrap mb-4">
+                <div>
+                  <h1 className="text-xl font-semibold text-gray-900">
+                    {cleanedName || productName || "—"}
+                  </h1>
+                  {isNameCleaned && (
+                    <p className="text-xs text-gray-400 mt-0.5">
+                      Original: {productName}
+                    </p>
+                  )}
+                </div>
+                <StatusBadge status={request.status as string | null} />
+              </div>
+
+              <div className="flex flex-wrap gap-2">
+                {request.company && (
+                  <span className="text-xs bg-slate-100 text-slate-700 rounded-full px-3 py-1 font-medium">
+                    {request.company as string}
+                  </span>
+                )}
+                {request.category && (
+                  <span className="text-xs bg-blue-50 text-blue-700 rounded-full px-3 py-1 font-medium">
+                    {request.category as string}
+                  </span>
+                )}
+                {hasKosher && (
+                  <span className="text-xs bg-orange-50 text-orange-700 rounded-full px-3 py-1 font-medium">
+                    ✡ Kosher required
+                  </span>
+                )}
+                {(request.private_label as boolean | null) && (
+                  <span className="text-xs bg-purple-50 text-purple-700 rounded-full px-3 py-1 font-medium">
+                    Private label
+                  </span>
+                )}
+              </div>
+
+              {(request.message as string | null) && (
+                <p className="mt-4 text-sm text-gray-600 leading-relaxed border-t border-gray-100 pt-4">
+                  {request.message as string}
+                </p>
+              )}
+
+              {(request.created_at as string | null) && (
+                <p className="mt-3 text-xs text-gray-400">
+                  {new Date(request.created_at as string).toLocaleDateString("en-GB", {
+                    day: "numeric",
+                    month: "short",
+                    year: "numeric",
+                  })}
                 </p>
               )}
             </div>
-            <StatusBadge status={request.status as string | null} />
+
+            {/* PIP panel */}
+            <div className="bg-white border border-gray-200 rounded-2xl p-4 shadow-sm">
+              <PipPanel requestId={id} initialPip={intentJson} />
+            </div>
           </div>
 
-          <div className="flex flex-wrap gap-2">
-            {request.company && (
-              <span className="text-xs bg-slate-100 text-slate-700 rounded-full px-3 py-1 font-medium">
-                {request.company as string}
-              </span>
-            )}
-            {request.category && (
-              <span className="text-xs bg-blue-50 text-blue-700 rounded-full px-3 py-1 font-medium">
-                {request.category as string}
-              </span>
-            )}
-            {hasKosher && (
-              <span className="text-xs bg-orange-50 text-orange-700 rounded-full px-3 py-1 font-medium">
-                ✡ Kosher required
-              </span>
-            )}
-            {(request.private_label as boolean | null) && (
-              <span className="text-xs bg-purple-50 text-purple-700 rounded-full px-3 py-1 font-medium">
-                Private label
-              </span>
-            )}
+          {/* ── Right column: matches ── */}
+          <div>
+            <MatchCards
+              requestId={id}
+              initialMatches={matches}
+              productName={productName}
+              company={request.company as string | null}
+            />
           </div>
-
-          {(request.message as string | null) && (
-            <p className="mt-4 text-sm text-gray-600 leading-relaxed border-t border-gray-100 pt-4">
-              {request.message as string}
-            </p>
-          )}
         </div>
-
-        {/* ── Matches section ── */}
-        <MatchCards requestId={id} initialMatches={matches} productName={productName} company={request.company as string | null} />
       </div>
     </div>
   );
@@ -134,6 +166,7 @@ function StatusBadge({ status }: { status: string | null }) {
     reviewed: "bg-yellow-100 text-yellow-700",
     matched: "bg-green-100 text-green-700",
     closed: "bg-gray-100 text-gray-600",
+    sent: "bg-purple-100 text-purple-700",
   };
   return (
     <span
