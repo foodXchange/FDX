@@ -4,11 +4,11 @@ import { FormEvent, useEffect, useRef, useState } from "react";
 import PhoneInput, { isValidPhoneNumber } from "react-phone-number-input";
 import "react-phone-number-input/style.css";
 import MultiImageUpload, { UploadedImage } from "@/components/ui/MultiImageUpload";
+import ContactFields from "@/components/forms/ContactFields";
 import { isValidName } from "@/lib/validation/isValidName";
 import { isValidCompanyName } from "@/lib/validation/isValidCompanyName";
 
 type KosherOption = "chief-rabbinate" | "badatz" | "mehadrin" | "any" | "none";
-type VolumeUnit = "tons" | "kg" | "units" | "containers";
 
 interface Example {
   title: string;
@@ -112,13 +112,18 @@ function FieldError({ msg }: { msg?: string }) {
   return <p className="mt-1 text-xs text-red-400">{msg}</p>;
 }
 
-export default function BuyerRequestSection() {
+interface BuyerRequestSectionProps {
+  source?: string;
+  hideFormHeading?: boolean;
+}
+
+export default function BuyerRequestSection({ source = "buyers-page", hideFormHeading = false }: BuyerRequestSectionProps) {
   const [images, setImages] = useState<UploadedImage[]>([]);
   const [description, setDescription] = useState("");
   const [descHighlight, setDescHighlight] = useState(false);
   const [kosher, setKosher] = useState<KosherOption>("chief-rabbinate");
   const [volume, setVolume] = useState("");
-  const [volumeUnit, setVolumeUnit] = useState<VolumeUnit>("tons");
+  const [volumeUnit, setVolumeUnit] = useState("containers");
   const [privateLabel, setPrivateLabel] = useState(false);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -126,6 +131,9 @@ export default function BuyerRequestSection() {
   const [company, setCompany] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [showAddAnother, setShowAddAnother] = useState(false);
+  const [savedBanner, setSavedBanner] = useState(false);
+  const [urls, setUrls] = useState<string[]>([""]);
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
@@ -135,30 +143,41 @@ export default function BuyerRequestSection() {
 
   useEffect(() => {
     try {
-      const saved = localStorage.getItem("buyers_form");
-      if (!saved) return;
-      const s = JSON.parse(saved) as {
-        description?: string;
-        kosher?: string;
-        volume?: string;
-        volumeUnit?: string;
-        privateLabel?: boolean;
-        name?: string;
-        email?: string;
-        whatsapp?: string;
-        company?: string;
-      };
-      if (s.description) setDescription(s.description);
-      if (s.kosher && ["chief-rabbinate", "badatz", "mehadrin", "any", "none"].includes(s.kosher))
-        setKosher(s.kosher as KosherOption);
-      if (s.volume) setVolume(s.volume);
-      if (s.volumeUnit && ["tons", "kg", "units", "containers"].includes(s.volumeUnit))
-        setVolumeUnit(s.volumeUnit as VolumeUnit);
-      if (s.privateLabel !== undefined) setPrivateLabel(Boolean(s.privateLabel));
-      if (s.name) setName(s.name);
-      if (s.email) setEmail(s.email);
-      if (s.whatsapp) setWhatsapp(s.whatsapp);
-      if (s.company) setCompany(s.company);
+      const saved = localStorage.getItem("fdx_buyer_form");
+      if (saved) {
+        const s = JSON.parse(saved) as {
+          description?: string;
+          kosher?: string;
+          volume?: string;
+          volumeUnit?: string;
+          privateLabel?: boolean;
+          name?: string;
+          email?: string;
+          whatsapp?: string;
+          company?: string;
+        };
+        if (s.description) setDescription(s.description);
+        if (s.kosher && ["chief-rabbinate", "badatz", "mehadrin", "any", "none"].includes(s.kosher))
+          setKosher(s.kosher as KosherOption);
+        if (s.volume) setVolume(s.volume);
+        if (s.volumeUnit) setVolumeUnit(s.volumeUnit);
+        if (s.privateLabel !== undefined) setPrivateLabel(Boolean(s.privateLabel));
+        if (s.name) setName(s.name);
+        if (s.email) setEmail(s.email);
+        if (s.whatsapp) setWhatsapp(s.whatsapp);
+        if (s.company) setCompany(s.company);
+        const hasData = !!(s.description || s.name || s.email || s.whatsapp || s.company || s.volume);
+        if (hasData) setSavedBanner(true);
+      } else {
+        const cached = localStorage.getItem("fdx_contact_cache");
+        if (cached) {
+          const c = JSON.parse(cached) as { name?: string; email?: string; whatsapp?: string; company?: string };
+          if (c.name) setName(c.name);
+          if (c.email) setEmail(c.email);
+          if (c.whatsapp) setWhatsapp(c.whatsapp);
+          if (c.company) setCompany(c.company);
+        }
+      }
     } catch { /* ignore */ }
   }, []);
 
@@ -167,7 +186,7 @@ export default function BuyerRequestSection() {
     saveTimer.current = setTimeout(() => {
       try {
         localStorage.setItem(
-          "buyers_form",
+          "fdx_buyer_form",
           JSON.stringify({ description, kosher, volume, volumeUnit, privateLabel, name, email, whatsapp, company })
         );
       } catch { /* ignore */ }
@@ -202,6 +221,31 @@ export default function BuyerRequestSection() {
       return next;
     });
   }
+
+  function clearForm() {
+    setDescription(""); setKosher("chief-rabbinate"); setVolume("");
+    setPrivateLabel(false); setImages([]); setUrls([""]);
+    setSavedBanner(false);
+    try { localStorage.removeItem("fdx_buyer_form"); } catch { /* ignore */ }
+  }
+
+  function handleSameCategory() {
+    setDescription(""); setImages([]); setUrls([""]); setVolume(""); setPrivateLabel(false);
+    setSubmitted(false); setShowAddAnother(false);
+    formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  function handleDifferentProduct() {
+    setDescription(""); setImages([]); setUrls([""]); setVolume(""); setPrivateLabel(false);
+    setKosher("chief-rabbinate");
+    setSubmitted(false); setShowAddAnother(false);
+    try { localStorage.removeItem("fdx_buyer_form"); } catch { /* ignore */ }
+    formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  function addUrlInput() { if (urls.length < 5) setUrls([...urls, ""]); }
+  function removeUrlInput(idx: number) { setUrls(urls.filter((_, i) => i !== idx)); }
+  function updateUrl(idx: number, val: string) { setUrls(urls.map((u, i) => i === idx ? val : u)); }
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -238,6 +282,7 @@ export default function BuyerRequestSection() {
     let fullDesc = description.trim();
     if (volume.trim()) fullDesc += `\n\nEstimated annual volume: ${volume} ${volumeUnit}`;
 
+    const extraUrls = urls.filter(u => u.trim().startsWith("http"));
     const payload = {
       name: name.trim(),
       email: email.trim(),
@@ -246,10 +291,12 @@ export default function BuyerRequestSection() {
       description: fullDesc || undefined,
       certifications: KOSHER_CERTS[kosher],
       private_label: privateLabel || null,
-      image_urls: images
-        .filter((img) => !img.uploading && !img.error && img.url)
-        .map((img) => img.url),
-      source: "buyers-page",
+      image_urls: [
+        ...images.filter((img) => !img.uploading && !img.error && img.url).map((img) => img.url),
+        ...extraUrls,
+      ].slice(0, 5),
+      source,
+      volume_unit: volume.trim() ? volumeUnit : undefined,
     };
 
     try {
@@ -260,15 +307,19 @@ export default function BuyerRequestSection() {
       });
       const data = (await res.json()) as { ok: boolean; error?: string };
       if (res.status === 429) {
-        setError("Too many requests — please try again in a few minutes.");
+        setError("You've submitted several requests — please wait a few minutes before submitting again.");
         return;
       }
       if (!data.ok) {
         setError(data.error ?? "Something went wrong. Please try again.");
         return;
       }
-      try { localStorage.removeItem("buyers_form"); } catch { /* ignore */ }
+      try { localStorage.removeItem("fdx_buyer_form"); } catch { /* ignore */ }
+      try {
+        localStorage.setItem("fdx_contact_cache", JSON.stringify({ name, email, whatsapp, company }));
+      } catch { /* ignore */ }
       setSubmitted(true);
+      setTimeout(() => setShowAddAnother(true), 2000);
     } catch {
       setError("Network error — please check your connection and try again.");
     } finally {
@@ -380,30 +431,107 @@ export default function BuyerRequestSection() {
 
             {submitted ? (
               <div className="text-center py-14 px-6 bg-green-500/10 rounded-2xl border border-green-500/20">
-                <div className="w-16 h-16 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-5" style={{ animation: "pop 0.4s cubic-bezier(0.175,0.885,0.32,1.275)" }}>
+                <div
+                  className="w-16 h-16 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-5"
+                  style={{ animation: "pop 0.4s cubic-bezier(0.175,0.885,0.32,1.275)" }}
+                >
                   <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
                   </svg>
                 </div>
                 <h3 className="text-xl font-semibold text-dark-text-primary mb-2">Request received</h3>
                 <p className="text-slate-400 text-sm mb-6">
-                  We&apos;ll be in touch within 24 hours.
+                  We&apos;ll be in touch within 24 hours via WhatsApp.
                 </p>
-                <a
-                  href="/en/contact"
-                  className="text-sm text-orange-400 hover:text-orange-300 font-medium underline underline-offset-2"
+
+                <div
+                  className={`transition-all duration-700 ${
+                    showAddAnother
+                      ? "opacity-100 translate-y-0"
+                      : "opacity-0 translate-y-2 pointer-events-none"
+                  }`}
                 >
-                  In the meantime, reach us directly →
-                </a>
+                  <p className="text-sm font-medium text-dark-text-primary mb-4">Want to add another request?</p>
+                  <div className="flex gap-3 justify-center flex-wrap">
+                    <button
+                      type="button"
+                      onClick={handleSameCategory}
+                      className="btn-brand px-5 py-2.5 rounded-lg text-sm"
+                    >
+                      + Same category
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleDifferentProduct}
+                      className="border border-white/20 text-slate-300 hover:bg-white/5 px-5 py-2.5 rounded-lg text-sm transition"
+                    >
+                      + Different product
+                    </button>
+                  </div>
+                  <a href="/" className="block mt-6 text-sm text-slate-500 hover:text-slate-300 transition">
+                    ← Go to homepage
+                  </a>
+                </div>
                 <style>{`@keyframes pop{0%{transform:scale(0)}80%{transform:scale(1.12)}100%{transform:scale(1)}}`}</style>
               </div>
             ) : (
               <form onSubmit={handleSubmit} className="space-y-6">
+                {/* Saved progress banner */}
+                {savedBanner && (
+                  <div className="flex items-center justify-between text-sm bg-blue-500/10 border border-blue-500/20 rounded-lg px-4 py-2.5">
+                    <span className="text-slate-300">We saved your progress — continue where you left off</span>
+                    <button
+                      type="button"
+                      onClick={() => setSavedBanner(false)}
+                      className="text-slate-500 hover:text-slate-300 ml-3 shrink-0 text-base leading-none"
+                    >
+                      ×
+                    </button>
+                  </div>
+                )}
+
                 {/* Images */}
                 <FieldGroup>
                   <Label>Product images</Label>
                   <MultiImageUpload value={images} onChange={setImages} maxImages={5} bucket="requests" />
+                  {images.length > 0 && (
+                    <p className="mt-1 text-xs text-slate-500">{images.length} of 5 images added</p>
+                  )}
                   <Helper>Up to 5 images — drop files or paste a URL. Max 5 MB each.</Helper>
+                </FieldGroup>
+
+                {/* Catalogue URL inputs */}
+                <FieldGroup>
+                  <Label>Or paste product / catalogue URL</Label>
+                  {urls.map((url, idx) => (
+                    <div key={idx} className="flex items-center gap-2 mb-1">
+                      <input
+                        type="url"
+                        value={url}
+                        onChange={(e) => updateUrl(idx, e.target.value)}
+                        placeholder="https://..."
+                        className="dark-input flex-1"
+                      />
+                      {urls.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => removeUrlInput(idx)}
+                          className="text-slate-400 hover:text-red-400 text-lg leading-none px-1"
+                        >
+                          ×
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                  {urls.length < 5 && (
+                    <button
+                      type="button"
+                      onClick={addUrlInput}
+                      className="text-sm text-orange-400 hover:text-orange-300 mt-1"
+                    >
+                      + Add another URL
+                    </button>
+                  )}
                 </FieldGroup>
 
                 {/* Description */}
@@ -459,28 +587,26 @@ export default function BuyerRequestSection() {
                     Estimated annual volume
                     <Tooltip text="Suppliers have minimum order quantities. Knowing your volume helps us filter out suppliers who are too large or too small for your needs." />
                   </Label>
-                  <div className="flex gap-2">
+                  <div className="flex items-center gap-3">
                     <input
                       id="volume"
                       type="number"
-                      min="0"
-                      step="any"
+                      min={1}
+                      max={99999}
                       value={volume}
                       onChange={(e) => setVolume(e.target.value)}
                       placeholder="e.g. 20"
-                      className="dark-input flex-1"
-                      style={{ width: undefined }}
+                      className="dark-input w-28"
                     />
                     <select
                       value={volumeUnit}
-                      onChange={(e) => setVolumeUnit(e.target.value as VolumeUnit)}
-                      className="dark-input w-auto px-3"
-                      style={{ width: undefined }}
+                      onChange={(e) => setVolumeUnit(e.target.value)}
+                      className="dark-input"
                     >
-                      <option value="tons">tons</option>
-                      <option value="kg">kg</option>
-                      <option value="units">units</option>
                       <option value="containers">containers</option>
+                      <option value="tons">tons / year</option>
+                      <option value="pallets">pallets</option>
+                      <option value="kg">kg</option>
                     </select>
                   </div>
                   <Helper>Approximate is fine — this helps us match you with suppliers of the right scale.</Helper>
@@ -548,7 +674,7 @@ export default function BuyerRequestSection() {
                       <PhoneInput
                         defaultCountry="IL"
                         value={whatsapp || undefined}
-                        onChange={(v) => { setWhatsapp(v ?? ""); clearFieldError("whatsapp"); }}
+                        onChange={(v: string | undefined) => { setWhatsapp(v ?? ""); clearFieldError("whatsapp"); }}
                         inputClassName="flex-1 bg-transparent outline-none text-[#f1f5f9] placeholder-slate-500 text-sm min-w-0"
                         numberInputProps={{ id: "whatsapp" }}
                       />
@@ -605,6 +731,15 @@ export default function BuyerRequestSection() {
                   ) : (
                     "Submit sourcing request →"
                   )}
+                </button>
+
+                {/* Clear form */}
+                <button
+                  type="button"
+                  onClick={clearForm}
+                  className="text-xs text-slate-500 hover:text-slate-300 text-center block mx-auto"
+                >
+                  Clear form
                 </button>
 
                 {/* What happens next */}

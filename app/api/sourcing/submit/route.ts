@@ -33,6 +33,7 @@ const SubmitSchema = z.object({
   image_urls: z.array(z.string()).max(5).default([]),
   ai_analysis: z.record(z.string(), z.unknown()).optional(),
   source: z.string().optional(),
+  volume_unit: z.string().max(50).optional(),
 });
 
 export async function POST(req: Request) {
@@ -43,7 +44,7 @@ export async function POST(req: Request) {
   if (!limit.allowed) {
     const mins = Math.ceil(limit.resetInMs / 60000);
     return Response.json(
-      { error: "Too many requests", message: `Please wait ${mins} minutes.` },
+      { error: "Too many requests", message: `You've submitted several requests — please wait ${mins} minutes before submitting again.` },
       { status: 429 }
     );
   }
@@ -94,6 +95,7 @@ export async function POST(req: Request) {
         ai_analysis: data.ai_analysis ?? null,
         source: data.source ?? "buyers_page",
         status: "new",
+        volume_unit: data.volume_unit ?? null,
       })
       .select("id")
       .single();

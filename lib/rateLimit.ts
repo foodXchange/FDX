@@ -5,14 +5,18 @@ type RateLimitEntry = {
 
 const store = new Map<string, RateLimitEntry>();
 
-const WINDOW_MS = 60 * 60 * 1000;
-const MAX_REQUESTS = 3;
+const WINDOW_MS = 15 * 60 * 1000;
+const MAX_REQUESTS = 20;
 
 export function checkRateLimit(ip: string): {
   allowed: boolean;
   remaining: number;
   resetInMs: number;
 } {
+  if (process.env.NODE_ENV === "development") {
+    return { allowed: true, remaining: 999, resetInMs: 0 };
+  }
+
   const now = Date.now();
   const entry = store.get(ip);
 

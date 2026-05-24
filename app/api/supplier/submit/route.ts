@@ -43,7 +43,7 @@ export async function POST(req: Request) {
   if (!limit.allowed) {
     const mins = Math.ceil(limit.resetInMs / 60000);
     return Response.json(
-      { error: "Too many requests", message: `Please wait ${mins} minutes.` },
+      { error: "Too many requests", message: `You've submitted several requests — please wait ${mins} minutes before submitting again.` },
       { status: 429 }
     );
   }
