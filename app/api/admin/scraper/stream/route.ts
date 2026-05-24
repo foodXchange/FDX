@@ -23,6 +23,52 @@ function getHomepage(url: string): string {
   }
 }
 
+// Buffer for batch logging to reduce DB writes
+class LogBuffer {
+  private buffer: Array<{
+    batch_id: string;
+    supplier_id?: string;
+    row_index?: number;
+    result?: string;
+    products_found?: number;
+    message?: string;
+    source?: string;
+    meta?: Record<string, unknown>;
+  }> = [];
+  private flush_interval = 10; // Flush every 10 logs or on demand
+
+  add(log: {
+    batch_id: string;
+    supplier_id?: string;
+    row_index?: number;
+    result?: string;
+    products_found?: number;
+    message?: string;
+    source?: string;
+    meta?: Record<string, unknown>;
+  }) {
+    this.buffer.push(log);
+    if (this.buffer.length >= this.flush_interval) {
+      return this.flushAsync();
+    }
+    return Promise.resolve();
+  }
+
+  async flushAsync() {
+    if (this.buffer.length === 0) return;
+    const toInsert = this.buffer.splice(0);
+    try {
+      await supabaseAdmin.from("scrape_batch_logs").insert(toInsert);
+    } catch (err) {
+      console.error("Failed to flush logs:", err);
+    }
+  }
+
+  async flush() {
+    return this.flushAsync();
+  }
+}
+
 async function insertProducts(
   supplierId: string,
   products: ExtractedProduct[],
@@ -58,6 +104,7 @@ async function insertProducts(
     last_scraped_at: new Date().toISOString(),
     manually_verified: false,
     needs_review: p.needs_review ?? false,
+    is_published: true,
   }));
 
   const { error } = await supabaseAdmin.from("supplier_products").insert(rows);
@@ -80,8 +127,11 @@ export async function GET(req: NextRequest) {
   const limitParam = searchParams.get("limit");
   const statusParam = searchParams.get("status");
   const supplierIdParam = searchParams.get("supplierId");
+  const batchIdParam = searchParams.get("batchId");
+  const batchUuidParam = searchParams.get("batchUuid");
 
   const encoder = new TextEncoder();
+  const logBuffer = new LogBuffer();
 
   const stream = new ReadableStream({
     async start(controller) {
@@ -95,7 +145,36 @@ export async function GET(req: NextRequest) {
         }
       }
 
+      async function logEvent(
+        result: string,
+        supplierId: string | undefined,
+        message: string,
+        productsFound = 0,
+        source?: string,
+        meta?: Record<string, unknown>
+      ) {
+        if (batchUuidParam) {
+          await logBuffer.add({
+            batch_id: batchUuidParam,
+            supplier_id: supplierId,
+            result,
+            products_found: productsFound,
+            message,
+            source,
+            meta,
+          });
+        }
+      }
+
       send({ type: "start", message: "Starting scraper..." });
+
+      // Update batch status to running
+      if (batchUuidParam) {
+        await supabaseAdmin
+          .from("scrape_batches")
+          .update({ status: "running", updated_at: new Date().toISOString() })
+          .eq("id", batchUuidParam);
+      }
 
       // Fetch suppliers
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -109,8 +188,14 @@ export async function GET(req: NextRequest) {
 
       if (supplierIdParam) {
         query = query.eq("id", supplierIdParam);
-      } else if (statusParam === "pending") {
-        query = query.not("scrape_status", "eq", "scraped");
+      }
+
+      if (batchIdParam) {
+        query = query.eq("csv_import_batch", batchIdParam);
+      }
+
+      if (statusParam === "pending") {
+        query = query.eq("scrape_status", "pending");
       }
 
       if (limitParam) {
@@ -123,7 +208,10 @@ export async function GET(req: NextRequest) {
       };
 
       if (error || !data) {
-        send({ type: "error", message: `Failed to fetch suppliers: ${error?.message ?? "unknown"}` });
+        send({
+          type: "error",
+          message: `Failed to fetch suppliers: ${error?.message ?? "unknown"}`,
+        });
         send({ type: "done" });
         controller.close();
         return;
@@ -131,10 +219,12 @@ export async function GET(req: NextRequest) {
 
       const suppliers = data as SupplierRow[];
       send({ type: "log", message: `Found ${suppliers.length} suppliers to process` });
+      await logEvent("info", undefined, `Found ${suppliers.length} suppliers to process`);
 
       const succeeded: { name: string; products: number }[] = [];
       const failed: { name: string; reason: string }[] = [];
       const skippedList: { name: string; type: string }[] = [];
+      let perplexityCount = 0;
 
       for (let i = 0; i < suppliers.length; i++) {
         const supplier = suppliers[i];
@@ -160,7 +250,11 @@ export async function GET(req: NextRequest) {
               // ── CRAWL ─────────────────────────────────────────────────────
               send({ type: "log", message: "  → Crawling website..." });
               const crawlUrl = getHomepage(supplier.website!);
-              const content = await crawlSupplier(crawlUrl, supplier.company_name, supplier.country_of_origin);
+              const content = await crawlSupplier(
+                crawlUrl,
+                supplier.company_name,
+                supplier.country_of_origin
+              );
               const isPerplexity = content.startsWith("[PERPLEXITY RESEARCH]");
 
               if (!content || content.length < 50) {
@@ -170,14 +264,27 @@ export async function GET(req: NextRequest) {
                   .update({ scrape_status: "failed" })
                   .eq("id", supplier.id);
                 failed.push({ name: supplier.company_name, reason: "No content returned" });
+                await logEvent(
+                  "failed",
+                  supplier.id,
+                  "Website blocked or no content"
+                );
                 return;
               }
 
               if (isPerplexity) {
+                perplexityCount++;
                 send({
                   type: "log",
                   message: `  ✓ Content from Perplexity research (${content.length.toLocaleString()} chars)`,
                 });
+                await logEvent(
+                  "perplexity_fallback",
+                  supplier.id,
+                  `Fetched ${content.length.toLocaleString()} chars via Perplexity`,
+                  0,
+                  "perplexity"
+                );
               } else {
                 const pageCount = content.split("---PAGE BREAK---").length;
                 send({
@@ -208,6 +315,11 @@ export async function GET(req: NextRequest) {
                   })
                   .eq("id", supplier.id);
                 skippedList.push({ name: supplier.company_name, type: mfr.companyType });
+                await logEvent(
+                  "skipped",
+                  supplier.id,
+                  `Not a manufacturer (${mfr.companyType}): ${mfr.reason}`
+                );
                 return;
               }
 
@@ -232,12 +344,20 @@ export async function GET(req: NextRequest) {
                   .update({ scrape_status: "failed" })
                   .eq("id", supplier.id);
                 failed.push({ name: supplier.company_name, reason: "No products extracted" });
+                await logEvent(
+                  "failed",
+                  supplier.id,
+                  "No products extracted"
+                );
                 return;
               }
 
               const detectedLang = products[0]?.detected_language;
               if (detectedLang && detectedLang !== "english") {
-                send({ type: "log", message: `  🌍 Content language: ${detectedLang}` });
+                send({
+                  type: "log",
+                  message: `  🌍 Content language: ${detectedLang}`,
+                });
               }
 
               // ── SAVE PRODUCTS ─────────────────────────────────────────────
@@ -312,6 +432,13 @@ export async function GET(req: NextRequest) {
               });
 
               succeeded.push({ name: supplier.company_name, products: inserted });
+              await logEvent(
+                "success",
+                supplier.id,
+                `${inserted} products saved`,
+                inserted,
+                scrapeSource
+              );
             })(),
             supplierTimeout,
           ]);
@@ -327,6 +454,7 @@ export async function GET(req: NextRequest) {
               })
               .eq("id", supplier.id);
             failed.push({ name: supplier.company_name, reason: "Timeout after 90s" });
+            await logEvent("failed", supplier.id, "Timeout after 90s");
           } else {
             send({ type: "error", message: `  ✗ Error: ${msg}` });
             await supabaseAdmin
@@ -334,7 +462,24 @@ export async function GET(req: NextRequest) {
               .update({ scrape_status: "failed" })
               .eq("id", supplier.id);
             failed.push({ name: supplier.company_name, reason: msg });
+            await logEvent("failed", supplier.id, `Error: ${msg}`);
           }
+        }
+
+        // Update batch progress in real-time
+        if (batchUuidParam) {
+          await supabaseAdmin
+            .from("scrape_batches")
+            .update({
+              processed: i + 1,
+              success_count: succeeded.length,
+              failed_count: failed.length,
+              skipped_count: skippedList.length,
+              perplexity_fallback_count: perplexityCount,
+              products_found: succeeded.reduce((s, r) => s + r.products, 0),
+              updated_at: new Date().toISOString(),
+            })
+            .eq("id", batchUuidParam);
         }
 
         if (i < suppliers.length - 1) {
@@ -343,17 +488,46 @@ export async function GET(req: NextRequest) {
         }
       }
 
-      // Summary
+      // Flush remaining logs
+      await logBuffer.flush();
+
+      // Final summary and batch status
+      const summaryMsg = `Done — ${succeeded.length} succeeded, ${failed.length} failed, ${skippedList.length} skipped`;
       send({
         type: "summary",
-        message: `Done — ${succeeded.length} succeeded, ${failed.length} failed, ${skippedList.length} skipped`,
+        message: summaryMsg,
         data: {
           succeeded: succeeded.length,
           failed: failed.length,
           skipped: skippedList.length,
           totalProducts: succeeded.reduce((s, r) => s + r.products, 0),
+          perplexityFallback: perplexityCount,
         },
       });
+
+      if (batchUuidParam) {
+        await supabaseAdmin
+          .from("scrape_batches")
+          .update({
+            status: "finished",
+            processed: suppliers.length,
+            success_count: succeeded.length,
+            failed_count: failed.length,
+            skipped_count: skippedList.length,
+            perplexity_fallback_count: perplexityCount,
+            products_found: succeeded.reduce((s, r) => s + r.products, 0),
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", batchUuidParam);
+
+        await logEvent(
+          "info",
+          undefined,
+          summaryMsg,
+          succeeded.reduce((s, r) => s + r.products, 0)
+        );
+        await logBuffer.flush();
+      }
 
       send({ type: "done" });
       controller.close();

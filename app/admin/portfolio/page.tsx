@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import PortfolioListClient from "@/components/admin/PortfolioListClient";
+import PortfolioQuickEntry from "@/components/admin/PortfolioQuickEntry";
 import LeadsTable from "@/components/admin/LeadsTable";
 import { getRecentEvents } from "@/lib/analytics/portfolioAnalytics";
 import type { EventRow } from "@/lib/analytics/portfolioAnalytics";
@@ -50,12 +51,15 @@ export default async function AdminPortfolioPage() {
       {/* TOP BAR */}
       <div className="border-b border-gray-200 bg-white px-6 py-3 flex items-center justify-between sticky top-0 z-10 shadow-sm">
         <span className="text-sm font-semibold text-gray-800">Portfolio CMS</span>
-        <Link
-          href="/admin/portfolio/new"
-          className="px-4 py-2 rounded-lg bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold transition"
-        >
-          + New item
-        </Link>
+        <div className="flex items-center gap-2">
+          <PortfolioQuickEntry />
+          <Link
+            href="/admin/portfolio/new"
+            className="px-4 py-2 rounded-lg bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold transition"
+          >
+            + New item
+          </Link>
+        </div>
       </div>
 
       {/* RECENT MATCH ACTIVITY */}

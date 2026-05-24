@@ -38,8 +38,8 @@ export async function POST(req: NextRequest) {
       "anthropic-version": "2023-06-01",
     },
     body: JSON.stringify({
-      model: "claude-sonnet-4-5",
-      max_tokens: 2048, // enough for a full blog post
+      model: "claude-sonnet-4-6",
+      max_tokens: 2048,
       stream: true,
       system: system || "",
       messages: [{ role: "user", content: user }],
@@ -79,10 +79,6 @@ export async function POST(req: NextRequest) {
           for (const line of lines) {
             if (!line.startsWith("data: ")) continue;
             const raw = line.slice(6).trim();
-            if (raw === "[DONE]") {
-              controller.enqueue(encoder.encode("data: [DONE]\n\n"));
-              continue;
-            }
             try {
               const parsed = JSON.parse(raw);
               // Extract only the text delta chunks
@@ -91,16 +87,18 @@ export async function POST(req: NextRequest) {
                 parsed.delta?.type === "text_delta" &&
                 parsed.delta?.text
               ) {
-                // Forward as a simple "data: <text>" line
                 controller.enqueue(
                   encoder.encode(`data: ${parsed.delta.text}\n\n`)
                 );
               }
             } catch {
-              // Ignore unparseable lines (ping events etc.)
+              // Ignore unparseable lines (ping events, message_stop, etc.)
             }
           }
         }
+        // Anthropic ends with event: message_stop — not data: [DONE].
+        // Sending [DONE] explicitly tells the client the stream is finished.
+        controller.enqueue(encoder.encode("data: [DONE]\n\n"));
       } finally {
         controller.close();
         reader.releaseLock();

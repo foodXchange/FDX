@@ -1,9 +1,19 @@
 import Link from "next/link";
+import DigestButton from "@/components/admin/DigestButton";
 
 export default function AdminHome() {
   return (
     <main className="bg-slate-50 min-h-screen py-16 px-6">
       <div className="max-w-4xl mx-auto">
+
+        {/* Morning digest */}
+        <div className="mb-8 flex items-center justify-between bg-white border border-slate-200 rounded-2xl px-6 py-4 shadow-sm">
+          <div>
+            <p className="text-sm font-semibold text-slate-800">Morning digest</p>
+            <p className="text-xs text-slate-500 mt-0.5">Send today&apos;s activity summary by email</p>
+          </div>
+          <DigestButton />
+        </div>
 
         {/* Header */}
         <div className="text-center mb-10">

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { Resend } from "resend";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { checkRateLimit } from "@/lib/rateLimit";
 import { sendLeadNotification, sendBuyerConfirmation } from "@/lib/email/mailer";
@@ -77,9 +78,8 @@ export async function POST(req: Request) {
         target_market: data.target_market ?? null,
         private_label: data.private_label ?? null,
         ai_analysis: data.ai_analysis ?? null,
-        source: data.source ?? "sourcing-widget",
+        source: data.source ?? "buyers_page",
         status: "new",
-        image_urls: data.image_urls,
       })
       .select("id")
       .single();
@@ -87,6 +87,50 @@ export async function POST(req: Request) {
     if (insertError) {
       console.error("Insert error:", insertError);
       return Response.json({ error: "Failed to save request." }, { status: 500 });
+    }
+
+    // Guaranteed admin notification — fires for every submission
+    if (process.env.RESEND_API_KEY) {
+      const resend = new Resend(process.env.RESEND_API_KEY);
+      const to = process.env.NOTIFY_EMAIL_TO ?? "info@foodz-x.com";
+      const from = process.env.NOTIFY_EMAIL_FROM ?? "info@foodz-x.com";
+      const productLabel = data.product_name ?? data.description?.slice(0, 60) ?? "—";
+      const rows: [string, string][] = [
+        ["Product", productLabel],
+        ["Category", data.category ?? "—"],
+        ["Kosher", data.certifications.length > 0 ? data.certifications.join(", ") : "—"],
+        ["Company", data.company ?? "—"],
+        ["Name", data.name],
+        ["WhatsApp", data.whatsapp ?? "—"],
+        ["Email", data.email],
+        ["Private label", data.private_label ? "Yes" : "No"],
+      ];
+      const tableRows = rows
+        .map(
+          ([label, value]) =>
+            `<tr><td style="color:#64748b;padding:4px 0;width:120px;font-size:14px;">${label}</td><td style="color:#1e293b;font-weight:500;font-size:14px;">${value}</td></tr>`
+        )
+        .join("");
+      const html = `<div style="font-family:sans-serif;max-width:600px;margin:0 auto;">
+  <div style="background:#0f172a;padding:20px 24px;border-radius:12px 12px 0 0;">
+    <h2 style="color:#fff;margin:0;font-size:18px;">🛒 New Sourcing Request</h2>
+    <p style="color:#94a3b8;margin:4px 0 0;font-size:13px;">via FoodXchange buyers page</p>
+  </div>
+  <div style="border:1px solid #e2e8f0;border-top:none;border-radius:0 0 12px 12px;padding:24px;">
+    <table style="width:100%;border-collapse:collapse;">${tableRows}</table>
+    ${data.description ? `<div style="margin-top:16px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:14px;"><p style="color:#64748b;font-size:12px;margin:0 0 6px;text-transform:uppercase;letter-spacing:0.05em;">Description</p><p style="color:#334155;font-size:14px;line-height:1.6;margin:0;">${data.description}</p></div>` : ""}
+    <hr style="border:none;border-top:1px solid #e2e8f0;margin:20px 0 14px;"/>
+    <p style="color:#94a3b8;font-size:12px;margin:0;">FoodXchange · fdx.trading</p>
+  </div>
+</div>`;
+      resend.emails
+        .send({
+          from,
+          to,
+          subject: `🛒 New sourcing request: ${productLabel}${data.company ? ` — ${data.company}` : ""}`,
+          html,
+        })
+        .catch(console.error);
     }
 
     if (data.image_urls.length > 0) {
@@ -209,7 +253,13 @@ export async function POST(req: Request) {
 
     return Response.json({ ok: true, id: newRequest.id, intentSummary });
   } catch (err) {
-    console.error("Submit error:", err);
-    return Response.json({ error: "Something went wrong." }, { status: 500 });
+    console.error("Submit error:", JSON.stringify(err, null, 2));
+    return Response.json(
+      {
+        error: "Failed to save request.",
+        details: err instanceof Error ? err.message : String(err),
+      },
+      { status: 500 }
+    );
   }
 }

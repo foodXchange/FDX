@@ -15,17 +15,7 @@
 //   (optionally) SUPABASE_SERVICE_ROLE_KEY=eyJ...  ← preferred for uploads
 
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
-
-// Use service role key for uploads if available (bypasses RLS),
-// otherwise fall back to anon key (works on public buckets)
-function getSupabaseClient() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-  const key =
-    process.env.SUPABASE_SERVICE_ROLE_KEY ||
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-  return createClient(url, key);
-}
+import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
 const BUCKET = "blog-images";
 const MAX_SIZE_MB = 5;
@@ -69,26 +59,24 @@ export async function POST(req: NextRequest) {
     const fileName = `posts/${datePart}_${timePart}_${safeName}`;
 
     // ── Upload to Supabase Storage ───────────────────────────────────────────
-    const supabase = getSupabaseClient();
     const arrayBuffer = await file.arrayBuffer();
     const buffer = new Uint8Array(arrayBuffer);
 
-    const { error: uploadError } = await supabase.storage
+    const { error: uploadError } = await supabaseAdmin.storage
       .from(BUCKET)
       .upload(fileName, buffer, {
         contentType: file.type,
-        upsert: false, // never overwrite — timestamp ensures uniqueness
+        upsert: false,
       });
 
     if (uploadError) {
       console.error("Supabase upload error:", uploadError);
 
-      // Friendly error for the most common mistake: bucket doesn't exist yet
       if (uploadError.message?.includes("not found") || uploadError.message?.includes("does not exist")) {
         return NextResponse.json(
           {
             error:
-              'Storage bucket "blog-images" not found. Create it in your Supabase dashboard: Storage → New bucket → name it "blog-images" → enable Public.',
+              'Storage bucket "blog-images" not found. Create it in Supabase: Storage → New bucket → name "blog-images" → enable Public.',
           },
           { status: 500 }
         );
@@ -101,7 +89,7 @@ export async function POST(req: NextRequest) {
     }
 
     // ── Get the public URL ───────────────────────────────────────────────────
-    const { data: urlData } = supabase.storage
+    const { data: urlData } = supabaseAdmin.storage
       .from(BUCKET)
       .getPublicUrl(fileName);
 

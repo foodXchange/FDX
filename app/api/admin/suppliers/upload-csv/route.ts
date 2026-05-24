@@ -67,6 +67,28 @@ export async function POST(req: Request) {
   }
 
   const batchId = `csv-${Date.now()}`;
+  const fileName = file.name;
+  
+  // Create scrape_batches record
+  const { data: batchData, error: batchError } = await supabaseAdmin
+    .from("scrape_batches")
+    .insert({
+      batch_key: batchId,
+      filenames: [fileName],
+      total_rows: rows.length,
+      status: "pending",
+    })
+    .select("id")
+    .single();
+
+  if (batchError || !batchData) {
+    return Response.json(
+      { error: `Failed to create batch record: ${batchError?.message || "unknown"}` },
+      { status: 500 }
+    );
+  }
+
+  const batchUuid = batchData.id;
   let inserted = 0;
   let skipped = 0;
   let errors = 0;
@@ -138,9 +160,23 @@ export async function POST(req: Request) {
     }
   }
 
+  const { error: uploadLogError } = await supabaseAdmin
+    .from("scraper_csv_uploads")
+    .insert({
+      batch_id: batchId,
+      filename: fileName,
+      rows_total: rows.length,
+      rows_pending: inserted,
+      uploaded_at: new Date().toISOString(),
+    });
+  if (uploadLogError) {
+    console.error("scraper_csv_uploads insert error:", uploadLogError);
+  }
+
   return Response.json({
     ok: true,
     batchId,
+    batchUuid,
     total: rows.length,
     inserted,
     skipped,

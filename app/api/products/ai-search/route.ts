@@ -176,7 +176,7 @@ categories must be from: ${VALID_CATEGORIES.join(", ")}`,
        private_label, scrape_confidence,
        supplier:supplier_offerings!inner(company_name, country_of_origin, status)`
     )
-    .eq("is_published", true);
+    .or("is_published.eq.true,is_published.is.null");
 
   if (intent.categories.length > 0) {
     q = q.in("category", intent.categories);

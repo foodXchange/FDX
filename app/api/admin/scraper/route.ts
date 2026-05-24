@@ -94,6 +94,7 @@ async function insertProducts(
     scrape_confidence: p.confidence ?? 0.5,
     last_scraped_at: new Date().toISOString(),
     manually_verified: false,
+    is_published: true,
   }));
 
   const { error } = await supabaseAdmin.from("supplier_products").insert(rows);

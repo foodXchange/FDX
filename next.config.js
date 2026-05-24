@@ -1,5 +1,14 @@
 const { withSentryConfig } = require("@sentry/nextjs");
 
+// Enable bundle analyzer when ANALYZE=true
+let withBundleAnalyzer;
+try {
+  withBundleAnalyzer = require('@next/bundle-analyzer')({ enabled: process.env.ANALYZE === 'true' });
+} catch (e) {
+  // fallback if the package isn't installed yet
+  withBundleAnalyzer = (config) => config;
+}
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   images: {
@@ -16,7 +25,10 @@ const nextConfig = {
   },
 };
 
-module.exports = withSentryConfig(nextConfig, {
+// Apply bundle analyzer wrapper if available
+const maybeAnalyzedConfig = withBundleAnalyzer(nextConfig);
+
+module.exports = withSentryConfig(maybeAnalyzedConfig, {
   silent: true,
   org: process.env.SENTRY_ORG,
   project: process.env.SENTRY_PROJECT,

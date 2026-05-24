@@ -20,10 +20,12 @@ const links = [
 
 const marketingLinks = [
   { href: "/admin/card-analytics", label: "Card Analytics" },
+  { href: "/admin/card-editor", label: "Card Editor" },
 ];
 
 const settingsLinks = [
   { href: "/admin/settings/category-images", label: "Category Images" },
+  { href: "/admin/settings/trash", label: "Trash" },
 ];
 
 export default function AdminNav() {

@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
-import { CATEGORY_SLUGS, toCategorySlug } from "@/lib/products/categorySlug";
-import { CATEGORY_COLORS } from "@/lib/products/cleanProductName";
+import { CATEGORY_SLUGS } from "@/lib/products/categorySlug";
+import ProductsHubClient from "@/components/products/ProductsHubClient";
 
 // Keep type exports — imported by ProductListRow, ProductCard, ProductGallery, CategoryProductsClient
 export type PublicCatalogueProduct = {
@@ -46,19 +45,13 @@ export const metadata: Metadata = {
   },
 };
 
-const COUNTRY_FLAG: Record<string, string> = {
-  Spain: "🇪🇸", Italy: "🇮🇹", France: "🇫🇷", Portugal: "🇵🇹", Greece: "🇬🇷",
-  Turkey: "🇹🇷", Morocco: "🇲🇦", Israel: "🇮🇱", Germany: "🇩🇪", Netherlands: "🇳🇱",
-  Poland: "🇵🇱", Belgium: "🇧🇪", Ukraine: "🇺🇦", Romania: "🇷🇴", Bulgaria: "🇧🇬",
-};
-
 type RawStatRow = {
   category: string;
   kosher_types: string[] | null;
   supplier: { country_of_origin: string | null } | null;
 };
 
-type ComputedCatStat = {
+export type ComputedCatStat = {
   count: number;
   kosher_pct: number;
   country_count: number;
@@ -72,7 +65,7 @@ export default async function ProductsPage() {
       .select(
         "category, kosher_types, supplier:supplier_offerings!inner(country_of_origin)"
       )
-      .eq("is_published", true),
+      .or("is_published.eq.true,is_published.is.null"),
     supabaseAdmin
       .from("category_images")
       .select("category, image_url, gradient_from, gradient_to"),
@@ -150,99 +143,11 @@ export default async function ProductsPage() {
         </div>
       </section>
 
-      {/* CATEGORY GRID */}
-      <section className="max-w-7xl mx-auto px-6 py-14">
-        <p className="text-xs font-semibold uppercase tracking-widest text-slate-400 mb-6">
-          Browse by category
-        </p>
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
-          {allCategories.map((cat) => {
-            const slug = toCategorySlug(cat);
-            const stat = stats[cat];
-            const img = catImages[cat];
-            const catColor = CATEGORY_COLORS[cat] ?? "#888780";
-            const gradient = img?.gradient_from && img?.gradient_to
-              ? `linear-gradient(135deg, ${img.gradient_from}, ${img.gradient_to})`
-              : `linear-gradient(135deg, ${catColor}cc, ${catColor}66)`;
-            const topFlags = (stat?.top_countries ?? [])
-              .map((c) => COUNTRY_FLAG[c] ?? "🌍")
-              .join(" ");
-
-            return (
-              <Link
-                key={cat}
-                href={`/en/products/${slug}`}
-                className="group block rounded-2xl overflow-hidden border border-dark-border hover:border-orange-500/40 hover:shadow-xl hover:shadow-black/40 transition-all duration-300"
-                style={{ transform: "scale(1)", willChange: "transform" }}
-              >
-                {/* Image area — 160px */}
-                <div className="relative overflow-hidden" style={{ height: 160 }}>
-                  {/* Gradient base */}
-                  <div
-                    className="absolute inset-0 flex items-center justify-center"
-                    style={{ background: gradient }}
-                  >
-                    <span className="text-white font-semibold text-sm px-3 text-center drop-shadow">
-                      {cat}
-                    </span>
-                  </div>
-                  {/* Image on top */}
-                  {img?.image_url && (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={img.image_url}
-                      alt={cat}
-                      className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                    />
-                  )}
-                  {/* Hover overlay */}
-                  <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                  {/* Orange bottom border on hover */}
-                  <div
-                    className="absolute bottom-0 left-0 right-0 h-0.5 scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left"
-                    style={{ backgroundColor: "#f97316" }}
-                  />
-                </div>
-
-                {/* Card footer */}
-                <div className="bg-dark-700 px-4 py-3">
-                  <p className="text-[13px] font-medium text-dark-text-primary leading-snug mb-0.5">
-                    {cat}
-                  </p>
-                  {stat ? (
-                    <>
-                      <p className="text-[11px] text-slate-400">
-                        {stat.count} product{stat.count !== 1 ? "s" : ""}{stat.country_count > 0 ? ` · ${stat.country_count} countr${stat.country_count !== 1 ? "ies" : "y"}` : ""}
-                      </p>
-                      <div className="flex items-center justify-between mt-1">
-                        <span className="text-[11px] text-green-400 font-medium">
-                          ✡ {stat.kosher_pct === 100 ? "All kosher" : `${stat.kosher_pct}% kosher`}
-                        </span>
-                        {topFlags && (
-                          <span className="text-sm">{topFlags}</span>
-                        )}
-                      </div>
-                    </>
-                  ) : (
-                    <p className="text-[11px] text-slate-400">Explore products</p>
-                  )}
-                </div>
-              </Link>
-            );
-          })}
-        </div>
-      </section>
-
-      {/* Below grid CTA */}
-      <section className="border-t border-dark-border py-12 px-6 text-center">
-        <p className="text-slate-400 text-sm mb-1">Can&apos;t find what you need?</p>
-        <Link
-          href="/en/buyers"
-          className="text-orange-600 hover:text-orange-700 font-semibold text-sm transition"
-        >
-          Submit a sourcing request and we find it for you →
-        </Link>
-      </section>
+      <ProductsHubClient
+        allCategories={allCategories}
+        stats={stats}
+        catImages={catImages}
+      />
     </main>
   );
 }

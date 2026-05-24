@@ -30,7 +30,7 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
   const { count } = await supabaseAdmin
     .from("supplier_products")
     .select("*", { count: "exact", head: true })
-    .eq("is_published", true)
+    .or("is_published.eq.true,is_published.is.null")
     .eq("category", category);
 
   const title = `Kosher ${category} Suppliers for Israel — FoodXchange`;
@@ -70,7 +70,7 @@ export default async function CategoryProductsPage({ params }: { params: Params 
          description, private_label, scrape_confidence,
          supplier:supplier_offerings!inner(id, company_name, country_of_origin, status)`
       )
-      .eq("is_published", true)
+      .or("is_published.eq.true,is_published.is.null")
       .eq("category", category)
       .order("scrape_confidence", { ascending: false }),
     supabaseAdmin

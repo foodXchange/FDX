@@ -24,10 +24,19 @@ interface ProgressState {
   perplexity: number;
 }
 
+interface BatchOption {
+  batchId: string;
+  filename: string;
+  rowsTotal: number;
+  uploadedAt: string | null;
+}
+
 interface ScraperConsoleProps {
   supplierId?: string;
   totalPending?: number;
   totalAll?: number;
+  defaultBatchId?: string;
+  batchOptions?: BatchOption[];
 }
 
 const LOG_COLORS: Record<string, string> = {
@@ -42,13 +51,15 @@ const LOG_COLORS: Record<string, string> = {
 
 const LIMIT_OPTIONS: (number | "all")[] = [10, 50, 100, 200, 500, "all"];
 
-export function ScraperConsole({ supplierId }: ScraperConsoleProps) {
+export function ScraperConsole({ supplierId, defaultBatchId, batchOptions }: ScraperConsoleProps) {
   const [running, setRunning] = useState(false);
   const [logs, setLogs] = useState<LogLine[]>([]);
   const [summary, setSummary] = useState<ScraperSummary | null>(null);
   const [progress, setProgress] = useState<ProgressState | null>(null);
   const [limit, setLimit] = useState<number | "all">(50);
   const [filterPending, setFilterPending] = useState(true);
+  const [batchId, setBatchId] = useState(defaultBatchId ?? "");
+  const [batchInfo, setBatchInfo] = useState<string | null>(null);
   const eventSourceRef = useRef<EventSource | null>(null);
   const logEndRef = useRef<HTMLDivElement>(null);
 
@@ -64,18 +75,56 @@ export function ScraperConsole({ supplierId }: ScraperConsoleProps) {
     };
   }, []);
 
+  useEffect(() => {
+    const readBatchFromHash = () => {
+      if (typeof window === "undefined") return;
+      const hash = window.location.hash;
+      if (hash.startsWith("#batchId=")) {
+        const value = decodeURIComponent(hash.slice("#batchId=".length));
+        if (value) {
+          setBatchId(value);
+        }
+      }
+    };
+
+    readBatchFromHash();
+    window.addEventListener("hashchange", readBatchFromHash);
+    return () => window.removeEventListener("hashchange", readBatchFromHash);
+  }, []);
+
+  // Initialize batchId from first option when options are provided and no hash/default is set
+  useEffect(() => {
+    if (batchOptions && batchOptions.length > 0 && !defaultBatchId) {
+      const hash = typeof window !== "undefined" ? window.location.hash : "";
+      if (!hash.startsWith("#batchId=")) {
+        setBatchId(batchOptions[0].batchId);
+      }
+    }
+  }, [batchOptions, defaultBatchId]);
+
   function startScraping() {
     setRunning(true);
     setLogs([]);
     setSummary(null);
     setProgress(null);
+    setBatchInfo(null);
 
     const params = new URLSearchParams();
+    const trimmedBatch = batchId.trim();
+    const usePending = Boolean(trimmedBatch) || filterPending;
+
     if (supplierId) {
       params.set("supplierId", supplierId);
-    } else {
+    }
+
+    if (trimmedBatch) {
+      params.set("batchId", trimmedBatch);
+      setBatchInfo(`Batch run: only pending rows from ${trimmedBatch}`);
+    }
+
+    if (!supplierId) {
       if (limit !== "all") params.set("limit", String(limit));
-      if (filterPending) params.set("status", "pending");
+      if (usePending) params.set("status", "pending");
     }
 
     const url = `/api/admin/scraper/stream?${params.toString()}`;
@@ -243,12 +292,51 @@ export function ScraperConsole({ supplierId }: ScraperConsoleProps) {
               ))}
             </div>
 
+            <div className="flex flex-col gap-3">
+              <label className="text-sm text-slate-600 flex flex-col gap-1">
+                Batch
+                {batchOptions && batchOptions.length > 0 ? (
+                  <select
+                    value={batchId}
+                    onChange={(e) => setBatchId(e.target.value)}
+                    disabled={running}
+                    className="px-3 py-2 border border-slate-200 rounded-lg text-sm w-72 bg-white"
+                  >
+                    <option value="">— All pending (no batch filter) —</option>
+                    {batchOptions.map((opt) => (
+                      <option key={opt.batchId} value={opt.batchId}>
+                        {opt.filename}
+                        {opt.uploadedAt
+                          ? ` — ${new Date(opt.uploadedAt).toLocaleDateString()}`
+                          : ""}
+                        {` — ${opt.rowsTotal} rows`}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <input
+                    type="text"
+                    value={batchId}
+                    onChange={(e) => setBatchId(e.target.value)}
+                    disabled={running}
+                    placeholder="csv-1234567890"
+                    className="px-3 py-2 border border-slate-200 rounded-lg text-sm w-60"
+                  />
+                )}
+              </label>
+              {batchId.trim() ? (
+                <p className="text-xs text-slate-500">
+                  This will run only pending rows for the selected upload batch.
+                </p>
+              ) : null}
+            </div>
+
             <label className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer">
               <input
                 type="checkbox"
                 checked={filterPending}
                 onChange={(e) => setFilterPending(e.target.checked)}
-                disabled={running}
+                disabled={running || Boolean(batchId.trim())}
                 className="rounded"
               />
               Pending only
@@ -272,6 +360,12 @@ export function ScraperConsole({ supplierId }: ScraperConsoleProps) {
           </button>
         )}
       </div>
+
+      {batchInfo && (
+        <div className="mb-4 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
+          {batchInfo}
+        </div>
+      )}
 
       {/* Progress bar */}
       {running && progress !== null && (
@@ -307,7 +401,7 @@ export function ScraperConsole({ supplierId }: ScraperConsoleProps) {
 
       {/* Log panel */}
       <div
-        className={`bg-slate-900 rounded-xl p-4 font-mono text-sm min-h-[300px] max-h-[500px] overflow-y-auto transition-all
+        className={`bg-slate-900 rounded-xl p-4 font-mono text-sm min-h-75 max-h-125 overflow-y-auto transition-all
           ${summary ? "ring-2 ring-green-500" : ""}`}
       >
         {logs.length === 0 && !running ? (
