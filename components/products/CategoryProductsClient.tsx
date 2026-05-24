@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import ProductListRow from "@/components/ProductListRow";
 import ProductCard from "@/components/ProductCard";
 import AiSearchPanel from "@/components/products/AiSearchPanel";
@@ -31,6 +32,7 @@ export default function CategoryProductsClient({
   const [view, setView] = useState<View>("list");
   const [page, setPage] = useState(1);
   const [aiResults, setAiResults] = useState<PublicCatalogueProduct[] | null>(null);
+  const [activeAiQuery, setActiveAiQuery] = useState<string | null>(null);
   const [requestProduct, setRequestProduct] = useState<PublicCatalogueProduct | null>(null);
   const [showImages, setShowImages] = useState(false);
 
@@ -241,27 +243,46 @@ export default function CategoryProductsClient({
         {/* AI Search panel */}
         <AiSearchPanel
           category={category}
-          onResults={(results) => {
+          onResults={(results, query) => {
             setAiResults(results);
+            setActiveAiQuery(query);
             setPage(1);
           }}
-          onClear={() => setAiResults(null)}
+          onClear={() => {
+            setAiResults(null);
+            setActiveAiQuery(null);
+          }}
         />
 
         {/* Product list/grid */}
         {paginated.length === 0 ? (
-          <div className="text-center py-16">
-            <p className="text-slate-400 mb-4">
-              No products found with these filters.
-            </p>
-            <button
-              type="button"
-              onClick={clearAllFilters}
-              className="text-orange-400 hover:text-orange-300 text-sm font-medium border border-orange-500/30 px-4 py-2 rounded-lg transition"
-            >
-              Clear filters
-            </button>
-          </div>
+          aiResults !== null ? (
+            <div className="text-center py-16">
+              <p className="text-dark-text-primary font-semibold text-lg mb-2">
+                No exact matches found for &ldquo;{activeAiQuery}&rdquo;
+              </p>
+              <p className="text-slate-400 text-sm mb-6">
+                Submit a sourcing request and we will find it for you.
+              </p>
+              <Link
+                href="/en/sourcing"
+                className="bg-orange-500 hover:bg-orange-600 text-white font-semibold px-7 py-3 rounded-xl text-sm transition inline-block"
+              >
+                Submit sourcing request &#x2192;
+              </Link>
+            </div>
+          ) : (
+            <div className="text-center py-16">
+              <p className="text-slate-400 mb-4">No products found with these filters.</p>
+              <button
+                type="button"
+                onClick={clearAllFilters}
+                className="text-orange-400 hover:text-orange-300 text-sm font-medium border border-orange-500/30 px-4 py-2 rounded-lg transition"
+              >
+                Clear filters
+              </button>
+            </div>
+          )
         ) : view === "list" ? (
           <div className="divide-y divide-white/6 border border-dark-border rounded-2xl overflow-hidden">
             {paginated.map((product) => (
@@ -297,6 +318,26 @@ export default function CategoryProductsClient({
               Load {Math.min(PAGE_SIZE, sorted.length - paginated.length)} more (
               {sorted.length - paginated.length} remaining)
             </button>
+          </div>
+        )}
+
+        {/* Lead capture card — shown when AI search returned results */}
+        {aiResults !== null && aiResults.length > 0 && (
+          <div className="mt-8 dark-card p-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div>
+              <p className="text-sm font-semibold text-dark-text-primary">
+                Can&apos;t find exactly what you need?
+              </p>
+              <p className="text-xs text-slate-400 mt-0.5">
+                Submit a sourcing request — we search our full supplier network.
+              </p>
+            </div>
+            <Link
+              href="/en/sourcing"
+              className="shrink-0 bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold px-5 py-2.5 rounded-xl transition"
+            >
+              Submit request &#x2192;
+            </Link>
           </div>
         )}
       </div>

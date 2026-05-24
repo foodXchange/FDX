@@ -11,6 +11,14 @@ interface ExtractedIntent {
   private_label: boolean | null;
 }
 
+type ImageAnalysisInput = {
+  product_name: string | null;
+  category: string | null;
+  packaging_format: string | null;
+  certifications_visible: string[];
+  sourcing_keywords: string[];
+};
+
 type ProductRow = {
   id: string;
   product_name: string;
@@ -74,16 +82,16 @@ function scoreProduct(product: ProductRow, intent: ExtractedIntent, query: strin
 }
 
 export async function POST(req: NextRequest) {
-  let body: { query?: string; category?: string };
+  let body: { query?: string; category?: string; imageAnalysis?: ImageAnalysisInput };
   try {
     body = await req.json();
   } catch {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  const { query, category } = body;
-  if (!query?.trim()) {
-    return NextResponse.json({ error: "Missing query" }, { status: 400 });
+  const { query, category, imageAnalysis } = body;
+  if (!query?.trim() && !imageAnalysis) {
+    return NextResponse.json({ error: "Missing query or imageAnalysis" }, { status: 400 });
   }
 
   let intent: ExtractedIntent = {
@@ -91,12 +99,33 @@ export async function POST(req: NextRequest) {
     kosher_types: [],
     certifications: [],
     formats: [],
-    keywords: query.split(/\s+/).filter((w) => w.length > 3),
+    keywords: query ? query.split(/\s+/).filter((w) => w.length > 3) : [],
     private_label: null,
   };
 
-  // Step 1 — Claude intent extraction
-  if (process.env.ANTHROPIC_API_KEY) {
+  // Step 1a — If image analysis provided, build intent directly (skip Claude)
+  if (imageAnalysis) {
+    intent = {
+      categories:
+        imageAnalysis.category && VALID_CATEGORIES.includes(imageAnalysis.category)
+          ? [imageAnalysis.category]
+          : category
+          ? [category]
+          : [],
+      kosher_types: [],
+      certifications: imageAnalysis.certifications_visible,
+      formats: imageAnalysis.packaging_format ? [imageAnalysis.packaging_format] : [],
+      keywords: [
+        ...(imageAnalysis.product_name ? [imageAnalysis.product_name] : []),
+        ...imageAnalysis.sourcing_keywords,
+        ...(query?.split(/\s+/).filter((w) => w.length > 3) ?? []),
+      ],
+      private_label: null,
+    };
+  }
+
+  // Step 1b — Claude intent extraction (only when no imageAnalysis)
+  if (!imageAnalysis && process.env.ANTHROPIC_API_KEY) {
     try {
       const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
       const msg = await client.messages.create({
@@ -171,7 +200,7 @@ categories must be from: ${VALID_CATEGORIES.join(", ")}`,
 
   // Step 3 — Score and sort
   const scored = products
-    .map((p) => ({ product: p, score: scoreProduct(p, intent, query) }))
+    .map((p) => ({ product: p, score: scoreProduct(p, intent, query ?? "") }))
     .sort((a, b) => b.score - a.score)
     .slice(0, 10)
     .map((x) => x.product);
