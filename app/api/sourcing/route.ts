@@ -2,6 +2,8 @@ import { z } from "zod";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { sendLeadNotification } from "@/lib/email/mailer";
 import { matchSupplierProducts, formatWhatsAppMatch } from "@/lib/matching/matchSuppliers";
+import { buildPipV1 } from "@/lib/pip/buildPipV1";
+import { resolveCategoryId } from "@/lib/pip/resolveCategoryId";
 
 const Schema = z.object({
   product_name: z.string().min(1).max(2000),
@@ -135,6 +137,33 @@ export async function POST(req: Request) {
       }
     } catch (err) {
       console.error("FAB auto-match error:", err);
+    }
+  })();
+
+  (async () => {
+    try {
+      const certs =
+        data.kosher_type && data.kosher_type !== "Any kosher"
+          ? [data.kosher_type]
+          : [];
+      const pip = buildPipV1({
+        product_name: data.product_name,
+        message: null,
+        category: null,
+        certifications: certs,
+        target_market: null,
+        private_label: null,
+        ai_analysis: null,
+      });
+      const { category_id, category_name } = await resolveCategoryId("");
+      pip.category.category_id = category_id;
+      pip.category.category_name = category_name;
+      await supabaseAdmin
+        .from("sourcing_requests")
+        .update({ intent_json: pip })
+        .eq("id", newRequest.id);
+    } catch (e) {
+      console.error("PIP generation failed (FAB):", e);
     }
   })();
 

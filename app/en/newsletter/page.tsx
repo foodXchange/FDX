@@ -39,7 +39,7 @@ export default async function NewsletterPage() {
   const issues = await getIssues();
 
   return (
-    <main className="bg-white text-slate-900">
+    <main>
       {/* HERO */}
       <section className="bg-linear-to-b from-slate-900 to-slate-800 text-white py-20 px-6 text-center">
         <div className="max-w-2xl mx-auto">
@@ -56,13 +56,13 @@ export default async function NewsletterPage() {
       <section className="max-w-5xl mx-auto px-6 py-16">
         {issues.length === 0 ? (
           <div className="text-center py-16">
-            <p className="text-slate-500 text-lg font-medium">More issues coming soon</p>
+            <p className="text-slate-400 text-lg font-medium">More issues coming soon</p>
             <p className="text-slate-400 text-sm mt-3">
               Subscribe below to get notified when new issues are published.
             </p>
             <a
               href="#subscribe"
-              className="mt-6 inline-block text-orange-600 text-sm font-medium hover:text-orange-700 transition"
+              className="mt-6 inline-block text-orange-400 text-sm font-medium hover:text-orange-300 transition"
             >
               Subscribe for updates ↓
             </a>
@@ -72,7 +72,7 @@ export default async function NewsletterPage() {
           {issues.map((issue) => (
             <article
               key={issue.slug}
-              className="group border border-slate-200 rounded-xl overflow-hidden bg-white hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300"
+              className="group dark-card overflow-hidden hover:border-orange-500/30 hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300"
             >
               {/* IMAGE */}
               <Link href={`/en/newsletter/${issue.slug}`} className="block">
@@ -104,14 +104,14 @@ export default async function NewsletterPage() {
                 </p>
 
                 {issue.excerpt && (
-                  <p className="text-slate-700 text-sm leading-relaxed mb-4 line-clamp-3">
+                  <p className="text-slate-400 text-sm leading-relaxed mb-4 line-clamp-3">
                     {issue.excerpt}
                   </p>
                 )}
 
                 <Link
                   href={`/en/newsletter/${issue.slug}`}
-                  className="inline-flex items-center text-orange-600 font-medium text-sm hover:text-orange-700 hover:underline focus:outline-none focus:ring-2 focus:ring-orange-400 focus:ring-offset-2 rounded"
+                  className="inline-flex items-center text-orange-400 font-medium text-sm hover:text-orange-300 hover:underline focus:outline-none focus:ring-2 focus:ring-orange-400 focus:ring-offset-2 rounded"
                 >
                   Read full note →
                 </Link>

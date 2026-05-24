@@ -64,7 +64,7 @@ export default function BlogIndexClient({
   }
 
   return (
-    <main className="bg-white">
+    <main>
       {/* HERO */}
       <section className="relative h-[300px] md:h-[340px] flex items-center justify-center text-center overflow-hidden">
         <Image
@@ -96,7 +96,7 @@ export default function BlogIndexClient({
             className={`px-4 py-2 rounded-full text-sm border transition ${
               activeTag === null
                 ? "bg-orange-500 text-white border-orange-500"
-                : "text-slate-700 border-slate-200 hover:bg-slate-50"
+                : "text-slate-400 border-white/10 hover:bg-white/5"
             }`}
           >
             All
@@ -119,7 +119,7 @@ export default function BlogIndexClient({
         </div>
 
         {activeTag && (
-          <p className="mt-4 text-sm text-slate-500">
+          <p className="mt-4 text-sm text-slate-400">
             Showing posts tagged: <span className="font-semibold">{activeTag}</span>
           </p>
         )}
@@ -130,7 +130,7 @@ export default function BlogIndexClient({
         <section className="max-w-6xl mx-auto px-6 pb-10">
           <Link
             href={`/en/blog/${featured.slug}`}
-            className="group block rounded-2xl overflow-hidden border border-slate-200 bg-white hover:shadow-md transition"
+            className="group dark-card block overflow-hidden hover:border-orange-500/30 hover:shadow-md transition"
           >
             <div className="grid md:grid-cols-2">
               <div className="relative h-[260px] md:h-[320px] overflow-hidden">
@@ -151,12 +151,12 @@ export default function BlogIndexClient({
                   {formatDate(featured.created_at)}
                 </div>
 
-                <h2 className="text-3xl font-bold text-slate-900 mb-4 tracking-tight group-hover:text-orange-600 transition-colors">
+                <h2 className="text-3xl font-bold text-dark-text-primary mb-4 tracking-tight group-hover:text-orange-400 transition-colors">
                   {featured.title}
                 </h2>
 
                 {featured.excerpt && (
-                  <p className="text-slate-700 leading-relaxed mb-6">
+                  <p className="text-slate-400 leading-relaxed mb-6">
                     {featured.excerpt}
                   </p>
                 )}
@@ -166,7 +166,7 @@ export default function BlogIndexClient({
                     {(featured.tags || []).slice(0, 5).map((t) => (
                       <span
                         key={t}
-                        className="text-xs bg-slate-100 text-slate-700 px-3 py-1 rounded-full"
+                        className="text-xs bg-white/6 text-slate-400 px-3 py-1 rounded-full"
                       >
                         {t}
                       </span>
@@ -174,7 +174,7 @@ export default function BlogIndexClient({
                   </div>
                 )}
 
-                <span className="mt-6 text-orange-600 font-semibold">
+                <span className="mt-6 text-orange-400 font-semibold">
                   Read full article →
                 </span>
               </div>
@@ -195,7 +195,7 @@ export default function BlogIndexClient({
               <Link
                 key={post.slug}
                 href={`/en/blog/${post.slug}`}
-                className="group block rounded-2xl overflow-hidden border border-slate-200 bg-white hover:shadow-md transition hover:-translate-y-0.5"
+                className="group dark-card block overflow-hidden hover:border-orange-500/30 hover:shadow-md transition hover:-translate-y-0.5"
               >
                 <div className="relative h-[180px] overflow-hidden">
                   <Image
@@ -214,12 +214,12 @@ export default function BlogIndexClient({
                     {formatDate(post.created_at)}
                   </div>
 
-                  <h3 className="text-lg font-semibold text-slate-900 mb-2 leading-snug group-hover:text-orange-600 transition-colors">
+                  <h3 className="text-lg font-semibold text-dark-text-primary mb-2 leading-snug group-hover:text-orange-400 transition-colors">
                     {post.title}
                   </h3>
 
                   {post.excerpt && (
-                    <p className="text-sm text-slate-700 leading-relaxed line-clamp-3 mb-4">
+                    <p className="text-sm text-slate-400 leading-relaxed line-clamp-3 mb-4">
                       {post.excerpt}
                     </p>
                   )}
@@ -229,7 +229,7 @@ export default function BlogIndexClient({
                       {(post.tags || []).slice(0, 3).map((t) => (
                         <span
                           key={t}
-                          className="text-[11px] bg-slate-100 text-slate-700 px-2.5 py-1 rounded-full"
+                          className="text-[11px] bg-white/6 text-slate-400 px-2.5 py-1 rounded-full"
                         >
                           {t}
                         </span>
@@ -237,7 +237,7 @@ export default function BlogIndexClient({
                     </div>
                   )}
 
-                  <span className="text-orange-600 font-semibold text-sm">
+                  <span className="text-orange-400 font-semibold text-sm">
                     Read →
                   </span>
                 </div>
@@ -248,7 +248,7 @@ export default function BlogIndexClient({
       </section>
 
       {/* CTA */}
-      <section className="bg-slate-50 py-20">
+      <section className="py-20">
         <div className="max-w-3xl mx-auto px-6">
           <BlogCTA lang="en" />
         </div>

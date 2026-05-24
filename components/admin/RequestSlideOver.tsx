@@ -5,6 +5,7 @@ import type { RequestRow } from "@/app/admin/requests/page";
 import { updateRequestStatus } from "@/app/admin/requests/actions";
 import PostGenerator from "@/components/admin/PostGenerator";
 import ScriptGenerator from "@/components/admin/ScriptGenerator";
+import PipPanel from "@/components/admin/PipPanel";
 
 type SavedMatch = {
   id: string;
@@ -64,6 +65,21 @@ export default function RequestSlideOver({
   const [matchError, setMatchError] = useState<string | null>(null);
   const [, startTransition] = useTransition();
 
+  // Sourcing board publish state
+  const [isPublished, setIsPublished] = useState(request?.is_published ?? false);
+  const [aiEditing, setAiEditing] = useState(false);
+  const [publishing, setPublishing] = useState(false);
+  const [showEdit, setShowEdit] = useState(
+    Boolean(request?.published_product_name)
+  );
+  const [editedName, setEditedName] = useState(
+    request?.published_product_name ?? ""
+  );
+  const [editedMessage, setEditedMessage] = useState(
+    request?.published_message ?? ""
+  );
+  const [publishError, setPublishError] = useState<string | null>(null);
+
   // Load saved matches whenever the request changes
   useEffect(() => {
     if (!request?.id) {
@@ -79,6 +95,83 @@ export default function RequestSlideOver({
       })
       .catch(() => setMatches([]));
   }, [request?.id]);
+
+  // Sync publish state when request changes
+  useEffect(() => {
+    if (!request) return;
+    setIsPublished(request.is_published ?? false);
+    setEditedName(request.published_product_name ?? "");
+    setEditedMessage(request.published_message ?? "");
+    setShowEdit(Boolean(request.published_product_name));
+    setPublishError(null);
+  }, [request?.id]);
+
+  async function handleAiEdit() {
+    if (!request) return;
+    setAiEditing(true);
+    setPublishError(null);
+    try {
+      const res = await fetch(`/api/admin/requests/${request.id}/ai-edit`, {
+        method: "POST",
+      });
+      const d = await res.json() as { ok?: boolean; product_name?: string; public_message?: string; error?: string };
+      if (!d.ok) {
+        setPublishError(d.error ?? "AI edit failed");
+        return;
+      }
+      setEditedName(d.product_name ?? "");
+      setEditedMessage(d.public_message ?? "");
+      setShowEdit(true);
+    } catch {
+      setPublishError("Network error");
+    } finally {
+      setAiEditing(false);
+    }
+  }
+
+  async function handlePublish() {
+    if (!request) return;
+    setPublishing(true);
+    setPublishError(null);
+    try {
+      const res = await fetch(`/api/admin/requests/${request.id}/publish`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ product_name: editedName, public_message: editedMessage }),
+      });
+      const d = await res.json() as { ok?: boolean; error?: string };
+      if (!d.ok) {
+        setPublishError(d.error ?? "Failed to publish");
+        return;
+      }
+      setIsPublished(true);
+    } catch {
+      setPublishError("Network error");
+    } finally {
+      setPublishing(false);
+    }
+  }
+
+  async function handleUnpublish() {
+    if (!request) return;
+    setPublishing(true);
+    setPublishError(null);
+    try {
+      const res = await fetch(`/api/admin/requests/${request.id}/publish`, {
+        method: "DELETE",
+      });
+      const d = await res.json() as { ok?: boolean; error?: string };
+      if (!d.ok) {
+        setPublishError(d.error ?? "Failed to unpublish");
+        return;
+      }
+      setIsPublished(false);
+    } catch {
+      setPublishError("Network error");
+    } finally {
+      setPublishing(false);
+    }
+  }
 
   if (!request) return null;
 
@@ -234,6 +327,106 @@ export default function RequestSlideOver({
 
         {/* Body */}
         <div className="flex-1 overflow-y-auto p-5 space-y-6">
+
+          {/* ── SOURCING BOARD PANEL ── */}
+          <section className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-[11px] uppercase tracking-widest font-semibold text-slate-500">
+                Sourcing Board
+              </h3>
+              {isPublished ? (
+                <span className="inline-flex items-center gap-1 text-xs font-semibold text-green-700 bg-green-100 px-2.5 py-0.5 rounded-full">
+                  <span className="w-1.5 h-1.5 rounded-full bg-green-500 inline-block" />
+                  Published
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1 text-xs font-semibold text-slate-500 bg-slate-200 px-2.5 py-0.5 rounded-full">
+                  Not on board
+                </span>
+              )}
+            </div>
+
+            <div className="flex gap-2 mb-3">
+              <button
+                type="button"
+                onClick={handleAiEdit}
+                disabled={aiEditing}
+                className="text-xs px-3 py-1.5 rounded-lg bg-orange-500 hover:bg-orange-600 text-white font-medium disabled:opacity-50 transition flex items-center gap-1.5"
+              >
+                {aiEditing ? (
+                  <>
+                    <span className="w-3 h-3 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                    Editing…
+                  </>
+                ) : (
+                  "✦ AI Edit"
+                )}
+              </button>
+              {isPublished && (
+                <button
+                  type="button"
+                  onClick={handleUnpublish}
+                  disabled={publishing}
+                  className="text-xs px-3 py-1.5 rounded-lg border border-red-200 text-red-600 hover:bg-red-50 font-medium disabled:opacity-50 transition"
+                >
+                  Unpublish
+                </button>
+              )}
+            </div>
+
+            {publishError && (
+              <p className="text-xs text-red-600 bg-red-50 rounded-lg px-3 py-2 mb-3">
+                {publishError}
+              </p>
+            )}
+
+            {showEdit && (
+              <div className="space-y-2">
+                <div>
+                  <label className="block text-[11px] uppercase tracking-wider text-slate-400 mb-1">
+                    Product name
+                  </label>
+                  <input
+                    type="text"
+                    value={editedName}
+                    onChange={(e) => setEditedName(e.target.value)}
+                    maxLength={60}
+                    className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-800 focus:outline-none focus:border-orange-400 transition bg-white"
+                    placeholder="Clean product name…"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] uppercase tracking-wider text-slate-400 mb-1">
+                    Public description
+                  </label>
+                  <textarea
+                    value={editedMessage}
+                    onChange={(e) => setEditedMessage(e.target.value)}
+                    rows={3}
+                    className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-800 focus:outline-none focus:border-orange-400 transition bg-white resize-none"
+                    placeholder="2-3 sentences for manufacturers…"
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={handlePublish}
+                  disabled={publishing || !editedName.trim() || !editedMessage.trim()}
+                  className="w-full bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold py-2.5 rounded-lg disabled:opacity-50 transition flex items-center justify-center gap-2"
+                >
+                  {publishing ? (
+                    <>
+                      <span className="w-3 h-3 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                      Publishing…
+                    </>
+                  ) : isPublished ? (
+                    "Update on Board →"
+                  ) : (
+                    "Publish to Board →"
+                  )}
+                </button>
+              </div>
+            )}
+          </section>
 
           {/* Status */}
           <section>
@@ -642,6 +835,12 @@ export default function RequestSlideOver({
               </div>
             </section>
           )}
+
+          {/* PIP v1 */}
+          <PipPanel
+            requestId={request.id}
+            initialPip={request.intent_json ?? null}
+          />
 
           {/* Approved matches summary */}
           {approvedMatches.length > 0 && (

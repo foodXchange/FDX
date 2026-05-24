@@ -4,6 +4,8 @@ import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { checkRateLimit } from "@/lib/rateLimit";
 import { sendLeadNotification, sendBuyerConfirmation } from "@/lib/email/mailer";
 import { matchSupplierProducts, formatWhatsAppMatch } from "@/lib/matching/matchSuppliers";
+import { buildPipV1 } from "@/lib/pip/buildPipV1";
+import { resolveCategoryId } from "@/lib/pip/resolveCategoryId";
 
 const SubmitSchema = z.object({
   name: z.string().min(1).max(200),
@@ -241,6 +243,29 @@ export async function POST(req: Request) {
           matchedItems: [],
           submittedAt: new Date().toISOString(),
         }).catch(console.error);
+      }
+    })();
+
+    (async () => {
+      try {
+        const pip = buildPipV1({
+          product_name: data.product_name ?? null,
+          message: data.description ?? null,
+          category: data.category ?? null,
+          certifications: data.certifications ?? [],
+          target_market: data.target_market ?? null,
+          private_label: data.private_label ?? null,
+          ai_analysis: (data.ai_analysis as Record<string, unknown>) ?? null,
+        });
+        const { category_id, category_name } = await resolveCategoryId(data.category ?? "");
+        pip.category.category_id = category_id;
+        pip.category.category_name = category_name;
+        await supabaseAdmin
+          .from("sourcing_requests")
+          .update({ intent_json: pip })
+          .eq("id", newRequest.id);
+      } catch (e) {
+        console.error("PIP generation failed:", e);
       }
     })();
 

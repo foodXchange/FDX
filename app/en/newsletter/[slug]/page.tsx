@@ -125,7 +125,7 @@ export default async function NewsletterIssuePage({
   const { prev, next } = await getAdjacentIssues(issue.created_at);
 
   return (
-    <main className="bg-white text-slate-900">
+    <main>
       {/* HERO */}
       <section className="bg-linear-to-b from-slate-900 to-slate-800 text-white py-16 px-6">
         <div className="max-w-3xl mx-auto text-center">
@@ -164,10 +164,8 @@ export default async function NewsletterIssuePage({
       <section className="max-w-3xl mx-auto px-6 py-12">
         <div
           className="
-            prose prose-lg max-w-none
-            prose-headings:text-slate-900
-            prose-p:text-slate-800
-            prose-a:text-orange-600 hover:prose-a:underline
+            prose prose-invert prose-lg max-w-none
+            prose-a:text-orange-400 hover:prose-a:underline
           "
           dangerouslySetInnerHTML={{ __html: issue.content }}
         />
@@ -175,16 +173,16 @@ export default async function NewsletterIssuePage({
 
       {/* PREV/NEXT NAV */}
       {(prev || next) && (
-        <section className="max-w-3xl mx-auto px-6 py-8 border-t border-slate-100">
+        <section className="max-w-3xl mx-auto px-6 py-8 border-t border-dark-border">
           <div className="flex gap-4">
             <div className="flex-1">
               {prev && (
                 <Link
                   href={`/en/newsletter/${prev.slug}`}
-                  className="block border border-slate-200 rounded-xl px-5 py-4 hover:border-slate-400 transition text-sm"
+                  className="block border border-dark-border rounded-xl px-5 py-4 hover:border-white/20 transition text-sm"
                 >
                   <span className="text-xs text-slate-400 block mb-1">← Previous</span>
-                  <span className="text-slate-700 font-medium line-clamp-2">{prev.title}</span>
+                  <span className="text-dark-text-primary font-medium line-clamp-2">{prev.title}</span>
                 </Link>
               )}
             </div>
@@ -192,10 +190,10 @@ export default async function NewsletterIssuePage({
               {next && (
                 <Link
                   href={`/en/newsletter/${next.slug}`}
-                  className="block border border-slate-200 rounded-xl px-5 py-4 hover:border-slate-400 transition text-sm"
+                  className="block border border-dark-border rounded-xl px-5 py-4 hover:border-white/20 transition text-sm"
                 >
                   <span className="text-xs text-slate-400 block mb-1">Next →</span>
-                  <span className="text-slate-700 font-medium line-clamp-2">{next.title}</span>
+                  <span className="text-dark-text-primary font-medium line-clamp-2">{next.title}</span>
                 </Link>
               )}
             </div>
@@ -204,11 +202,11 @@ export default async function NewsletterIssuePage({
       )}
 
       {/* CTA */}
-      <section className="bg-slate-50 py-16 text-center px-6">
+      <section className="py-16 text-center px-6 border-t border-dark-border">
         <h2 className="text-2xl font-semibold mb-4">
           Want to explore this further?
         </h2>
-        <p className="text-slate-600 mb-6">
+        <p className="text-slate-400 mb-6">
           If this is relevant — let’s move to concrete sourcing options.
         </p>
 

@@ -3,7 +3,6 @@ import Image from "next/image";
 import type { Metadata } from "next";
 import Reveal from "@/components/Reveal";
 import FAQAccordion from "@/components/FAQAccordion";
-import SourcingWidget from "@/components/SourcingWidget";
 import { supabase } from "@/lib/supabase";
 
 export const metadata: Metadata = {
@@ -56,12 +55,12 @@ export default async function ManufacturersPage() {
     <>
       <a
         href="#main"
-        className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-50 focus:bg-white focus:px-4 focus:py-2 rounded-md shadow"
+        className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-50 focus:bg-dark-600 focus:text-dark-text-primary focus:px-4 focus:py-2 rounded-md shadow"
       >
         Skip to content
       </a>
 
-      <main id="main" className="bg-white text-slate-800">
+      <main id="main">
 
         {/* ── HERO ── */}
         <section className="relative w-full overflow-hidden" style={{ minHeight: "600px" }}>
@@ -108,13 +107,6 @@ export default async function ManufacturersPage() {
                 WhatsApp us
               </a>
             </div>
-
-            <div className="mt-12 max-w-xl mx-auto px-6">
-              <p className="text-center text-slate-400 text-sm mb-4">
-                Or tell us directly what you need to source:
-              </p>
-              <SourcingWidget source="home" compact={true} />
-            </div>
           </Reveal>
           </div>
         </section>
@@ -123,15 +115,15 @@ export default async function ManufacturersPage() {
 
         {/* ── LIVE DEMAND TEASER ── */}
         <section className="max-w-4xl mx-auto px-6 py-8">
-          <div className="bg-orange-50 border border-orange-100 rounded-2xl p-6 flex items-center justify-between gap-6 flex-wrap">
+          <div className="rounded-2xl p-6 flex items-center justify-between gap-6 flex-wrap border border-orange-500/20" style={{ background: "rgba(232,93,38,0.08)" }}>
             <div>
-              <p className="text-orange-600 text-xs font-semibold uppercase tracking-wider mb-1">
+              <p className="text-orange-400 text-xs font-semibold uppercase tracking-wider mb-1">
                 Live demand
               </p>
-              <p className="text-slate-900 font-semibold text-lg">
+              <p className="font-semibold text-lg">
                 {activeRequestCount ?? 0} active sourcing requests from Israeli buyers
               </p>
-              <p className="text-slate-500 text-sm mt-1">
+              <p className="text-slate-400 text-sm mt-1">
                 Olive oil · Tomato products · Snacks · and more
               </p>
             </div>
@@ -145,14 +137,14 @@ export default async function ManufacturersPage() {
         </section>
 
         {/* ── PROOF STATEMENT BOX ── */}
-        <section className="px-6 py-10 bg-orange-50 border-y border-orange-200">
+        <section className="px-6 py-10 border-y border-[rgba(232,93,38,0.2)]" style={{ background: "rgba(232,93,38,0.08)" }}>
           <div className="max-w-4xl mx-auto text-center">
             <Reveal>
-              <p className="text-base md:text-lg text-orange-900 font-medium leading-relaxed">
+              <p className="text-base md:text-lg text-orange-300 font-medium leading-relaxed">
                 European manufacturers working with us have established container-level supply
                 relationships with Israeli retailers across multiple categories.
               </p>
-              <p className="text-sm text-orange-700 mt-3">
+              <p className="text-sm text-orange-400 mt-3">
                 Every manufacturer we work with gets honest feedback, not just enthusiasm.
               </p>
             </Reveal>
@@ -160,7 +152,7 @@ export default async function ManufacturersPage() {
         </section>
 
         {/* ── MANUFACTURING IMAGE + MARKET STATS ── */}
-        <section className="px-6 py-20 bg-white">
+        <section className="px-6 py-20">
           <div className="max-w-5xl mx-auto grid md:grid-cols-2 gap-12 items-center">
             <Reveal>
               <div className="relative w-full rounded-2xl overflow-hidden" style={{ height: "320px" }}>
@@ -191,7 +183,7 @@ export default async function ManufacturersPage() {
                       <span className="text-xl font-black text-orange-500">{stat}</span>
                       <span className="block text-xs text-slate-400">{label}</span>
                     </div>
-                    <p className="text-sm text-slate-600 leading-relaxed border-l border-slate-200 pl-4 pt-0.5">
+                    <p className="text-sm text-slate-400 leading-relaxed border-l border-white/10 pl-4 pt-0.5">
                       {detail}
                     </p>
                   </div>
@@ -202,14 +194,14 @@ export default async function ManufacturersPage() {
         </section>
 
         {/* ── WHAT MAKES A SUCCESSFUL ENTRY ── */}
-        <section className="px-6 py-20 bg-slate-50 border-t border-slate-100">
+        <section className="px-6 py-20 border-t border-dark-border">
           <div className="max-w-5xl mx-auto">
             <Reveal>
               <div className="text-center mb-12">
-                <h2 className="text-2xl md:text-3xl font-semibold text-slate-900">
+                <h2 className="text-2xl md:text-3xl font-semibold">
                   What Makes a Successful Entry
                 </h2>
-                <p className="text-slate-500 mt-3 max-w-xl mx-auto">
+                <p className="text-slate-400 mt-3 max-w-xl mx-auto">
                   We&apos;ve seen what works and what doesn&apos;t. Here&apos;s what the successful ones have in common.
                 </p>
               </div>
@@ -234,10 +226,10 @@ export default async function ManufacturersPage() {
                 },
               ].map((item, i) => (
                 <Reveal key={i}>
-                  <div className="bg-white border border-slate-200 rounded-2xl p-7 shadow-sm h-full">
-                    <span className="text-3xl font-black text-slate-200">{item.n}</span>
-                    <h3 className="font-semibold text-slate-900 mt-3 mb-2">{item.title}</h3>
-                    <p className="text-sm text-slate-600 leading-relaxed">{item.body}</p>
+                  <div className="dark-card p-7 h-full">
+                    <span className="text-3xl font-black text-slate-700">{item.n}</span>
+                    <h3 className="font-semibold mt-3 mb-2">{item.title}</h3>
+                    <p className="text-sm text-slate-400 leading-relaxed">{item.body}</p>
                   </div>
                 </Reveal>
               ))}
@@ -246,7 +238,7 @@ export default async function ManufacturersPage() {
         </section>
 
         {/* ── HOW WE SUPPORT YOU ── */}
-        <section className="px-6 py-24 bg-white border-t border-slate-100">
+        <section className="px-6 py-24 border-t border-dark-border">
           <div className="max-w-4xl mx-auto">
             <Reveal>
               <h2 className="text-2xl md:text-3xl font-semibold text-center mb-12">
@@ -274,11 +266,11 @@ export default async function ManufacturersPage() {
                 },
               ].map((item, i) => (
                 <Reveal key={i}>
-                  <div className="flex gap-5 p-6 bg-slate-50 border border-slate-200 rounded-2xl">
+                  <div className="dark-card flex gap-5 p-6">
                     <span className="text-orange-500 font-black text-xl shrink-0 mt-0.5">→</span>
                     <div>
-                      <h3 className="font-semibold text-slate-900 mb-1">{item.title}</h3>
-                      <p className="text-sm text-slate-600 leading-relaxed">{item.body}</p>
+                      <h3 className="font-semibold mb-1">{item.title}</h3>
+                      <p className="text-sm text-slate-400 leading-relaxed">{item.body}</p>
                     </div>
                   </div>
                 </Reveal>
@@ -288,13 +280,13 @@ export default async function ManufacturersPage() {
         </section>
 
         {/* ── KOSHER & REGULATORY ── */}
-        <section className="px-6 py-20 bg-slate-50 border-t border-slate-100">
+        <section className="px-6 py-20 border-t border-dark-border">
           <div className="max-w-5xl mx-auto">
             <Reveal>
               <h2 className="text-2xl md:text-3xl font-semibold text-center mb-4">
                 Kosher &amp; Regulatory — Simplified
               </h2>
-              <p className="text-slate-600 text-center max-w-2xl mx-auto mb-12">
+              <p className="text-slate-400 text-center max-w-2xl mx-auto mb-12">
                 We guide the process step by step and focus only on what really matters for
                 your specific product and category.
               </p>
@@ -306,7 +298,7 @@ export default async function ManufacturersPage() {
                 "Simple, focused process — no unnecessary complexity",
               ].map((item, i) => (
                 <Reveal key={i}>
-                  <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm text-sm text-slate-600 leading-relaxed">
+                  <div className="dark-card p-6 text-sm text-slate-400 leading-relaxed">
                     <span className="text-orange-500 font-bold mr-2">✓</span>
                     {item}
                   </div>
@@ -317,7 +309,7 @@ export default async function ManufacturersPage() {
         </section>
 
         {/* ── SUPERMARKET IMAGE ── */}
-        <section className="px-6 py-12 bg-white border-t border-slate-100">
+        <section className="px-6 py-12 border-t border-dark-border">
           <div className="max-w-5xl mx-auto">
             <Reveal>
               <div className="relative w-full rounded-2xl overflow-hidden" style={{ height: "360px" }}>
@@ -335,7 +327,7 @@ export default async function ManufacturersPage() {
         </section>
 
         {/* ── FAQ ── */}
-        <section className="px-6 py-20 bg-white border-t border-slate-100">
+        <section className="px-6 py-20 border-t border-dark-border">
           <div className="max-w-3xl mx-auto">
             <Reveal>
               <FAQAccordion

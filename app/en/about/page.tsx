@@ -47,7 +47,7 @@ export default function AboutPage() {
     <>
       <a
         href="#main"
-        className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-50 focus:bg-white focus:text-slate-900 focus:px-4 focus:py-2 focus:rounded-md focus:shadow"
+        className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-50 focus:bg-dark-600 focus:text-dark-text-primary focus:px-4 focus:py-2 focus:rounded-md focus:shadow"
       >
         Skip to content
       </a>
@@ -149,7 +149,7 @@ export default function AboutPage() {
         <section className="px-6 py-24 border-t border-white/10">
           <div className="max-w-5xl mx-auto grid md:grid-cols-2 gap-12 items-center">
             <Reveal className="flex justify-center md:justify-start">
-              <div className="relative w-[280px] h-[280px] sm:w-[360px] sm:h-[360px] lg:w-[432px] lg:h-[432px] rounded-2xl overflow-hidden border border-slate-200 shadow-sm hover:shadow-xl transition hover:scale-[1.02]">
+              <div className="relative w-[280px] h-[280px] sm:w-[360px] sm:h-[360px] lg:w-[432px] lg:h-[432px] rounded-2xl overflow-hidden border border-dark-border shadow-sm hover:shadow-xl transition hover:scale-[1.02]">
                 <Image
                   src="/founder-udi.jpeg"
                   alt="Udi Stryk, FoodXchange founder"

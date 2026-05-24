@@ -19,6 +19,9 @@ export type SourcingBoardRequest = {
   created_at: string;
   status: string | null;
   passover_kosher?: boolean | null;
+  is_published?: boolean | null;
+  published_product_name?: string | null;
+  published_message?: string | null;
 };
 
 export const metadata: Metadata = {
@@ -42,13 +45,18 @@ export default async function SourcingBoardPage() {
   const { data } = await supabase
     .from("sourcing_requests")
     .select(
-      "id, product_name, category, message, kosher_type, kosher_required, branding, packaging_preference, certifications, tags, created_at, status, passover_kosher"
+      "id, product_name, category, message, kosher_type, kosher_required, branding, packaging_preference, certifications, tags, created_at, status, passover_kosher, is_published, published_product_name, published_message"
     )
     .in("status", ["new", "reviewed", "matched"])
+    .eq("is_published", true)
     .not("product_name", "is", null)
     .order("created_at", { ascending: false });
 
-  const requests = (data ?? []) as SourcingBoardRequest[];
+  const requests = (data ?? []).map((r) => ({
+    ...r,
+    product_name: (r.published_product_name as string | null) ?? r.product_name,
+    message: (r.published_message as string | null) ?? r.message,
+  })) as SourcingBoardRequest[];
 
   const uniqueCategories = [
     ...new Set(requests.map((r) => r.category).filter(Boolean)),

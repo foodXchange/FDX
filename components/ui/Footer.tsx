@@ -69,7 +69,7 @@ export default function Footer() {
           <div className="mt-6">
             <input
               placeholder="Email address"
-              className="w-full bg-slate-800 border border-slate-700 rounded-md px-3 py-2 text-sm text-white placeholder:text-slate-400"
+              className="dark-input"
             />
 
             <div className="flex items-center gap-2 mt-3 text-xs text-slate-500">
@@ -79,7 +79,7 @@ export default function Footer() {
               </span>
             </div>
 
-            <button className="mt-4 w-full bg-orange-500 hover:bg-orange-600 text-white py-2 rounded-md text-sm">
+            <button className="btn-brand mt-4 w-full justify-center py-2 rounded-md text-sm">
               Subscribe
             </button>
 

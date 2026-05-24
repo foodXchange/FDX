@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useRef, useState } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
 import MultiImageUpload, { UploadedImage } from "@/components/ui/MultiImageUpload";
 
 type KosherOption = "chief-rabbinate" | "badatz" | "mehadrin" | "any" | "none";
@@ -119,6 +119,50 @@ export default function BuyerRequestSection() {
 
   const formRef = useRef<HTMLDivElement>(null);
   const descRef = useRef<HTMLTextAreaElement>(null);
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Restore saved form state on mount
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("buyers_form");
+      if (!saved) return;
+      const s = JSON.parse(saved) as {
+        description?: string;
+        kosher?: string;
+        volume?: string;
+        volumeUnit?: string;
+        privateLabel?: boolean;
+        name?: string;
+        email?: string;
+        whatsapp?: string;
+        company?: string;
+      };
+      if (s.description) setDescription(s.description);
+      if (s.kosher && ["chief-rabbinate", "badatz", "mehadrin", "any", "none"].includes(s.kosher))
+        setKosher(s.kosher as KosherOption);
+      if (s.volume) setVolume(s.volume);
+      if (s.volumeUnit && ["tons", "kg", "units", "containers"].includes(s.volumeUnit))
+        setVolumeUnit(s.volumeUnit as VolumeUnit);
+      if (s.privateLabel !== undefined) setPrivateLabel(Boolean(s.privateLabel));
+      if (s.name) setName(s.name);
+      if (s.email) setEmail(s.email);
+      if (s.whatsapp) setWhatsapp(s.whatsapp);
+      if (s.company) setCompany(s.company);
+    } catch { /* ignore */ }
+  }, []);
+
+  // Debounced auto-save on any field change
+  useEffect(() => {
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(() => {
+      try {
+        localStorage.setItem(
+          "buyers_form",
+          JSON.stringify({ description, kosher, volume, volumeUnit, privateLabel, name, email, whatsapp, company })
+        );
+      } catch { /* ignore */ }
+    }, 400);
+  }, [description, kosher, volume, volumeUnit, privateLabel, name, email, whatsapp, company]);
 
   const anyUploading = images.some((img) => img.uploading);
 
@@ -181,6 +225,7 @@ export default function BuyerRequestSection() {
         setError(data.error ?? "Something went wrong. Please try again.");
         return;
       }
+      try { localStorage.removeItem("buyers_form"); } catch { /* ignore */ }
       setSubmitted(true);
     } catch {
       setError("Network error — please check your connection and try again.");

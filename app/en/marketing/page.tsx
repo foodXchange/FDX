@@ -24,15 +24,15 @@ export default function MarketingPage() {
       </section>
 
       {/* ── CONTENT ──────────────────────────────────────────────────────── */}
-      <section className="bg-white px-6 py-20 sm:py-24">
+      <section className="px-6 py-20 sm:py-24">
         <div className="max-w-3xl mx-auto space-y-10 pb-24">
 
           {/* Our commitment */}
           <div>
-            <h2 className="text-2xl font-semibold text-slate-900 border-l-4 border-orange-500 pl-4 mb-4">
+            <h2 className="text-2xl font-semibold border-l-4 border-orange-500 pl-4 mb-4">
               Our Commitment
             </h2>
-            <p className="text-slate-600 text-lg leading-relaxed">
+            <p className="text-slate-400 text-lg leading-relaxed">
               FoodXchange sends newsletters and commercial updates only to users who
               have explicitly opted in through our website forms. We never add contacts
               to mailing lists without clear consent, and we never sell or share your
@@ -40,11 +40,11 @@ export default function MarketingPage() {
             </p>
           </div>
 
-          <hr className="border-t border-slate-100" />
+          <hr className="border-t border-dark-border" />
 
           {/* What we send */}
           <div>
-            <h2 className="text-2xl font-semibold text-slate-900 border-l-4 border-orange-500 pl-4 mb-4">
+            <h2 className="text-2xl font-semibold border-l-4 border-orange-500 pl-4 mb-4">
               What We Send
             </h2>
             <ul className="mt-4 space-y-3">
@@ -54,7 +54,7 @@ export default function MarketingPage() {
                 "Industry news relevant to the Israeli food market",
                 "FoodXchange service announcements",
               ].map((item) => (
-                <li key={item} className="flex items-start gap-3 text-slate-600 text-lg leading-relaxed">
+                <li key={item} className="flex items-start gap-3 text-slate-400 text-lg leading-relaxed">
                   <span className="mt-1.5 w-2 h-2 rounded-full bg-orange-500 shrink-0" />
                   {item}
                 </li>
@@ -62,29 +62,29 @@ export default function MarketingPage() {
             </ul>
           </div>
 
-          <hr className="border-t border-slate-100" />
+          <hr className="border-t border-dark-border" />
 
           {/* Unsubscribe */}
           <div>
-            <h2 className="text-2xl font-semibold text-slate-900 border-l-4 border-orange-500 pl-4 mb-4">
+            <h2 className="text-2xl font-semibold border-l-4 border-orange-500 pl-4 mb-4">
               Unsubscribe
             </h2>
-            <p className="text-slate-600 text-lg leading-relaxed">
+            <p className="text-slate-400 text-lg leading-relaxed">
               You can unsubscribe at any time by clicking the unsubscribe link in any
               email we send, or by contacting us directly. We will process your request
               immediately — you will not receive further emails after confirming.
             </p>
           </div>
 
-          <hr className="border-t border-slate-100" />
+          <hr className="border-t border-dark-border" />
 
           {/* Contact card */}
           <div>
-            <h2 className="text-2xl font-semibold text-slate-900 border-l-4 border-orange-500 pl-4 mb-6">
+            <h2 className="text-2xl font-semibold border-l-4 border-orange-500 pl-4 mb-6">
               Contact Us
             </h2>
 
-            <div className="bg-slate-50 border border-slate-200 rounded-2xl p-8">
+            <div className="dark-card p-8">
               <p className="text-slate-500 text-sm font-semibold uppercase tracking-widest mb-6">
                 Get in touch
               </p>
@@ -97,7 +97,7 @@ export default function MarketingPage() {
                 </svg>
                 <a
                   href="mailto:info@foodz-x.com"
-                  className="text-orange-600 hover:text-orange-700 font-medium text-lg transition"
+                  className="text-orange-400 hover:text-orange-300 font-medium text-lg transition"
                 >
                   info@foodz-x.com
                 </a>

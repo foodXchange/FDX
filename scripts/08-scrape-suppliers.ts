@@ -43,6 +43,7 @@ const args = (() => {
   const result: {
     limit?: number;
     supplier?: string;
+    batch?: string;
     force: boolean;
   } = { force: false };
 
@@ -51,6 +52,8 @@ const args = (() => {
       result.limit = parseInt(arg.slice(8), 10);
     } else if (arg.startsWith("--supplier=")) {
       result.supplier = arg.slice(11);
+    } else if (arg.startsWith("--batch=")) {
+      result.batch = arg.slice(8);
     } else if (arg === "--force") {
       result.force = true;
     }
@@ -193,8 +196,17 @@ async function main(): Promise<void> {
 
   if (args.supplier) {
     query = query.eq("id", args.supplier);
-  } else if (!args.force) {
-    query = query.not("scrape_status", "eq", "scraped");
+  }
+
+  if (args.batch) {
+    query = query.eq("csv_import_batch", args.batch);
+    if (!args.force) {
+      query = query.eq("scrape_status", "pending");
+    }
+  }
+
+  if (!args.supplier && !args.batch && !args.force) {
+    query = query.eq("scrape_status", "pending");
   }
 
   if (args.limit) {

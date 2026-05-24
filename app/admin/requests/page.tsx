@@ -21,6 +21,10 @@ export type RequestRow = {
   images: { url: string }[];
   match_count: number;
   best_match_score: number | null;
+  is_published?: boolean | null;
+  published_product_name?: string | null;
+  published_message?: string | null;
+  intent_json?: Record<string, unknown> | null;
 };
 
 export default async function AdminRequestsPage() {
@@ -28,7 +32,7 @@ export default async function AdminRequestsPage() {
     supabaseAdmin
       .from("sourcing_requests")
       .select(
-        "id, name, email, company, message, product_name, category, certifications, target_market, private_label, ai_analysis, source, status, created_at"
+        "id, name, email, company, message, product_name, category, certifications, target_market, private_label, ai_analysis, source, status, created_at, is_published, published_product_name, published_message, intent_json"
       )
       .order("created_at", { ascending: false })
       .limit(200),
