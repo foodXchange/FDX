@@ -34,6 +34,11 @@ export type SavedMatch = {
   status: string;
   approved_at: string | null;
   rejected_at: string | null;
+  sent_at: string | null;
+  responded_at: string | null;
+  closed_at: string | null;
+  response_note: string | null;
+  sent_via: string | null;
 };
 
 export default async function RequestDetailPage({ params }: PageProps) {
@@ -44,7 +49,7 @@ export default async function RequestDetailPage({ params }: PageProps) {
     supabaseAdmin
       .from("sourcing_matches")
       .select(
-        "id, supplier_id, match_score, product_name, company_name, country, match_summary, whatsapp_message, match_breakdown, status, approved_at, rejected_at"
+        "id, supplier_id, match_score, product_name, company_name, country, match_summary, whatsapp_message, match_breakdown, status, approved_at, rejected_at, sent_at, responded_at, closed_at, response_note, sent_via"
       )
       .eq("request_id", id)
       .order("match_score", { ascending: false }),

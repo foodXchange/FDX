@@ -11,10 +11,18 @@ interface Props {
   company: string | null;
 }
 
-type MatchStatus = "pending" | "approved" | "rejected" | "sent";
+type MatchStatus =
+  | "pending"
+  | "new"
+  | "approved"
+  | "rejected"
+  | "sent"
+  | "responded"
+  | "closed";
 
 interface LocalMatch extends SavedMatch {
   localStatus: MatchStatus;
+  localWhatsappMessage: string | null;
 }
 
 function scoreBadgeClass(score: number): string {
@@ -38,40 +46,105 @@ function ScoreChip({ label, pts, max }: { label: string; pts: number; max: numbe
   );
 }
 
+function StatusBadge({ status }: { status: MatchStatus }) {
+  const map: Record<MatchStatus, { label: string; cls: string }> = {
+    pending: { label: "New", cls: "bg-gray-100 text-gray-600 border-gray-200" },
+    new: { label: "New", cls: "bg-gray-100 text-gray-600 border-gray-200" },
+    approved: { label: "Approved", cls: "bg-blue-50 text-blue-700 border-blue-200" },
+    rejected: { label: "Rejected", cls: "bg-gray-100 text-gray-500 border-gray-200" },
+    sent: { label: "Sent", cls: "bg-orange-50 text-orange-700 border-orange-200" },
+    responded: { label: "Responded", cls: "bg-green-50 text-green-700 border-green-200" },
+    closed: { label: "Closed", cls: "bg-gray-100 text-gray-500 border-gray-200" },
+  };
+  const { label, cls } = map[status] ?? map.pending;
+  return (
+    <span className={`text-xs font-semibold px-2 py-0.5 rounded-full border ${cls}`}>
+      {label}
+    </span>
+  );
+}
+
+function fmtDate(iso: string | null): string {
+  if (!iso) return "";
+  return new Date(iso).toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
 export default function MatchCards({ requestId, initialMatches, productName, company }: Props) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [matches, setMatches] = useState<LocalMatch[]>(
-    initialMatches.map((m) => ({ ...m, localStatus: m.status as MatchStatus }))
+    initialMatches.map((m) => ({
+      ...m,
+      localStatus: m.status as MatchStatus,
+      localWhatsappMessage: m.whatsapp_message,
+    }))
   );
   const [isRunning, setIsRunning] = useState(false);
   const [runError, setRunError] = useState<string | null>(null);
+  const [respondingIds, setRespondingIds] = useState<Set<string>>(new Set());
+  const [responseNotes, setResponseNotes] = useState<Record<string, string>>({});
 
-  async function patchMatch(matchId: string, action: "approve" | "reject" | "send") {
-    const newStatus: MatchStatus =
-      action === "approve" ? "approved" : action === "reject" ? "rejected" : "sent";
+  async function patchMatch(
+    matchId: string,
+    action: "approve" | "reject" | "send" | "respond" | "close",
+    extras?: { sent_via?: string; response_note?: string }
+  ) {
+    const statusMap: Record<typeof action, MatchStatus> = {
+      approve: "approved",
+      reject: "rejected",
+      send: "sent",
+      respond: "responded",
+      close: "closed",
+    };
+    const newStatus = statusMap[action];
 
     setMatches((prev) =>
       prev.map((m) => (m.id === matchId ? { ...m, localStatus: newStatus } : m))
     );
+
     try {
       const res = await fetch(`/api/matching/${matchId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action }),
+        body: JSON.stringify({ action, ...extras }),
       });
       if (!res.ok) {
         const { error } = (await res.json()) as { error?: string };
         throw new Error(error ?? "Request failed");
       }
+
+      if (action === "approve") {
+        const data = (await res.json()) as { ok: boolean; whatsapp_message?: string };
+        if (data.whatsapp_message) {
+          setMatches((prev) =>
+            prev.map((m) =>
+              m.id === matchId
+                ? { ...m, localWhatsappMessage: data.whatsapp_message! }
+                : m
+            )
+          );
+        }
+      }
     } catch {
-      // Revert optimistic update on failure
       setMatches((prev) =>
         prev.map((m) =>
           m.id === matchId ? { ...m, localStatus: m.status as MatchStatus } : m
         )
       );
     }
+  }
+
+  async function saveMessage(matchId: string, message: string) {
+    await fetch(`/api/matching/${matchId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "save_message", whatsapp_message: message }),
+    }).catch(() => {});
   }
 
   async function runMatching() {
@@ -95,10 +168,8 @@ export default function MatchCards({ requestId, initialMatches, productName, com
     }
   }
 
-  function openWhatsApp(waMsg: string | null) {
-    if (!waMsg) return;
-    window.open(`https://wa.me/?text=${encodeURIComponent(waMsg)}`, "_blank");
-  }
+  void productName;
+  void company;
 
   if (matches.length === 0) {
     return (
@@ -125,7 +196,6 @@ export default function MatchCards({ requestId, initialMatches, productName, com
 
   return (
     <div className="space-y-4">
-      {/* Section header */}
       <div className="flex items-center justify-between">
         <h2 className="text-sm font-semibold text-gray-700">
           {matches.length} match{matches.length !== 1 ? "es" : ""}
@@ -153,9 +223,9 @@ export default function MatchCards({ requestId, initialMatches, productName, com
       )}
 
       {matches.map((match, idx) => {
-        const isRejected = match.localStatus === "rejected";
-        const isApproved = match.localStatus === "approved";
-        const isSent = match.localStatus === "sent";
+        const s = match.localStatus;
+        const isRejectedOrClosed = s === "rejected" || s === "closed";
+        const isActive = s === "approved" || s === "sent" || s === "responded";
         const breakdown = match.match_breakdown;
         const kosherTypes = breakdown?.kosher_types ?? [];
         const certs = breakdown?.certifications ?? [];
@@ -163,15 +233,21 @@ export default function MatchCards({ requestId, initialMatches, productName, com
           breakdown !== null &&
           breakdown !== undefined &&
           typeof breakdown.category === "number";
+        const isResponding = respondingIds.has(match.id);
 
         return (
           <div
             key={match.id}
             className={`bg-white border rounded-2xl p-5 shadow-sm transition-opacity ${
-              isRejected ? "opacity-40" : "opacity-100"
-            } ${isApproved || isSent ? "border-green-300 ring-1 ring-green-200" : "border-gray-200"}`}
+              isRejectedOrClosed ? "opacity-40" : "opacity-100"
+            } ${
+              isActive
+                ? "border-blue-200 ring-1 ring-blue-100"
+                : "border-gray-200"
+            }`}
           >
-            <div className="flex items-start justify-between gap-4 flex-wrap">
+            {/* Header row */}
+            <div className="flex items-start justify-between gap-3 flex-wrap">
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-xs font-semibold text-gray-400">#{idx + 1}</span>
                 <span
@@ -181,58 +257,36 @@ export default function MatchCards({ requestId, initialMatches, productName, com
                 >
                   {match.match_score}/100
                 </span>
-                {isApproved && (
-                  <span className="text-xs font-semibold text-green-700 bg-green-50 border border-green-200 px-2 py-0.5 rounded-full">
-                    Approved
-                  </span>
-                )}
-                {isSent && (
-                  <span className="text-xs font-semibold text-purple-700 bg-purple-50 border border-purple-200 px-2 py-0.5 rounded-full">
-                    Sent
-                  </span>
-                )}
-                {isRejected && (
-                  <span className="text-xs font-semibold text-gray-500 bg-gray-100 border border-gray-200 px-2 py-0.5 rounded-full">
-                    Rejected
-                  </span>
-                )}
+                <StatusBadge status={s} />
               </div>
 
-              {/* Action buttons */}
-              <div className="flex items-center gap-2 flex-wrap">
-                {match.whatsapp_message && (
-                  <button
-                    onClick={() => openWhatsApp(match.whatsapp_message)}
-                    className="text-xs text-green-700 hover:text-green-900 border border-green-200 hover:border-green-400 bg-green-50 hover:bg-green-100 px-3 py-1.5 rounded-lg transition-colors"
-                  >
-                    WhatsApp ↗
-                  </button>
-                )}
-                {match.localStatus !== "approved" && match.localStatus !== "sent" && (
+              {/* new / pending: approve + reject */}
+              {(s === "pending" || s === "new") && (
+                <div className="flex items-center gap-2">
                   <button
                     onClick={() => patchMatch(match.id, "approve")}
-                    className="text-xs text-white bg-green-600 hover:bg-green-700 px-3 py-1.5 rounded-lg transition-colors"
+                    className="text-xs text-white bg-blue-600 hover:bg-blue-700 px-3 py-1.5 rounded-lg transition-colors"
                   >
                     Approve
                   </button>
-                )}
-                {match.localStatus === "approved" && (
-                  <button
-                    onClick={() => patchMatch(match.id, "send")}
-                    className="text-xs text-white bg-purple-600 hover:bg-purple-700 px-3 py-1.5 rounded-lg transition-colors"
-                  >
-                    Send
-                  </button>
-                )}
-                {match.localStatus !== "rejected" && (
                   <button
                     onClick={() => patchMatch(match.id, "reject")}
-                    className="text-xs text-red-600 hover:text-red-800 border border-red-200 hover:border-red-400 hover:bg-red-50 px-3 py-1.5 rounded-lg transition-colors"
+                    className="text-xs text-red-600 hover:text-red-800 border border-red-200 hover:bg-red-50 px-3 py-1.5 rounded-lg transition-colors"
                   >
                     Reject
                   </button>
-                )}
-              </div>
+                </div>
+              )}
+
+              {/* responded: close */}
+              {s === "responded" && (
+                <button
+                  onClick={() => patchMatch(match.id, "close")}
+                  className="text-xs text-gray-600 border border-gray-200 hover:border-gray-400 hover:bg-gray-50 px-3 py-1.5 rounded-lg transition-colors"
+                >
+                  Close
+                </button>
+              )}
             </div>
 
             {/* Product & supplier info */}
@@ -254,7 +308,7 @@ export default function MatchCards({ requestId, initialMatches, productName, com
               </div>
             )}
 
-            {/* Legacy chips (old TS-engine breakdown) */}
+            {/* Legacy chips */}
             {!hasV1Breakdown && (kosherTypes.length > 0 || certs.length > 0) && (
               <div className="flex flex-wrap gap-1.5 mt-3">
                 {kosherTypes.slice(0, 2).map((k) => (
@@ -281,6 +335,132 @@ export default function MatchCards({ requestId, initialMatches, productName, com
               <p className="mt-3 text-xs text-gray-500 leading-relaxed border-t border-gray-100 pt-3">
                 {match.match_summary}
               </p>
+            )}
+
+            {/* ── Approved state: editable message + send buttons ── */}
+            {s === "approved" && (
+              <div className="mt-4 border-t border-gray-100 pt-4 space-y-3">
+                <p className="text-xs font-medium text-gray-600">Outreach message</p>
+                <textarea
+                  className="w-full text-xs text-gray-700 border border-gray-200 rounded-lg p-3 resize-none focus:outline-none focus:ring-2 focus:ring-blue-400 font-mono leading-relaxed"
+                  rows={10}
+                  value={match.localWhatsappMessage ?? ""}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setMatches((prev) =>
+                      prev.map((m) =>
+                        m.id === match.id ? { ...m, localWhatsappMessage: val } : m
+                      )
+                    );
+                  }}
+                  onBlur={() => saveMessage(match.id, match.localWhatsappMessage ?? "")}
+                />
+                <div className="flex gap-2 flex-wrap">
+                  <button
+                    onClick={() => {
+                      window.open(
+                        `https://wa.me/?text=${encodeURIComponent(
+                          match.localWhatsappMessage ?? ""
+                        )}`,
+                        "_blank"
+                      );
+                      patchMatch(match.id, "send", { sent_via: "whatsapp" });
+                    }}
+                    className="flex-1 text-xs font-medium text-white bg-green-600 hover:bg-green-700 px-4 py-2 rounded-lg transition-colors text-center"
+                  >
+                    Send via WhatsApp
+                  </button>
+                  <button
+                    onClick={() => {
+                      window.open(
+                        `mailto:?subject=Supplier%20Inquiry&body=${encodeURIComponent(
+                          match.localWhatsappMessage ?? ""
+                        )}`,
+                        "_blank"
+                      );
+                      patchMatch(match.id, "send", { sent_via: "email" });
+                    }}
+                    className="flex-1 text-xs font-medium text-gray-700 border border-gray-300 hover:border-gray-400 hover:bg-gray-50 px-4 py-2 rounded-lg transition-colors text-center"
+                  >
+                    Send via Email
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* ── Sent state: timestamp + mark responded ── */}
+            {s === "sent" && (
+              <div className="mt-4 border-t border-gray-100 pt-3 space-y-3">
+                <p className="text-xs text-gray-400">
+                  Sent {fmtDate(match.sent_at)}
+                  {match.sent_via && (
+                    <span className="ml-1 text-gray-400">via {match.sent_via}</span>
+                  )}
+                </p>
+                {!isResponding ? (
+                  <button
+                    onClick={() =>
+                      setRespondingIds((s) => new Set([...s, match.id]))
+                    }
+                    className="text-xs font-medium text-green-700 border border-green-200 hover:bg-green-50 px-3 py-1.5 rounded-lg transition-colors"
+                  >
+                    Mark as Responded
+                  </button>
+                ) : (
+                  <div className="space-y-2">
+                    <textarea
+                      className="w-full text-xs border border-gray-200 rounded-lg p-2.5 resize-none focus:outline-none focus:ring-2 focus:ring-green-400"
+                      rows={3}
+                      placeholder="Note their response…"
+                      value={responseNotes[match.id] ?? ""}
+                      onChange={(e) =>
+                        setResponseNotes((n) => ({ ...n, [match.id]: e.target.value }))
+                      }
+                    />
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => {
+                          patchMatch(match.id, "respond", {
+                            response_note: responseNotes[match.id] ?? "",
+                          });
+                          setRespondingIds((s) => {
+                            const next = new Set(s);
+                            next.delete(match.id);
+                            return next;
+                          });
+                        }}
+                        className="text-xs text-white bg-green-600 hover:bg-green-700 px-3 py-1.5 rounded-lg transition-colors"
+                      >
+                        Confirm
+                      </button>
+                      <button
+                        onClick={() =>
+                          setRespondingIds((s) => {
+                            const next = new Set(s);
+                            next.delete(match.id);
+                            return next;
+                          })
+                        }
+                        className="text-xs text-gray-500 border border-gray-200 px-3 py-1.5 rounded-lg transition-colors hover:bg-gray-50"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ── Responded state: show note ── */}
+            {s === "responded" && match.response_note && (
+              <div className="mt-4 border-t border-gray-100 pt-3">
+                <p className="text-xs text-gray-400 mb-1">
+                  Response {fmtDate(match.responded_at)}
+                </p>
+                <p className="text-xs text-gray-700 leading-relaxed bg-green-50 border border-green-100 rounded-lg p-3">
+                  {match.response_note}
+                </p>
+              </div>
             )}
           </div>
         );
