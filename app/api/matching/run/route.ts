@@ -3,7 +3,7 @@ import { cookies } from "next/headers";
 import { verifySession, COOKIE_NAME } from "@/lib/adminAuth";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { buildPipV1Full } from "@/lib/pip/buildPipV1";
-import { runMatchV2 } from "@/lib/matching/runMatchV2";
+import { runMatchV3 } from "@/lib/matching/runMatchV3";
 
 async function checkAuth(): Promise<boolean> {
   const cookieStore = await cookies();
@@ -79,7 +79,7 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const result = await runMatchV2(request_id);
+    const result = await runMatchV3(request_id);
     return Response.json({ ok: true, inserted: result.inserted, topScore: result.topScore });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
