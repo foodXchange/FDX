@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import type { PipV1 } from "@/lib/pip/buildPipV1";
 
 interface Props {
@@ -107,6 +108,7 @@ function editStateToPip(s: ReturnType<typeof pipToEditState>, base: PipV1): PipV
 }
 
 export default function PipPanel({ requestId, initialPip }: Props) {
+  const router = useRouter();
   const [raw, setRaw] = useState<Record<string, unknown> | null>(initialPip);
   const [mode, setMode] = useState<Mode>("display");
   const [error, setError] = useState<string | null>(null);
@@ -128,6 +130,7 @@ export default function PipPanel({ requestId, initialPip }: Props) {
         setError(data.error ?? "Regeneration failed");
       } else {
         setRaw(data.pip ?? null);
+        router.refresh();
       }
     } catch {
       setError("Network error");
