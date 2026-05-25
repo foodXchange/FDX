@@ -40,7 +40,21 @@ export async function groupImages(requestId: string): Promise<GroupImagesResult>
       extractions.push(img.ai_analysis as ImageExtraction);
     } else {
       // Null ai_analysis: call extractImage (persists result back to request_images).
-      const result = await extractImage({ imageUrl: img.url as string, imageId: img.id as string });
+      const EXTRACT_TIMEOUT_MS = 30_000;
+      let timedOut = false;
+      const timeoutPromise = new Promise<null>((resolve) =>
+        setTimeout(() => { timedOut = true; resolve(null); }, EXTRACT_TIMEOUT_MS)
+      );
+      const result = await Promise.race([
+        extractImage({ imageUrl: img.url as string, imageId: img.id as string }),
+        timeoutPromise,
+      ]).catch((err: unknown) => {
+        console.error(`groupImages: extractImage failed for image ${img.id as string}:`, err);
+        return null;
+      });
+      if (timedOut) {
+        console.error(`groupImages: extractImage timed out after ${EXTRACT_TIMEOUT_MS}ms for image ${img.id as string}`);
+      }
       extractions.push(
         result ?? {
           image_id: img.id as string,
