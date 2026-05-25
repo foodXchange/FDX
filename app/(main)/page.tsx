@@ -24,16 +24,6 @@ export const metadata: Metadata = {
 };
 
 export default function HomePage() {
-  const phone = "972525222291";
-
-  const buyerMessage = encodeURIComponent(
-    "Hi, I'm a buyer/importer interested in sourcing products through FoodXchange. Could you share relevant options?"
-  );
-
-  const manufacturerMessage = encodeURIComponent(
-    "Hi, I'm a manufacturer interested in entering the Israeli market through FoodXchange. Let's discuss collaboration."
-  );
-
   return (
     <main className="bg-slate-900">
 
@@ -73,22 +63,18 @@ export default function HomePage() {
           </p>
 
           <div className="flex gap-4 flex-wrap justify-center mt-10">
-            <a
-              href={`https://wa.me/${phone}?text=${buyerMessage}`}
-              target="_blank"
-              rel="noopener noreferrer"
+            <Link
+              href="/en/buyers"
               className="inline-flex items-center justify-center bg-orange-500 hover:bg-orange-600 text-white px-7 py-3.5 rounded-md font-semibold shadow transition"
             >
               I&apos;m a Buyer →
-            </a>
-            <a
-              href={`https://wa.me/${phone}?text=${manufacturerMessage}`}
-              target="_blank"
-              rel="noopener noreferrer"
+            </Link>
+            <Link
+              href="/en/manufacturers"
               className="inline-flex items-center justify-center border border-white/40 text-white px-7 py-3.5 rounded-md font-semibold hover:bg-white/10 transition"
             >
               I&apos;m a Manufacturer →
-            </a>
+            </Link>
           </div>
         </Reveal>
       </section>
