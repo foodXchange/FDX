@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { cleanRequestName } from "@/lib/matching/cleanRequestName";
-import PipPanel from "@/components/admin/PipPanel";
+import PipPanel, { type PipV2CardData } from "@/components/admin/PipPanel";
 import MatchCards from "./MatchCards";
 
 export const metadata: Metadata = { title: "Request Detail | Admin" };
@@ -44,7 +44,7 @@ export type SavedMatch = {
 export default async function RequestDetailPage({ params }: PageProps) {
   const { id } = await params;
 
-  const [{ data: request, error }, { data: rawMatches }] = await Promise.all([
+  const [{ data: request, error }, { data: rawMatches }, { data: rawV2Pips }] = await Promise.all([
     supabaseAdmin.from("sourcing_requests").select("*").eq("id", id).single(),
     supabaseAdmin
       .from("sourcing_matches")
@@ -53,6 +53,13 @@ export default async function RequestDetailPage({ params }: PageProps) {
       )
       .eq("request_id", id)
       .order("match_score", { ascending: false }),
+    supabaseAdmin
+      .from("pips")
+      .select("id, product_family_key, data_json, status")
+      .eq("sourcing_request_id", id)
+      .eq("pip_version", 2)
+      .eq("created_from", "image")
+      .order("created_at", { ascending: true }),
   ]);
 
   if (error || !request) notFound();
@@ -62,6 +69,7 @@ export default async function RequestDetailPage({ params }: PageProps) {
   const isNameCleaned = cleanedName !== productName && cleanedName.length > 0;
 
   const matches = (rawMatches ?? []) as SavedMatch[];
+  const v2Pips = (rawV2Pips ?? []) as PipV2CardData[];
   const certs = (request.certifications as string[] | null) ?? [];
   const hasKosher = certs.some((c) => c.toLowerCase().includes("kosher"));
   const intentJson = (request.intent_json as Record<string, unknown> | null) ?? null;
@@ -145,7 +153,7 @@ export default async function RequestDetailPage({ params }: PageProps) {
 
             {/* PIP panel */}
             <div className="bg-white border border-gray-200 rounded-2xl p-4 shadow-sm">
-              <PipPanel requestId={id} initialPip={intentJson} />
+              <PipPanel requestId={id} initialPip={intentJson} initialV2Pips={v2Pips} />
             </div>
           </div>
 
