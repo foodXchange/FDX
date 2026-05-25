@@ -56,8 +56,10 @@ Return JSON:
       messages: [{ role: "user", content: userPrompt }],
     });
 
-    const text =
+    const raw =
       response.content[0].type === "text" ? response.content[0].text : "";
+    // Strip markdown code fences the model occasionally adds despite instructions
+    const text = raw.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "").trim();
 
     let parsed: { product_name: string; public_message: string };
     try {
