@@ -28,20 +28,36 @@ export async function POST(req: NextRequest) {
     return Response.json({ error: "request_id is required" }, { status: 400 });
   }
 
-  const { data: request, error: fetchError } = await supabaseAdmin
-    .from("sourcing_requests")
-    .select(
-      "id, product_name, message, category, certifications, target_market, private_label, ai_analysis, intent_json"
-    )
-    .eq("id", request_id)
-    .single();
+  // Fetch request row and check for a v2 PIP in parallel.
+  const [requestResult, v2PipResult] = await Promise.all([
+    supabaseAdmin
+      .from("sourcing_requests")
+      .select(
+        "id, product_name, message, category, certifications, target_market, private_label, ai_analysis, intent_json"
+      )
+      .eq("id", request_id)
+      .single(),
+    supabaseAdmin
+      .from("pips")
+      .select("id")
+      .eq("sourcing_request_id", request_id)
+      .eq("pip_version", 2)
+      .eq("created_from", "image")
+      .maybeSingle(),
+  ]);
+
+  const { data: request, error: fetchError } = requestResult;
+  const { data: v2Pip } = v2PipResult;
 
   if (fetchError || !request) {
     return Response.json({ error: "Request not found" }, { status: 404 });
   }
 
-  // If no PIP yet, generate one inline before matching
-  if (!request.intent_json) {
+  // A v2 image PIP or a populated intent_json is sufficient to proceed.
+  // Generate a v1 PIP inline only when neither exists.
+  const hasPip = v2Pip !== null || Boolean(request.intent_json);
+
+  if (!hasPip) {
     try {
       const pip = await buildPipV1Full({
         product_name: (request.product_name as string | null) ?? null,

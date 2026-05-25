@@ -42,13 +42,39 @@ export async function POST(req: NextRequest) {
   pip.category.category_id = category_id;
   pip.category.category_name = category_name;
 
-  const { error: updateError } = await supabaseAdmin
-    .from("sourcing_requests")
-    .update({ intent_json: pip })
-    .eq("id", request_id);
+  // Write to intent_json (existing — matching engine reads this)
+  // and UPSERT the v1 pip row so mergePip reads the latest text side next time.
+  const [intentResult, existingV1PipResult] = await Promise.all([
+    supabaseAdmin
+      .from("sourcing_requests")
+      .update({ intent_json: pip })
+      .eq("id", request_id),
+    supabaseAdmin
+      .from("pips")
+      .select("id")
+      .eq("sourcing_request_id", request_id)
+      .eq("pip_version", 1)
+      .eq("created_from", "text")
+      .maybeSingle(),
+  ]);
 
-  if (updateError) {
-    return Response.json({ error: updateError.message }, { status: 500 });
+  if (intentResult.error) {
+    return Response.json({ error: intentResult.error.message }, { status: 500 });
+  }
+
+  if (existingV1PipResult.data?.id) {
+    await supabaseAdmin
+      .from("pips")
+      .update({ data_json: pip })
+      .eq("id", existingV1PipResult.data.id);
+  } else {
+    await supabaseAdmin.from("pips").insert({
+      sourcing_request_id: request_id,
+      pip_version: 1,
+      created_from: "text",
+      status: "needs_review",
+      data_json: pip,
+    });
   }
 
   return Response.json({ ok: true, pip });

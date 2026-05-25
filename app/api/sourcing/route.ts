@@ -5,6 +5,7 @@ import { matchSupplierProducts, formatWhatsAppMatch } from "@/lib/matching/match
 import { buildPipV1 } from "@/lib/pip/buildPipV1";
 import { resolveCategoryId } from "@/lib/pip/resolveCategoryId";
 import { runMatchV1 } from "@/lib/matching/runMatchV1";
+import { groupImages } from "@/lib/pip/groupImages";
 
 function validPhone(v: string): boolean {
   const digits = v.replace(/\D/g, "");
@@ -184,6 +185,22 @@ export async function POST(req: Request) {
       console.error("runMatchV1 failed (FAB):", e);
     }
   })();
+
+  // v2 pipeline: request_images insert is required before groupImages can read it.
+  // The FAB route stores image_url on sourcing_requests but does not insert into
+  // request_images — that insert happens here so the pipeline can pick it up.
+  if (data.image_url) {
+    (async () => {
+      try {
+        await supabaseAdmin
+          .from("request_images")
+          .insert({ request_id: newRequest.id, url: data.image_url });
+        await groupImages(newRequest.id);
+      } catch (err) {
+        console.error("[v2-pipeline] groupImages failed", newRequest.id, err);
+      }
+    })();
+  }
 
   return Response.json({ ok: true });
 }

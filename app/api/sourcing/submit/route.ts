@@ -7,6 +7,7 @@ import { matchSupplierProducts, formatWhatsAppMatch } from "@/lib/matching/match
 import { buildPipV1 } from "@/lib/pip/buildPipV1";
 import { resolveCategoryId } from "@/lib/pip/resolveCategoryId";
 import { runMatchV1 } from "@/lib/matching/runMatchV1";
+import { groupImages } from "@/lib/pip/groupImages";
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
@@ -149,12 +150,19 @@ export async function POST(req: Request) {
         .catch(console.error);
     }
 
+    // v2 pipeline: insert images then extract → group → merge.
+    // Sequential within this block — groupImages reads from request_images.
     if (data.image_urls.length > 0) {
-      Promise.resolve(
-        supabaseAdmin
-          .from("request_images")
-          .insert(data.image_urls.map((url) => ({ request_id: newRequest.id, url })))
-      ).catch(console.error);
+      (async () => {
+        try {
+          await supabaseAdmin
+            .from("request_images")
+            .insert(data.image_urls.map((url) => ({ request_id: newRequest.id, url })));
+          await groupImages(newRequest.id);
+        } catch (err) {
+          console.error("[v2-pipeline] groupImages failed", newRequest.id, err);
+        }
+      })();
     }
 
     (async () => {
