@@ -174,11 +174,13 @@ function PipV2Card({
   requestId,
   onRegroup,
   onUpdate,
+  onStatusChange,
 }: {
   pip: PipV2CardData;
   requestId: string;
   onRegroup: (pips: PipV2CardData[]) => void;
   onUpdate: (pipId: string, dataJson: PipV2DataJson) => void;
+  onStatusChange: (pipId: string, status: PipStatus) => void;
 }) {
   const router = useRouter();
   const [mode, setMode] = useState<V2Mode>("display");
@@ -197,6 +199,7 @@ function PipV2Card({
   const mustHave = d.match_config?.must_have ?? [];
   const familyLabel = prettyFamilyKey(pip.product_family_key, productName);
   const isBusy = mode !== "display" && mode !== "edit";
+  const pipReady = pip.status === "confirmed" || pip.status === "matched";
 
   async function regroup() {
     setMode("regrouping");
@@ -253,6 +256,25 @@ function PipV2Card({
   function cancelEdit() {
     setEditState(null);
     setMode("display");
+  }
+
+  async function confirmPip() {
+    setError(null);
+    try {
+      const res = await fetch(`/api/pip/${pip.id}/patch`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "confirmed" }),
+      });
+      const data = await res.json() as { ok?: boolean; error?: string };
+      if (!res.ok || !data.ok) {
+        setError(data.error ?? "Confirm failed");
+      } else {
+        onStatusChange(pip.id, "confirmed");
+      }
+    } catch {
+      setError("Network error");
+    }
   }
 
   async function saveEdit() {
@@ -375,7 +397,7 @@ function PipV2Card({
                 )}
               </div>
 
-              <div className="flex gap-1.5 pt-2 border-t border-slate-100">
+              <div className="flex flex-wrap gap-1.5 pt-2 border-t border-slate-100">
                 <button
                   onClick={regroup}
                   disabled={isBusy}
@@ -390,10 +412,20 @@ function PipV2Card({
                 >
                   Edit
                 </button>
+                {!pipReady && (
+                  <button
+                    onClick={confirmPip}
+                    disabled={isBusy}
+                    className="text-xs px-2.5 py-1 rounded-lg border border-green-200 text-green-700 hover:bg-green-50 transition disabled:opacity-50"
+                  >
+                    Confirm
+                  </button>
+                )}
                 <button
                   onClick={runMatching}
-                  disabled={isBusy}
-                  className="text-xs px-2.5 py-1 rounded-lg border border-blue-200 text-blue-600 hover:bg-blue-50 transition disabled:opacity-50"
+                  disabled={isBusy || !pipReady}
+                  title={!pipReady ? "Review and confirm the PIP before finding suppliers" : undefined}
+                  className="text-xs px-2.5 py-1 rounded-lg border border-blue-200 text-blue-600 hover:bg-blue-50 transition disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Find Suppliers
                 </button>
@@ -484,6 +516,10 @@ export default function PipPanel({ requestId, initialPip, initialV2Pips = [] }: 
     setV2Pips((prev) => prev.map((p) => (p.id === pipId ? { ...p, data_json: dataJson } : p)));
   }
 
+  function handleV2StatusChange(pipId: string, status: PipStatus) {
+    setV2Pips((prev) => prev.map((p) => (p.id === pipId ? { ...p, status } : p)));
+  }
+
   async function regenerate() {
     setMode("regenerating");
     setError(null);
@@ -567,6 +603,7 @@ export default function PipPanel({ requestId, initialPip, initialV2Pips = [] }: 
                 requestId={requestId}
                 onRegroup={setV2Pips}
                 onUpdate={handleV2Update}
+                onStatusChange={handleV2StatusChange}
               />
             ))}
           </div>

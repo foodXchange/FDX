@@ -2,7 +2,9 @@ import { NextRequest } from "next/server";
 import { cookies } from "next/headers";
 import { verifySession, COOKIE_NAME } from "@/lib/adminAuth";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
-import type { MergedAttr, PipV2DataJson } from "@/lib/pip/pipTypes";
+import type { MergedAttr, PipV2DataJson, PipStatus } from "@/lib/pip/pipTypes";
+
+const VALID_STATUSES: PipStatus[] = ["draft", "needs_review", "confirmed", "matched"];
 
 async function checkAuth(): Promise<boolean> {
   const cookieStore = await cookies();
@@ -19,6 +21,7 @@ function manualAttrs(values: string[]): MergedAttr[] {
 }
 
 type PatchBody = {
+  status?: PipStatus;
   product_name?: string;
   category_raw?: string;
   formats?: string[];
@@ -47,6 +50,10 @@ export async function POST(
   }
 
   const patch = body as PatchBody;
+
+  if (patch.status !== undefined && !VALID_STATUSES.includes(patch.status)) {
+    return Response.json({ error: "Invalid status" }, { status: 400 });
+  }
 
   const { data: pipRow, error: fetchError } = await supabaseAdmin
     .from("pips")
@@ -85,14 +92,22 @@ export async function POST(
     dataJson.match_config = { ...dataJson.match_config, nice_to_have: patch.nice_to_have };
   }
 
+  const updatePayload: Record<string, unknown> = {
+    data_json: dataJson,
+    updated_at: new Date().toISOString(),
+  };
+  if (patch.status !== undefined) {
+    updatePayload.status = patch.status;
+  }
+
   const { error: updateError } = await supabaseAdmin
     .from("pips")
-    .update({ data_json: dataJson, updated_at: new Date().toISOString() })
+    .update(updatePayload)
     .eq("id", pipId);
 
   if (updateError) {
     return Response.json({ error: updateError.message }, { status: 500 });
   }
 
-  return Response.json({ ok: true, data_json: dataJson });
+  return Response.json({ ok: true, data_json: dataJson, status: patch.status });
 }

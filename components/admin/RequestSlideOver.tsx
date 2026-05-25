@@ -63,6 +63,7 @@ export default function RequestSlideOver({
   const [matchLoading, setMatchLoading] = useState(false);
   const [matches, setMatches] = useState<SavedMatch[] | null>(null);
   const [matchError, setMatchError] = useState<string | null>(null);
+  const [pipReady, setPipReady] = useState(true);
   const [, startTransition] = useTransition();
 
   // Sourcing board publish state
@@ -80,20 +81,27 @@ export default function RequestSlideOver({
   );
   const [publishError, setPublishError] = useState<string | null>(null);
 
-  // Load saved matches whenever the request changes
+  // Load saved matches + pip-ready status whenever the request changes
   useEffect(() => {
     if (!request?.id) {
       setMatches(null);
+      setPipReady(true);
       return;
     }
     setMatches(null);
     setMatchError(null);
-    fetch(`/api/admin/requests/${request.id}/match`)
-      .then((r) => r.json())
-      .then((d: { ok?: boolean; matches?: SavedMatch[] }) => {
-        setMatches(d.matches ?? []);
-      })
-      .catch(() => setMatches([]));
+    const id = request.id;
+    Promise.all([
+      fetch(`/api/admin/requests/${id}/match`)
+        .then((r) => r.json() as Promise<{ ok?: boolean; matches?: SavedMatch[] }>)
+        .catch(() => ({ matches: [] as SavedMatch[] })),
+      fetch(`/api/admin/requests/${id}/pip-ready`)
+        .then((r) => r.json() as Promise<{ ready?: boolean }>)
+        .catch(() => ({ ready: true })),
+    ]).then(([matchData, pipData]) => {
+      setMatches(matchData.matches ?? []);
+      setPipReady(pipData.ready ?? true);
+    });
   }, [request?.id]);
 
   // Sync publish state when request changes
@@ -480,8 +488,9 @@ export default function RequestSlideOver({
                 <button
                   type="button"
                   onClick={handleRunMatch}
-                  disabled={matchLoading}
-                  className="text-xs px-3 py-1.5 rounded-lg bg-orange-500 hover:bg-orange-600 text-white font-medium disabled:opacity-50 transition flex items-center gap-1.5"
+                  disabled={matchLoading || !pipReady}
+                  title={!pipReady ? "Review and confirm the PIP before finding suppliers" : undefined}
+                  className="text-xs px-3 py-1.5 rounded-lg bg-orange-500 hover:bg-orange-600 text-white font-medium disabled:opacity-50 disabled:cursor-not-allowed transition flex items-center gap-1.5"
                 >
                   {matchLoading ? (
                     <>
