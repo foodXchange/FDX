@@ -14,25 +14,50 @@ export async function POST(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  if (!(await checkAuth())) {
-    return Response.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  try {
+    let authed: boolean;
+    try {
+      authed = await checkAuth();
+    } catch (err) {
+      console.error("ai-edit: auth check threw:", err);
+      return Response.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    if (!authed) {
+      return Response.json({ error: "Unauthorized" }, { status: 401 });
+    }
 
-  const { id } = await params;
+    const { id } = await params;
 
-  const { data: request, error } = await supabaseAdmin
-    .from("sourcing_requests")
-    .select("product_name, message, category, certifications, ai_analysis")
-    .eq("id", id)
-    .single();
+    let request: {
+      product_name: string | null;
+      message: string | null;
+      category: string | null;
+      certifications: unknown;
+      ai_analysis: unknown;
+    } | null;
+    try {
+      const { data, error } = await supabaseAdmin
+        .from("sourcing_requests")
+        .select("product_name, message, category, certifications, ai_analysis")
+        .eq("id", id)
+        .single();
+      if (error) {
+        console.error("ai-edit: supabase fetch error:", error.message);
+        return Response.json({ error: "Request not found" }, { status: 404 });
+      }
+      request = data;
+    } catch (err) {
+      console.error("ai-edit: supabase threw:", err);
+      return Response.json({ error: "Database error" }, { status: 500 });
+    }
 
-  if (error || !request) {
-    return Response.json({ error: "Request not found" }, { status: 404 });
-  }
+    if (!request) {
+      return Response.json({ error: "Request not found" }, { status: 404 });
+    }
 
-  const ai = request.ai_analysis as { sourcing_keywords?: string[] } | null;
+    const ai = request.ai_analysis as { sourcing_keywords?: string[] } | null;
 
-  const userPrompt = `Edit this Israeli buyer sourcing request for the public sourcing board:
+    const userPrompt = `Edit this Israeli buyer sourcing request for the public sourcing board:
 
 Product: "${request.product_name ?? ""}"
 Description: "${request.message ?? ""}"
@@ -46,25 +71,30 @@ Return JSON:
   "public_message": "2-3 sentences for European manufacturers. Professional B2B tone. What the buyer needs, key specs, certifications required. Remove any personal info (emails, phones, names)."
 }`;
 
-  try {
-    const client = new Anthropic();
-    const response = await client.messages.create({
-      model: "claude-sonnet-4-5",
-      max_tokens: 600,
-      system:
-        "You are a B2B content editor for FoodXchange, a food sourcing platform. Clean up buyer sourcing requests for display to European food manufacturers. Output ONLY valid JSON, no markdown.",
-      messages: [{ role: "user", content: userPrompt }],
-    });
-
-    const raw =
-      response.content[0].type === "text" ? response.content[0].text : "";
-    // Strip markdown code fences the model occasionally adds despite instructions
-    const text = raw.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "").trim();
+    let responseText: string;
+    try {
+      const client = new Anthropic();
+      const response = await client.messages.create({
+        model: "claude-sonnet-4-5",
+        max_tokens: 600,
+        system:
+          "You are a B2B content editor for FoodXchange, a food sourcing platform. Clean up buyer sourcing requests for display to European food manufacturers. Output ONLY valid JSON, no markdown.",
+        messages: [{ role: "user", content: userPrompt }],
+      });
+      const raw =
+        response.content[0].type === "text" ? response.content[0].text : "";
+      // Strip markdown code fences the model occasionally adds despite instructions
+      responseText = raw.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "").trim();
+    } catch (err) {
+      console.error("ai-edit: Anthropic call threw:", err);
+      return Response.json({ error: "AI request failed" }, { status: 500 });
+    }
 
     let parsed: { product_name: string; public_message: string };
     try {
-      parsed = JSON.parse(text);
+      parsed = JSON.parse(responseText);
     } catch {
+      console.error("ai-edit: model returned non-JSON:", responseText.slice(0, 200));
       return Response.json({ error: "AI returned invalid JSON" }, { status: 500 });
     }
 
@@ -74,7 +104,7 @@ Return JSON:
       public_message: parsed.public_message,
     });
   } catch (err) {
-    console.error("AI edit error:", err);
-    return Response.json({ error: "AI request failed" }, { status: 500 });
+    console.error("ai-edit: unhandled error:", err);
+    return Response.json({ error: "Internal server error" }, { status: 500 });
   }
 }
