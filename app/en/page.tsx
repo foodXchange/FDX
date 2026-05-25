@@ -93,7 +93,7 @@ export default async function ManufacturersPage() {
 
             <div className="mt-10 flex gap-4 flex-wrap justify-center">
               <Link
-                href="/en/contact"
+                href="/en/buyers"
                 className="inline-flex bg-orange-500 text-white px-7 py-3.5 rounded-md font-semibold hover:bg-orange-600 transition shadow"
               >
                 Tell us what you need →
@@ -352,7 +352,7 @@ export default async function ManufacturersPage() {
               Every inquiry is read personally. Response within 24 hours.
             </p>
             <Link
-              href="/en/contact"
+              href="/en/buyers"
               className="inline-flex bg-orange-500 text-white px-8 py-3.5 rounded-md font-semibold hover:bg-orange-600 transition shadow"
             >
               Tell us what you need →
