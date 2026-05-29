@@ -75,16 +75,21 @@ Return JSON:
     try {
       const client = new Anthropic();
       const response = await client.messages.create({
-        model: "claude-sonnet-4-5",
+        model: "claude-haiku-4-5-20251001",
         max_tokens: 600,
         system:
-          "You are a B2B content editor for FoodXchange, a food sourcing platform. Clean up buyer sourcing requests for display to European food manufacturers. Output ONLY valid JSON, no markdown.",
+          "You are a B2B content editor for FoodXchange, a food sourcing platform. Clean up buyer sourcing requests for display to European food manufacturers. Output ONLY valid JSON, no markdown, no explanation.",
         messages: [{ role: "user", content: userPrompt }],
       });
-      const raw =
-        response.content[0].type === "text" ? response.content[0].text : "";
-      // Strip markdown code fences the model occasionally adds despite instructions
-      responseText = raw.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "").trim();
+      const firstBlock = response.content[0];
+      const raw = firstBlock?.type === "text" ? firstBlock.text : "";
+      if (!raw) {
+        console.error("ai-edit: empty content from Anthropic");
+        return Response.json({ error: "AI returned empty response" }, { status: 500 });
+      }
+      // Extract the first JSON object found anywhere in the response
+      const jsonMatch = raw.match(/\{[\s\S]*\}/);
+      responseText = jsonMatch ? jsonMatch[0] : raw.trim();
     } catch (err) {
       console.error("ai-edit: Anthropic call threw:", err);
       return Response.json({ error: "AI request failed" }, { status: 500 });
