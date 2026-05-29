@@ -130,6 +130,16 @@ export async function GET(req: NextRequest) {
   const batchIdParam = searchParams.get("batchId");
   const batchUuidParam = searchParams.get("batchUuid");
 
+  // Parse limit: "all" means no limit (default)
+  let queryLimit: number | undefined;
+  if (limitParam && limitParam !== "all") {
+    const parsed = parseInt(limitParam, 10);
+    if (!isNaN(parsed) && parsed > 0) {
+      queryLimit = parsed;
+    }
+  }
+  // If limitParam is "all" or missing, queryLimit stays undefined (no limit)
+
   const encoder = new TextEncoder();
   const logBuffer = new LogBuffer();
 
@@ -196,10 +206,12 @@ export async function GET(req: NextRequest) {
 
       if (statusParam === "pending") {
         query = query.eq("scrape_status", "pending");
+      } else if (statusParam === "failed") {
+        query = query.eq("scrape_status", "failed");
       }
 
-      if (limitParam) {
-        query = query.limit(parseInt(limitParam, 10));
+      if (queryLimit) {
+        query = query.limit(queryLimit);
       }
 
       const { data, error } = (await query) as {

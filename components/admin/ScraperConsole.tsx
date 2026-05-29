@@ -51,13 +51,15 @@ const LOG_COLORS: Record<string, string> = {
 
 const LIMIT_OPTIONS: (number | "all")[] = [10, 50, 100, 200, 500, "all"];
 
+type StatusFilter = "pending" | "failed" | "";
+
 export function ScraperConsole({ supplierId, defaultBatchId, batchOptions }: ScraperConsoleProps) {
   const [running, setRunning] = useState(false);
   const [logs, setLogs] = useState<LogLine[]>([]);
   const [summary, setSummary] = useState<ScraperSummary | null>(null);
   const [progress, setProgress] = useState<ProgressState | null>(null);
-  const [limit, setLimit] = useState<number | "all">(50);
-  const [filterPending, setFilterPending] = useState(true);
+  const [limit, setLimit] = useState<number | "all">("all");
+  const [filterStatus, setFilterStatus] = useState<StatusFilter>("pending");
   const [batchId, setBatchId] = useState(defaultBatchId ?? "");
   const [batchInfo, setBatchInfo] = useState<string | null>(null);
   const eventSourceRef = useRef<EventSource | null>(null);
@@ -76,27 +78,31 @@ export function ScraperConsole({ supplierId, defaultBatchId, batchOptions }: Scr
   }, []);
 
   useEffect(() => {
-    const readBatchFromHash = () => {
+    const readHashParams = () => {
       if (typeof window === "undefined") return;
       const hash = window.location.hash;
-      if (hash.startsWith("#batchId=")) {
-        const value = decodeURIComponent(hash.slice("#batchId=".length));
-        if (value) {
-          setBatchId(value);
-        }
-      }
+      if (!hash || hash === "#") return;
+
+      // Parse hash as URLSearchParams (strip leading #)
+      const params = new URLSearchParams(hash.slice(1));
+      const batchValue = params.get("batchId");
+      const statusValue = params.get("status");
+
+      if (batchValue) setBatchId(batchValue);
+      if (statusValue === "failed") setFilterStatus("failed");
+      else if (statusValue === "pending") setFilterStatus("pending");
     };
 
-    readBatchFromHash();
-    window.addEventListener("hashchange", readBatchFromHash);
-    return () => window.removeEventListener("hashchange", readBatchFromHash);
+    readHashParams();
+    window.addEventListener("hashchange", readHashParams);
+    return () => window.removeEventListener("hashchange", readHashParams);
   }, []);
 
   // Initialize batchId from first option when options are provided and no hash/default is set
   useEffect(() => {
     if (batchOptions && batchOptions.length > 0 && !defaultBatchId) {
       const hash = typeof window !== "undefined" ? window.location.hash : "";
-      if (!hash.startsWith("#batchId=")) {
+      if (!hash || !new URLSearchParams(hash.slice(1)).get("batchId")) {
         setBatchId(batchOptions[0].batchId);
       }
     }
@@ -111,7 +117,6 @@ export function ScraperConsole({ supplierId, defaultBatchId, batchOptions }: Scr
 
     const params = new URLSearchParams();
     const trimmedBatch = batchId.trim();
-    const usePending = Boolean(trimmedBatch) || filterPending;
 
     if (supplierId) {
       params.set("supplierId", supplierId);
@@ -119,12 +124,15 @@ export function ScraperConsole({ supplierId, defaultBatchId, batchOptions }: Scr
 
     if (trimmedBatch) {
       params.set("batchId", trimmedBatch);
-      setBatchInfo(`Batch run: only pending rows from ${trimmedBatch}`);
+      const statusLabel = filterStatus === "failed" ? "failed" : "pending";
+      setBatchInfo(`Batch run: only ${statusLabel} rows from ${trimmedBatch}`);
     }
 
     if (!supplierId) {
       if (limit !== "all") params.set("limit", String(limit));
-      if (usePending) params.set("status", "pending");
+      // When a batch is selected, default to the chosen filter; otherwise respect filterStatus
+      const effectiveStatus = filterStatus || (trimmedBatch ? "pending" : "");
+      if (effectiveStatus) params.set("status", effectiveStatus);
     }
 
     const url = `/api/admin/scraper/stream?${params.toString()}`;
@@ -268,6 +276,12 @@ export function ScraperConsole({ supplierId, defaultBatchId, batchOptions }: Scr
       ? Math.ceil((progress.total - progress.current) * 45 / 60)
       : 0;
 
+  const STATUS_OPTIONS: { value: StatusFilter; label: string }[] = [
+    { value: "pending", label: "Pending only" },
+    { value: "failed", label: "Failed only" },
+    { value: "", label: "All" },
+  ];
+
   return (
     <div>
       {/* Controls */}
@@ -326,21 +340,33 @@ export function ScraperConsole({ supplierId, defaultBatchId, batchOptions }: Scr
               </label>
               {batchId.trim() ? (
                 <p className="text-xs text-slate-500">
-                  This will run only pending rows for the selected upload batch.
+                  This will run only{" "}
+                  {filterStatus === "failed" ? "failed" : filterStatus === "pending" ? "pending" : "all"}{" "}
+                  rows for the selected upload batch.
                 </p>
               ) : null}
             </div>
 
-            <label className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={filterPending}
-                onChange={(e) => setFilterPending(e.target.checked)}
-                disabled={running || Boolean(batchId.trim())}
-                className="rounded"
-              />
-              Pending only
-            </label>
+            {/* Status filter: Pending only / Failed only / All */}
+            <div className="flex items-center gap-1">
+              {STATUS_OPTIONS.map((opt) => (
+                <button
+                  key={opt.value}
+                  onClick={() => setFilterStatus(opt.value)}
+                  disabled={running}
+                  className={`px-3 py-1.5 text-xs rounded-lg border transition-colors disabled:opacity-50
+                    ${
+                      filterStatus === opt.value
+                        ? opt.value === "failed"
+                          ? "bg-red-600 text-white border-red-600"
+                          : "bg-slate-800 text-white border-slate-800"
+                        : "border-slate-200 text-slate-600 hover:bg-slate-50"
+                    }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
           </>
         )}
 

@@ -25,6 +25,8 @@ type SupplierRow = {
 };
 
 type BatchRow = {
+  id: string;
+  supplier_id: string | null;
   csv_import_batch: string | null;
   scrape_status: string | null;
   created_at: string | null;
@@ -45,10 +47,13 @@ type BatchSummary = {
   total: number;
   firstSeen: string | null;
   filename?: string;
+  batchNumber?: string;
   productsCount?: number;
   firecrawlCount?: number;
   perplexityCount?: number;
 };
+
+type BatchSummaryInternal = BatchSummary & { seenIds: Set<string> };
 
 type UploadHistoryRow = {
   id: string;
@@ -58,6 +63,15 @@ type UploadHistoryRow = {
   rows_pending: number;
   uploaded_at: string | null;
 };
+
+function extractBatchNumber(filename?: string): string | undefined {
+  if (!filename) return undefined;
+  const match = filename.match(/_(\d+)(?:\.\w+)?$/);
+  if (match && match[1]) {
+    return `Split ${match[1]}`;
+  }
+  return undefined;
+}
 
 export default async function ScraperPage() {
   const [
@@ -83,9 +97,10 @@ export default async function ScraperPage() {
     supabaseAdmin
       .from("supplier_factories")
       .select("supplier_id, is_primary, kosher_types"),
+    // include supplier_id so we can deduplicate per batch
     supabaseAdmin
       .from("supplier_offerings")
-      .select("csv_import_batch, scrape_status, created_at")
+      .select("id, supplier_id, csv_import_batch, scrape_status, created_at")
       .not("csv_import_batch", "is", null)
       .neq("csv_import_batch", ""),
     supabaseAdmin
@@ -116,6 +131,7 @@ export default async function ScraperPage() {
     }
   }
 
+  // Keep counts from website-filtered suppliers for ScraperConsole (pending count)
   const counts = suppliers.reduce(
     (acc, s) => {
       const st = s.scrape_status ?? "pending";
@@ -126,14 +142,14 @@ export default async function ScraperPage() {
   );
 
   const batchRows = (batchStatsResult.data ?? []) as BatchRow[];
-  const batchMap: Record<string, BatchSummary> = {};
+  const batchMapInternal: Record<string, BatchSummaryInternal> = {};
 
   for (const row of batchRows) {
     const batchId = row.csv_import_batch?.trim();
     if (!batchId) continue;
 
-    if (!batchMap[batchId]) {
-      batchMap[batchId] = {
+    if (!batchMapInternal[batchId]) {
+      batchMapInternal[batchId] = {
         batchId,
         pending: 0,
         failed: 0,
@@ -141,10 +157,17 @@ export default async function ScraperPage() {
         scraped: 0,
         total: 0,
         firstSeen: row.created_at,
+        seenIds: new Set<string>(),
       };
     }
 
-    const summary = batchMap[batchId];
+    const summary = batchMapInternal[batchId];
+
+    // Deduplicate by supplier_id — count each unique supplier once per batch
+    const supplierId = row.supplier_id ?? row.id;
+    if (summary.seenIds.has(supplierId)) continue;
+    summary.seenIds.add(supplierId);
+
     summary.total += 1;
     if (row.scrape_status === "failed") {
       summary.failed += 1;
@@ -164,6 +187,26 @@ export default async function ScraperPage() {
       }
     }
   }
+
+  // Strip internal Set before using as BatchSummary
+  const batchMap: Record<string, BatchSummary> = {};
+  for (const [key, val] of Object.entries(batchMapInternal)) {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { seenIds: _seenIds, ...rest } = val;
+    batchMap[key] = rest;
+  }
+
+  // Top stats bar: sum across all batches (same source as batch cards)
+  const batchCounts = Object.values(batchMap).reduce(
+    (acc, b) => {
+      acc.pending += b.pending;
+      acc.scraped += b.scraped;
+      acc.failed += b.failed;
+      acc.skipped += b.skipped;
+      return acc;
+    },
+    { pending: 0, scraped: 0, failed: 0, skipped: 0 }
+  );
 
   // Build source stats per batch from batchSourceRows
   const batchSupplierMap: Record<string, string[]> = {};
@@ -227,14 +270,18 @@ export default async function ScraperPage() {
     productCountByBatch[r.batchId] = r.count;
   }
 
-  // Enrich batch summaries with filename, productsCount, source counts
-  const enrichedBatches: BatchSummary[] = batchSummaries.map((b) => ({
-    ...b,
-    filename: uploadByBatchId[b.batchId]?.filename,
-    productsCount: productCountByBatch[b.batchId] ?? 0,
-    firecrawlCount: batchFirecrawlCount[b.batchId] ?? 0,
-    perplexityCount: batchPerplexityCount[b.batchId] ?? 0,
-  }));
+  // Enrich batch summaries with filename, productsCount, source counts, and batch number
+  const enrichedBatches: BatchSummary[] = batchSummaries.map((b) => {
+    const uploadRecord = uploadByBatchId[b.batchId];
+    return {
+      ...b,
+      filename: uploadRecord?.filename,
+      batchNumber: extractBatchNumber(uploadRecord?.filename),
+      productsCount: productCountByBatch[b.batchId] ?? 0,
+      firecrawlCount: batchFirecrawlCount[b.batchId] ?? 0,
+      perplexityCount: batchPerplexityCount[b.batchId] ?? 0,
+    };
+  });
 
   // Build options for ScraperConsole dropdown
   const batchOptions = uploadHistory
@@ -246,7 +293,6 @@ export default async function ScraperPage() {
       uploadedAt: u.uploaded_at,
     }));
 
-  // Fall back to batch summaries if upload history was empty (post-backfill they'll appear next reload)
   const effectiveBatchOptions =
     batchOptions.length > 0
       ? batchOptions
@@ -257,6 +303,19 @@ export default async function ScraperPage() {
           uploadedAt: b.firstSeen,
         }));
 
+  // Upload history display: fall back to enriched batches if scraper_csv_uploads is empty
+  const displayHistory: UploadHistoryRow[] =
+    uploadHistory.length > 0
+      ? uploadHistory
+      : enrichedBatches.map((b) => ({
+          id: b.batchId,
+          batch_id: b.batchId,
+          filename: b.filename ?? b.batchId,
+          rows_total: b.total,
+          rows_pending: b.pending,
+          uploaded_at: b.firstSeen,
+        }));
+
   return (
     <main className="min-h-screen bg-gray-50">
       {/* Top bar */}
@@ -265,12 +324,12 @@ export default async function ScraperPage() {
           Supplier Scraper
         </h1>
 
-        {/* Stats row */}
+        {/* Stats row — derived from all CSV batches */}
         <div className="flex items-center gap-3 flex-wrap">
-          <StatCard color="green" label="Scraped" count={counts.scraped} />
-          <StatCard color="orange" label="Pending" count={counts.pending} />
-          <StatCard color="red" label="Failed" count={counts.failed} />
-          <StatCard color="gray" label="Skipped" count={counts.skipped} />
+          <StatCard color="green" label="Scraped" count={batchCounts.scraped} />
+          <StatCard color="orange" label="Pending" count={batchCounts.pending} />
+          <StatCard color="red" label="Failed" count={batchCounts.failed} />
+          <StatCard color="gray" label="Skipped" count={batchCounts.skipped} />
           <StatCard color="blue" label="Products" count={totalProducts} />
         </div>
       </div>
@@ -290,64 +349,114 @@ export default async function ScraperPage() {
               </div>
             </div>
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-              {enrichedBatches.map((batch) => (
-                <div
-                  key={batch.batchId}
-                  className="rounded-3xl border border-slate-200 bg-slate-50 p-4"
-                >
-                  <div className="flex items-start justify-between gap-2 mb-3">
-                    <div className="min-w-0">
-                      <p className="text-sm font-semibold text-slate-900 break-all">
-                        {batch.filename ?? batch.batchId}
-                      </p>
-                      {batch.firstSeen ? (
-                        <p className="text-xs text-slate-500">
-                          {getRelativeTime(batch.firstSeen)}
+              {enrichedBatches.map((batch) => {
+                const isUnhealthy =
+                  batch.total > 0 && batch.failed / batch.total > 0.5;
+                const denominator = batch.total - batch.skipped;
+                const pct =
+                  denominator > 0
+                    ? Math.round((batch.scraped / denominator) * 100)
+                    : 0;
+
+                return (
+                  <div
+                    key={batch.batchId}
+                    className={`rounded-3xl border bg-slate-50 p-4 ${
+                      isUnhealthy
+                        ? "border-l-4 border-l-red-500 border-slate-200"
+                        : "border-slate-200"
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-2 mb-3">
+                      <div className="min-w-0">
+                        {/* Primary: relative date */}
+                        <p className="text-sm font-semibold text-slate-900">
+                          {batch.firstSeen
+                            ? getRelativeTime(batch.firstSeen)
+                            : "Unknown date"}
                         </p>
-                      ) : null}
-                      <a
-                        href={`#batchId=${encodeURIComponent(batch.batchId)}`}
-                        className="mt-2 inline-block text-xs font-semibold text-blue-600 hover:text-blue-800"
-                      >
-                        Use this batch
-                      </a>
+                        {/* Secondary: filename / batch key de-emphasised */}
+                        <p
+                          className="text-xs text-slate-400 truncate max-w-40"
+                          title={batch.filename ?? batch.batchId}
+                        >
+                          {batch.filename ?? batch.batchId}
+                        </p>
+                        {/* Action buttons */}
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          <a
+                            href={`#batchId=${encodeURIComponent(batch.batchId)}`}
+                            className="inline-flex items-center gap-1 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700 transition-colors"
+                          >
+                            Use this batch →
+                          </a>
+                          {batch.failed > 0 && (
+                            <a
+                              href={`#batchId=${encodeURIComponent(batch.batchId)}&status=failed`}
+                              className="inline-flex items-center gap-1 rounded-lg border border-red-300 px-3 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-50 transition-colors"
+                            >
+                              Retry failed ({batch.failed})
+                            </a>
+                          )}
+                        </div>
+                      </div>
+                      <span className="shrink-0 rounded-full bg-slate-100 px-2 py-1 text-[11px] font-semibold uppercase tracking-wide text-slate-600">
+                        {batch.total} rows
+                      </span>
                     </div>
-                    <span className="shrink-0 rounded-full bg-slate-100 px-2 py-1 text-[11px] font-semibold uppercase tracking-wide text-slate-600">
-                      {batch.total} rows
-                    </span>
-                  </div>
 
-                  {/* Products & source stats */}
-                  {((batch.productsCount ?? 0) > 0 ||
-                    (batch.firecrawlCount ?? 0) > 0 ||
-                    (batch.perplexityCount ?? 0) > 0) && (
-                    <div className="mb-3 flex flex-wrap gap-2">
-                      {(batch.productsCount ?? 0) > 0 && (
-                        <span className="rounded-full bg-blue-50 px-2 py-1 text-[11px] font-medium text-blue-700">
-                          {batch.productsCount} products
-                        </span>
-                      )}
-                      {(batch.firecrawlCount ?? 0) > 0 && (
-                        <span className="rounded-full bg-purple-50 px-2 py-1 text-[11px] font-medium text-purple-700">
-                          Firecrawl: {batch.firecrawlCount}
-                        </span>
-                      )}
-                      {(batch.perplexityCount ?? 0) > 0 && (
-                        <span className="rounded-full bg-teal-50 px-2 py-1 text-[11px] font-medium text-teal-700">
-                          Perplexity: {batch.perplexityCount}
-                        </span>
-                      )}
+                    {/* Products & source stats */}
+                    {((batch.productsCount ?? 0) > 0 ||
+                      (batch.firecrawlCount ?? 0) > 0 ||
+                      (batch.perplexityCount ?? 0) > 0 ||
+                      batch.batchNumber) && (
+                      <div className="mb-3 flex flex-wrap gap-2">
+                        {batch.batchNumber && (
+                          <span className="rounded-full bg-orange-50 px-2.5 py-1 text-[11px] font-semibold text-orange-700 uppercase tracking-wide">
+                            {batch.batchNumber}
+                          </span>
+                        )}
+                        {(batch.productsCount ?? 0) > 0 && (
+                          <span className="rounded-full bg-blue-50 px-2 py-1 text-[11px] font-medium text-blue-700">
+                            {batch.productsCount} products
+                          </span>
+                        )}
+                        {(batch.firecrawlCount ?? 0) > 0 && (
+                          <span className="rounded-full bg-purple-50 px-2 py-1 text-[11px] font-medium text-purple-700">
+                            Firecrawl: {batch.firecrawlCount}
+                          </span>
+                        )}
+                        {(batch.perplexityCount ?? 0) > 0 && (
+                          <span className="rounded-full bg-teal-50 px-2 py-1 text-[11px] font-medium text-teal-700">
+                            Perplexity: {batch.perplexityCount}
+                          </span>
+                        )}
+                      </div>
+                    )}
+
+                    <div className="grid gap-2">
+                      <StatRow label="Pending" value={batch.pending} color="orange" />
+                      <StatRow label="Scraped" value={batch.scraped} color="green" />
+                      <StatRow label="Failed" value={batch.failed} color="red" />
+                      <StatRow label="Skipped" value={batch.skipped} color="gray" />
                     </div>
-                  )}
 
-                  <div className="grid gap-2">
-                    <StatRow label="Pending" value={batch.pending} color="orange" />
-                    <StatRow label="Scraped" value={batch.scraped} color="green" />
-                    <StatRow label="Failed" value={batch.failed} color="red" />
-                    <StatRow label="Skipped" value={batch.skipped} color="gray" />
+                    {/* Progress bar */}
+                    <div className="mt-3">
+                      <div className="flex justify-between text-[11px] text-slate-500 mb-1">
+                        <span>Progress</span>
+                        <span>{pct}%</span>
+                      </div>
+                      <div className="h-1.5 rounded-full bg-slate-200 overflow-hidden">
+                        <div
+                          className="h-full rounded-full bg-green-500 transition-all"
+                          style={{ width: `${pct}%` }}
+                        />
+                      </div>
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         )}
@@ -368,7 +477,7 @@ export default async function ScraperPage() {
             </div>
           </div>
 
-          {uploadHistory.length === 0 ? (
+          {displayHistory.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-10 text-center text-slate-500">
               No uploads yet
             </div>
@@ -384,13 +493,13 @@ export default async function ScraperPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {uploadHistory.map((upload) => (
+                  {displayHistory.map((upload) => (
                     <tr
                       key={upload.id}
                       className="border-b border-slate-200 last:border-none hover:bg-slate-50"
                     >
-                      <td className="px-4 py-3 align-top max-w-[220px]">
-                        <span className="block max-w-[220px] truncate text-slate-800">
+                      <td className="px-4 py-3 align-top max-w-55">
+                        <span className="block max-w-55 truncate text-slate-800">
                           {upload.filename}
                         </span>
                       </td>

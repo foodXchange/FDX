@@ -34,6 +34,21 @@ type CsvRow = {
   notes?: string;
 };
 
+/**
+ * Validate and clean text to ensure valid UTF-8 encoding
+ */
+function ensureValidUtf8(text: string): string {
+  // Check for invalid UTF-8 sequences and replace them with placeholder
+  try {
+    // Encode to UTF-8 bytes and back to ensure validity
+    const encoded = new TextEncoder().encode(text);
+    return new TextDecoder("utf-8", { fatal: false }).decode(encoded);
+  } catch {
+    // If validation fails, attempt basic cleanup
+    return text.replace(/[\uFFFD]/g, "?");
+  }
+}
+
 export async function POST(req: Request) {
   let form: FormData;
   try {
@@ -47,7 +62,9 @@ export async function POST(req: Request) {
     return Response.json({ error: "No file provided" }, { status: 400 });
   }
 
-  const text = await file.text();
+  let text = await file.text();
+  // Enforce clean UTF-8 parsing
+  text = ensureValidUtf8(text);
 
   let rows: CsvRow[];
   try {
