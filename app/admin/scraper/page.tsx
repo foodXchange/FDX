@@ -336,9 +336,9 @@ export default async function ScraperPage() {
             </div>
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
               {enrichedBatches.map((batch) => {
-                const isUnhealthy =
-                  batch.total > 0 && batch.failed / batch.total > 0.5;
                 const denominator = batch.total - batch.skipped;
+                const isUnhealthy =
+                  denominator > 0 && batch.failed / denominator > 0.1;
                 const pct =
                   denominator > 0
                     ? Math.round((batch.scraped / denominator) * 100)

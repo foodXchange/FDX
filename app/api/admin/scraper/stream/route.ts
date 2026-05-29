@@ -345,6 +345,7 @@ export async function GET(req: NextRequest) {
                   .from("supplier_offerings")
                   .update({
                     scrape_status: "skipped",
+                    internal_notes: `Auto-skipped: ${mfr.companyType}`,
                     ...(mfr.companyType === "non_food" ? { supplier_type: "non_food" } : {}),
                   })
                   .eq("id", supplier.id);
