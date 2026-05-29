@@ -55,7 +55,7 @@ export async function runMatchV1(requestId: string): Promise<RunMatchV1Result> {
       country: m.country,
       match_summary: m.summary,
       match_breakdown: m.breakdown,
-      status: "pending",
+      status: "suggested",
     })),
     { onConflict: "request_id,supplier_id" }
   );
