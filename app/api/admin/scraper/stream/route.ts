@@ -247,6 +247,28 @@ export async function GET(req: NextRequest) {
         });
         send({ type: "log", message: `  Website: ${supplier.website}` });
 
+        // Skip emails and social media URLs before wasting API credits
+        const siteUrl = supplier.website ?? "";
+        const isBadUrl =
+          siteUrl.includes("@") ||
+          siteUrl.includes("youtube.com") ||
+          siteUrl.includes("linkedin.com") ||
+          siteUrl.includes("facebook.com");
+
+        if (isBadUrl) {
+          const badReason = siteUrl.includes("@")
+            ? "Email address stored as URL"
+            : "Social media URL";
+          send({ type: "warning", message: `  ✗ SKIPPED — ${badReason}` });
+          await supabaseAdmin
+            .from("supplier_offerings")
+            .update({ scrape_status: "skipped", internal_notes: badReason })
+            .eq("id", supplier.id);
+          skippedList.push({ name: supplier.company_name, type: "bad_url" });
+          await logEvent("skipped", supplier.id, badReason);
+          continue;
+        }
+
         const supplierTimeout = new Promise<never>((_, reject) =>
           setTimeout(() => reject(new Error("Supplier timeout")), 90000)
         );
@@ -273,7 +295,7 @@ export async function GET(req: NextRequest) {
                 send({ type: "error", message: "  ✗ Website blocked or no content" });
                 await supabaseAdmin
                   .from("supplier_offerings")
-                  .update({ scrape_status: "failed" })
+                  .update({ scrape_status: "failed", internal_notes: "No content returned from scraper" })
                   .eq("id", supplier.id);
                 failed.push({ name: supplier.company_name, reason: "No content returned" });
                 await logEvent(
@@ -353,7 +375,7 @@ export async function GET(req: NextRequest) {
                 send({ type: "error", message: "  ✗ No products extracted" });
                 await supabaseAdmin
                   .from("supplier_offerings")
-                  .update({ scrape_status: "failed" })
+                  .update({ scrape_status: "failed", internal_notes: "No products extracted from content" })
                   .eq("id", supplier.id);
                 failed.push({ name: supplier.company_name, reason: "No products extracted" });
                 await logEvent(
@@ -471,7 +493,7 @@ export async function GET(req: NextRequest) {
             send({ type: "error", message: `  ✗ Error: ${msg}` });
             await supabaseAdmin
               .from("supplier_offerings")
-              .update({ scrape_status: "failed" })
+              .update({ scrape_status: "failed", internal_notes: msg.slice(0, 500) })
               .eq("id", supplier.id);
             failed.push({ name: supplier.company_name, reason: msg });
             await logEvent("failed", supplier.id, `Error: ${msg}`);
