@@ -26,7 +26,6 @@ type SupplierRow = {
 
 type BatchRow = {
   id: string;
-  supplier_id: string | null;
   csv_import_batch: string | null;
   scrape_status: string | null;
   created_at: string | null;
@@ -53,7 +52,7 @@ type BatchSummary = {
   perplexityCount?: number;
 };
 
-type BatchSummaryInternal = BatchSummary & { seenIds: Set<string> };
+type BatchSummaryInternal = BatchSummary;
 
 type UploadHistoryRow = {
   id: string;
@@ -97,10 +96,9 @@ export default async function ScraperPage() {
     supabaseAdmin
       .from("supplier_factories")
       .select("supplier_id, is_primary, kosher_types"),
-    // include supplier_id so we can deduplicate per batch
     supabaseAdmin
       .from("supplier_offerings")
-      .select("id, supplier_id, csv_import_batch, scrape_status, created_at")
+      .select("id, csv_import_batch, scrape_status, created_at")
       .not("csv_import_batch", "is", null)
       .neq("csv_import_batch", ""),
     supabaseAdmin
@@ -157,16 +155,10 @@ export default async function ScraperPage() {
         scraped: 0,
         total: 0,
         firstSeen: row.created_at,
-        seenIds: new Set<string>(),
       };
     }
 
     const summary = batchMapInternal[batchId];
-
-    // Deduplicate by supplier_id — count each unique supplier once per batch
-    const supplierId = row.supplier_id ?? row.id;
-    if (summary.seenIds.has(supplierId)) continue;
-    summary.seenIds.add(supplierId);
 
     summary.total += 1;
     if (row.scrape_status === "failed") {
@@ -188,13 +180,7 @@ export default async function ScraperPage() {
     }
   }
 
-  // Strip internal Set before using as BatchSummary
-  const batchMap: Record<string, BatchSummary> = {};
-  for (const [key, val] of Object.entries(batchMapInternal)) {
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { seenIds: _seenIds, ...rest } = val;
-    batchMap[key] = rest;
-  }
+  const batchMap: Record<string, BatchSummary> = batchMapInternal;
 
   // Top stats bar: sum across all batches (same source as batch cards)
   const batchCounts = Object.values(batchMap).reduce(
