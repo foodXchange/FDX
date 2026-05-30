@@ -66,11 +66,11 @@ export default function BuyerPanel({ onClose }: Props) {
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved) {
         const data = JSON.parse(saved) as SavedForm;
-        if (data.description) setDescription(data.description);
-        if (data.kosherType) setKosherType(data.kosherType);
-        if (data.whatsapp) setWhatsapp(data.whatsapp);
-        if (data.company) setCompany(data.company);
-        if (data.contactName) setContactName(data.contactName);
+        if (typeof data.description === "string") setDescription(data.description);
+        if (typeof data.kosherType === "string") setKosherType(data.kosherType);
+        if (typeof data.whatsapp === "string") setWhatsapp(data.whatsapp);
+        if (typeof data.company === "string") setCompany(data.company);
+        if (typeof data.contactName === "string") setContactName(data.contactName);
       }
     } catch {}
   }, []);
@@ -116,7 +116,7 @@ export default function BuyerPanel({ onClose }: Props) {
       });
       const analyseData = (await analyseRes.json()) as AnalyseResponse;
 
-      if (analyseData.analysis?.product_name) {
+      if (typeof analyseData.analysis?.product_name === "string") {
         const detected = analyseData.analysis.product_name;
         setDescription(detected);
         setAiDetected(detected);

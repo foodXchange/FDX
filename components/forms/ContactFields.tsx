@@ -94,8 +94,10 @@ export default function ContactFields({
               defaultCountry={defaultCountry as Country | undefined}
               value={whatsapp || undefined}
               onChange={(v) => onWhatsappChange(v ?? "")}
-              inputClassName="flex-1 bg-transparent outline-none text-[#f1f5f9] placeholder-slate-500 text-sm min-w-0"
-              numberInputProps={{ id: "cf-whatsapp" }}
+              numberInputProps={{
+                id: "cf-whatsapp",
+                className: "flex-1 bg-transparent outline-none text-[#f1f5f9] placeholder-slate-500 text-sm min-w-0",
+              }}
             />
           </div>
           <FieldError msg={errors.whatsapp} />

@@ -34,7 +34,6 @@ const SubmitSchema = z.object({
   image_urls: z.array(z.string()).max(5).default([]),
   ai_analysis: z.record(z.string(), z.unknown()).optional(),
   source: z.string().optional(),
-  volume_unit: z.string().max(50).optional(),
 });
 
 export async function POST(req: Request) {
@@ -96,7 +95,6 @@ export async function POST(req: Request) {
         ai_analysis: data.ai_analysis ?? null,
         source: data.source ?? "buyers_page",
         status: "new",
-        volume_unit: data.volume_unit ?? null,
       })
       .select("id")
       .single();
