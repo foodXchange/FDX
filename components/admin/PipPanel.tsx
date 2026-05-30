@@ -111,6 +111,30 @@ function prettyFamilyKey(key: string | null, fallback: string): string {
   return cleaned || fallback;
 }
 
+function formatMatchConfigChip(raw: string, categoryName?: string | null): string {
+  const idx = raw.indexOf(":");
+  if (idx === -1) {
+    if (raw === "kosher_passover") return "Kosher for Passover";
+    if (raw === "organic") return "Organic";
+    if (raw === "kosher") return "Kosher";
+    if (raw === "private_label") return "Private label";
+    return raw;
+  }
+  const prefix = raw.slice(0, idx);
+  const val = raw.slice(idx + 1);
+  switch (prefix) {
+    case "category":      return categoryName ? `Category: ${categoryName}` : `Category: ${val.slice(0, 8)}…`;
+    case "sub_type":      return `Type: ${val}`;
+    case "nutrition":     return `Nutrition: ${val}`;
+    case "free_from":     return `Free from: ${val}`;
+    case "kosher":        return `Kosher: ${val}`;
+    case "processing_state":   return `Processing: ${val}`;
+    case "temperature_regime": return `Temperature: ${val}`;
+    case "cert":          return `Cert: ${val}`;
+    default:              return raw;
+  }
+}
+
 // ── Shared UI primitives ──────────────────────────────────────────────────────
 
 function Chip({ label, color }: { label: string; color: "green" | "blue" | "orange" | "slate" }) {
@@ -192,6 +216,7 @@ function PipV2Card({
   const d = pip.data_json;
   const productName = strVal(d.product?.name) || "—";
   const categoryName = strVal(d.category?.category_name) || strVal(d.category?.raw_text) || "—";
+  const chipCategoryName = strVal(d.category?.category_name) || null;
   const formats = strVals(d.specifications?.formats);
   const sizes = strVals(d.specifications?.sizes);
   const kosherRequired = Boolean(d.compliance?.kosher_required?.value);
@@ -391,7 +416,7 @@ function PipV2Card({
                   <div className="flex gap-2 items-start">
                     <span className="text-xs text-gray-400 w-24 shrink-0 pt-0.5">Must have</span>
                     <div className="flex flex-wrap gap-1">
-                      {mustHave.map((t) => <Chip key={t} label={t} color="green" />)}
+                      {mustHave.map((t) => <Chip key={t} label={formatMatchConfigChip(t, chipCategoryName)} color="green" />)}
                     </div>
                   </div>
                 )}
@@ -511,6 +536,7 @@ export default function PipPanel({ requestId, initialPip, initialV2Pips = [] }: 
   const [editState, setEditState] = useState<ReturnType<typeof pipToEditState> | null>(null);
 
   const pip = asPip(raw);
+  const chipCategoryName = pip?.category?.category_name ?? null;
 
   function handleV2Update(pipId: string, dataJson: PipV2DataJson) {
     setV2Pips((prev) => prev.map((p) => (p.id === pipId ? { ...p, data_json: dataJson } : p)));
@@ -744,7 +770,7 @@ export default function PipPanel({ requestId, initialPip, initialV2Pips = [] }: 
               <div className="flex gap-2 items-start">
                 <span className="text-xs text-gray-400 w-24 shrink-0 pt-0.5">Must have</span>
                 <div className="flex flex-wrap gap-1">
-                  {pip.match_config.must_have.map((t) => <Chip key={t} label={t} color="green" />)}
+                  {pip.match_config.must_have.map((t) => <Chip key={t} label={formatMatchConfigChip(t, chipCategoryName)} color="green" />)}
                 </div>
               </div>
             )}
@@ -752,7 +778,7 @@ export default function PipPanel({ requestId, initialPip, initialV2Pips = [] }: 
               <div className="flex gap-2 items-start">
                 <span className="text-xs text-gray-400 w-24 shrink-0 pt-0.5">Nice to have</span>
                 <div className="flex flex-wrap gap-1">
-                  {pip.match_config.nice_to_have.map((t) => <Chip key={t} label={t} color="blue" />)}
+                  {pip.match_config.nice_to_have.map((t) => <Chip key={t} label={formatMatchConfigChip(t, chipCategoryName)} color="blue" />)}
                 </div>
               </div>
             )}
