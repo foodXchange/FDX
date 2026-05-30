@@ -214,6 +214,10 @@ export function mergeTextAndImages(
   const imageOrganicHint = imageExtractions.some(
     (ex) => ex.organic_claim.status === "observed" && ex.organic_claim.confidence >= AUTO_FILL_GATE && ex.organic_claim.value === true
   );
+  // High-confidence organic for must_have promotion
+  const imageOrganicHighConfidence = imageExtractions.some(
+    (ex) => ex.organic_claim.status === "observed" && ex.organic_claim.confidence >= PROMOTION_GATE && ex.organic_claim.value === true
+  );
 
   // certifications: Rule 3 union (text certs + image certs_visible)
   const certifications = mergeSet(
@@ -229,6 +233,30 @@ export function mergeTextAndImages(
 
   // allergen_profile: text-only (ImageExtraction has no direct allergen field)
   const allergen_profile: MergedAttr[] = [];
+
+  // ── Phase 4 enrichment fields (optional on ImageExtraction — fallback skips via status:"unknown") ──
+  const bestKosherAttr = bestImageAttr(imageExtractions, (ex) =>
+    ex.kosher ?? { value: null, status: "unknown" as const, confidence: 0, evidence: null }
+  );
+  const bestSubType = bestImageAttr(imageExtractions, (ex) =>
+    ex.sub_type ?? { value: null, status: "unknown" as const, confidence: 0, evidence: null }
+  );
+  const bestNetWeight = bestImageAttr(imageExtractions, (ex) =>
+    ex.net_weight ?? { value: null, status: "unknown" as const, confidence: 0, evidence: null }
+  );
+  const bestBenchmarkBrand = bestImageAttr(imageExtractions, (ex) =>
+    ex.benchmark_brand ?? { value: null, status: "unknown" as const, confidence: 0, evidence: null }
+  );
+  const nutritionClaims = mergeSet(
+    [],
+    imageExtractions,
+    (ex) => ex.nutrition_claims ?? { value: [], status: "unknown" as const, confidence: 0, evidence: null },
+  );
+  const freeFrom = mergeSet(
+    [],
+    imageExtractions,
+    (ex) => ex.free_from ?? { value: [], status: "unknown" as const, confidence: 0, evidence: null },
+  );
 
   // ── commercial.* — Rule 1: text always wins ──
   const private_label = fromText(textPip.commercial.private_label);
@@ -288,6 +316,34 @@ export function mergeTextAndImages(
     if (!must_have.includes(catStr)) must_have.push(catStr);
   }
 
+  // Kosher (hard filter — structured field, supersedes nice_to_have path below)
+  if (
+    bestKosherAttr &&
+    bestKosherAttr.value?.required === true &&
+    bestKosherAttr.status === "observed" &&
+    bestKosherAttr.confidence >= PROMOTION_GATE
+  ) {
+    if (!must_have.includes("kosher")) must_have.push("kosher");
+    if (bestKosherAttr.value.hechsher) {
+      const hechsherStr = `kosher:${bestKosherAttr.value.hechsher}`;
+      if (!must_have.includes(hechsherStr)) must_have.push(hechsherStr);
+    }
+  }
+
+  // Kosher passover (hard filter)
+  if (
+    bestKosherAttr &&
+    bestKosherAttr.value?.passover === true &&
+    bestKosherAttr.confidence >= PROMOTION_GATE
+  ) {
+    if (!must_have.includes("kosher_passover")) must_have.push("kosher_passover");
+  }
+
+  // Organic promotion to must_have at high confidence
+  if (imageOrganicHighConfidence && !textPip.compliance.organic) {
+    if (!must_have.includes("organic")) must_have.push("organic");
+  }
+
   const dealbreakers: string[] = [...textPip.match_config.dealbreakers];
 
   // nice_to_have: text-stated + image attrs observed but below PROMOTION_GATE
@@ -304,8 +360,8 @@ export function mergeTextAndImages(
     }
   }
 
-  // Image organic hint → nice_to_have (never override text, Rule 1)
-  if (imageOrganicHint && !textPip.compliance.organic) {
+  // Image organic hint → nice_to_have (lower confidence; must_have handles high confidence above)
+  if (imageOrganicHint && !textPip.compliance.organic && !must_have.includes("organic")) {
     if (!nice_to_have.includes("organic")) nice_to_have.push("organic");
   }
 
@@ -314,14 +370,66 @@ export function mergeTextAndImages(
     if (!nice_to_have.includes("kosher")) nice_to_have.push("kosher");
   }
 
+  // Sub-type → nice_to_have
+  if (
+    bestSubType &&
+    bestSubType.value &&
+    bestSubType.status === "observed" &&
+    bestSubType.confidence >= AUTO_FILL_GATE
+  ) {
+    const stStr = `sub_type:${bestSubType.value}`;
+    if (!nice_to_have.includes(stStr)) nice_to_have.push(stStr);
+  }
+
+  // Nutrition claims → nice_to_have
+  for (const claim of nutritionClaims) {
+    if (claim.source === "image" && (claim.confidence ?? 0) >= AUTO_FILL_GATE) {
+      const clStr = `nutrition:${String(claim.value)}`;
+      if (!nice_to_have.includes(clStr)) nice_to_have.push(clStr);
+    }
+  }
+
+  // Free-from → nice_to_have
+  for (const item of freeFrom) {
+    if (item.source === "image" && (item.confidence ?? 0) >= AUTO_FILL_GATE) {
+      const ffStr = `free_from:${String(item.value)}`;
+      if (!nice_to_have.includes(ffStr)) nice_to_have.push(ffStr);
+    }
+  }
+
+  // benchmark_brand: never added to match_config — it is a reference
+  // brand the buyer wants replicated, not a supplier filter.
+
+  // Pre-compute structured kosher detail attrs (avoids optional-chaining narrowing issues)
+  const kosherHechsher: MergedAttr = (bestKosherAttr && bestKosherAttr.value?.hechsher)
+    ? fromImage({ value: bestKosherAttr.value.hechsher, status: bestKosherAttr.status, confidence: bestKosherAttr.confidence, evidence: bestKosherAttr.evidence })
+    : fromText(null);
+  const kosherPassover: MergedAttr = (bestKosherAttr && bestKosherAttr.value != null && bestKosherAttr.value.passover !== undefined)
+    ? fromImage({ value: bestKosherAttr.value.passover, status: bestKosherAttr.status, confidence: bestKosherAttr.confidence, evidence: bestKosherAttr.evidence })
+    : fromText(null);
+
   const dataJson: PipV2DataJson = {
     version: "2.0",
     merged_at: new Date().toISOString(),
-    product: { name: product_name, raw_description },
+    product: {
+      name: product_name,
+      raw_description,
+      sub_type: bestSubType ? fromImage(bestSubType) : fromText(null),
+      net_weight: bestNetWeight ? fromImage(bestNetWeight) : fromText(null),
+    },
     category: { category_id: categoryId, category_name: categoryName, raw_text },
     specifications: { formats, packaging, sizes, processing_state, temperature_regime },
-    compliance: { kosher_required, kosher_types, halal, organic, certifications, allergen_profile },
-    commercial: { private_label, volume, budget, target_market, urgency },
+    compliance: {
+      kosher_required, kosher_types, halal, organic, certifications, allergen_profile,
+      kosher_hechsher: kosherHechsher,
+      kosher_passover: kosherPassover,
+      nutrition_claims: nutritionClaims,
+      free_from: freeFrom,
+    },
+    commercial: {
+      private_label, volume, budget, target_market, urgency,
+      benchmark_brand: bestBenchmarkBrand ? fromImage(bestBenchmarkBrand) : fromText(null),
+    },
     origin_country,
     match_config: { must_have, nice_to_have, dealbreakers },
     sourcing_difficulty: null,
