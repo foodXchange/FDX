@@ -8,6 +8,7 @@ import ManufacturerIntakeSection, {
 } from "@/components/manufacturers/ManufacturerIntakeSection";
 import ManufacturerStickyCard from "@/components/manufacturers/ManufacturerStickyCard";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { stripBuyerFromProductName } from "@/lib/privacy/maskBuyer";
 
 export const metadata: Metadata = {
   title: "For Manufacturers | FoodXchange",
@@ -95,13 +96,19 @@ export default async function ManufacturersPage({
 
   const { data: rawRequests } = await supabaseAdmin
     .from("sourcing_requests")
-    .select("id, product_name, category, certifications, created_at")
+    .select("id, product_name, category, certifications, created_at, company")
     .in("status", ["new", "matched", "reviewed"])
     .not("product_name", "is", null)
     .order("created_at", { ascending: false })
     .limit(9);
 
-  const requestPreview = (rawRequests ?? []) as RequestPreviewItem[];
+  const requestPreview = (rawRequests ?? []).map((r) => ({
+    id: r.id as string,
+    product_name: stripBuyerFromProductName(r.product_name as string, r.company as string | null),
+    category: r.category as string | null,
+    certifications: r.certifications as string[] | null,
+    created_at: r.created_at as string,
+  })) as RequestPreviewItem[];
 
   return (
     <>

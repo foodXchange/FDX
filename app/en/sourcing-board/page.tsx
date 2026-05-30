@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
+import { stripBuyerFromProductName } from "@/lib/privacy/maskBuyer";
 import SourcingBoardFilter from "@/components/SourcingBoardFilter";
 
 export const revalidate = 3600;
@@ -45,7 +46,7 @@ export default async function SourcingBoardPage() {
   const { data } = await supabase
     .from("sourcing_requests")
     .select(
-      "id, product_name, category, message, kosher_type, kosher_required, branding, packaging_preference, certifications, tags, created_at, status, passover_kosher, is_published, published_product_name, published_message"
+      "id, product_name, company, category, message, kosher_type, kosher_required, branding, packaging_preference, certifications, tags, created_at, status, passover_kosher, is_published, published_product_name, published_message"
     )
     .in("status", ["new", "reviewed", "matched"])
     .eq("is_published", true)
@@ -53,9 +54,24 @@ export default async function SourcingBoardPage() {
     .order("created_at", { ascending: false });
 
   const requests = (data ?? []).map((r) => ({
-    ...r,
-    product_name: (r.published_product_name as string | null) ?? r.product_name,
+    id: r.id,
+    product_name:
+      (r.published_product_name as string | null) ??
+      stripBuyerFromProductName(r.product_name ?? "", r.company as string | null),
     message: (r.published_message as string | null) ?? r.message,
+    category: r.category,
+    kosher_type: r.kosher_type,
+    kosher_required: r.kosher_required,
+    branding: r.branding,
+    packaging_preference: r.packaging_preference,
+    certifications: r.certifications,
+    tags: r.tags,
+    created_at: r.created_at,
+    status: r.status,
+    passover_kosher: r.passover_kosher,
+    is_published: r.is_published,
+    published_product_name: r.published_product_name,
+    published_message: r.published_message,
   })) as SourcingBoardRequest[];
 
   const uniqueCategories = [
