@@ -529,9 +529,18 @@ export default function PipPanel({ requestId, initialPip, initialV2Pips = [] }: 
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ request_id: requestId }),
       });
-      const data = await res.json() as { ok?: boolean; pip?: Record<string, unknown>; error?: string };
+      const data = await res.json() as {
+        ok?: boolean;
+        pip?: Record<string, unknown>;
+        pips?: PipV2CardData[];
+        hint?: string;
+        error?: string;
+      };
       if (!res.ok || !data.ok) {
         setError(data.error ?? "Regeneration failed");
+      } else if (data.pips) {
+        setV2Pips(data.pips);
+        router.refresh();
       } else {
         setRaw(data.pip ?? null);
         router.refresh();
