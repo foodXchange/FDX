@@ -2,6 +2,8 @@ import Firecrawl from "@mendable/firecrawl-js";
 import type { Document } from "@mendable/firecrawl-js";
 import { researchSupplier } from "./perplexity";
 
+const USE_PERPLEXITY_ONLY = process.env.SCRAPER_MODE === "perplexity_only";
+
 function sleep(ms: number): Promise<void> {
   return new Promise((r) => setTimeout(r, ms));
 }
@@ -11,6 +13,20 @@ export async function crawlSupplier(
   companyName: string,
   country: string | null
 ): Promise<string> {
+  if (USE_PERPLEXITY_ONLY) {
+    console.log(`  🔍 Perplexity-only mode — skipping Firecrawl...`);
+    try {
+      const result = await researchSupplier(companyName, website, country);
+      if (result.content.length > 200) {
+        console.log(`  ✓ Perplexity found ${result.content.length} chars`);
+        return `[PERPLEXITY RESEARCH]\nSources: ${result.sources.join(", ")}\n\n${result.content}`;
+      }
+    } catch (pErr) {
+      console.log(`  ✗ Perplexity failed: ${pErr}`);
+    }
+    return "";
+  }
+
   const firecrawl = new Firecrawl({
     apiKey: process.env.FIRECRAWL_API_KEY,
   });
