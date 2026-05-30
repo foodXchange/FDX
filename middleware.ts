@@ -3,7 +3,9 @@ import { verifySession, COOKIE_NAME } from "@/lib/adminAuth";
 
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
-  if (!pathname.startsWith("/admin")) return NextResponse.next();
+  const isAdminRoute =
+    pathname.startsWith("/admin") || pathname.startsWith("/en/admin");
+  if (!isAdminRoute) return NextResponse.next();
   if (pathname === "/admin/login") return NextResponse.next();
   const cookie = req.cookies.get(COOKIE_NAME)?.value;
   if (!cookie || !(await verifySession(cookie))) {
@@ -13,5 +15,5 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/admin/:path*"],
+  matcher: ["/admin/:path*", "/en/admin/:path*"],
 };
