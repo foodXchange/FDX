@@ -61,6 +61,8 @@ export type PipV2DataJson = {
   product: {
     name: MergedAttr;
     raw_description: MergedAttr;
+    sub_type?: MergedAttr;
+    net_weight?: MergedAttr;
   };
   category: {
     category_id: MergedAttr;
@@ -81,6 +83,10 @@ export type PipV2DataJson = {
     organic: MergedAttr;
     certifications: MergedAttr[];
     allergen_profile: MergedAttr[];
+    kosher_hechsher?: MergedAttr;
+    kosher_passover?: MergedAttr;
+    nutrition_claims?: MergedAttr[];
+    free_from?: MergedAttr[];
   };
   commercial: {
     private_label: MergedAttr;
@@ -88,6 +94,7 @@ export type PipV2DataJson = {
     budget: MergedAttr;
     target_market: MergedAttr;
     urgency: MergedAttr;
+    benchmark_brand?: MergedAttr;
   };
   origin_country: MergedAttr;
   match_config: {
@@ -120,4 +127,14 @@ export type ImageExtraction = {
   label_claims: Attr<string[]>;
   overall_quality: "clear" | "partial" | "poor";
   flags: string[];
+  // Phase 2 enrichment fields — optional so existing cached extractions remain valid
+  sub_type?: Attr<string>;
+  net_weight?: Attr<{ value: number; unit: "g" | "kg" | "ml" | "l" | "oz" | "lb" }>;
+  // benchmark_brand: the visible brand the buyer wants replicated under private label — never a match filter
+  benchmark_brand?: Attr<string | null>;
+  is_benchmark?: boolean;
+  kosher?: Attr<{ required: boolean; hechsher: string | null; passover: boolean | null }>;
+  nutrition_claims?: Attr<string[]>;
+  free_from?: Attr<string[]>;
+  raw_text_ocr?: string | null;
 };

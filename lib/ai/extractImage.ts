@@ -43,6 +43,26 @@ const Schema = z.object({
   label_claims: AttrSchema(z.array(z.string())),
   overall_quality: z.enum(["clear", "partial", "poor"]),
   flags: z.array(z.string()),
+  // Phase 2 enrichment fields — all optional so existing cached payloads still validate
+  sub_type: AttrSchema(z.string()).optional(),
+  net_weight: AttrSchema(
+    z.object({
+      value: z.number(),
+      unit: z.enum(["g", "kg", "ml", "l", "oz", "lb"]),
+    })
+  ).optional(),
+  benchmark_brand: AttrSchema(z.string().nullable()).optional(),
+  is_benchmark: z.boolean().optional(),
+  kosher: AttrSchema(
+    z.object({
+      required: z.boolean(),
+      hechsher: z.string().nullable(),
+      passover: z.boolean().nullable(),
+    })
+  ).optional(),
+  nutrition_claims: AttrSchema(z.array(z.string())).optional(),
+  free_from: AttrSchema(z.array(z.string())).optional(),
+  raw_text_ocr: z.string().nullable().optional(),
 });
 
 export async function extractImage(opts: {
