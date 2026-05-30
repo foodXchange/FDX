@@ -88,7 +88,7 @@ export async function extractImage(opts: {
   try {
     const response = await client.messages.create({
       model: "claude-sonnet-4-5",
-      max_tokens: 1200,
+      max_tokens: 2400,
       system: SYSTEM_PROMPT,
       messages: [
         {

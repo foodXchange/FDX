@@ -30,6 +30,25 @@ RULES (must follow):
 - overall_quality must be one of: "clear" (product and label legible), "partial" (some info legible), "poor" (very unclear).
 - Never upgrade an inference to "observed". When in doubt, return unknown, not a guess.
 
+LANGUAGE & OCR:
+- Read the label in ANY language (Hebrew, Arabic, French, etc.). Analyse all visible text.
+- All matchable field VALUES — sub_type, product_noun, nutrition_claims, free_from, and group_key descriptors — must be in ENGLISH.
+- Copy the full verbatim label text in its ORIGINAL language(s) into raw_text_ocr as a plain string (NOT an Attr). null if the label is illegible.
+- Each field's evidence string may quote original-language text as justification.
+
+BENCHMARK BRAND:
+- is_benchmark: ALWAYS output the literal boolean true. Every submitted image is by definition a reference product the buyer wants replicated under private label.
+- benchmark_brand: the brand name visible on the label, as an Attr<string|null>. Set value to null and status to "unknown" if no brand is visible.
+- CRITICAL: the brand is a REFERENCE for private-label replication — it is NOT the supplier being sought. Never put the brand name in product_name.value or product_noun.value.
+
+NEW FIELD RULES:
+- sub_type: the specific product type under the category, in English (e.g. "granola" for Breakfast Cereals, "puffed peanut snack" for Savory Snacks). Attr<string|null>.
+- net_weight: extract the numeric pack weight/volume as { value: number, unit: enum }. Examples: "375 g" → {value:375,unit:"g"}; "80 גרם" → {value:80,unit:"g"}; "1 L" → {value:1,unit:"l"}. unit must be one of: g, kg, ml, l, oz, lb. Set the Attr value to null if the weight is not legible.
+- kosher: structured kosher compliance derived from visible marks/text. Attr with value: { required: boolean, hechsher: string|null, passover: boolean|null }. required: true if any kosher mark or hechsher symbol is visible; false otherwise. hechsher: certifying authority in English/transliteration ("Badatz","Rabbanut","OU","OK"…), null if none. passover: true if "Kosher for Passover"/"כשר לפסח" shown; false if explicitly "Not for Passover"/"לא כולל פסח"; null if not mentioned.
+- nutrition_claims: Attr wrapping a string[] of nutritional claims in English ("54% whole grain","enriched with vitamins and iron"). Use [] if none visible.
+- free_from: Attr wrapping a string[] of absence claims in English ("no preservatives","no artificial coloring"). Use [] if none visible.
+- raw_text_ocr: plain string (NOT an Attr) — all visible label text verbatim in original language(s). null if illegible.
+
 Schema (exact keys and nesting):
 {
   "image_id": "string or null",
@@ -49,6 +68,14 @@ Schema (exact keys and nesting):
   "origin_country": { "value": string | null, "status": "observed" | "inferred" | "unknown", "confidence": number, "evidence": string | null },
   "label_languages": { "value": string[], "status": "observed" | "inferred" | "unknown", "confidence": number, "evidence": string | null },
   "label_claims": { "value": string[], "status": "observed" | "inferred" | "unknown", "confidence": number, "evidence": string | null },
+  "sub_type": { "value": string | null, "status": "observed" | "inferred" | "unknown", "confidence": number, "evidence": string | null },
+  "net_weight": { "value": { "value": number, "unit": "g" | "kg" | "ml" | "l" | "oz" | "lb" } | null, "status": "observed" | "inferred" | "unknown", "confidence": number, "evidence": string | null },
+  "benchmark_brand": { "value": string | null, "status": "observed" | "inferred" | "unknown", "confidence": number, "evidence": string | null },
+  "is_benchmark": true,
+  "kosher": { "value": { "required": boolean, "hechsher": string | null, "passover": boolean | null } | null, "status": "observed" | "inferred" | "unknown", "confidence": number, "evidence": string | null },
+  "nutrition_claims": { "value": string[], "status": "observed" | "inferred" | "unknown", "confidence": number, "evidence": string | null },
+  "free_from": { "value": string[], "status": "observed" | "inferred" | "unknown", "confidence": number, "evidence": string | null },
+  "raw_text_ocr": string | null,
   "overall_quality": "clear" | "partial" | "poor",
   "flags": string[]
 }
