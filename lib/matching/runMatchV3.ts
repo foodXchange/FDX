@@ -175,8 +175,9 @@ export async function runMatchV3(requestId: string): Promise<RunMatchV3Result> {
       match_summary:    m.summary,
       match_breakdown:  m.breakdown,
       status:           "suggested",
+      updated_at:       new Date().toISOString(),
     })),
-    { onConflict: "request_id,supplier_id" }
+    { onConflict: "request_id,supplier_id", ignoreDuplicates: false }
   );
 
   await supabaseAdmin
