@@ -2,6 +2,7 @@ import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import RequestsTable from "@/components/admin/RequestsTable";
 import ScriptGenerator from "@/components/admin/ScriptGenerator";
 import BulkMatchButton from "@/components/admin/BulkMatchButton";
+import BulkReMatchButton from "@/components/admin/BulkReMatchButton";
 
 export type RequestRow = {
   id: string;
@@ -94,6 +95,10 @@ export default async function AdminRequestsPage() {
     .filter((r) => r.match_count === 0)
     .map((r) => r.id);
 
+  const reMatchIds = requests
+    .filter((r) => r.status === "matched" && r.product_name !== null)
+    .map((r) => r.id);
+
   return (
     <main className="min-h-screen bg-gray-50">
       <div className="border-b border-gray-200 bg-white px-6 py-3 sticky top-0 z-10 shadow-sm">
@@ -102,6 +107,7 @@ export default async function AdminRequestsPage() {
             Sourcing Requests
           </span>
           <BulkMatchButton unmatchedIds={unmatchedIds} />
+          <BulkReMatchButton reMatchIds={reMatchIds} />
           <div className="ml-auto">
             <ScriptGenerator />
           </div>
