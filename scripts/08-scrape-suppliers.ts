@@ -14,12 +14,13 @@ import { readFileSync } from "fs";
 import { resolve } from "path";
 import { createClient } from "@supabase/supabase-js";
 import { crawlSupplier } from "../lib/scraper/crawl";
-import { scrapeSupplier, deduplicateProducts } from "../lib/scraper/firecrawlPipeline";
+import { scrapeSupplier } from "../lib/scraper/firecrawlPipeline";
 import type { PageProduct } from "../lib/scraper/firecrawlPipeline";
 import {
   extractSupplierProfile,
   detectManufacturerType,
 } from "../lib/scraper/extract";
+import { extractSupplierContacts, ExtractedContact } from "../lib/scraper/extractContacts";
 import type { ExtractedProduct } from "../lib/scraper/extract";
 
 const SUPPLIER_TIMEOUT_MS = 420_000; // 7 minutes
@@ -140,6 +141,78 @@ async function insertProducts(
   const { error } = await supabase.from("supplier_products").insert(rows);
   if (error) {
     console.error("  Insert error:", error);
+    return 0;
+  }
+  return rows.length;
+}
+
+function normalizeEmail(email: string | null | undefined): string | null {
+  const normalized = email?.trim().toLowerCase();
+  return normalized && normalized.length > 0 ? normalized : null;
+}
+
+function contactRichness(contact: ExtractedContact): number {
+  let score = 0;
+  if (contact.name) score += 10;
+  if (contact.role) score += 5;
+  if (contact.phone) score += 3;
+  if (contact.linkedin_url) score += 3;
+  if (contact.raw_context) score += 2;
+  return score;
+}
+
+function dedupeContacts(contacts: ExtractedContact[]): ExtractedContact[] {
+  const byEmail = new Map<string, ExtractedContact>();
+  const uniqueFallback = new Map<string, ExtractedContact>();
+
+  for (const contact of contacts) {
+    const email = normalizeEmail(contact.email);
+    if (email) {
+      const existing = byEmail.get(email);
+      if (!existing || contactRichness(contact) > contactRichness(existing)) {
+        byEmail.set(email, contact);
+      }
+      continue;
+    }
+
+    const signature = [
+      contact.name?.trim() ?? "",
+      contact.role?.trim() ?? "",
+      contact.phone?.trim() ?? "",
+      contact.linkedin_url?.trim() ?? "",
+      contact.raw_context?.trim() ?? "",
+    ].join("|");
+    if (!uniqueFallback.has(signature)) {
+      uniqueFallback.set(signature, contact);
+    }
+  }
+
+  return [...byEmail.values(), ...uniqueFallback.values()];
+}
+
+async function insertSupplierContacts(
+  supplierId: string,
+  contacts: ExtractedContact[]
+): Promise<number> {
+  if (contacts.length === 0) return 0;
+
+  const deduped = dedupeContacts(contacts);
+  const rows = deduped.map((contact) => ({
+    supplier_id: supplierId,
+    name: contact.name ?? null,
+    role: contact.role ?? null,
+    email: normalizeEmail(contact.email),
+    phone: contact.phone ?? null,
+    linkedin_url: contact.linkedin_url ?? null,
+    contact_type: contact.contact_type ?? "general",
+    source_url: contact.source_url ?? null,
+    scraped_at: new Date().toISOString(),
+    raw_context: contact.raw_context ?? null,
+  }));
+
+  const { error } = await supabase.from("supplier_contacts").insert(rows);
+  if (error) {
+    console.error("  Contact insert error:", error);
     return 0;
   }
   return rows.length;
@@ -488,6 +561,13 @@ async function main(): Promise<void> {
           console.log(`\n  → Saving to database...`);
           const inserted = await insertProducts(supplier.id, products, supplier.website!);
 
+          console.log(`  ✓ Saved ${inserted} products`);
+
+          console.log(`\n  → Extracting supplier contacts...`);
+          const extractedContacts = await extractSupplierContacts(result.contactPages);
+          const contactInserted = await insertSupplierContacts(supplier.id, extractedContacts);
+          console.log(`  ✓ Found ${extractedContacts.length} contact(s); inserted ${contactInserted}`);
+
           const internalNote =
             mfr.companyType === "mixed" ? `Mixed company: ${mfr.reason}` : undefined;
 
@@ -500,8 +580,6 @@ async function main(): Promise<void> {
               ...(internalNote ? { internal_notes: internalNote } : {}),
             })
             .eq("id", supplier.id);
-
-          console.log(`  ✓ Saved ${inserted} products`);
 
           // ── Extract supplier profile + factories ───────────────────────────
           console.log(`\n  → Extracting company profile...`);

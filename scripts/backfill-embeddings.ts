@@ -108,17 +108,31 @@ function buildSupplierEmbedString(row: {
 async function main() {
   console.log("Fetching supplier_products...");
 
-  const { data: rows, error } = await supabase
-    .from("supplier_products")
-    .select(
-      `id, product_name, description, subcategory, processing_type, ingredients, tags, certifications,
+  // Supabase `select()` is capped at 1000 rows by default. Paginate to fetch all rows.
+  const PAGE = 1000;
+  const selectCols = `id, product_name, description, subcategory, processing_type, ingredients, tags, certifications,
        kosher_types, embedding,
-       supplier_offerings!inner(country_of_origin)`
-    );
+       supplier_offerings!inner(country_of_origin)`;
 
-  if (error || !rows) {
-    console.error("Failed to fetch rows:", error);
-    process.exit(1);
+  let rows: any[] = [];
+  let from = 0;
+  while (true) {
+    const { data, error } = await supabase
+      .from("supplier_products")
+      .select(selectCols)
+      .range(from, from + PAGE - 1);
+
+    if (error) {
+      console.error("Failed to fetch rows:", error);
+      process.exit(1);
+    }
+
+    if (!data || data.length === 0) break;
+
+    rows = rows.concat(data as any[]);
+
+    if (data.length < PAGE) break;
+    from += PAGE;
   }
 
   console.log(`Total rows: ${rows.length}`);

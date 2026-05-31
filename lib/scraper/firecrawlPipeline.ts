@@ -1,6 +1,6 @@
 import Firecrawl from "@mendable/firecrawl-js";
 import { MAP_LIMIT_DEFAULT, MAX_PRODUCT_PAGES, FIRECRAWL_SCRAPE_OPTIONS } from "./constants";
-import { isProductUrl } from "./urlFilters";
+import { isProductUrl, isContactUrl } from "./urlFilters";
 import { extractProducts, ExtractedProduct } from "./extract";
 
 const PIPELINE_TIMEOUT_MS = 180_000;
@@ -143,6 +143,11 @@ export interface PageProduct {
   product: ExtractedProduct;
 }
 
+export interface ContactPage {
+  source_url: string;
+  markdown: string;
+}
+
 export interface ScrapeResult {
   supplierId: string;
   supplierUrl: string;
@@ -151,6 +156,7 @@ export interface ScrapeResult {
   products: PageProduct[];
   homepageMarkdown: string;
   allMarkdown: string;
+  contactPages: ContactPage[];
 }
 
 export async function scrapeSupplier(supplierId: string, supplierUrl: string, opts: ScrapeOpts = {}): Promise<ScrapeResult> {
@@ -186,6 +192,12 @@ export async function scrapeSupplier(supplierId: string, supplierUrl: string, op
   const uniqueUrls = Array.from(new Set(productUrls));
   const selected = uniqueUrls.slice(0, maxPages);
 
+  const contactUrls = links
+    .filter((u) => isContactUrl(new URL(u, supplierUrl).pathname))
+    .map((u) => new URL(u, supplierUrl).href);
+  const uniqueContactUrls = Array.from(new Set(contactUrls));
+  const contactTargets = uniqueContactUrls.slice(0, 5);
+
   const pagesToScrape = selected.length > 0 ? selected : homepageOnly;
   const needsReview = selected.length === 0;
 
@@ -206,6 +218,30 @@ export async function scrapeSupplier(supplierId: string, supplierUrl: string, op
         pages.push({ url: u, markdown: job?.markdown || job?.content || "" });
       } catch (e) {
         console.warn("Failed to scrape", u, e);
+      }
+    }
+  }
+
+  let contactPages: ContactPage[] = [];
+  const contactPageTargets = contactTargets.length > 0 ? contactTargets : [supplierUrl];
+  if (contactTargets.length === 0 && pagesToScrape.length === 1 && pagesToScrape[0] === supplierUrl) {
+    contactPages = pages.map((p) => ({ source_url: p.url, markdown: p.markdown }));
+  } else {
+    try {
+      const job: any = await firecrawl.batchScrape(contactPageTargets, FIRECRAWL_SCRAPE_OPTIONS as any);
+      const results: any[] = job?.data || [];
+      for (const p of results) {
+        contactPages.push({ source_url: p.url, markdown: p.markdown || p.content || "" });
+      }
+    } catch (err) {
+      console.warn("Firecrawl batchScrape for contact pages failed — attempting best-effort per-URL:", err);
+      for (const u of contactPageTargets) {
+        try {
+          const job: any = await firecrawl.scrape(u, FIRECRAWL_SCRAPE_OPTIONS as any);
+          contactPages.push({ source_url: u, markdown: job?.markdown || job?.content || "" });
+        } catch (e) {
+          console.warn("Failed to scrape contact page", u, e);
+        }
       }
     }
   }
@@ -233,10 +269,11 @@ export async function scrapeSupplier(supplierId: string, supplierUrl: string, op
     supplierId,
     supplierUrl,
     needsReview,
-    pagesScraped: pages.length,
+    pagesScraped: pages.length + contactPages.length,
     products: deduplicated,
     homepageMarkdown: pages[0]?.markdown ?? "",
-    allMarkdown: pages.map(p => p.markdown).join("\n\n---PAGE BREAK---\n\n"),
+    allMarkdown: pages.map((p) => p.markdown).join("\n\n---PAGE BREAK---\n\n"),
+    contactPages,
   };
 }
 
