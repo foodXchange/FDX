@@ -26,11 +26,11 @@
 --
 --   5. Scoring split:
 --        pts_category 35  (was merged with vector into pts_similarity 40)
---        pts_vector   20  (neutral=10 when either embedding absent)
+--        pts_vector   30  (neutral=15 when either embedding absent; raised to amplify semantic signal)
 --        pts_format   15  (was 20)
 --        pts_compliance 20 (unchanged)
 --        pts_evidence 10  (was 20; weights adjusted)
---        Total: 100
+--        Total: 110 (weights exceed 100; score is relative for ranking, not a percentage)
 --
 -- Apply AFTER migrations/20260530_pgvector_hybrid_matching.sql (requires vector extension
 -- + embedding/kosher_level/temperature/channel columns on supplier_products).
@@ -298,11 +298,11 @@ scored as (
       else 8
     end                                                             as pts_category,
 
-    -- pts_vector (20 max, neutral=10 when either embedding absent — no penalty for missing data)
+    -- pts_vector (30 max, neutral=15 when either embedding absent — no penalty for missing data)
     case
       when request_emb is not null and c.embedding is not null
-        then greatest(0.0, (1.0 - (c.embedding <=> request_emb)) * 20.0)::numeric
-      else 10.0
+        then greatest(0.0, (1.0 - (c.embedding <=> request_emb)) * 30.0)::numeric
+      else 15.0
     end                                                             as pts_vector,
 
     -- pts_format (15 max)

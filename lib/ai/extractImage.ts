@@ -45,6 +45,8 @@ const Schema = z.object({
   flags: z.array(z.string()),
   // Phase 2 enrichment fields — all optional so existing cached payloads still validate
   sub_type: AttrSchema(z.string()).optional(),
+  processing_type: AttrSchema(z.string()).optional(),
+  ingredients: AttrSchema(z.array(z.string())).optional(),
   net_weight: AttrSchema(
     z.object({
       value: z.number(),

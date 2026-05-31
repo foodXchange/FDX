@@ -322,7 +322,7 @@ async function main() {
 
     const results = (matchData ?? []) as MatchRow[];
     const testResults = results.filter((r) =>
-      insertedOfferingIds.includes(r.supplier_id)
+    insertedProductIds.includes(r.product_id)
     );
 
     console.log(`   Results (test rows only, ${testResults.length} matches):`);
@@ -346,7 +346,7 @@ async function main() {
     const resultKeys = testResults.map((r) => `${r.product_name}|${r.company_name}`);
 
     for (const expected of reqRow.expected_include.split(";").filter(Boolean)) {
-      const found = resultKeys.some((k) => k.startsWith(expected.split("|")[0].trim()));
+      const found = resultKeys.includes(expected.trim());
       const status = found ? "PASS" : "FAIL";
       if (found) totalPass++; else totalFail++;
       console.log(`   [${status}] Expected INCLUDE: "${expected}"`);
@@ -354,7 +354,7 @@ async function main() {
 
     for (const excluded of reqRow.expected_exclude.split(";").filter(Boolean)) {
       if (!excluded.trim()) continue;
-      const found = resultKeys.some((k) => k.startsWith(excluded.split("|")[0].trim()));
+      const found = resultKeys.includes(excluded.trim());
       const status = !found ? "PASS" : "FAIL";
       if (!found) totalPass++; else totalFail++;
       console.log(`   [${status}] Expected EXCLUDE: "${excluded}"`);

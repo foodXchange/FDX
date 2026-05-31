@@ -5,14 +5,18 @@
  *   --limit=10       process first N suppliers
  *   --supplier=uuid  process one specific supplier
  *   --force          re-scrape already scraped suppliers
+ *
+ * Default mode: 4-stage Firecrawl pipeline (map → filter → batchScrape → extract).
+ * Set SCRAPER_MODE=perplexity_only to use the legacy crawlSupplier path instead.
  */
 
 import { readFileSync } from "fs";
 import { resolve } from "path";
 import { createClient } from "@supabase/supabase-js";
 import { crawlSupplier } from "../lib/scraper/crawl";
+import { scrapeSupplier } from "../lib/scraper/firecrawlPipeline";
+import type { PageProduct } from "../lib/scraper/firecrawlPipeline";
 import {
-  extractProducts,
   extractSupplierProfile,
   detectManufacturerType,
 } from "../lib/scraper/extract";
@@ -82,10 +86,10 @@ type SupplierRow = {
 // ─── Insert products ──────────────────────────────────────────────────────────
 async function insertProducts(
   supplierId: string,
-  products: ExtractedProduct[],
+  pageProducts: PageProduct[],
   scrapeSource: string
 ): Promise<number> {
-  if (products.length === 0) return 0;
+  if (pageProducts.length === 0) return 0;
 
   await supabase
     .from("supplier_products")
@@ -93,11 +97,13 @@ async function insertProducts(
     .eq("supplier_id", supplierId)
     .eq("manually_verified", false);
 
-  const rows = products.map((p) => ({
+  const rows = pageProducts.map(({ source_url, page_type, product: p }) => ({
     supplier_id: supplierId,
     product_name: p.product_name,
     category: p.category,
     subcategory: p.subcategory ?? null,
+    processing_type: p.processing_type ?? null,
+    ingredients: p.ingredients ?? null,
     description: p.description ?? null,
     formats: p.formats ?? [],
     sizes: p.sizes ?? [],
@@ -110,6 +116,8 @@ async function insertProducts(
     private_label: p.private_label ?? false,
     tags: p.tags ?? [],
     markets_suitable: p.markets_suitable ?? [],
+    source_url,
+    page_type,
     scrape_source: scrapeSource,
     scrape_confidence: p.confidence ?? 0.5,
     last_scraped_at: new Date().toISOString(),
@@ -123,6 +131,70 @@ async function insertProducts(
     return 0;
   }
   return rows.length;
+}
+
+// ─── Persist supplier profile ─────────────────────────────────────────────────
+async function persistProfile(
+  supplier: SupplierRow,
+  profile: Awaited<ReturnType<typeof extractSupplierProfile>>
+): Promise<void> {
+  await supabase
+    .from("supplier_offerings")
+    .update({
+      ...(profile.company_description
+        ? { product_description: profile.company_description }
+        : {}),
+      ...(profile.contact_email ? { contact_email: profile.contact_email } : {}),
+      ...(profile.contact_phone ? { contact_phone: profile.contact_phone } : {}),
+      ...(profile.contact_name ? { contact_name: profile.contact_name } : {}),
+      ...(profile.linkedin_url ? { linkedin_url: profile.linkedin_url } : {}),
+      ...(profile.export_markets.length > 0
+        ? { export_markets: profile.export_markets }
+        : {}),
+      ...(profile.founded_year ? { founded_year: profile.founded_year } : {}),
+      ...(profile.employees_range
+        ? { employees_range: profile.employees_range }
+        : {}),
+    })
+    .eq("id", supplier.id);
+
+  if (profile.factories.length > 0) {
+    await supabase
+      .from("supplier_factories")
+      .delete()
+      .eq("supplier_id", supplier.id);
+
+    await supabase.from("supplier_factories").insert(
+      profile.factories.map((f, idx) => ({
+        supplier_id: supplier.id,
+        factory_name: f.factory_name,
+        country: f.country,
+        city: f.city,
+        is_primary: idx === 0,
+        kosher_types: f.kosher_types,
+        kosher_certifying_body: f.kosher_certifying_body,
+        certifications_quality: f.certifications_quality,
+        certifications_dietary: f.certifications_dietary,
+        brc_grade: f.brc_grade,
+        ifs_grade: f.ifs_grade,
+        production_capacity: f.production_capacity,
+      }))
+    );
+
+    console.log(`  Factories: ${profile.factories.length}`);
+    profile.factories.forEach((f) => {
+      const kosher =
+        f.kosher_types.length > 0
+          ? `${f.kosher_types.join(", ")}`
+          : "No kosher";
+      const certs = [
+        ...f.certifications_quality,
+        ...f.certifications_dietary,
+      ].join(", ") || "No certs";
+      console.log(`     ${f.factory_name} (${f.country ?? "?"})`);
+      console.log(`     ${kosher} · ${certs}`);
+    });
+  }
 }
 
 // ─── Display helpers ──────────────────────────────────────────────────────────
@@ -175,6 +247,7 @@ function printSummaryTable(
 
 // ─── Main ─────────────────────────────────────────────────────────────────────
 async function main(): Promise<void> {
+  const SCRAPER_MODE = process.env.SCRAPER_MODE ?? "firecrawl";
   if (!process.env.FIRECRAWL_API_KEY) {
     console.error("✗ FIRECRAWL_API_KEY not set");
     process.exit(1);
@@ -233,7 +306,7 @@ async function main(): Promise<void> {
   let totalProducts = 0;
 
   console.log(`\n${SEP2}`);
-  console.log(`  SUPPLIER SCRAPER`);
+  console.log(`  SUPPLIER SCRAPER  [mode: ${SCRAPER_MODE}]`);
   console.log(`  Suppliers to process: ${list.length}`);
   console.log(SEP2);
 
@@ -260,38 +333,77 @@ async function main(): Promise<void> {
 
       await Promise.race([
         (async () => {
-          // ── Step 1: Crawl ──────────────────────────────────────────────────
-          console.log(`\n  → Crawling website...`);
           const crawlUrl = getHomepage(supplier.website!);
           if (crawlUrl !== supplier.website) {
-            console.log(`  ℹ Using homepage: ${crawlUrl}`);
+            console.log(`  Using homepage: ${crawlUrl}`);
           }
-          const content = await crawlSupplier(crawlUrl, supplier.company_name, supplier.country_of_origin);
-          const isPerplexity = content.startsWith("[PERPLEXITY RESEARCH]");
 
-          if (!content || content.length < 50) {
-            console.log(`  ✗ Website blocked or no content`);
+          // ── SCRAPER_MODE=perplexity_only: legacy crawlSupplier path ────────
+          if (SCRAPER_MODE === "perplexity_only") {
+            console.log(`\n  → Crawling website (perplexity_only mode)...`);
+            const content = await crawlSupplier(crawlUrl, supplier.company_name, supplier.country_of_origin);
+            if (!content || content.length < 50) {
+              console.log(`  ✗ Website blocked or no content`);
+              await supabase.from("supplier_offerings").update({ scrape_status: "failed" }).eq("id", supplier.id);
+              failed.push({ name: supplier.company_name, reason: "No content returned" });
+              return;
+            }
+            const isPerplexity = content.startsWith("[PERPLEXITY RESEARCH]");
+            const pageCount = content.split("---PAGE BREAK---").length;
+            console.log(`  ✓ ${isPerplexity ? "Perplexity research" : `${pageCount} page(s)`} (${content.length.toLocaleString()} chars)`);
+
+            console.log(`\n  → Checking if manufacturer...`);
+            const mfr0 = await detectManufacturerType(content, supplier.company_name);
+            if (!mfr0.isManufacturer && !["manufacturer", "mixed", "unknown"].includes(mfr0.companyType) && mfr0.confidence >= 0.4) {
+              console.log(`  ✗ SKIPPED — Not a manufacturer: ${mfr0.reason}`);
+              await supabase.from("supplier_offerings").update({ scrape_status: "skipped", internal_notes: `Auto-skipped: ${mfr0.companyType} — ${mfr0.reason}` }).eq("id", supplier.id);
+              skipped.push({ name: supplier.company_name, reason: mfr0.reason, type: mfr0.companyType });
+              return;
+            }
+
+            console.log(`\n  → Extracting products (legacy path)...`);
+            const { extractProducts: extractP } = await import("../lib/scraper/extract");
+            const legacyProds = await extractP(content, { company_name: supplier.company_name, country_of_origin: supplier.country_of_origin, certifications: supplier.certifications ?? [] });
+            if (legacyProds.length === 0) {
+              console.log(`  ✗ No products extracted`);
+              await supabase.from("supplier_offerings").update({ scrape_status: "failed" }).eq("id", supplier.id);
+              failed.push({ name: supplier.company_name, reason: "No products extracted" });
+              return;
+            }
+            const legacySource = isPerplexity ? `perplexity:${supplier.website}` : supplier.website!;
+            const legacyPageProds: PageProduct[] = legacyProds.map((p: ExtractedProduct) => ({ source_url: legacySource, page_type: "homepage", supplier_id: supplier.id, product: p }));
+            const legacyInserted = await insertProducts(supplier.id, legacyPageProds, legacySource);
+            const legacyAvg = legacyProds.reduce((s: number, p: ExtractedProduct) => s + (p.confidence ?? 0), 0) / legacyProds.length;
+            await supabase.from("supplier_offerings").update({ scrape_status: "scraped", last_scraped_at: new Date().toISOString(), products_found: legacyInserted }).eq("id", supplier.id);
+            console.log(`  ✓ Saved ${legacyInserted} products`);
+            console.log(`\n  → Extracting company profile...`);
+            const profile0 = await extractSupplierProfile(content, supplier.company_name, { country: supplier.country_of_origin, categories: supplier.categories ?? [] });
+            await persistProfile(supplier, profile0);
+            succeeded.push({ name: supplier.company_name, products: legacyInserted, avgConfidence: legacyAvg });
+            totalProducts += legacyInserted;
+            return;
+          }
+
+          // ── Default: 4-stage Firecrawl pipeline (map→filter→scrape→extract) ─
+          console.log(`\n  → Running 4-stage Firecrawl pipeline...`);
+          const result = await scrapeSupplier(supplier.id, crawlUrl);
+
+          console.log(`  ✓ Scraped ${result.pagesScraped} page(s), found ${result.products.length} product(s)`);
+          if (result.needsReview) {
+            console.log(`  ⚠ No product-URL patterns found — homepage-only scrape, needs_review flagged`);
+          }
+
+          if (!result.homepageMarkdown || result.homepageMarkdown.length < 50) {
+            console.log(`  ✗ Website blocked or no content returned`);
             console.log(`  ℹ Try manually: ${supplier.website}`);
-            await supabase
-              .from("supplier_offerings")
-              .update({ scrape_status: "failed" })
-              .eq("id", supplier.id);
+            await supabase.from("supplier_offerings").update({ scrape_status: "failed" }).eq("id", supplier.id);
             failed.push({ name: supplier.company_name, reason: "No content returned" });
             return;
           }
 
-          if (isPerplexity) {
-            console.log(`  ✓ Content from Perplexity research (${content.length.toLocaleString()} chars)`);
-          } else {
-            const pageCount = content.split("---PAGE BREAK---").length;
-            console.log(
-              `  ✓ Fetched ${content.length.toLocaleString()} chars across ${pageCount} page${pageCount !== 1 ? "s" : ""}`
-            );
-          }
-
-          // ── Step 2: Manufacturer detection ────────────────────────────────
+          // ── Manufacturer detection (homepage only — fast check) ────────────
           console.log(`\n  → Checking if manufacturer...`);
-          const mfr = await detectManufacturerType(content, supplier.company_name);
+          const mfr = await detectManufacturerType(result.homepageMarkdown, supplier.company_name);
 
           const shouldSkip =
             !mfr.isManufacturer &&
@@ -316,45 +428,42 @@ async function main(): Promise<void> {
             console.log(`  ⚠ Mixed company — extracting manufacturer products only`);
             console.log(`    ${mfr.reason}`);
           } else if (mfr.confidence < 0.4) {
-            console.log(`  ⚠ Cannot determine type (low confidence) — proceeding with extraction`);
+            console.log(`  ⚠ Cannot determine type (low confidence) — proceeding`);
             console.log(`    ${mfr.reason}`);
           } else {
             console.log(`  ✓ Confirmed manufacturer: ${mfr.reason}`);
           }
 
-          // ── Step 3: Extract products ───────────────────────────────────────
-          console.log(`\n  → Extracting products...`);
-          const products = await extractProducts(content, {
-            company_name: supplier.company_name,
-            country_of_origin: supplier.country_of_origin,
-            certifications: supplier.certifications ?? [],
-          });
+          // ── Products already extracted by pipeline ────────────────────────
+          const products = result.products;
 
           if (products.length === 0) {
             console.log(`  ✗ Products not found in content`);
-            console.log(`  ℹ Site may be JavaScript-heavy`);
+            console.log(`  ℹ Site may be JavaScript-heavy or product pages not detected`);
             console.log(`  ℹ Add manually via /admin/suppliers`);
             await supabase
               .from("supplier_offerings")
-              .update({ scrape_status: "failed" })
+              .update({
+                scrape_status: "failed",
+                ...(result.needsReview ? { internal_notes: "No product URLs found" } : {}),
+              })
               .eq("id", supplier.id);
             failed.push({ name: supplier.company_name, reason: "No products extracted" });
             return;
           }
 
           const avgConfidence =
-            products.reduce((sum, p) => sum + (p.confidence ?? 0), 0) / products.length;
+            products.reduce((sum, pp) => sum + (pp.product.confidence ?? 0), 0) / products.length;
 
           console.log(`  ✓ Found ${products.length} products:`);
-          const detectedLang = products[0]?.detected_language;
+          const detectedLang = products[0]?.product.detected_language;
           if (detectedLang && detectedLang !== "english") {
-            console.log(`  🌍 Content language: ${detectedLang}`);
+            console.log(`  Content language: ${detectedLang}`);
           }
-          products.forEach((p, idx) => {
-            const formatsStr =
-              (p.formats ?? []).length > 0 ? (p.formats ?? []).join(", ") : "—";
-            const certsStr =
-              (p.certifications ?? []).length > 0 ? (p.certifications ?? []).join(", ") : "—";
+          products.forEach((pp, idx) => {
+            const p = pp.product;
+            const formatsStr = (p.formats ?? []).length > 0 ? (p.formats ?? []).join(", ") : "—";
+            const certsStr = (p.certifications ?? []).length > 0 ? (p.certifications ?? []).join(", ") : "—";
             const conf = p.confidence ?? 0;
             const reviewFlag = p.needs_review ? " ⚠ review" : "";
             console.log(`     ${idx + 1}. ${p.product_name} (${p.category})${reviewFlag}`);
@@ -363,12 +472,9 @@ async function main(): Promise<void> {
             console.log(`        Conf:    ${confidenceBar(conf)}  ${conf.toFixed(1)}`);
           });
 
-          // ── Step 4: Save to database ───────────────────────────────────────
+          // ── Save to database ───────────────────────────────────────────────
           console.log(`\n  → Saving to database...`);
-          const scrapeSource = isPerplexity
-            ? `perplexity:${supplier.website}`
-            : supplier.website!;
-          const inserted = await insertProducts(supplier.id, products, scrapeSource);
+          const inserted = await insertProducts(supplier.id, products, supplier.website!);
 
           const internalNote =
             mfr.companyType === "mixed" ? `Mixed company: ${mfr.reason}` : undefined;
@@ -385,70 +491,13 @@ async function main(): Promise<void> {
 
           console.log(`  ✓ Saved ${inserted} products`);
 
-          // ── Step 5: Extract supplier profile + factories ───────────────────
+          // ── Extract supplier profile + factories ───────────────────────────
           console.log(`\n  → Extracting company profile...`);
-          const profile = await extractSupplierProfile(content, supplier.company_name, {
+          const profile = await extractSupplierProfile(result.allMarkdown, supplier.company_name, {
             country: supplier.country_of_origin,
             categories: supplier.categories ?? [],
           });
-
-          await supabase
-            .from("supplier_offerings")
-            .update({
-              ...(profile.company_description
-                ? { product_description: profile.company_description }
-                : {}),
-              ...(profile.contact_email ? { contact_email: profile.contact_email } : {}),
-              ...(profile.contact_phone ? { contact_phone: profile.contact_phone } : {}),
-              ...(profile.contact_name ? { contact_name: profile.contact_name } : {}),
-              ...(profile.linkedin_url ? { linkedin_url: profile.linkedin_url } : {}),
-              ...(profile.export_markets.length > 0
-                ? { export_markets: profile.export_markets }
-                : {}),
-              ...(profile.founded_year ? { founded_year: profile.founded_year } : {}),
-              ...(profile.employees_range
-                ? { employees_range: profile.employees_range }
-                : {}),
-            })
-            .eq("id", supplier.id);
-
-          if (profile.factories.length > 0) {
-            await supabase
-              .from("supplier_factories")
-              .delete()
-              .eq("supplier_id", supplier.id);
-
-            await supabase.from("supplier_factories").insert(
-              profile.factories.map((f, idx) => ({
-                supplier_id: supplier.id,
-                factory_name: f.factory_name,
-                country: f.country,
-                city: f.city,
-                is_primary: idx === 0,
-                kosher_types: f.kosher_types,
-                kosher_certifying_body: f.kosher_certifying_body,
-                certifications_quality: f.certifications_quality,
-                certifications_dietary: f.certifications_dietary,
-                brc_grade: f.brc_grade,
-                ifs_grade: f.ifs_grade,
-                production_capacity: f.production_capacity,
-              }))
-            );
-
-            console.log(`  🏭 Factories: ${profile.factories.length}`);
-            profile.factories.forEach((f) => {
-              const kosher =
-                f.kosher_types.length > 0
-                  ? `✡ ${f.kosher_types.join(", ")}`
-                  : "No kosher";
-              const certs = [
-                ...f.certifications_quality,
-                ...f.certifications_dietary,
-              ].join(", ") || "No certs";
-              console.log(`     ${f.factory_name} (${f.country ?? "?"})`);
-              console.log(`     ${kosher} · ${certs}`);
-            });
-          }
+          await persistProfile(supplier, profile);
 
           succeeded.push({ name: supplier.company_name, products: inserted, avgConfidence });
           totalProducts += inserted;

@@ -44,6 +44,8 @@ BENCHMARK BRAND:
 NEW FIELD RULES:
 - sub_type: the specific product type under the category, in English (e.g. "granola" for Breakfast Cereals, "puffed peanut snack" for Savory Snacks). Attr<string|null>.
 - net_weight: extract the numeric pack weight/volume as { value: number, unit: enum }. Examples: "375 g" → {value:375,unit:"g"}; "80 גרם" → {value:80,unit:"g"}; "1 L" → {value:1,unit:"l"}. unit must be one of: g, kg, ml, l, oz, lb. Set the Attr value to null if the weight is not legible.
+ - processing_type: identify packaging/processing regime if visible (e.g. "canned", "dried", "frozen", "ambient", "vacuum-packed"). Return as Attr<string|null>.
+ - ingredients: if the ingredient list or primary ingredients are visible on the label, return them as an Attr<string[]> (list of main ingredients in English). If not legible, return [] or null with status unknown.
 - kosher: structured kosher compliance derived from visible marks/text. Attr with value: { required: boolean, hechsher: string|null, passover: boolean|null }. required: true if any kosher mark or hechsher symbol is visible; false otherwise. hechsher: certifying authority in English/transliteration ("Badatz","Rabbanut","OU","OK"…), null if none. passover: true if "Kosher for Passover"/"כשר לפסח" shown; false if explicitly "Not for Passover"/"לא כולל פסח"; null if not mentioned.
 - nutrition_claims: Attr wrapping a string[] of nutritional claims in English ("54% whole grain","enriched with vitamins and iron"). Use [] if none visible.
 - free_from: Attr wrapping a string[] of absence claims in English ("no preservatives","no artificial coloring"). Use [] if none visible.

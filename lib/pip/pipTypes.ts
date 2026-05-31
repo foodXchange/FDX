@@ -63,6 +63,8 @@ export type PipV2DataJson = {
     raw_description: MergedAttr;
     sub_type?: MergedAttr;
     net_weight?: MergedAttr;
+    processing_type?: MergedAttr;
+    ingredients?: MergedAttr;
   };
   category: {
     category_id: MergedAttr;

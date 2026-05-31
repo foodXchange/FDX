@@ -38,6 +38,8 @@ export interface ExtractedProduct {
   shelf_life_months: number | null;
   certifications: string[];
   kosher_types: string[];
+  processing_type?: string | null;
+  ingredients?: string | null;
   product_type: string | null;
   primary_ingredients: string[];
   private_label: boolean;
@@ -241,6 +243,8 @@ export async function extractProducts(
     `    "shelf_life_months": 24,\n` +
     `    "certifications": ["BRC", "IFS", "Kosher"],\n` +
     `    "kosher_types": ["Chief Rabbinate"],\n` +
+    `    "processing_type": "canned | dried | frozen | smoked | fresh | vacuum | ambient | other — or null",\n` +
+    `    "ingredients": "comma-separated main ingredients in English or null",\n` +
     `    "product_type": "pure_ingredient or processed_food or semi_processed or mixed",\n` +
     `    "primary_ingredients": ["main ingredient"],\n` +
     `    "private_label": true,\n` +
