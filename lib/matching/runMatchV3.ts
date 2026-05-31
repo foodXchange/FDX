@@ -15,6 +15,7 @@ export type MatchV3Row = {
     format: number;
     compliance: number;
     evidence: number;
+    kosher_status?: 'certified' | 'not_listed' | 'unknown';
   };
   summary: string;
 };

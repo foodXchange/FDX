@@ -27,9 +27,11 @@ export type SavedMatch = {
     kosher_types?: string[];
     certifications?: string[];
     category?: number;
+    vector?: number;
     format?: number;
     compliance?: number;
     evidence?: number;
+    kosher_status?: 'certified' | 'not_listed' | 'unknown';
   } | null;
   status: string;
   approved_at: string | null;

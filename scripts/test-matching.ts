@@ -102,7 +102,7 @@ type MatchRow = {
   company_name: string;
   country: string | null;
   score: number;
-  breakdown: Record<string, number>;
+  breakdown: Record<string, number | string>;
   summary: string;
 };
 
@@ -331,14 +331,17 @@ async function main() {
     );
     for (const r of testResults) {
       const cat = typeof r.breakdown?.category === "number"
-        ? String(Math.round(r.breakdown.category)).padStart(3)
+        ? String(Math.round(r.breakdown.category as number)).padStart(3)
         : " n/a";
       const vec = typeof r.breakdown?.vector === "number"
-        ? r.breakdown.vector.toFixed(1).padStart(4)
+        ? (r.breakdown.vector as number).toFixed(1).padStart(4)
         : " n/a";
+      const ks = typeof r.breakdown?.kosher_status === "string"
+        ? ` [${r.breakdown.kosher_status}]`
+        : "";
       const sim = `${cat} ${vec}`;
       console.log(
-        `   ${r.product_name.slice(0, 43).padEnd(45)} ${r.company_name.slice(0, 20).padEnd(22)} ${String(Math.round(r.score)).padEnd(6)} ${sim}`
+        `   ${r.product_name.slice(0, 43).padEnd(45)} ${r.company_name.slice(0, 20).padEnd(22)} ${String(Math.round(r.score)).padEnd(6)} ${sim}${ks}`
       );
     }
 

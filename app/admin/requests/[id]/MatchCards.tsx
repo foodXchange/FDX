@@ -229,6 +229,7 @@ export default function MatchCards({ requestId, initialMatches, productName, com
         const breakdown = match.match_breakdown;
         const kosherTypes = breakdown?.kosher_types ?? [];
         const certs = breakdown?.certifications ?? [];
+        const kosherStatus = breakdown?.kosher_status as string | undefined;
         const hasV1Breakdown =
           breakdown !== null &&
           breakdown !== undefined &&
@@ -303,8 +304,17 @@ export default function MatchCards({ requestId, initialMatches, productName, com
               <div className="flex flex-wrap gap-1.5 mt-3">
                 <ScoreChip label="Cat" pts={breakdown!.category!} max={40} />
                 <ScoreChip label="Fmt" pts={breakdown!.format!} max={20} />
-                <ScoreChip label="Cert" pts={breakdown!.compliance!} max={20} />
+                <ScoreChip label="Cert" pts={breakdown!.compliance!} max={10} />
                 <ScoreChip label="Evid" pts={breakdown!.evidence!} max={20} />
+                {kosherStatus && (
+                  <span className={`text-xs px-2 py-0.5 rounded-full border ${
+                    kosherStatus === "certified"
+                      ? "bg-amber-50 text-amber-700 border-amber-200"
+                      : "bg-gray-50 text-gray-500 border-gray-200"
+                  }`}>
+                    ✡ {kosherStatus === "certified" ? "Certified" : kosherStatus === "not_listed" ? "Not listed" : "Unknown"}
+                  </span>
+                )}
               </div>
             )}
 
