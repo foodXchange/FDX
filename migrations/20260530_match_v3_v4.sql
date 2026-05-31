@@ -122,12 +122,15 @@ pip as (
 
     -- must_have tokens (v2: MergedAttr array → .value; v1: plain string array)
     coalesce(
-      array(select jsonb_array_elements_text(
-        jsonb_path_query_array(
-          (select v.data_json from v2_pip v),
-          '$.match_config.must_have[*].value'
-        )
-      )),
+      nullif(
+        array(select jsonb_array_elements_text(
+          jsonb_path_query_array(
+            (select v.data_json from v2_pip v),
+            '$.match_config.must_have[*].value'
+          )
+        )),
+        array[]::text[]
+      ),
       array(select jsonb_array_elements_text(
         sr.intent_json -> 'match_config' -> 'must_have'
       )),
