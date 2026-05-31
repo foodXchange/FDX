@@ -1,10 +1,41 @@
 -- match_v3 v4 — aggressive pool gate, kosher hierarchy, pip_c constraint CTE,
 -- 5-term scoring (pts_category + pts_vector + pts_format + pts_compliance + pts_evidence).
--- Authoritative source: migrations/20260530_match_v3_v4.sql
--- This file is kept in sync for convenience when re-applying to a fresh DB.
 --
--- Run AFTER migrations/20260530_pgvector_hybrid_matching.sql (requires vector extension
--- and the embedding / kosher_level / temperature / channel columns to already exist).
+-- Changes from v3 (20260530_match_v3_hybrid.sql):
+--
+--   1. Signature simplified to 3 params. All constraint derivation moves inside SQL.
+--        OLD: match_v3(request_uuid, request_embedding, req_kosher_level, req_kosher_passover,
+--                      req_temperature, req_organic, req_halal, limit_n)
+--        NEW: match_v3(request_uuid, limit_n DEFAULT 30, request_emb DEFAULT NULL)
+--
+--   2. Category gate REMOVED from candidates WHERE. Pool = all approved products that
+--      pass hard compliance filters. Category becomes a scoring-only signal (pts_category).
+--      CTEs pip_parent, pip_fallback_parent, v2_category_has_candidates deleted.
+--
+--   3. Kosher: strict equality -> hierarchy rank.
+--        badatz=3 >= mehadrin=2 >= regular=1 >= none/null=0
+--        mehadrin-required buyer GETS badatz suppliers. badatz-required buyer gets ONLY badatz.
+--
+--   4. New pip_c CTE derives all constraint params from pip fields + must_have_tokens[].
+--        req_kosher_level:    from compliance.kosher_required + kosher_type text
+--        req_kosher_passover: from kosher_type ILIKE '%passover%'
+--        req_temperature:     from must_have_tokens[] 'temperature_regime:X'
+--        req_channel:         from must_have_tokens[] 'channel:X'
+--        req_organic:         from 'organic' = ANY(must_have_tokens)
+--        req_halal:           from 'halal' = ANY(must_have_tokens)
+--
+--   5. Scoring split:
+--        pts_category 35  (was merged with vector into pts_similarity 40)
+--        pts_vector   20  (neutral=10 when either embedding absent)
+--        pts_format   15  (was 20)
+--        pts_compliance 20 (unchanged)
+--        pts_evidence 10  (was 20; weights adjusted)
+--        Total: 100
+--
+-- Apply AFTER migrations/20260530_pgvector_hybrid_matching.sql (requires vector extension
+-- + embedding/kosher_level/temperature/channel columns on supplier_products).
+--
+-- DROP both possible old signatures so PostgreSQL accepts the new one.
 
 drop function if exists public.match_v3(uuid, int);
 drop function if exists public.match_v3(uuid, vector(1024), text, boolean, text, boolean, boolean, int);
@@ -89,6 +120,7 @@ pip as (
       array[]::text[]
     )                                                                as req_certs,
 
+    -- must_have tokens (v2: MergedAttr array → .value; v1: plain string array)
     coalesce(
       array(select jsonb_array_elements_text(
         jsonb_path_query_array(
@@ -106,10 +138,13 @@ pip as (
   where sr.id = request_uuid
 ),
 
+-- Derives all constraint params from pip fields + must_have_tokens.
+-- All downstream CTEs cross join pip_c instead of pip.
 pip_c as (
   select
     pip.*,
 
+    -- kosher level from compliance fields (null = no kosher requirement)
     case
       when pip.kosher_required = false then null
       when pip.kosher_type ilike '%badatz%'
@@ -127,11 +162,13 @@ pip_c as (
       else false
     end                                                              as req_kosher_passover,
 
+    -- temperature from 'temperature_regime:X' token
     (select split_part(tok, ':', 2)
      from unnest(pip.must_have_tokens) as tok
      where tok like 'temperature_regime:%'
      limit 1)                                                        as req_temperature,
 
+    -- channel from 'channel:X' token
     (select split_part(tok, ':', 2)
      from unnest(pip.must_have_tokens) as tok
      where tok like 'channel:%'
@@ -166,14 +203,22 @@ candidates as (
   cross join pip_c
   where so.status = 'approved'
     and coalesce(sp.needs_review, false) = false
+
+    -- Hard filter: private label (unchanged)
     and (
       pip_c.private_label_required is not true
       or coalesce(sp.private_label, false) = true
     )
+
+    -- Hard filter: formats (unchanged)
     and (
       array_length(pip_c.req_formats, 1) is null
       or sp.formats && pip_c.req_formats
     )
+
+    -- Hard filter: kosher — hierarchy rank (stricter supplier satisfies less-strict buyer)
+    --   rank: badatz=3, mehadrin=2, regular=1, other-non-none=1, none/null=0
+    --   NULL req_kosher_level = no kosher requirement → pass all
     and (
       pip_c.req_kosher_level is null
       or (
@@ -182,7 +227,7 @@ candidates as (
           when sp.kosher_level = 'mehadrin'                                     then 2
           when sp.kosher_level = 'regular'                                      then 1
           when sp.kosher_level is not null and sp.kosher_level != 'none'        then 1
-          else 0
+          else 0  -- 'none' or null
         end
         >=
         case
@@ -193,13 +238,23 @@ candidates as (
         end
       )
     )
+
+    -- Hard filter: kosher for Passover (NULL sp.kosher_passover = not passover)
     and (pip_c.req_kosher_passover = false or coalesce(sp.kosher_passover, false) = true)
+
+    -- Hard filter: temperature (NULL sp.temperature excluded when req_temperature set)
     and (pip_c.req_temperature is null or sp.temperature = pip_c.req_temperature)
+
+    -- Hard filter: channel (sp.channel must contain the requested channel)
     and (
       pip_c.req_channel is null
       or (sp.channel is not null and pip_c.req_channel = any(sp.channel))
     )
+
+    -- Hard filter: organic (NULL = unspecified = not organic)
     and (pip_c.req_organic = false or coalesce(sp.is_organic, false) = true)
+
+    -- Hard filter: halal (NULL = unspecified = not halal)
     and (pip_c.req_halal = false or coalesce(sp.is_halal, false) = true)
 ),
 
@@ -213,6 +268,7 @@ scored as (
     pip_c.req_certs,
     pip_c.kosher_required,
 
+    -- pts_category (35 max): always runs as a ranking signal even when vectors present
     case
       when c.sp_category_id is not null
         and c.sp_category_id = pip_c.category_id                    then 35
@@ -239,18 +295,21 @@ scored as (
       else 8
     end                                                             as pts_category,
 
+    -- pts_vector (20 max, neutral=10 when either embedding absent — no penalty for missing data)
     case
       when request_emb is not null and c.embedding is not null
         then greatest(0.0, (1.0 - (c.embedding <=> request_emb)) * 20.0)::numeric
       else 10.0
     end                                                             as pts_vector,
 
+    -- pts_format (15 max)
     case
       when array_length(pip_c.req_formats, 1) is null then 8
       when c.formats && pip_c.req_formats              then 15
       else 0
     end                                                             as pts_format,
 
+    -- pts_compliance (20 max — logic unchanged)
     (
       case
         when pip_c.kosher_required = false then 5
@@ -265,6 +324,7 @@ scored as (
       end
     )::numeric                                                      as pts_compliance,
 
+    -- pts_evidence (10 max — weights adjusted)
     (
       case when c.verified                              then 4 else 0 end
       + case when coalesce(c.manually_verified, false) then 3 else 0 end
@@ -296,3 +356,7 @@ order by score desc
 limit limit_n;
 
 $$;
+
+-- Verify after applying:
+-- SELECT pg_get_functiondef(oid) FROM pg_proc WHERE proname = 'match_v3';
+-- Output should show 'request_emb vector' — no req_kosher_level param.
