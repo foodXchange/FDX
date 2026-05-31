@@ -3,7 +3,132 @@ import { MAP_LIMIT_DEFAULT, MAX_PRODUCT_PAGES, FIRECRAWL_SCRAPE_OPTIONS } from "
 import { isProductUrl } from "./urlFilters";
 import { extractProducts, ExtractedProduct } from "./extract";
 
-const firecrawl = new Firecrawl({ apiKey: process.env.FIRECRAWL_API_KEY });
+const PIPELINE_TIMEOUT_MS = 180_000;
+
+function getFirecrawl() {
+  const key = process.env.FIRECRAWL_API_KEY;
+  if (!key) throw new Error("FIRECRAWL_API_KEY is not set");
+  return new Firecrawl({ apiKey: key });
+}
+
+function normalizeProductName(name: string): string {
+  let normalized = name
+    .toLowerCase()
+    .replace(/[-_]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  while (normalized.match(/\s*[\(\[][^(\)\]]*[\)\]]\s*$/)) {
+    normalized = normalized.replace(/\s*[\(\[][^(\)\]]*[\)\]]\s*$/, "").trim();
+  }
+
+  normalized = normalized.replace(/\s*\d+\s*(?:u|units?|g|kg|ml|l)\b.*$/i, "").trim();
+  normalized = normalized.replace(/\s*(?:tray|bag|box|tupper|bulk|pack)\b.*$/i, "").trim();
+
+  const spanishToEnglish: Record<string, string> = {
+    redondas: "round",
+    cuadradas: "square",
+    largas: "long",
+    rellenas: "filled",
+    tradicional: "traditional",
+    marmol: "marble",
+    albaricoque: "apricot",
+    fresa: "strawberry",
+    limon: "lemon",
+    muffins: "muffins",
+  };
+
+  for (const [spanish, english] of Object.entries(spanishToEnglish)) {
+    normalized = normalized.replace(new RegExp(`\\b${spanish}\\b`, "g"), english);
+  }
+
+  normalized = normalized.replace(/\s+/g, " ").trim();
+  return normalized;
+}
+
+function scoreProduct(product: ExtractedProduct): number {
+  const descriptionLength = product.description?.trim().length ?? 0;
+  const formatsCount = product.formats?.length ?? 0;
+  const sizesCount = product.sizes?.length ?? 0;
+  const certificationsCount = product.certifications?.length ?? 0;
+  const tagsCount = product.tags?.length ?? 0;
+  const confidence = product.confidence ?? 0;
+
+  return (
+    confidence * 1000 +
+    Math.min(descriptionLength, 200) * 2 +
+    formatsCount * 15 +
+    sizesCount * 10 +
+    certificationsCount * 8 +
+    tagsCount * 5
+  );
+}
+
+export function deduplicateProducts(pageProducts: PageProduct[]): PageProduct[] {
+  const groups = new Map<string, PageProduct[]>();
+
+  for (const item of pageProducts) {
+    const normalized = normalizeProductName(item.product.product_name);
+    const bucket = groups.get(normalized) ?? [];
+    bucket.push(item);
+    groups.set(normalized, bucket);
+  }
+
+  const chosen: PageProduct[] = [];
+  for (const [, bucket] of groups.entries()) {
+    bucket.sort((a, b) => {
+      const scoreA = scoreProduct(a.product);
+      const scoreB = scoreProduct(b.product);
+      if (scoreB !== scoreA) return scoreB - scoreA;
+      const descA = a.product.description?.trim().length ?? 0;
+      const descB = b.product.description?.trim().length ?? 0;
+      if (descB !== descA) return descB - descA;
+      const fmtA = a.product.formats?.length ?? 0;
+      const fmtB = b.product.formats?.length ?? 0;
+      return fmtB - fmtA;
+    });
+
+    const primary = bucket[0];
+    if (bucket.length === 1) {
+      chosen.push(primary);
+      continue;
+    }
+
+    const mergedFormats = new Set(primary.product.formats ?? []);
+    const mergedCertifications = new Set(primary.product.certifications ?? []);
+    const mergedSizes = new Set(primary.product.sizes ?? []);
+    let bestDescription = primary.product.description ?? "";
+
+    for (let i = 1; i < bucket.length; i += 1) {
+      const source = bucket[i].product;
+      for (const format of source.formats ?? []) {
+        mergedFormats.add(format);
+      }
+      for (const certification of source.certifications ?? []) {
+        mergedCertifications.add(certification);
+      }
+      for (const size of source.sizes ?? []) {
+        mergedSizes.add(size);
+      }
+      const sourceDesc = source.description?.trim() ?? "";
+      if (sourceDesc.length > bestDescription.trim().length) {
+        bestDescription = source.description ?? bestDescription;
+      }
+    }
+
+    primary.product.formats = Array.from(mergedFormats);
+    primary.product.certifications = Array.from(mergedCertifications);
+    primary.product.sizes = Array.from(mergedSizes);
+    primary.product.description = bestDescription || null;
+
+    console.log(
+      `Merged ${bucket.length} variants of ${primary.product.product_name} → 1 row with ${primary.product.formats.length} formats`
+    );
+    chosen.push(primary);
+  }
+
+  return chosen;
+}
 
 export interface ScrapeOpts {
   mapLimit?: number;
@@ -29,17 +154,30 @@ export interface ScrapeResult {
 }
 
 export async function scrapeSupplier(supplierId: string, supplierUrl: string, opts: ScrapeOpts = {}): Promise<ScrapeResult> {
+  const firecrawl = getFirecrawl();
   const mapLimit = opts.mapLimit ?? MAP_LIMIT_DEFAULT;
   const maxPages = opts.maxPages ?? MAX_PRODUCT_PAGES;
 
   // Stage 1: Map
   let links: string[] = [];
+  let mapFailed = false;
   try {
-    const resp = await firecrawl.map(supplierUrl, { limit: mapLimit });
+    const resp = await Promise.race([
+      firecrawl.map(supplierUrl, { limit: mapLimit }),
+      new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error("Firecrawl map timeout")), PIPELINE_TIMEOUT_MS)
+      ),
+    ]);
     links = (resp?.links || []).map((l: any) => l.url).filter(Boolean);
   } catch (err) {
-    console.warn("Firecrawl map failed, falling back to homepage only:", err);
+    mapFailed = true;
+    console.warn("⚠ map failed/empty — falling back to homepage only", err);
     links = [];
+  }
+
+  if (mapFailed || links.length === 0) {
+    console.warn("⚠ map failed/empty — falling back to homepage only");
+    links = [supplierUrl];
   }
 
   // Stage 2: Filter
@@ -85,12 +223,18 @@ export async function scrapeSupplier(supplierId: string, supplierUrl: string, op
     }
   }
 
+  const deduplicated = deduplicateProducts(extractedAll);
+  const duplicateCount = extractedAll.length - deduplicated.length;
+  if (duplicateCount > 0) {
+    console.log(`  Deduplicated ${duplicateCount} duplicate product(s) by normalized name`);
+  }
+
   return {
     supplierId,
     supplierUrl,
     needsReview,
     pagesScraped: pages.length,
-    products: extractedAll,
+    products: deduplicated,
     homepageMarkdown: pages[0]?.markdown ?? "",
     allMarkdown: pages.map(p => p.markdown).join("\n\n---PAGE BREAK---\n\n"),
   };

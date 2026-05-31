@@ -1,4 +1,4 @@
-export const MAX_PRODUCT_PAGES = 50;
+export const MAX_PRODUCT_PAGES = 18;
 export const MAP_LIMIT_DEFAULT = 200;
 
 export const FIRECRAWL_SCRAPE_OPTIONS = {

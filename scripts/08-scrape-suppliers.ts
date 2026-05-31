@@ -14,13 +14,25 @@ import { readFileSync } from "fs";
 import { resolve } from "path";
 import { createClient } from "@supabase/supabase-js";
 import { crawlSupplier } from "../lib/scraper/crawl";
-import { scrapeSupplier } from "../lib/scraper/firecrawlPipeline";
+import { scrapeSupplier, deduplicateProducts } from "../lib/scraper/firecrawlPipeline";
 import type { PageProduct } from "../lib/scraper/firecrawlPipeline";
 import {
   extractSupplierProfile,
   detectManufacturerType,
 } from "../lib/scraper/extract";
 import type { ExtractedProduct } from "../lib/scraper/extract";
+
+const SUPPLIER_TIMEOUT_MS = 420_000; // 7 minutes
+
+// RACE CONDITION WARNING (lines ~460–530):
+// The Promise.race() between the scrape async function and supplierTimeout causes a race:
+// If timeout fires while insertProducts() is mid-flight, the catch block marks supplier as
+// "failed" BEFORE the async function finishes. But products may already be saved to DB.
+// Result: "Saved 51 products" logs appear after supplier is marked failed, and the
+// products_found count gets set but scrape_status = "failed" overwrites "scraped".
+// Fix: Move insertProducts() and the final status update outside Promise.race(), or use
+// AbortController to truly cancel work. For now, reducing MAX_PRODUCT_PAGES + extending
+// timeout prevents timeouts in normal cases.
 
 // ─── Load .env.local ─────────────────────────────────────────────────────────
 function loadEnvLocal(): void {
@@ -322,7 +334,7 @@ async function main(): Promise<void> {
     console.log(`  Status:   ${supplier.status ?? "unknown"}`);
 
     const supplierTimeout = new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error("Supplier timeout")), 90000)
+      setTimeout(() => reject(new Error("Supplier timeout")), SUPPLIER_TIMEOUT_MS)
     );
 
     try {
@@ -506,15 +518,15 @@ async function main(): Promise<void> {
       ]);
     } catch (err) {
       if (err instanceof Error && err.message === "Supplier timeout") {
-        console.log(`  ⏱ Timeout after 90s — skipping`);
+        console.log(`  ⏱ Timeout after 420s — skipping`);
         await supabase
           .from("supplier_offerings")
           .update({
             scrape_status: "failed",
-            internal_notes: "Timeout: exceeded 90s",
+            internal_notes: "Timeout: exceeded 420s (possible partial save)",
           })
           .eq("id", supplier.id);
-        failed.push({ name: supplier.company_name, reason: "Timeout after 90s" });
+        failed.push({ name: supplier.company_name, reason: "Timeout after 420s (check DB for partial save)" });
       } else {
         console.error(`  ✗ Error:`, err);
         await supabase
