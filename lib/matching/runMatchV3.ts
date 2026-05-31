@@ -164,6 +164,11 @@ export async function runMatchV3(requestId: string): Promise<RunMatchV3Result> {
 
   const top = Array.from(bestPerSupplier.values()).sort((a, b) => b.score - a.score);
 
+  await supabaseAdmin
+    .from("sourcing_matches")
+    .delete()
+    .eq("request_id", requestId);
+
   await supabaseAdmin.from("sourcing_matches").upsert(
     top.map((m) => ({
       request_id:       requestId,
