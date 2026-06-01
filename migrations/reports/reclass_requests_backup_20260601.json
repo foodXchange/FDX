@@ -1,0 +1,1082 @@
+[
+  {
+    "id": "df35d969-af18-42c2-a5c1-688ce49e5d23",
+    "product_name": "Dutch products- Promotion, Shufersal",
+    "intent_json": {
+      "product": {
+        "name": "Dutch products- Promotion",
+        "raw_description": "גרנולות - אורגניות ; כמה שיותר בריאות - ללא סוכר, גלוטן, מועשר פרוטאין וכו'"
+      },
+      "version": "1.0",
+      "category": {
+        "raw_text": "Organic & Natural",
+        "category_id": "a230a819-2dc7-4ee4-a49a-32843af0e1e7",
+        "category_name": "Breakfast Cereals"
+      },
+      "commercial": {
+        "budget": null,
+        "volume": null,
+        "urgency": null,
+        "private_label": false,
+        "target_market": null
+      },
+      "compliance": {
+        "halal": false,
+        "organic": false,
+        "kosher_types": [
+          "Chief rabbinate"
+        ],
+        "certifications": [],
+        "kosher_required": true
+      },
+      "generated_at": "2026-05-24T17:08:33.704Z",
+      "match_config": {
+        "must_have": [
+          "kosher"
+        ],
+        "dealbreakers": [],
+        "nice_to_have": []
+      },
+      "specifications": {
+        "sizes": [],
+        "formats": [],
+        "packaging": null
+      }
+    }
+  },
+  {
+    "id": "2a840b53-b0d4-4440-992a-d2ee5d22e7b1",
+    "product_name": "Dry fruits- figs and apricots, Shufersal",
+    "intent_json": {
+      "product": {
+        "name": "Dry fruits- figs and apricots",
+        "raw_description": "גרנולות - אורגניות ; כמה שיותר בריאות - ללא סוכר, גלוטן, מועשר פרוטאין וכו'"
+      },
+      "version": "1.0",
+      "category": {
+        "raw_text": "Organic & Natural",
+        "category_id": "09fbf6d9-3335-4ab2-a91b-baa5be4e5b10",
+        "category_name": "Dried Fruits"
+      },
+      "commercial": {
+        "budget": null,
+        "volume": null,
+        "urgency": null,
+        "private_label": false,
+        "target_market": null
+      },
+      "compliance": {
+        "halal": false,
+        "organic": false,
+        "kosher_types": [
+          "Chief rabbinate"
+        ],
+        "certifications": [],
+        "kosher_required": true
+      },
+      "generated_at": "2026-05-24T17:08:38.222Z",
+      "match_config": {
+        "must_have": [
+          "kosher"
+        ],
+        "dealbreakers": [],
+        "nice_to_have": []
+      },
+      "specifications": {
+        "sizes": [],
+        "formats": [],
+        "packaging": null
+      }
+    }
+  },
+  {
+    "id": "23523816-5141-4650-a80c-5301a1aabe67",
+    "product_name": "Chabad - High kosher products, Chabad of Israel",
+    "intent_json": {
+      "product": {
+        "name": "Chabad - High kosher products",
+        "raw_description": "גרנולות - אורגניות ; כמה שיותר בריאות - ללא סוכר, גלוטן, מועשר פרוטאין וכו'"
+      },
+      "version": "1.0",
+      "category": {
+        "raw_text": "Organic & Natural",
+        "category_id": "a230a819-2dc7-4ee4-a49a-32843af0e1e7",
+        "category_name": "Breakfast Cereals"
+      },
+      "commercial": {
+        "budget": null,
+        "volume": null,
+        "urgency": null,
+        "private_label": false,
+        "target_market": null
+      },
+      "compliance": {
+        "halal": false,
+        "organic": false,
+        "kosher_types": [
+          "Badatz Kosher - Beit Yosef"
+        ],
+        "certifications": [],
+        "kosher_required": true
+      },
+      "generated_at": "2026-05-24T17:10:35.298Z",
+      "match_config": {
+        "must_have": [
+          "kosher"
+        ],
+        "dealbreakers": [],
+        "nice_to_have": []
+      },
+      "specifications": {
+        "sizes": [],
+        "formats": [],
+        "packaging": null
+      }
+    }
+  },
+  {
+    "id": "adb70121-473e-42fa-9498-c8383e2299ec",
+    "product_name": "Dutch products- Promotion, Shufersal",
+    "intent_json": {
+      "product": {
+        "name": "Dutch products- Promotion",
+        "raw_description": "גרנולות - אורגניות ; כמה שיותר בריאות - ללא סוכר, גלוטן, מועשר פרוטאין וכו'"
+      },
+      "version": "1.0",
+      "category": {
+        "raw_text": "Organic & Natural",
+        "category_id": "a230a819-2dc7-4ee4-a49a-32843af0e1e7",
+        "category_name": "Breakfast Cereals"
+      },
+      "commercial": {
+        "budget": null,
+        "volume": null,
+        "urgency": null,
+        "private_label": false,
+        "target_market": null
+      },
+      "compliance": {
+        "halal": false,
+        "organic": false,
+        "kosher_types": [
+          "Chief rabbinate"
+        ],
+        "certifications": [],
+        "kosher_required": true
+      },
+      "generated_at": "2026-05-24T17:08:39.123Z",
+      "match_config": {
+        "must_have": [
+          "kosher"
+        ],
+        "dealbreakers": [],
+        "nice_to_have": []
+      },
+      "specifications": {
+        "sizes": [],
+        "formats": [],
+        "packaging": null
+      }
+    }
+  },
+  {
+    "id": "f6f0cc2e-d0f2-4939-ad79-e59e748e7fd6",
+    "product_name": "Chabad - High kosher products, Chabad of Israel",
+    "intent_json": {
+      "product": {
+        "name": "Chabad - High kosher products",
+        "raw_description": "גרנולות - אורגניות ; כמה שיותר בריאות - ללא סוכר, גלוטן, מועשר פרוטאין וכו'"
+      },
+      "version": "1.0",
+      "category": {
+        "raw_text": "Organic & Natural",
+        "category_id": "a230a819-2dc7-4ee4-a49a-32843af0e1e7",
+        "category_name": "Breakfast Cereals"
+      },
+      "commercial": {
+        "budget": null,
+        "volume": null,
+        "urgency": null,
+        "private_label": false,
+        "target_market": null
+      },
+      "compliance": {
+        "halal": false,
+        "organic": false,
+        "kosher_types": [
+          "Badatz Kosher - Beit Yosef"
+        ],
+        "certifications": [],
+        "kosher_required": true
+      },
+      "generated_at": "2026-05-24T17:10:23.432Z",
+      "match_config": {
+        "must_have": [
+          "kosher"
+        ],
+        "dealbreakers": [],
+        "nice_to_have": []
+      },
+      "specifications": {
+        "sizes": [],
+        "formats": [],
+        "packaging": null
+      }
+    }
+  },
+  {
+    "id": "9cda60cf-c5e7-4aaf-b3c2-503291b2b0c0",
+    "product_name": "Lemon Juice for salads, Shufersal",
+    "intent_json": {
+      "product": {
+        "name": "Lemon Juice for salads",
+        "raw_description": ""
+      },
+      "version": "1.0",
+      "category": {
+        "raw_text": "Beverages",
+        "category_id": "0df2b578-f933-46c8-8e0d-be2b1e0b9b4a",
+        "category_name": "Beverages"
+      },
+      "commercial": {
+        "budget": null,
+        "volume": null,
+        "urgency": null,
+        "private_label": false,
+        "target_market": null
+      },
+      "compliance": {
+        "halal": false,
+        "organic": false,
+        "kosher_types": [
+          "Chief rabbinate"
+        ],
+        "certifications": [],
+        "kosher_required": true
+      },
+      "generated_at": "2026-05-24T17:10:15.238Z",
+      "match_config": {
+        "must_have": [
+          "kosher"
+        ],
+        "dealbreakers": [],
+        "nice_to_have": []
+      },
+      "specifications": {
+        "sizes": [],
+        "formats": [],
+        "packaging": null
+      }
+    }
+  },
+  {
+    "id": "3f82b720-967f-44e0-b447-514a6013de37",
+    "product_name": "Chooclate and Candy of Carletti, Foodz",
+    "intent_json": {
+      "product": {
+        "name": "Chooclate and Candy of Carletti",
+        "raw_description": "גרנולות - אורגניות ; כמה שיותר בריאות - ללא סוכר, גלוטן, מועשר פרוטאין וכו'"
+      },
+      "version": "1.0",
+      "category": {
+        "raw_text": "Organic & Natural",
+        "category_id": "a230a819-2dc7-4ee4-a49a-32843af0e1e7",
+        "category_name": "Breakfast Cereals"
+      },
+      "commercial": {
+        "budget": null,
+        "volume": null,
+        "urgency": null,
+        "private_label": false,
+        "target_market": null
+      },
+      "compliance": {
+        "halal": false,
+        "organic": false,
+        "kosher_types": [
+          "Chief rabbinate"
+        ],
+        "certifications": [],
+        "kosher_required": true
+      },
+      "generated_at": "2026-05-24T17:10:36.212Z",
+      "match_config": {
+        "must_have": [
+          "kosher"
+        ],
+        "dealbreakers": [],
+        "nice_to_have": []
+      },
+      "specifications": {
+        "sizes": [],
+        "formats": [],
+        "packaging": null
+      }
+    }
+  },
+  {
+    "id": "eba64332-296e-4845-a980-f4758fa83287",
+    "product_name": "Lemon Juice for salads, Ta'aman",
+    "intent_json": {
+      "product": {
+        "name": "Lemon Juice for salads",
+        "raw_description": ""
+      },
+      "version": "1.0",
+      "category": {
+        "raw_text": "Beverages",
+        "category_id": "0df2b578-f933-46c8-8e0d-be2b1e0b9b4a",
+        "category_name": "Beverages"
+      },
+      "commercial": {
+        "budget": null,
+        "volume": null,
+        "urgency": null,
+        "private_label": false,
+        "target_market": null
+      },
+      "compliance": {
+        "halal": false,
+        "organic": false,
+        "kosher_types": [
+          "Badatz Kosher - Beit Yosef"
+        ],
+        "certifications": [],
+        "kosher_required": true
+      },
+      "generated_at": "2026-05-24T17:10:17.086Z",
+      "match_config": {
+        "must_have": [
+          "kosher"
+        ],
+        "dealbreakers": [],
+        "nice_to_have": []
+      },
+      "specifications": {
+        "sizes": [],
+        "formats": [],
+        "packaging": null
+      }
+    }
+  },
+  {
+    "id": "2cfe7294-f908-47cc-8260-7a573ca03bad",
+    "product_name": "Serena, organic dry fruits, Shufersal",
+    "intent_json": {
+      "product": {
+        "name": "Serena",
+        "raw_description": ""
+      },
+      "version": "1.0",
+      "category": {
+        "raw_text": "Organic & Natural",
+        "category_id": "09fbf6d9-3335-4ab2-a91b-baa5be4e5b10",
+        "category_name": "Dried Fruits"
+      },
+      "commercial": {
+        "budget": null,
+        "volume": null,
+        "urgency": null,
+        "private_label": false,
+        "target_market": null
+      },
+      "compliance": {
+        "halal": false,
+        "organic": false,
+        "kosher_types": [
+          "Chief rabbinate"
+        ],
+        "certifications": [],
+        "kosher_required": true
+      },
+      "generated_at": "2026-05-24T17:08:53.704Z",
+      "match_config": {
+        "must_have": [
+          "kosher"
+        ],
+        "dealbreakers": [],
+        "nice_to_have": []
+      },
+      "specifications": {
+        "sizes": [],
+        "formats": [],
+        "packaging": null
+      }
+    }
+  },
+  {
+    "id": "a9898d19-3aa7-4eb3-b4c3-95690699b99d",
+    "product_name": "vacuum‑packed, ready‑to‑eat vegetables",
+    "intent_json": {
+      "product": {
+        "name": "vacuum‑packed",
+        "raw_description": "Source vacuum‑packed, ready‑to‑eat vegetables under supplier label, with Chief Rabbinate Kosher (non‑Passover) certification. Initial focus is Beetroot 500 g; include option for Sweet Corn on the Cob 500 g (benchmarks attached) for combined buy."
+      },
+      "version": "1.0",
+      "category": {
+        "raw_text": "ירקות טריים (Fresh Produce)",
+        "category_id": "239f92a7-2e23-4091-8dde-b1dfc61e7de3",
+        "category_name": "Fresh Produce (RTE)"
+      },
+      "commercial": {
+        "budget": null,
+        "volume": null,
+        "urgency": null,
+        "private_label": false,
+        "target_market": null
+      },
+      "compliance": {
+        "halal": false,
+        "organic": false,
+        "kosher_types": [
+          "Chief rabbinate"
+        ],
+        "certifications": [],
+        "kosher_required": true
+      },
+      "generated_at": "2026-05-24T17:10:45.281Z",
+      "match_config": {
+        "must_have": [
+          "kosher"
+        ],
+        "dealbreakers": [],
+        "nice_to_have": []
+      },
+      "specifications": {
+        "sizes": [],
+        "formats": [],
+        "packaging": null
+      }
+    }
+  },
+  {
+    "id": "9aff58e2-0313-44a6-81de-0d3addb9e8a5",
+    "product_name": "Sultanas Organic 250 and 500  gr., Shufersal",
+    "intent_json": {
+      "product": {
+        "name": "Sultanas Organic 250 and 500  gr., Shufersal",
+        "raw_description": ""
+      },
+      "version": "1.0",
+      "category": {
+        "raw_text": "Organic & Natural",
+        "category_id": "e1d49541-c997-417f-9c0f-e141e1a38019",
+        "category_name": "Dried Fruits"
+      },
+      "commercial": {
+        "budget": null,
+        "volume": null,
+        "urgency": null,
+        "private_label": true,
+        "target_market": null
+      },
+      "compliance": {
+        "halal": false,
+        "organic": false,
+        "kosher_types": [
+          "Chief rabbinate"
+        ],
+        "certifications": [],
+        "kosher_required": true
+      },
+      "generated_at": "2026-05-25T18:17:05.640Z",
+      "match_config": {
+        "must_have": [
+          "kosher"
+        ],
+        "dealbreakers": [],
+        "nice_to_have": []
+      },
+      "specifications": {
+        "sizes": [],
+        "formats": [],
+        "packaging": null
+      }
+    }
+  },
+  {
+    "id": "2dd6f011-4912-4fa3-88f7-09cf7600b7a2",
+    "product_name": "גרנולות - אורגניות'",
+    "intent_json": {
+      "product": {
+        "name": "גרנולות - אורגניות'",
+        "raw_description": "גרנולות - אורגניות ; כמה שיותר בריאות - ללא סוכר, גלוטן, מועשר פרוטאין וכו'"
+      },
+      "version": "1.0",
+      "category": {
+        "raw_text": "Organic & Natural",
+        "category_id": "a230a819-2dc7-4ee4-a49a-32843af0e1e7",
+        "category_name": "Breakfast Cereals"
+      },
+      "commercial": {
+        "budget": null,
+        "volume": null,
+        "urgency": null,
+        "private_label": false,
+        "target_market": null
+      },
+      "compliance": {
+        "halal": false,
+        "organic": false,
+        "kosher_types": [
+          "Chief rabbinate"
+        ],
+        "certifications": [],
+        "kosher_required": true
+      },
+      "generated_at": "2026-05-24T17:10:20.723Z",
+      "match_config": {
+        "must_have": [
+          "kosher"
+        ],
+        "dealbreakers": [],
+        "nice_to_have": []
+      },
+      "specifications": {
+        "sizes": [],
+        "formats": [],
+        "packaging": null
+      }
+    }
+  },
+  {
+    "id": "6bf54bf7-6108-4405-b860-4a958d9b53a2",
+    "product_name": "import processed garlic products",
+    "intent_json": {
+      "product": {
+        "name": "import processed garlic products",
+        "raw_description": "Retail Jar – “Naked Garlic” Style Small clear jar with black twist lid Bright front label Retail targeted 100% natural / no additive positioning Typically ~170 / 500 g,/ 1 Kg."
+      },
+      "version": "1.0",
+      "category": {
+        "raw_text": "ירקות טריים (Fresh Produce)",
+        "category_id": "239f92a7-2e23-4091-8dde-b1dfc61e7de3",
+        "category_name": "Fresh Produce (RTE)"
+      },
+      "commercial": {
+        "budget": null,
+        "volume": null,
+        "urgency": null,
+        "private_label": false,
+        "target_market": null
+      },
+      "compliance": {
+        "halal": false,
+        "organic": false,
+        "kosher_types": [
+          "Chief rabbinate"
+        ],
+        "certifications": [],
+        "kosher_required": true
+      },
+      "generated_at": "2026-05-24T17:09:47.109Z",
+      "match_config": {
+        "must_have": [
+          "kosher"
+        ],
+        "dealbreakers": [],
+        "nice_to_have": []
+      },
+      "specifications": {
+        "sizes": [],
+        "formats": [],
+        "packaging": null
+      }
+    }
+  },
+  {
+    "id": "289d5ccf-16ba-44f6-8434-11460fa52ae3",
+    "product_name": "גרנולות - אורגניות'",
+    "intent_json": {
+      "product": {
+        "name": "גרנולות - אורגניות'",
+        "raw_description": "גרנולות - אורגניות ; כמה שיותר בריאות - ללא סוכר, גלוטן, מועשר פרוטאין וכו'"
+      },
+      "version": "1.0",
+      "category": {
+        "raw_text": "Organic & Natural",
+        "category_id": "a230a819-2dc7-4ee4-a49a-32843af0e1e7",
+        "category_name": "Breakfast Cereals"
+      },
+      "commercial": {
+        "budget": null,
+        "volume": null,
+        "urgency": null,
+        "private_label": false,
+        "target_market": null
+      },
+      "compliance": {
+        "halal": false,
+        "organic": false,
+        "kosher_types": [
+          "Chief rabbinate"
+        ],
+        "certifications": [],
+        "kosher_required": true
+      },
+      "generated_at": "2026-05-24T17:10:21.646Z",
+      "match_config": {
+        "must_have": [
+          "kosher"
+        ],
+        "dealbreakers": [],
+        "nice_to_have": []
+      },
+      "specifications": {
+        "sizes": [],
+        "formats": [],
+        "packaging": null
+      }
+    }
+  },
+  {
+    "id": "6be53460-6a07-498b-82e0-808bf3af149f",
+    "product_name": "Tea for Shufersal's Private label, Shufersal",
+    "intent_json": {
+      "product": {
+        "name": "Tea for Shufersal's Private label",
+        "raw_description": "גרנולות - אורגניות ; כמה שיותר בריאות - ללא סוכר, גלוטן, מועשר פרוטאין וכו'"
+      },
+      "version": "1.0",
+      "category": {
+        "raw_text": "Beverages",
+        "category_id": "0df2b578-f933-46c8-8e0d-be2b1e0b9b4a",
+        "category_name": "Beverages"
+      },
+      "commercial": {
+        "budget": null,
+        "volume": null,
+        "urgency": null,
+        "private_label": false,
+        "target_market": null
+      },
+      "compliance": {
+        "halal": false,
+        "organic": false,
+        "kosher_types": [
+          "Chief rabbinate"
+        ],
+        "certifications": [],
+        "kosher_required": true
+      },
+      "generated_at": "2026-05-24T17:10:25.242Z",
+      "match_config": {
+        "must_have": [
+          "kosher"
+        ],
+        "dealbreakers": [],
+        "nice_to_have": []
+      },
+      "specifications": {
+        "sizes": [],
+        "formats": [],
+        "packaging": null
+      }
+    }
+  },
+  {
+    "id": "b2abad96-55e4-4de8-aa0f-34dc6b5200b7",
+    "product_name": "import processed garlic products",
+    "intent_json": {
+      "product": {
+        "name": "import processed garlic products",
+        "raw_description": "Retail Jar – “Naked Garlic” Style Small clear jar with black twist lid Bright front label Retail targeted 100% natural / no additive positioning Typically ~170 / 500 g,/ 1 Kg."
+      },
+      "version": "1.0",
+      "category": {
+        "raw_text": "ירקות טריים (Fresh Produce)",
+        "category_id": "239f92a7-2e23-4091-8dde-b1dfc61e7de3",
+        "category_name": "Fresh Produce (RTE)"
+      },
+      "commercial": {
+        "budget": null,
+        "volume": null,
+        "urgency": null,
+        "private_label": false,
+        "target_market": null
+      },
+      "compliance": {
+        "halal": false,
+        "organic": false,
+        "kosher_types": [
+          "Chief rabbinate"
+        ],
+        "certifications": [],
+        "kosher_required": true
+      },
+      "generated_at": "2026-05-24T17:10:43.474Z",
+      "match_config": {
+        "must_have": [
+          "kosher"
+        ],
+        "dealbreakers": [],
+        "nice_to_have": []
+      },
+      "specifications": {
+        "sizes": [],
+        "formats": [],
+        "packaging": null
+      }
+    }
+  },
+  {
+    "id": "1406bbd7-8797-4100-a165-5017e16af6ff",
+    "product_name": "Tea for Shufersal's Private label, Shufersal",
+    "intent_json": {
+      "product": {
+        "name": "Tea for Shufersal's Private label, Shufersal",
+        "raw_description": "גרנולות - אורגניות ; כמה שיותר בריאות - ללא סוכר, גלוטן, מועשר פרוטאין וכו'"
+      },
+      "version": "1.0",
+      "category": {
+        "raw_text": "Beverages",
+        "category_id": "0df2b578-f933-46c8-8e0d-be2b1e0b9b4a",
+        "category_name": "Beverages"
+      },
+      "commercial": {
+        "budget": null,
+        "volume": null,
+        "urgency": null,
+        "private_label": false,
+        "target_market": null
+      },
+      "compliance": {
+        "halal": false,
+        "organic": false,
+        "kosher_types": [
+          "Chief rabbinate"
+        ],
+        "certifications": [],
+        "kosher_required": true
+      },
+      "generated_at": "2026-05-30T09:14:59.565Z",
+      "match_config": {
+        "must_have": [
+          "kosher"
+        ],
+        "dealbreakers": [],
+        "nice_to_have": []
+      },
+      "specifications": {
+        "sizes": [],
+        "formats": [],
+        "packaging": null
+      }
+    }
+  },
+  {
+    "id": "ac33d87d-96a4-4b99-94ea-ff4fab5c1cf6",
+    "product_name": "Serena, organic dry fruits, Shufersal",
+    "intent_json": {
+      "product": {
+        "name": "Serena",
+        "raw_description": ""
+      },
+      "version": "1.0",
+      "category": {
+        "raw_text": "Organic & Natural",
+        "category_id": "09fbf6d9-3335-4ab2-a91b-baa5be4e5b10",
+        "category_name": "Dried Fruits"
+      },
+      "commercial": {
+        "budget": null,
+        "volume": null,
+        "urgency": null,
+        "private_label": false,
+        "target_market": null
+      },
+      "compliance": {
+        "halal": false,
+        "organic": false,
+        "kosher_types": [
+          "Chief rabbinate"
+        ],
+        "certifications": [],
+        "kosher_required": true
+      },
+      "generated_at": "2026-05-24T17:08:40.937Z",
+      "match_config": {
+        "must_have": [
+          "kosher"
+        ],
+        "dealbreakers": [],
+        "nice_to_have": []
+      },
+      "specifications": {
+        "sizes": [],
+        "formats": [],
+        "packaging": null
+      }
+    }
+  },
+  {
+    "id": "712a6648-420d-4613-8b9a-05fa63564e87",
+    "product_name": "Sultanas Organic 250 and 500  gr., Shufersal",
+    "intent_json": {
+      "product": {
+        "name": "Sultanas Organic 250 and 500  gr.",
+        "raw_description": ""
+      },
+      "version": "1.0",
+      "category": {
+        "raw_text": "Organic & Natural",
+        "category_id": "e1d49541-c997-417f-9c0f-e141e1a38019",
+        "category_name": "Dried Fruits"
+      },
+      "commercial": {
+        "budget": null,
+        "volume": null,
+        "urgency": null,
+        "private_label": false,
+        "target_market": null
+      },
+      "compliance": {
+        "halal": false,
+        "organic": false,
+        "kosher_types": [
+          "Chief rabbinate"
+        ],
+        "certifications": [],
+        "kosher_required": true
+      },
+      "generated_at": "2026-05-24T17:08:40.046Z",
+      "match_config": {
+        "must_have": [
+          "kosher"
+        ],
+        "dealbreakers": [],
+        "nice_to_have": []
+      },
+      "specifications": {
+        "sizes": [],
+        "formats": [],
+        "packaging": null
+      }
+    }
+  },
+  {
+    "id": "564544bd-0242-4633-9fdd-fc02038b0d88",
+    "product_name": "Dry fruits- figs and apricots, Shufersal",
+    "intent_json": {
+      "product": {
+        "name": "Dry fruits- figs and apricots",
+        "raw_description": "גרנולות - אורגניות ; כמה שיותר בריאות - ללא סוכר, גלוטן, מועשר פרוטאין וכו'"
+      },
+      "version": "1.0",
+      "category": {
+        "raw_text": "Organic & Natural",
+        "category_id": "09fbf6d9-3335-4ab2-a91b-baa5be4e5b10",
+        "category_name": "Dried Fruits"
+      },
+      "commercial": {
+        "budget": null,
+        "volume": null,
+        "urgency": null,
+        "private_label": false,
+        "target_market": null
+      },
+      "compliance": {
+        "halal": false,
+        "organic": false,
+        "kosher_types": [
+          "Chief rabbinate"
+        ],
+        "certifications": [],
+        "kosher_required": true
+      },
+      "generated_at": "2026-05-24T17:10:38.901Z",
+      "match_config": {
+        "must_have": [
+          "kosher"
+        ],
+        "dealbreakers": [],
+        "nice_to_have": []
+      },
+      "specifications": {
+        "sizes": [],
+        "formats": [],
+        "packaging": null
+      }
+    }
+  },
+  {
+    "id": "d2bab24f-039b-45b8-ab65-068ced72b845",
+    "product_name": "Lemon Juice for salads, Shufersal",
+    "intent_json": {
+      "product": {
+        "name": "Lemon Juice for salads",
+        "raw_description": ""
+      },
+      "version": "1.0",
+      "category": {
+        "raw_text": "Beverages",
+        "category_id": "0df2b578-f933-46c8-8e0d-be2b1e0b9b4a",
+        "category_name": "Beverages"
+      },
+      "commercial": {
+        "budget": null,
+        "volume": null,
+        "urgency": null,
+        "private_label": false,
+        "target_market": null
+      },
+      "compliance": {
+        "halal": false,
+        "organic": false,
+        "kosher_types": [
+          "Chief rabbinate"
+        ],
+        "certifications": [],
+        "kosher_required": true
+      },
+      "generated_at": "2026-05-24T17:10:26.164Z",
+      "match_config": {
+        "must_have": [
+          "kosher"
+        ],
+        "dealbreakers": [],
+        "nice_to_have": []
+      },
+      "specifications": {
+        "sizes": [],
+        "formats": [],
+        "packaging": null
+      }
+    }
+  },
+  {
+    "id": "3b1abf4d-5b43-4b1e-9345-de80c459e1ed",
+    "product_name": "vacuum‑packed, ready‑to‑eat vegetables",
+    "intent_json": {
+      "product": {
+        "name": "vacuum‑packed",
+        "raw_description": "Source vacuum‑packed, ready‑to‑eat vegetables under supplier label, with Chief Rabbinate Kosher (non‑Passover) certification. Initial focus is Beetroot 500 g; include option for Sweet Corn on the Cob 500 g (benchmarks attached) for combined buy."
+      },
+      "version": "1.0",
+      "category": {
+        "raw_text": "ירקות טריים (Fresh Produce)",
+        "category_id": "239f92a7-2e23-4091-8dde-b1dfc61e7de3",
+        "category_name": "Fresh Produce (RTE)"
+      },
+      "commercial": {
+        "budget": null,
+        "volume": null,
+        "urgency": null,
+        "private_label": false,
+        "target_market": null
+      },
+      "compliance": {
+        "halal": false,
+        "organic": false,
+        "kosher_types": [
+          "Chief rabbinate"
+        ],
+        "certifications": [],
+        "kosher_required": true
+      },
+      "generated_at": "2026-05-24T17:10:06.961Z",
+      "match_config": {
+        "must_have": [
+          "kosher"
+        ],
+        "dealbreakers": [],
+        "nice_to_have": []
+      },
+      "specifications": {
+        "sizes": [],
+        "formats": [],
+        "packaging": null
+      }
+    }
+  },
+  {
+    "id": "91f169af-5578-4ad0-9232-7bdf4cad9a33",
+    "product_name": "Lemon Juice for salads, Ta'aman",
+    "intent_json": {
+      "product": {
+        "name": "Lemon Juice for salads",
+        "raw_description": ""
+      },
+      "version": "1.0",
+      "category": {
+        "raw_text": "Beverages",
+        "category_id": "0df2b578-f933-46c8-8e0d-be2b1e0b9b4a",
+        "category_name": "Beverages"
+      },
+      "commercial": {
+        "budget": null,
+        "volume": null,
+        "urgency": null,
+        "private_label": false,
+        "target_market": null
+      },
+      "compliance": {
+        "halal": false,
+        "organic": false,
+        "kosher_types": [
+          "Badatz Kosher - Beit Yosef"
+        ],
+        "certifications": [],
+        "kosher_required": true
+      },
+      "generated_at": "2026-05-24T17:10:16.160Z",
+      "match_config": {
+        "must_have": [
+          "kosher"
+        ],
+        "dealbreakers": [],
+        "nice_to_have": []
+      },
+      "specifications": {
+        "sizes": [],
+        "formats": [],
+        "packaging": null
+      }
+    }
+  },
+  {
+    "id": "ec14a11b-a776-4788-a7b0-e2cd2b9f0d32",
+    "product_name": "Chooclate and Candy of Carletti, Foodz",
+    "intent_json": {
+      "product": {
+        "name": "Chooclate and Candy of Carletti",
+        "raw_description": "גרנולות - אורגניות ; כמה שיותר בריאות - ללא סוכר, גלוטן, מועשר פרוטאין וכו'"
+      },
+      "version": "1.0",
+      "category": {
+        "raw_text": "Organic & Natural",
+        "category_id": "a230a819-2dc7-4ee4-a49a-32843af0e1e7",
+        "category_name": "Breakfast Cereals"
+      },
+      "commercial": {
+        "budget": null,
+        "volume": null,
+        "urgency": null,
+        "private_label": false,
+        "target_market": null
+      },
+      "compliance": {
+        "halal": false,
+        "organic": false,
+        "kosher_types": [
+          "Chief rabbinate"
+        ],
+        "certifications": [],
+        "kosher_required": true
+      },
+      "generated_at": "2026-05-24T17:10:28.911Z",
+      "match_config": {
+        "must_have": [
+          "kosher"
+        ],
+        "dealbreakers": [],
+        "nice_to_have": []
+      },
+      "specifications": {
+        "sizes": [],
+        "formats": [],
+        "packaging": null
+      }
+    }
+  }
+]
