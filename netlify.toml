@@ -15,3 +15,9 @@
   to = "https://fdx.trading/Business-card/udi"
   status = 301
   force = true
+
+[[redirects]]
+  from = "/c/*"
+  to = "/Business-card/:splat"
+  status = 301
+  force = true
