@@ -37,10 +37,6 @@ interface CardViewProps {
   preview?: boolean;
 }
 
-interface CardViewPropsExtended extends CardViewProps {
-  qrUrl?: string;
-}
-
 function trackEvent(name: string, props: Record<string, string>) {
   if (process.env.NODE_ENV === "development") {
     console.log("[Track]", name, props);
@@ -52,7 +48,7 @@ function trackEvent(name: string, props: Record<string, string>) {
   }
 }
 
-export function CardView({ card, cardUrl, qrUrl, preview = false }: CardViewPropsExtended) {
+export function CardView({ card, cardUrl, preview = false }: CardViewProps) {
   const [linkCopied, setLinkCopied] = useState(false);
   const [canShare, setCanShare] = useState(false);
   const [activePhoto, setActivePhoto] = useState(0);
@@ -87,7 +83,7 @@ export function CardView({ card, cardUrl, qrUrl, preview = false }: CardViewProp
 
   function track(event: string, extra: Record<string, string> = {}) {
     if (preview) return;
-    trackEvent(event, { handle: card.handle, page_path: `/Business-card/${card.handle}`, ...extra });
+    trackEvent(event, { handle: card.handle, page_path: `/c/${card.handle}`, ...extra });
   }
 
   function handleCopyLink() {
@@ -97,21 +93,9 @@ export function CardView({ card, cardUrl, qrUrl, preview = false }: CardViewProp
     setTimeout(() => setLinkCopied(false), 2000);
   }
 
-  async function handleShare() {
-    if (typeof navigator.share === "function") {
-      try {
-        await navigator.share({ title: card.name, url: window.location.href });
-        track("share_card");
-        return;
-      } catch (e) {
-        // fall through to copy fallback
-      }
-    }
-    // Fallback: copy link
-    navigator.clipboard.writeText(window.location.href).catch(() => {});
-    setLinkCopied(true);
-    track("share_card_fallback");
-    setTimeout(() => setLinkCopied(false), 2000);
+  function handleShare() {
+    navigator.share({ title: card.name, url: window.location.href }).catch(() => {});
+    track("share_card");
   }
 
   const photos = card.photos;
@@ -351,7 +335,7 @@ export function CardView({ card, cardUrl, qrUrl, preview = false }: CardViewProp
 
       {/* ── QR Code ── */}
       <div className="flex flex-col items-center gap-3">
-        <QrCode url={qrUrl ?? cardUrl} size={164} onRendered={() => track("contact_card_qr_rendered")} />
+        <QrCode url={cardUrl} size={164} onRendered={() => track("contact_card_qr_rendered")} />
         <p className="text-xs text-slate-600">Scan to open this card</p>
         <div className="flex items-center gap-4">
           <button

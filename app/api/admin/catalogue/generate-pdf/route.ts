@@ -337,10 +337,10 @@ ${productPages}
     <div class="qr-tagline">Strategic Sourcing · Israeli Market Entry</div>
     <img
       class="qr-image"
-      src="https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=https://fdx.trading/"
+      src="https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=https://fdx.trading/c/udi"
       alt="Contact QR code"
     />
-    <div class="qr-url">https://fdx.trading/</div>
+    <div class="qr-url">fdx.trading/c/udi</div>
     <div class="qr-instruction">Scan to save contact details</div>
     <div class="qr-contact">
       Udi Stryk · FoodXchange<br>
