@@ -96,9 +96,7 @@ export default async function OGImage({
             >
               {name}
             </span>
-            <span style={{ color: "#f97316", fontSize: 26, fontWeight: 600 }}>
-              {title}
-            </span>
+            <span style={{ color: "#f97316", fontSize: 26, fontWeight: 600 }}>{title}</span>
             <span style={{ color: "#94a3b8", fontSize: 22 }}>{company}</span>
           </div>
         </div>
@@ -112,9 +110,7 @@ export default async function OGImage({
               paddingTop: 32,
             }}
           >
-            <span style={{ color: "#64748b", fontSize: 20, lineHeight: 1.5 }}>
-              {tagline}
-            </span>
+            <span style={{ color: "#64748b", fontSize: 20, lineHeight: 1.5 }}>{tagline}</span>
           </div>
         )}
       </div>

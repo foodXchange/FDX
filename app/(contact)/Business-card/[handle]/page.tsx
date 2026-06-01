@@ -98,8 +98,8 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   if (!card) return { title: "Contact Not Found" };
 
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://foodz-x.com";
-  const cardUrl = `${siteUrl}/c/${handle}`;
-  const ogImageUrl = `${siteUrl}/c/${handle}/opengraph-image`;
+  const cardUrl = `${siteUrl}/Business-card/${handle}`;
+  const ogImageUrl = `${siteUrl}/Business-card/${handle}/opengraph-image`;
 
   return {
     title: `${card.name} | ${card.company}`,
@@ -127,7 +127,9 @@ export default async function ContactCardPage({ params }: PageProps) {
   if (!card) notFound();
 
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://foodz-x.com";
-  const cardUrl = `${siteUrl}/c/${handle}`;
+  const cardUrl = `${siteUrl}/Business-card/${handle}`;
+  // For Udi specifically, QR should go to site root per request
+  const qrUrl = handle === "udi" ? (process.env.NEXT_PUBLIC_SITE_URL ?? "https://fdx.trading/") : cardUrl;
   const plausibleDomain = process.env.NEXT_PUBLIC_PLAUSIBLE_DOMAIN;
 
   return (
@@ -139,7 +141,7 @@ export default async function ContactCardPage({ params }: PageProps) {
           src="https://plausible.io/js/script.tagged-events.js"
         />
       )}
-      <CardView card={card} cardUrl={cardUrl} />
+      <CardView card={card} cardUrl={cardUrl} qrUrl={qrUrl} />
     </main>
   );
 }
