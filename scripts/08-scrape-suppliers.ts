@@ -140,8 +140,24 @@ async function insertProducts(
 
   const { error } = await supabase.from("supplier_products").insert(rows);
   if (error) {
+  await recomputeSupplierQualification(supplierId);
     console.error("  Insert error:", error);
     return 0;
+
+async function recomputeSupplierQualification(supplierId: string) {
+  const { count, error } = await supabase
+    .from("supplier_products")
+    .select("id", { count: "exact", head: true })
+    .eq("supplier_id", supplierId);
+  if (error) return;
+  const product_count = count ?? 0;
+  const qualification_status =
+    product_count >= 3 ? "strong" : product_count >= 1 ? "thin" : "empty";
+  await supabase
+    .from("supplier_offerings")
+    .update({ product_count, qualification_status })
+    .eq("id", supplierId);
+}
   }
   return rows.length;
 }

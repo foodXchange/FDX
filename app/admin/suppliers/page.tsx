@@ -158,28 +158,8 @@ export default async function AdminSuppliersPage({
   const page = Number.isFinite(requestedPage) && requestedPage > 0 ? requestedPage : 1;
   const pageSize = [25, 50, 100].includes(requestedPerPage) ? requestedPerPage : 50;
   const safeSearchValue = q.replace(/[%_]/g, (match) => `\\${match}`);
-
-  function applySupplierFiltersToProductQuery(query: any, searchValue: string) {
-    if (searchValue) {
-      query = query.or(
-        `supplier_offerings.company_name.ilike.%${searchValue}%,supplier_offerings.website.ilike.%${searchValue}%`
-      );
-    }
-    if (country) query = query.eq("supplier_offerings.country_of_origin", country);
-    if (category) query = query.contains("supplier_offerings.categories", [category]);
-    if (status === "approved") {
-      query = query.in("supplier_offerings.status", ["approved", "active"]);
-    } else if (status === "pending") {
-      query = query.eq("supplier_offerings.status", "pending");
-    }
-    if (priorityFilter !== undefined) {
-      query = query.eq("supplier_offerings.priority", priorityFilter);
-    }
-    return query;
-  }
-
   const [countriesResult, prioritiesResult, totalsResult, approvedResult, pendingResult,
-    allProductsResult, filteredProductsResult] =
+    reviewResult, strongResult, emptyResult] =
     await Promise.all([
       supabaseAdmin
         .from("supplier_offerings")
@@ -205,13 +185,17 @@ export default async function AdminSuppliersPage({
         .select("id", { count: "exact", head: true })
         .eq("status", "pending"),
       supabaseAdmin
-        .from("supplier_products")
-        .select("supplier_id")
-        .limit(1000000),
-      applySupplierFiltersToProductQuery(
-        supabaseAdmin.from("supplier_products").select("supplier_id").limit(1000000),
-        safeSearchValue
-      ),
+        .from("supplier_offerings")
+        .select("id", { count: "exact", head: true })
+        .eq("qualification_status", "thin"),
+      supabaseAdmin
+        .from("supplier_offerings")
+        .select("id", { count: "exact", head: true })
+        .eq("qualification_status", "strong"),
+      supabaseAdmin
+        .from("supplier_offerings")
+        .select("id", { count: "exact", head: true })
+        .eq("qualification_status", "empty"),
     ]);
 
   const countries = [...new Set(
@@ -229,50 +213,16 @@ export default async function AdminSuppliersPage({
   const totalSupplierCount = totalsResult.count ?? 0;
   const approvedSupplierCount = approvedResult.count ?? 0;
   const pendingSupplierCount = pendingResult.count ?? 0;
-
-  const allProductRows = allProductsResult.data ?? [];
-  const supplierProductCounts = new Map<string, number>();
-  for (const row of allProductRows as { supplier_id: string | null }[]) {
-    if (!row.supplier_id) continue;
-    supplierProductCounts.set(
-      row.supplier_id,
-      (supplierProductCounts.get(row.supplier_id) ?? 0) + 1
-    );
-  }
-
-  const reviewSupplierCount = [...supplierProductCounts.values()].filter(
-    (count) => count >= 1 && count <= 2
-  ).length;
-  const strongSupplierCount = [...supplierProductCounts.values()].filter(
-    (count) => count >= 3
-  ).length;
-  const emptySupplierCount = totalSupplierCount - supplierProductCounts.size;
-
-  const filteredProductRows = filteredProductsResult.data ?? [];
-  const filteredSupplierProductCounts = new Map<string, number>();
-  const filteredSupplierIdsWithProducts = new Set<string>();
-  for (const row of filteredProductRows as { supplier_id: string | null }[]) {
-    if (!row.supplier_id) continue;
-    filteredSupplierIdsWithProducts.add(row.supplier_id);
-    filteredSupplierProductCounts.set(
-      row.supplier_id,
-      (filteredSupplierProductCounts.get(row.supplier_id) ?? 0) + 1
-    );
-  }
-
-  const filteredReviewSupplierIds = [...filteredSupplierProductCounts.entries()]
-    .filter(([, count]) => count >= 1 && count <= 2)
-    .map(([supplierId]) => supplierId);
-  const filteredStrongSupplierIds = [...filteredSupplierProductCounts.entries()]
-    .filter(([, count]) => count >= 3)
-    .map(([supplierId]) => supplierId);
-  const filteredSupplierIdsWithProductsArray = Array.from(filteredSupplierIdsWithProducts);
+  const reviewSupplierCount = reviewResult.count ?? 0;
+  const strongSupplierCount = strongResult.count ?? 0;
+  const emptySupplierCount = emptyResult.count ?? 0;
 
   let query: any = supabaseAdmin
     .from("supplier_offerings")
     .select(
       `id, company_name, country_of_origin, categories, certifications,
        status, priority, verified, product_type, private_label,
+       product_count, qualification_status,
        markets_served, price_positioning,
        supplier_contacts(id), supplier_documents(id)`,
       { count: "exact" }
@@ -295,23 +245,12 @@ export default async function AdminSuppliersPage({
   if (priorityFilter !== undefined) {
     query = query.eq("priority", priorityFilter);
   }
-
   if (qualification === "review") {
-    if (filteredReviewSupplierIds.length === 0) {
-      query = query.eq("id", "");
-    } else {
-      query = query.in("id", filteredReviewSupplierIds);
-    }
+    query = query.eq("qualification_status", "thin");
   } else if (qualification === "strong") {
-    if (filteredStrongSupplierIds.length === 0) {
-      query = query.eq("id", "");
-    } else {
-      query = query.in("id", filteredStrongSupplierIds);
-    }
+    query = query.eq("qualification_status", "strong");
   } else if (qualification === "empty") {
-    if (filteredSupplierIdsWithProductsArray.length > 0) {
-      query = query.not("id", "in", filteredSupplierIdsWithProductsArray);
-    }
+    query = query.eq("qualification_status", "empty");
   }
 
   const from = (page - 1) * pageSize;

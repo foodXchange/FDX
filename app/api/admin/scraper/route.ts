@@ -60,6 +60,21 @@ const PostSchema = z.object({
   action: z.enum(["scrape", "skip"]).default("scrape"),
 });
 
+async function recomputeSupplierQualification(supplierId: string) {
+  const { count, error } = await supabaseAdmin
+    .from("supplier_products")
+    .select("id", { count: "exact", head: true })
+    .eq("supplier_id", supplierId);
+  if (error) return;
+  const product_count = count ?? 0;
+  const qualification_status =
+    product_count >= 3 ? "strong" : product_count >= 1 ? "thin" : "empty";
+  await supabaseAdmin
+    .from("supplier_offerings")
+    .update({ product_count, qualification_status })
+    .eq("id", supplierId);
+}
+
 async function insertProducts(
   supplierId: string,
   products: ExtractedProduct[],
@@ -99,6 +114,7 @@ async function insertProducts(
 
   const { error } = await supabaseAdmin.from("supplier_products").insert(rows);
   if (error) return 0;
+  await recomputeSupplierQualification(supplierId);
   return rows.length;
 }
 
