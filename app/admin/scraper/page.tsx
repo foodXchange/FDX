@@ -37,9 +37,11 @@ type BatchSourceRow = {
   scrape_source: string | null;
 };
 
-type ScrapeBatchFilenameRow = {
+type ScrapeBatchRow = {
   batch_key: string;
   original_filename: string | null;
+  created_at: string | null;
+  total_rows: number | null;
 };
 
 type BatchSummary = {
@@ -119,8 +121,7 @@ export default async function ScraperPage() {
       .neq("csv_import_batch", ""),
     supabaseAdmin
       .from("scrape_batches")
-      .select("batch_key, original_filename")
-      .not("original_filename", "is", null)
+      .select("batch_key, original_filename, created_at, total_rows")
       .order("created_at", { ascending: false })
       .limit(50),
   ]);
@@ -130,9 +131,11 @@ export default async function ScraperPage() {
   const uploadHistory = (uploadHistoryResult.data ?? []) as UploadHistoryRow[];
   const batchSourceRows = (batchSourceResult.data ?? []) as BatchSourceRow[];
 
-  // Map batch_key → original_filename for display in batch cards and upload history
+  // scrape_batches is the authoritative source — written by the upload route at insert time.
+  const scrapeBatchRows = (scrapeBatchFilenamesResult.data ?? []) as ScrapeBatchRow[];
+
   const origFilenameMap: Record<string, string> = {};
-  for (const b of (scrapeBatchFilenamesResult.data ?? []) as ScrapeBatchFilenameRow[]) {
+  for (const b of scrapeBatchRows) {
     if (b.original_filename) origFilenameMap[b.batch_key] = b.original_filename;
   }
 
@@ -245,18 +248,6 @@ export default async function ScraperPage() {
     })
     .slice(0, 50);
 
-  // Backfill scraper_csv_uploads if table is empty but batches exist
-  if (uploadHistory.length === 0 && batchSummaries.length > 0) {
-    const toInsert = batchSummaries.map((b) => ({
-      batch_id: b.batchId,
-      filename: b.batchId,
-      rows_total: b.total,
-      rows_pending: b.pending,
-      uploaded_at: b.firstSeen ?? null,
-    }));
-    await supabaseAdmin.from("scraper_csv_uploads").insert(toInsert);
-  }
-
   // Per-batch product counts (top 6 only to keep queries bounded)
   const batchProductCounts = await Promise.all(
     batchSummaries.slice(0, 6).map(async (batch) => {
@@ -289,53 +280,53 @@ export default async function ScraperPage() {
     };
   });
 
-  // Build options for ScraperConsole dropdown.
-  // Primary source: scraper_csv_uploads (row counts, timestamps).
-  // Supplement with enriched batches that have no upload log entry — covers
-  // cases where the scraper_csv_uploads insert failed silently on a large upload.
-  const batchOptionsFromHistory = uploadHistory
-    .filter((u) => u.batch_id)
-    .map((u) => ({
-      batchId: u.batch_id as string,
-      filename: (u.batch_id && origFilenameMap[u.batch_id]) ?? u.filename,
-      rowsTotal: u.rows_total,
-      uploadedAt: u.uploaded_at,
-    }));
-
-  const batchIdsInHistory = new Set(batchOptionsFromHistory.map((b) => b.batchId));
+  // Build dropdown options from scrape_batches (authoritative — written at upload time).
+  // Supplement with enriched batches whose batch_key predates scrape_batches tracking.
+  const batchKeysInScrape = new Set(scrapeBatchRows.map((b) => b.batch_key));
 
   const effectiveBatchOptions = [
-    ...batchOptionsFromHistory,
+    ...scrapeBatchRows.map((b) => ({
+      batchId: b.batch_key,
+      filename: b.original_filename ?? b.batch_key,
+      rowsTotal: b.total_rows ?? 0,
+      uploadedAt: b.created_at,
+    })),
     ...enrichedBatches
-      .filter((b) => !batchIdsInHistory.has(b.batchId))
+      .filter((b) => !batchKeysInScrape.has(b.batchId))
       .map((b) => ({
         batchId: b.batchId,
         filename: b.filename ?? b.batchId,
         rowsTotal: b.total,
         uploadedAt: b.firstSeen,
       })),
+  ];
+
+  // Upload history: scraper_csv_uploads records (with filename override from scrape_batches),
+  // supplemented by scrape_batches rows that never made it into scraper_csv_uploads.
+  const uploadBatchIds = new Set(
+    uploadHistory.map((u) => u.batch_id).filter(Boolean) as string[]
+  );
+
+  const displayHistory: UploadHistoryRow[] = [
+    ...uploadHistory.map((u) => ({
+      ...u,
+      filename: (u.batch_id && origFilenameMap[u.batch_id]) ?? u.filename,
+    })),
+    ...scrapeBatchRows
+      .filter((b) => !uploadBatchIds.has(b.batch_key))
+      .map((b) => ({
+        id: b.batch_key,
+        batch_id: b.batch_key,
+        filename: b.original_filename ?? b.batch_key,
+        rows_total: b.total_rows ?? 0,
+        rows_pending: batchMap[b.batch_key]?.pending ?? 0,
+        uploaded_at: b.created_at,
+      })),
   ].sort((a, b) => {
-    const aTime = a.uploadedAt ? new Date(a.uploadedAt).getTime() : 0;
-    const bTime = b.uploadedAt ? new Date(b.uploadedAt).getTime() : 0;
+    const aTime = a.uploaded_at ? new Date(a.uploaded_at).getTime() : 0;
+    const bTime = b.uploaded_at ? new Date(b.uploaded_at).getTime() : 0;
     return bTime - aTime;
   });
-
-  // Upload history display: fall back to enriched batches if scraper_csv_uploads is empty.
-  // Prefer original_filename from scrape_batches over whatever was stored in scraper_csv_uploads.
-  const displayHistory: UploadHistoryRow[] =
-    uploadHistory.length > 0
-      ? uploadHistory.map((u) => ({
-          ...u,
-          filename: (u.batch_id && origFilenameMap[u.batch_id]) ?? u.filename,
-        }))
-      : enrichedBatches.map((b) => ({
-          id: b.batchId,
-          batch_id: b.batchId,
-          filename: b.filename ?? b.batchId,
-          rows_total: b.total,
-          rows_pending: b.pending,
-          uploaded_at: b.firstSeen,
-        }));
 
   return (
     <main className="min-h-screen bg-gray-50">
