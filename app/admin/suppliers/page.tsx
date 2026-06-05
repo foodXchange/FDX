@@ -44,12 +44,16 @@ const CATEGORY_OPTIONS = [
   { value: "Sugars & Sweeteners", label: "Sugars & Sweeteners" },
 ];
 
+const SUPPLIER_QUALIFICATION_TABS = ["review", "strong", "empty", "all"] as const;
+type QualificationTab = (typeof SUPPLIER_QUALIFICATION_TABS)[number];
+
 type SearchParams = {
   q?: string;
   country?: string;
   category?: string;
   status?: string;
   priority?: string;
+  qualification?: string;
   page?: string;
   per_page?: string;
 };
@@ -69,6 +73,7 @@ type SupplierRow = {
   price_positioning: string | null;
   supplier_contacts: { id: string }[];
   supplier_documents: { id: string }[];
+  qualification_status: string | null;
 };
 
 function StatusBadge({ status }: { status: string | null }) {
@@ -103,6 +108,33 @@ function ProductTypeBadge({ type }: { type: string | null }) {
   );
 }
 
+function QualificationBadge({ qualification }: { qualification: string | null }) {
+  const status = qualification ?? "empty";
+  const label =
+    status === "strong"
+      ? "Strong"
+      : status === "thin"
+      ? "Review"
+      : status === "empty"
+      ? "Empty"
+      : status === "rejected"
+      ? "Rejected"
+      : status;
+  const cls =
+    status === "strong"
+      ? "bg-green-100 text-green-700"
+      : status === "thin"
+      ? "bg-yellow-100 text-yellow-700"
+      : status === "rejected"
+      ? "bg-red-100 text-red-700"
+      : "bg-gray-100 text-gray-500";
+  return (
+    <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${cls}`}>
+      {label}
+    </span>
+  );
+}
+
 export default async function AdminSuppliersPage({
   searchParams,
 }: {
@@ -115,12 +147,39 @@ export default async function AdminSuppliersPage({
   const status = params.status === "pending" ? "pending" : params.status === "approved" ? "approved" : "";
   const priorityValue = params.priority?.trim() ?? "";
   const priorityFilter = priorityValue !== "" && Number.isInteger(Number(priorityValue)) ? Number(priorityValue) : undefined;
+  const qualificationParam = params.qualification?.trim() ?? "";
+  const qualification: QualificationTab = SUPPLIER_QUALIFICATION_TABS.includes(
+    qualificationParam as QualificationTab
+  )
+    ? (qualificationParam as QualificationTab)
+    : "review";
   const requestedPage = parseInt(params.page ?? "1", 10);
   const requestedPerPage = parseInt(params.per_page ?? "50", 10);
   const page = Number.isFinite(requestedPage) && requestedPage > 0 ? requestedPage : 1;
   const pageSize = [25, 50, 100].includes(requestedPerPage) ? requestedPerPage : 50;
+  const safeSearchValue = q.replace(/[%_]/g, (match) => `\\${match}`);
 
-  const [countriesResult, prioritiesResult, totalsResult, approvedResult, pendingResult] =
+  function applySupplierFiltersToProductQuery(query: any, searchValue: string) {
+    if (searchValue) {
+      query = query.or(
+        `supplier_offerings.company_name.ilike.%${searchValue}%,supplier_offerings.website.ilike.%${searchValue}%`
+      );
+    }
+    if (country) query = query.eq("supplier_offerings.country_of_origin", country);
+    if (category) query = query.contains("supplier_offerings.categories", [category]);
+    if (status === "approved") {
+      query = query.in("supplier_offerings.status", ["approved", "active"]);
+    } else if (status === "pending") {
+      query = query.eq("supplier_offerings.status", "pending");
+    }
+    if (priorityFilter !== undefined) {
+      query = query.eq("supplier_offerings.priority", priorityFilter);
+    }
+    return query;
+  }
+
+  const [countriesResult, prioritiesResult, totalsResult, approvedResult, pendingResult,
+    allProductsResult, filteredProductsResult] =
     await Promise.all([
       supabaseAdmin
         .from("supplier_offerings")
@@ -145,6 +204,14 @@ export default async function AdminSuppliersPage({
         .from("supplier_offerings")
         .select("id", { count: "exact", head: true })
         .eq("status", "pending"),
+      supabaseAdmin
+        .from("supplier_products")
+        .select("supplier_id")
+        .limit(1000000),
+      applySupplierFiltersToProductQuery(
+        supabaseAdmin.from("supplier_products").select("supplier_id").limit(1000000),
+        safeSearchValue
+      ),
     ]);
 
   const countries = [...new Set(
@@ -163,7 +230,43 @@ export default async function AdminSuppliersPage({
   const approvedSupplierCount = approvedResult.count ?? 0;
   const pendingSupplierCount = pendingResult.count ?? 0;
 
-  const safeSearchValue = q.replace(/[%_]/g, (match) => `\\${match}`);
+  const allProductRows = allProductsResult.data ?? [];
+  const supplierProductCounts = new Map<string, number>();
+  for (const row of allProductRows as { supplier_id: string | null }[]) {
+    if (!row.supplier_id) continue;
+    supplierProductCounts.set(
+      row.supplier_id,
+      (supplierProductCounts.get(row.supplier_id) ?? 0) + 1
+    );
+  }
+
+  const reviewSupplierCount = [...supplierProductCounts.values()].filter(
+    (count) => count >= 1 && count <= 2
+  ).length;
+  const strongSupplierCount = [...supplierProductCounts.values()].filter(
+    (count) => count >= 3
+  ).length;
+  const emptySupplierCount = totalSupplierCount - supplierProductCounts.size;
+
+  const filteredProductRows = filteredProductsResult.data ?? [];
+  const filteredSupplierProductCounts = new Map<string, number>();
+  const filteredSupplierIdsWithProducts = new Set<string>();
+  for (const row of filteredProductRows as { supplier_id: string | null }[]) {
+    if (!row.supplier_id) continue;
+    filteredSupplierIdsWithProducts.add(row.supplier_id);
+    filteredSupplierProductCounts.set(
+      row.supplier_id,
+      (filteredSupplierProductCounts.get(row.supplier_id) ?? 0) + 1
+    );
+  }
+
+  const filteredReviewSupplierIds = [...filteredSupplierProductCounts.entries()]
+    .filter(([, count]) => count >= 1 && count <= 2)
+    .map(([supplierId]) => supplierId);
+  const filteredStrongSupplierIds = [...filteredSupplierProductCounts.entries()]
+    .filter(([, count]) => count >= 3)
+    .map(([supplierId]) => supplierId);
+  const filteredSupplierIdsWithProductsArray = Array.from(filteredSupplierIdsWithProducts);
 
   let query: any = supabaseAdmin
     .from("supplier_offerings")
@@ -193,6 +296,24 @@ export default async function AdminSuppliersPage({
     query = query.eq("priority", priorityFilter);
   }
 
+  if (qualification === "review") {
+    if (filteredReviewSupplierIds.length === 0) {
+      query = query.eq("id", "");
+    } else {
+      query = query.in("id", filteredReviewSupplierIds);
+    }
+  } else if (qualification === "strong") {
+    if (filteredStrongSupplierIds.length === 0) {
+      query = query.eq("id", "");
+    } else {
+      query = query.in("id", filteredStrongSupplierIds);
+    }
+  } else if (qualification === "empty") {
+    if (filteredSupplierIdsWithProductsArray.length > 0) {
+      query = query.not("id", "in", filteredSupplierIdsWithProductsArray);
+    }
+  }
+
   const from = (page - 1) * pageSize;
   const to = from + pageSize - 1;
   query = query.range(from, to);
@@ -215,14 +336,19 @@ export default async function AdminSuppliersPage({
     if (category) sp.set("category", category);
     if (status) sp.set("status", status);
     if (priorityValue !== "") sp.set("priority", priorityValue);
+    if (qualification && qualification !== "review") sp.set("qualification", qualification);
     if (pageSize !== 50) sp.set("per_page", String(pageSize));
     if (page > 1) sp.set("page", String(page));
 
     for (const [key, value] of Object.entries(overrides)) {
-      if (!value) sp.delete(key);
-      else sp.set(key, value);
+      if (value === undefined || value === "") {
+        sp.delete(key);
+      } else {
+        sp.set(key, value);
+      }
     }
 
+    if (sp.get("qualification") === "review") sp.delete("qualification");
     if (sp.get("per_page") === "50") sp.delete("per_page");
     if (sp.get("page") === "0") sp.delete("page");
 
@@ -256,6 +382,39 @@ export default async function AdminSuppliersPage({
       </div>
 
       <div className="p-6 max-w-7xl mx-auto">
+        <div className="flex gap-1 mb-6 border-b border-gray-200">
+          {SUPPLIER_QUALIFICATION_TABS.map((tab) => {
+            const count =
+              tab === "all"
+                ? totalSupplierCount
+                : tab === "review"
+                ? reviewSupplierCount
+                : tab === "strong"
+                ? strongSupplierCount
+                : emptySupplierCount;
+            return (
+              <Link
+                key={tab}
+                href={buildUrl({ qualification: tab, page: "0" })}
+                className={`px-4 py-2 text-xs font-medium rounded-t-lg transition-colors ${
+                  qualification === tab
+                    ? "bg-white border border-b-white border-gray-200 text-gray-900 -mb-px"
+                    : "text-gray-500 hover:text-gray-700"
+                }`}
+              >
+                {tab === "review"
+                  ? "Review"
+                  : tab === "strong"
+                  ? "Strong"
+                  : tab === "empty"
+                  ? "Empty"
+                  : "All"}
+                <span className="ml-1.5 text-gray-400">{count}</span>
+              </Link>
+            );
+          })}
+        </div>
+
         <SupplierFiltersBar
           q={q}
           country={country}
@@ -287,6 +446,7 @@ export default async function AdminSuppliersPage({
                       "Certs",
                       "Type",
                       "Markets",
+                      "Qual",
                       "Status",
                       "Prio",
                       "Actions",
@@ -365,6 +525,9 @@ export default async function AdminSuppliersPage({
                               </span>
                             ))}
                           </div>
+                        </td>
+                        <td className="px-4 py-3">
+                          <QualificationBadge qualification={s.qualification_status} />
                         </td>
                         <td className="px-4 py-3">
                           <StatusBadge status={s.status} />
