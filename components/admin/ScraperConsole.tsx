@@ -2,6 +2,14 @@
 
 import { useEffect, useRef, useState } from "react";
 
+function formatBatchDate(date: Date | string): string {
+  const d = new Date(date);
+  const day = String(d.getUTCDate()).padStart(2, "0");
+  const month = String(d.getUTCMonth() + 1).padStart(2, "0");
+  const year = d.getUTCFullYear();
+  return `${day}.${month}.${year}`;
+}
+
 interface LogLine {
   type: string;
   message: string;
@@ -321,7 +329,7 @@ export function ScraperConsole({ supplierId, defaultBatchId, batchOptions }: Scr
                       <option key={opt.batchId} value={opt.batchId}>
                         {opt.filename}
                         {opt.uploadedAt
-                          ? ` — ${new Date(opt.uploadedAt).toLocaleDateString()}`
+                          ? ` — ${formatBatchDate(opt.uploadedAt)}`
                           : ""}
                         {` — ${opt.rowsTotal} rows`}
                       </option>
