@@ -1,0 +1,3428 @@
+[
+  {
+    "id": "ca5ee77c-4904-4961-ba5c-791ad52654fc",
+    "company_name": "Torrefazione Caffï¿½ï¿½ Excelsior",
+    "website": "http://www.torrefazionexcelsior.it",
+    "country_of_origin": "Italy"
+  },
+  {
+    "id": "ca1c0aac-c8c7-4a56-88d6-0f8f7c26715b",
+    "company_name": "Zï¿½ï¿½oto Polskie - Family Business",
+    "website": "http://www.zlotopolskie.pl",
+    "country_of_origin": "Poland"
+  },
+  {
+    "id": "98e4f8cd-8d25-43eb-b5e0-da15e726059c",
+    "company_name": "Garï¿½ï¿½u Buï",
+    "website": null,
+    "country_of_origin": "Latvia"
+  },
+  {
+    "id": "375e4403-f1b4-42ff-9ae5-2bd07f33dadf",
+    "company_name": "Nï¿½ï¿½ï¿½ï¿½is B",
+    "website": null,
+    "country_of_origin": "Latvia"
+  },
+  {
+    "id": "ef51f358-4b11-4608-b923-4d0842fb4700",
+    "company_name": "Lapsu Mï¿½ï¿½jas S",
+    "website": null,
+    "country_of_origin": "Latvia"
+  },
+  {
+    "id": "3a7eca34-ed65-46c3-bb57-584b69a519f9",
+    "company_name": "N.Bomja Maiznï¿½ï¿\"Lielezers\", Sia",
+    "website": null,
+    "country_of_origin": "Latvia"
+  },
+  {
+    "id": "a3fc2158-5b0a-4287-af4d-1ff0346e55ad",
+    "company_name": "Rucavas Tradï¿½ï¿½ciju K",
+    "website": null,
+    "country_of_origin": "Latvia"
+  },
+  {
+    "id": "e7eadcdc-92fb-4747-aaf8-03bf8d6ed0bf",
+    "company_name": "Zakï¿½ï¿½ady Przemysï¿½ï¿½u Cukierniczego Otmuch",
+    "website": "https://www.grupaotmuchow.pl",
+    "country_of_origin": "Poland"
+  },
+  {
+    "id": "46aeb2d7-e8f7-481e-96b1-629751387095",
+    "company_name": "Gelato Dï¿½ï¿½ï¿½",
+    "website": "https://www.gelatoditalia.it/en/ice-cream/formats",
+    "country_of_origin": "Italy"
+  },
+  {
+    "id": "c9a6817d-d8bb-4ecb-bf1d-ff183cc6f3ab",
+    "company_name": "Vï¿½ï¿½ver Komb",
+    "website": "https://www.viverkombucha.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "7fcfb236-bf59-450e-aa0a-3a98e56af6b2",
+    "company_name": "Kotï¿½ï¿½nyi",
+    "website": "http://www.kotanyi.com",
+    "country_of_origin": "Austria"
+  },
+  {
+    "id": "8ad64e9f-57c1-4fda-bbb0-3f661f2d619d",
+    "company_name": "Maï¿½ï¿½i Mam",
+    "website": "https://www.mazimamutai.lt",
+    "country_of_origin": "Lithuania"
+  },
+  {
+    "id": "e0b48107-e9ea-413f-9694-e4a6d4bb05cf",
+    "company_name": "Espaï¿½ï¿½a Gourmet Logis",
+    "website": "https://www.espanagourmetlogistica.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "7d199b58-72bc-4e64-9d3f-9a54858f91c3",
+    "company_name": "Castaï¿½ï¿½as Campelo Exporta",
+    "website": "https://www.castanascampelo.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "6a2c026c-5dd2-421e-9f27-74a1d27847bc",
+    "company_name": "Cervezas Gran Vï¿½ï¿½a",
+    "website": "https://www.cervezasgranvia.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "e574b415-560f-4c0e-b290-d87608468cbb",
+    "company_name": "Cr Dop Aceituna Aloreï¿½ï¿½a De Mï¿",
+    "website": "https://www.alorenademalaga.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "2957e411-f6cf-4ea4-b768-232311c559a7",
+    "company_name": "Grup Viï¿½ï",
+    "website": "https://www.grupvinas.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "72379932-9afd-4937-8fe6-c6a61a6a8a7f",
+    "company_name": "Denominaciï¿½ï¿½n De Origen Protegida Los Pedro",
+    "website": "https://www.jamondolospedroches.es",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "408d6167-eaba-4d31-a6ff-337130033f27",
+    "company_name": "Le Monde Des Crï¿½ï¿",
+    "website": "https://www.le5stagioni.it",
+    "country_of_origin": "Italy"
+  },
+  {
+    "id": "a91811fc-0d6d-435a-88cc-0a78ef1a51ff",
+    "company_name": "Rafa Gorrotxategi: Turrï¿½ï¿½n, Chocolate Y Confite",
+    "website": "https://rafagorrotxategi.eus/denda/index.php",
+    "country_of_origin": "Italy"
+  },
+  {
+    "id": "586bf149-a0ed-4291-92fc-7234b7ea0d9a",
+    "company_name": "Productos La Pescaderï¿½",
+    "website": "https://www.productoslapescaderia.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "87317847-8153-4b75-b8a8-e0f5dea222fc",
+    "company_name": "Carbons Ponï¿½ï¿",
+    "website": "https://carbonsponc.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "109acfb8-987a-48be-8452-d2ac8f77baab",
+    "company_name": "Sibbaris Privï¿½ï¿½e",
+    "website": "https://www.sibbaris.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "8d42a640-892d-44b0-a3e2-708bf6be4606",
+    "company_name": "Valdeï¿½ï¿½n Blue Cheese",
+    "website": "http://www.quesospicosdeeuropa.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "a5885deb-9abf-4242-8be7-2083e2fe46e6",
+    "company_name": "Torre De Nï¿½ï¿½",
+    "website": "http://www.torredenunez.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "f048f424-945c-4a6e-92dd-699b6cd4ef3f",
+    "company_name": "Fundaciï¿½ï¿½n Adsis - Equimer",
+    "website": "https://www.equimercado.org",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "5cf45e0a-2809-4993-843d-566053435eca",
+    "company_name": "Segundï¿½ï¿½n, Artesanos Del Ibï¿",
+    "website": "https://www.segundin.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "9995ad14-1a4a-43c1-8b8f-76de3aa72d81",
+    "company_name": "Productos Lï¿½ï¿½cteos Ovejer",
+    "website": "https://quesosovejero.es/productos-lacteos-ovejero",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "d13e15ee-4492-4538-95ce-45b91d964068",
+    "company_name": "Citrus Srl Societï¿½ï¿½ï¿½ï¿½ï",
+    "website": "http://www.citrus.it",
+    "country_of_origin": "Italy"
+  },
+  {
+    "id": "8eb2dcd1-07d6-4e3c-b8eb-07579f6e771f",
+    "company_name": "Gebrï¿½ï¿½der Woerle",
+    "website": "http://www.woerle.at",
+    "country_of_origin": "Austria"
+  },
+  {
+    "id": "42f30aab-73fe-4578-a602-255f536e822e",
+    "company_name": "Zielono Mi Agnieszka Jarosiï¿½ï¿",
+    "website": "https://www.przetworyzborowki.pl",
+    "country_of_origin": "Poland"
+  },
+  {
+    "id": "6a220efd-3f64-4e2f-b1cb-5d272ed3d29e",
+    "company_name": "Buenaventura Borrï¿½",
+    "website": "https://www.buenaventuraborras.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "cc8c0c7d-2a19-43d1-9907-a7219127518a",
+    "company_name": "Casa Santoï¿½",
+    "website": "https://casasantona.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "5c84174a-7d88-4e5b-8795-c28e4ef882ec",
+    "company_name": "Felfï¿½ï¿½ldi Edessï¿½ï¿½ggya",
+    "website": "http://www.felfoldi.hu",
+    "country_of_origin": "Hungary"
+  },
+  {
+    "id": "fcdb11dc-2a50-493f-9f7d-ce0305089351",
+    "company_name": "This Is Vendema ï¿½ï¿½ï¿½",
+    "website": "http://www.thisisvendema.com",
+    "country_of_origin": "Greece"
+  },
+  {
+    "id": "a074299e-618d-4987-bb34-f85b1e0ad567",
+    "company_name": "Bonï¿½ï¿½rea Ag",
+    "website": "https://www.bonarea-agrupa.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "0c0c102e-7635-49d1-a389-f77e7c790a85",
+    "company_name": "Magyar Gomba Kertï¿½ï¿½sz Ltd. - Korona Mushroom U",
+    "website": "https://www.koronagomba.hu/Gombatermeszto.html",
+    "country_of_origin": "Hungary"
+  },
+  {
+    "id": "4cc135a3-18fa-46e1-a28a-ae3aa18b683d",
+    "company_name": "Balanï¿½ï¿½as Marques,",
+    "website": "https://www.balancasmarques.com",
+    "country_of_origin": "Portugal"
+  },
+  {
+    "id": "5ce580cc-807b-4087-9cb3-ab4cca941987",
+    "company_name": "Nordigal - Indï¿½ï¿½stria De Transformaï¿½ï¿½ï¿½ï¿",
+    "website": "https://www.nordigal.pt",
+    "country_of_origin": "Portugal"
+  },
+  {
+    "id": "3f0f9657-0237-4294-a09c-dd4c02e4d643",
+    "company_name": "Fï¿½ï¿½brica De Conservas A Poveira",
+    "website": "http://www.apoveira.pt",
+    "country_of_origin": "Portugal"
+  },
+  {
+    "id": "69ad2af3-2e74-46f0-8fcf-3bf17ca838ca",
+    "company_name": "Agroaguiar - Agroindï¿½ï¿½s",
+    "website": "https://www.agroaguiar.pt",
+    "country_of_origin": "Portugal"
+  },
+  {
+    "id": "40ed2f03-3a9a-4ec1-9c20-c8d4d58edccc",
+    "company_name": "Agroresursu Un Ekonomikas Institï¿½ï",
+    "website": "https://www.arei.lv/lv/izstades-0",
+    "country_of_origin": "Latvia"
+  },
+  {
+    "id": "6ae3bc29-84ab-4f6d-984e-2863d9db5220",
+    "company_name": "Athanasios D. Koukoutaris S.A. ï¿½ï¿½ï¿½Alfaï¿½ï¿½ï¿½/ ï¿½ï¿½ï¿",
+    "website": "http://www.alfapastry.com",
+    "country_of_origin": "Greece"
+  },
+  {
+    "id": "c56feed5-5450-4dea-b6f5-4f20950e0218",
+    "company_name": "Dï¿½ï¿½lifrance Nederlan",
+    "website": "https://www.delifrance.com",
+    "country_of_origin": "Netherlands"
+  },
+  {
+    "id": "1cba539a-bcf5-4486-a13f-ec588426ee0a",
+    "company_name": "Hortofruticola Costa De Almerï¿½ï¿½a,",
+    "website": "https://www.hcostadealmeria.es",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "58490194-e5c5-4037-8fb8-d475520e5672",
+    "company_name": "Regina Foods ï¿½ï¿½ourantidis Niko",
+    "website": "https://regina-foods.gr/en",
+    "country_of_origin": "Greece"
+  },
+  {
+    "id": "47d71e0e-8965-4027-8f42-903f16614423",
+    "company_name": "Fabryka Cukierkï¿½ï¿½w Pszczoï¿½ï¿½ka Sp",
+    "website": "http://www.pszczolka.pl",
+    "country_of_origin": "Poland"
+  },
+  {
+    "id": "83e513c0-d755-4201-bcd0-d40155680f29",
+    "company_name": "Michail Arabatzis S.A. Industrial And Commercial Food Companyï¿½",
+    "website": "https://www.elzymi.gr",
+    "country_of_origin": "Greece"
+  },
+  {
+    "id": "da8385af-ea6a-492d-83ac-a116207180f3",
+    "company_name": "Denominaciï¿½ï¿½n De Origen Queso Manc",
+    "website": "http://www.quesomanchego.es",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "a41fb3bd-2369-4f8b-8e0c-36df56cdbb51",
+    "company_name": "J. Mï¿½ï¿½",
+    "website": "https://www.jmendez.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "fb9f54bd-5830-4957-ab98-cea26de5429a",
+    "company_name": "Dersut Caffï¿½ï¿½ S.",
+    "website": "http://www.dersut.it",
+    "country_of_origin": "Italy"
+  },
+  {
+    "id": "f6bb4a30-8f72-46d2-be57-4672f3786f3d",
+    "company_name": "Melas ï¿½ï¿½ï¿½ Epidaurus Olive Oil",
+    "website": "http://melasoil.gr",
+    "country_of_origin": "Greece"
+  },
+  {
+    "id": "1109c314-c7d7-47f0-9bcd-69b5f14a893c",
+    "company_name": "Biancaffï¿½ï¿½",
+    "website": "https://www.biancaffe.com",
+    "country_of_origin": "Italy"
+  },
+  {
+    "id": "d6fcf6bb-2f00-43e7-b9ec-7bb5fb301116",
+    "company_name": "Biancaffï¿½ï¿½ S.",
+    "website": "http://www.biancaffe.com",
+    "country_of_origin": "Italy"
+  },
+  {
+    "id": "cdc05658-3f2f-4551-b9f9-091d8515751e",
+    "company_name": "Barberï¿½ï¿½ Sn",
+    "website": "https://www.barberasnacks.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "d27fa997-b718-47ee-9dc7-8ed16565d715",
+    "company_name": "Kmetijstvo In Oljarstvo Kolariï¿½ï¿½ ï¿½ï¿½ï¿½ Miran Kol",
+    "website": "https://www.oljarnakolaric.si",
+    "country_of_origin": "Slovenia"
+  },
+  {
+    "id": "7793ebb5-a9d0-47a2-8ddc-6461eb5df06b",
+    "company_name": "Meiko Clean Solutions Ibï¿½ï¿½",
+    "website": "https://www.meiko.es",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "8d676bb2-6460-4983-a259-1e225dc3e541",
+    "company_name": "Producciones Avï¿½ï¿½colas El Gran",
+    "website": "https://huevoselgranjero.es",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "b7463882-00e0-46f3-8b00-e801270ca6df",
+    "company_name": "Virï¿½",
+    "website": "https://www.virsi.lv/lv/privatpersonam",
+    "country_of_origin": "Latvia"
+  },
+  {
+    "id": "96c9a6e5-6b1d-4fb7-8a6d-9f50fb4c433e",
+    "company_name": "Farï¿½ï¿½choc Schokoladenfabrik Gmbh & C",
+    "website": "http://www.faruechoc.de",
+    "country_of_origin": "Germany"
+  },
+  {
+    "id": "13419aac-da78-458f-a4ae-86bce831beb9",
+    "company_name": "Pastelerï¿½ï¿½a Gimar,",
+    "website": "https://www.pasteleriagimar.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "1b40f555-c6ce-4b13-9daf-0950de83c3e0",
+    "company_name": "Mï¿½ï¿½n Komb",
+    "website": "https://www.munkombucha.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "8e790847-5539-4e26-ab0c-5f9b9f977691",
+    "company_name": "Viss Visapkï¿½ï¿½rt T",
+    "website": "https://vvt.lv",
+    "country_of_origin": "Latvia"
+  },
+  {
+    "id": "3c4e7b1f-c415-442a-8c72-ba0fc0dadd3d",
+    "company_name": "Distribuciones Del Jamï¿½ï¿½n Ce",
+    "website": "https://www.jamoncerezo.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "b8e287a1-118d-4e71-a0e2-8623df97bd5b",
+    "company_name": "El Galgo Pimentï¿½ï¿½n Pap",
+    "website": "https://www.elgalgopaprika.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "001dcc7b-b1a4-4ae0-9ef8-a855bb464c6c",
+    "company_name": "Delpeyrat Ibï¿½ï¿½rica,",
+    "website": "https://www.delpeyratiberica.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "cb78a19f-a9b1-498b-b8ef-f9399a808170",
+    "company_name": "Delicias Coruï¿½",
+    "website": "https://www.deliciascoruna.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "ab92c8f0-6858-49f4-be19-8f1460fd4b63",
+    "company_name": "Dï¿½ï¿½rzkopï¿½ï¿½bas In",
+    "website": "https://www.darzkopibasinstituts.lv",
+    "country_of_origin": "Latvia"
+  },
+  {
+    "id": "4d1cd961-0fba-4d2c-a9f8-853aa9822c4d",
+    "company_name": "Drukï¿½ï¿½ Labï¿½ï¿½k (Sia",
+    "website": "https://drukalabak.lv",
+    "country_of_origin": "Latvia"
+  },
+  {
+    "id": "e43efd0e-bd43-433f-bfb1-52935a820bc6",
+    "company_name": "Bodegas Hnos Pï¿½ï¿½ramo Ar",
+    "website": "https://www.paramoarroyo.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "e19d0239-bedc-41f9-9eef-7173b61b222d",
+    "company_name": "Cor Alimentaciï¿½ï¿½n,",
+    "website": "https://www.coralimentacion.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "749e5e23-f443-43eb-9913-552106176783",
+    "company_name": "Purlom- Grupo Cï¿½ï¿½rnicas Arce- Armor Slice Solut",
+    "website": "https://www.purlom.es",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "bd692248-37ad-451a-9da0-15799c4f4eb3",
+    "company_name": "Quesos San Vicente (Industrias Lï¿½ï¿½cteas San Vicente, S",
+    "website": "http://www.lsanvicente.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "f12a696d-fd58-4898-8ee0-fdbebc71bf3c",
+    "company_name": "Quesos Industrias Lï¿½ï¿½cteas San Vicente,",
+    "website": "https://www.lsanvicente.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "0ff70415-81b3-404d-acf2-c897ecd3ca6f",
+    "company_name": "Komï¿½ï¿½ta 99",
+    "website": "http://www.kometa.hu",
+    "country_of_origin": "Hungary"
+  },
+  {
+    "id": "4033e547-7965-465f-8b2c-8b8b790ec47e",
+    "company_name": "Tï¿½ï¿½ï¿½ï¿½ï¿½Dia Aziend",
+    "website": "http://www.tudiasicilia.it",
+    "country_of_origin": "Italy"
+  },
+  {
+    "id": "c48d817b-3ac5-4803-bded-fcc2181212fa",
+    "company_name": "Fabryka Cukierkï¿½ï\"Pszczï¿½ï¿\" Sp. Z O.O.",
+    "website": "https://www.pszczolka.pl",
+    "country_of_origin": "Poland"
+  },
+  {
+    "id": "b97fa9d9-1bbc-489e-a1ed-a75e0522e549",
+    "company_name": "Conservas La Brï¿½ï¿½",
+    "website": "https://conservaslabrujula.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "a9da336e-2d7a-4587-ab2e-ee4908c00a28",
+    "company_name": "Tarczyï¿½ï¿½ski",
+    "website": "https://www.tarczynski.pl",
+    "country_of_origin": "Poland"
+  },
+  {
+    "id": "7c895c17-9a88-440c-9169-25a334cddcaa",
+    "company_name": "Gresilva - Innovaciï¿½ï¿½n En Parri",
+    "website": "https://www.gresilva.com",
+    "country_of_origin": "Portugal"
+  },
+  {
+    "id": "b05c950c-6178-497b-a797-28a3931d560e",
+    "company_name": "Schalk Mï¿½ï¿",
+    "website": "https://www.schalk-muehle.at",
+    "country_of_origin": "Austria"
+  },
+  {
+    "id": "6ce6c9b3-ac0b-4ed5-b7aa-a347e0d92024",
+    "company_name": "Mï¿½ï¿½nsterlï¿½ï¿½nder Frischgeflï¿",
+    "website": "https://www.muensterlaender-frischgefluegel.de",
+    "country_of_origin": "Germany"
+  },
+  {
+    "id": "d88fc578-d603-432d-889b-b51119324451",
+    "company_name": "Schneider's Gemï¿½ï¿½se",
+    "website": "https://www.gemueseland.at",
+    "country_of_origin": "Austria"
+  },
+  {
+    "id": "49eeba78-fb51-4534-912a-00eef8557d91",
+    "company_name": "Rubin Szegedi Paprikafeldolgozï¿½ï¿½",
+    "website": "http://www.rubinpaprika.hu",
+    "country_of_origin": "Hungary"
+  },
+  {
+    "id": "e4726c71-7cfe-4098-9e30-4197f806a8f8",
+    "company_name": "Jamones Tï¿½ï¿½o Em",
+    "website": "https://www.jamonestioemilio.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "2b78ced3-ee3a-4159-92e2-8c2931c74b7e",
+    "company_name": "Virï¿½ï¿",
+    "website": "https://www.viru.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "cc0c4ac0-c9ad-49b5-b860-dd344ce0975c",
+    "company_name": "Unterweger Frï¿½ï¿½chtekï¿½ï¿½",
+    "website": "http://www.fruechtekueche.at",
+    "country_of_origin": "Austria"
+  },
+  {
+    "id": "1d91fe10-d8fd-4324-a17a-533c48f58ca4",
+    "company_name": "1880, Turrones El Lobo, Doï¿½ï¿½a Ji",
+    "website": "https://www.1880.es",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "99c45587-2e5a-4ee7-a4c4-5f6ff0384f82",
+    "company_name": "Dï¿½ï¿½lifrance Deutschland",
+    "website": "http://www.delifrance.com",
+    "country_of_origin": "Germany"
+  },
+  {
+    "id": "f1930d7c-5b13-46db-b089-1cdebe1242f5",
+    "company_name": "Gottskï¿½ï¿½r Foo",
+    "website": "https://www.gottskarfood.se",
+    "country_of_origin": "Sweden"
+  },
+  {
+    "id": "12a1b586-8f53-4e4f-8f54-0bb77ec726f0",
+    "company_name": "Pago De Peï¿½ï¿½arr",
+    "website": "https://www.pagodepenarrubia.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "e200be0a-8f15-45b8-8589-d999df896dc7",
+    "company_name": "Polabskï¿½ï¿½ Mlï¿½ï¿½kï¿",
+    "website": "http://www.polabske.cz",
+    "country_of_origin": "Czech Republic"
+  },
+  {
+    "id": "a3de6270-4fad-4389-b0fd-4fff20983232",
+    "company_name": "Pivovarna Laï¿½ï¿½ko Union D.",
+    "website": "https://pivovarnalaskounion.com",
+    "country_of_origin": "Slovenia"
+  },
+  {
+    "id": "61152d02-b1b8-425d-9b88-5bdf5248d2be",
+    "company_name": "Caffï¿½ï¿½ Trinca S.",
+    "website": "http://www.caffetrinca.it",
+    "country_of_origin": "Italy"
+  },
+  {
+    "id": "0459a3c8-18ad-4e15-9c2f-86b977b7b01d",
+    "company_name": "Antica Torroneria Piemontese - Golositï¿½ï¿½ Dal 1885",
+    "website": "http://www.torrone.it",
+    "country_of_origin": "Italy"
+  },
+  {
+    "id": "7f681b44-dab5-4846-982a-a05a8a486968",
+    "company_name": "Barbera Caffï¿½ï¿½ S.",
+    "website": "https://www.caffebarbera.it/it",
+    "country_of_origin": "Italy"
+  },
+  {
+    "id": "e7bd3a7e-960d-402b-9fe4-0131dd9e39a4",
+    "company_name": "Tierra De Sabor - Castilla Y Leï¿½",
+    "website": "https://www.tierradesabor.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "818906f2-65b1-483d-a190-1ab864d2c4f6",
+    "company_name": "Landgeflï¿½ï¿½gel Fg Vertriebsgesellschaft",
+    "website": "https://www.landgefluegel.de",
+    "country_of_origin": "Germany"
+  },
+  {
+    "id": "f1387011-4959-401a-81f9-f2dbfa5dca92",
+    "company_name": "Peter Kï¿½ï¿½lln Gmbh & Co Kgaa, Sucursal En Esp",
+    "website": "https://www.kolln.es",
+    "country_of_origin": "Germany"
+  },
+  {
+    "id": "d2419477-556a-4a36-8d30-efed5f60e670",
+    "company_name": "Spï¿½ï¿½ï¿½ï¿½dzielcza Mleczarnia",
+    "website": "http://www.spomlek.pl",
+    "country_of_origin": "Poland"
+  },
+  {
+    "id": "e6f1121f-837b-492d-81e2-25a50441c25b",
+    "company_name": "Frimarc - Indï¿½ï¿½stria E Comï¿½ï¿½r",
+    "website": "https://www.frimarc.pt",
+    "country_of_origin": "Portugal"
+  },
+  {
+    "id": "7b4cf07a-5555-4d88-96a3-dc1153968be1",
+    "company_name": "Zaklady Przemyslu Cukierniczego Otmuchï¿½ï¿½w",
+    "website": "http://www.grupaotmuchow.pl",
+    "country_of_origin": "Poland"
+  },
+  {
+    "id": "c723f8f4-6236-4908-931a-914ba4f77d75",
+    "company_name": "Paï¿½ï¿½o Fr",
+    "website": "https://www.panofruits.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "5d2cdd73-47ee-4d01-ac6b-f7a1f1735750",
+    "company_name": "Oleicola Jaï¿½ï¿½n",
+    "website": "https://www.oleicolajaen.es",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "bb7ddce5-3484-4db4-85a4-ec80f44db289",
+    "company_name": "Oi Tomato Industry Basin Central Southern Italy ï¿½ï¿½ï¿½ Meu Tomatï¿½ï",
+    "website": "https://oipomodorocentrosud.it",
+    "country_of_origin": "Italy"
+  },
+  {
+    "id": "9c4ba153-c320-4bfa-9ff4-f2de450447a8",
+    "company_name": "Olio Arkï¿½ï¿½ï¿½ï¿½ E Natura Di Diliberto S.E.M. & C",
+    "website": "http://www.olioarke.it",
+    "country_of_origin": "Italy"
+  },
+  {
+    "id": "eaf8c55a-8074-495e-80ea-4143baa37fea",
+    "company_name": "Pesbasa Espaï¿½ï¿½",
+    "website": "http://www.pesbasa.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "4e1cf654-53c0-4cdb-8eb2-6f0162bdccc7",
+    "company_name": "Pastai Gragnanesi Societï¿½ï¿½ Coopera",
+    "website": "http://www.pastaigragnanesi.it",
+    "country_of_origin": "Italy"
+  },
+  {
+    "id": "c231c6e7-4a75-48aa-b863-29f46078d8f6",
+    "company_name": "Pescanova Espaï¿½ï¿½a S",
+    "website": "https://www.pescanova.es",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "3183725b-d4ac-4477-8ce1-b01d93b7b938",
+    "company_name": "Patatas Fritas Peï¿½ï¿½ag",
+    "website": "https://www.patatasfritaspenagallo.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "0a9caeef-45bd-4eff-ae00-5e64e1b69c78",
+    "company_name": "Obrador Real De Confiterï¿½",
+    "website": "https://www.obradorreal.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "2ed4be70-ce74-4c51-b7e1-0098de52cce7",
+    "company_name": "Olis Solï¿½ï¿½ - 199 Aï¿½ï¿½os De Ole",
+    "website": "https://www.olissole.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "1ca823de-5a49-4438-aa09-9cbce775dc5e",
+    "company_name": "Vï¿½ï¿",
+    "website": "https://www.vacka.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "8475cada-02bf-4b23-9c64-03c6542e0497",
+    "company_name": "Officetotal Food Brands Espaï¿½ï¿½",
+    "website": "https://www.officetotalfoodbrands.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "947f9ef8-b68a-420c-a59b-2efe391811fe",
+    "company_name": "Quesos Albï¿½ï¿",
+    "website": "https://www.quesoslavasconavarra.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "d20b2c72-7b5d-448f-baae-4fed8ddd172a",
+    "company_name": "Uniï¿½ï¿½",
+    "website": "https://www.unionsnuts.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "ad2e101c-9fed-4bfb-aefe-001732a58ec1",
+    "company_name": "Unigrï¿½ï¿½ S.",
+    "website": "https://www.unigra.it",
+    "country_of_origin": "Italy"
+  },
+  {
+    "id": "c39eef94-6746-4a76-ac45-774d7f8a7e35",
+    "company_name": "Podere 109 Societï¿½ï¿½ Agricola Biolo",
+    "website": "http://www.podere109.it",
+    "country_of_origin": "Italy"
+  },
+  {
+    "id": "b75a4c90-8289-4b4c-ad00-b36a2f6c5452",
+    "company_name": "Cï¿½ï¿½rnicas Mo",
+    "website": "https://grupocmolina.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "a37925a2-e327-41c1-89c9-d2f93e6ca2aa",
+    "company_name": "Cï¿½ï¿½rnicas Sierra De Toranzo,",
+    "website": "https://carnicassierradetoranzo.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "4bf3c45d-96b2-4fdb-9dff-0f1fa9e25526",
+    "company_name": "C.R.D.O.P. Priego De Cï¿½ï¿½r",
+    "website": "https://priegodecordoba.org",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "e75dee4d-35d5-4a04-be4e-670461c44f2a",
+    "company_name": "Caffï¿½ï¿½ Buongiorno",
+    "website": "https://caffebuongiorno.it",
+    "country_of_origin": "Italy"
+  },
+  {
+    "id": "f184de92-b023-44fa-8cfd-76e6196278fb",
+    "company_name": "Caï¿½ï¿½ada Avi",
+    "website": "https://www.canadaaviles.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "0f0fb908-7cf0-4758-a753-a84ab5a9e011",
+    "company_name": "Caffeï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ Patria Di Alberto",
+    "website": "https://www.caffepatria.it",
+    "country_of_origin": "Italy"
+  },
+  {
+    "id": "09c50bbf-14cf-4844-94ae-d930a889e885",
+    "company_name": "Cï¿½ï¿½rnicas Bu",
+    "website": "https://carnicasbuzon.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "6712ff1a-fc1e-40c7-a087-1d98834c3e0b",
+    "company_name": "Vï¿½ï¿½rios Sabores,",
+    "website": "https://www.variossabores.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "c1ded483-fe8d-4069-9581-c88306177232",
+    "company_name": "Jesï¿½ï¿½s Navarro",
+    "website": "http://www.carmencita.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "28ce055f-fe6a-4cb6-896e-7283b39438aa",
+    "company_name": "Verdï¿½ï¿½ Cantï¿½ï¿½ Saffron Sp",
+    "website": "http://www.saffron-spain.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "0cd40e77-b62e-49b1-b640-7982428ea37f",
+    "company_name": "Milï¿½ï¿½",
+    "website": "https://www.milenico.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "f3bfb87e-530b-4b9d-844e-e37ec43ac127",
+    "company_name": "Molino Casillo S.P.A. Societï¿½ï¿½ Ben",
+    "website": "http://www.molinocasillo.com",
+    "country_of_origin": "Italy"
+  },
+  {
+    "id": "b4f4326e-cc68-4266-a048-a91d1608979f",
+    "company_name": "Cï¿½ï¿½",
+    "website": "https://carnia.cat",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "c8a7f2ca-cc32-4f70-abf9-2474ff03acfd",
+    "company_name": "La Brujula - Ramï¿½ï¿½n P",
+    "website": "https://www.conservaslabrujula.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "5510173e-1890-4c73-9cbe-b3249e1ac3c7",
+    "company_name": "Jr Suï¿½ï¿½rez Mone",
+    "website": "https://www.jrsuarezmonedero.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "1fc3ca71-78fc-4683-881d-43219efc3ba4",
+    "company_name": "Nacrï¿½ï¿½ S.",
+    "website": "http://www.cioccolatonacre.it",
+    "country_of_origin": "Italy"
+  },
+  {
+    "id": "1558fb04-0608-45e4-b4f6-47f502531276",
+    "company_name": "Valgrï¿½ï¿½ - Coppola Enterprice",
+    "website": "https://www.valgri.it",
+    "country_of_origin": "Italy"
+  },
+  {
+    "id": "10751a34-ce32-49d2-bad6-d161c6ac32a0",
+    "company_name": "La Barraca Alimentaciï¿½ï¿½n,",
+    "website": "https://www.labarraca1912.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "5931db23-6ba8-4b56-8848-77df5fdc94b9",
+    "company_name": "Naturuel Corporaciï¿½",
+    "website": "https://www.naturuel.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "b4aee995-9057-4c50-9a78-029e4fd253dc",
+    "company_name": "Nazarï¿½ï¿½ Hojaldre",
+    "website": "https://nazarehojaldreria.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "3fc56934-8cc6-41cb-9e18-71622d8ba692",
+    "company_name": "Lï¿½ï¿½lio - Frantoio Papar",
+    "website": "https://www.frantoiopaparella.it",
+    "country_of_origin": "Italy"
+  },
+  {
+    "id": "314a217a-f562-45ef-a923-7ca57133dcaa",
+    "company_name": "Lorusso Y Sï¿½ï¿½ez,",
+    "website": "https://www.lorussofood.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "5c8d4c26-81a0-42ee-b9d5-bfb2f63daa72",
+    "company_name": "Lurreko Aromï¿½ï¿½ticas, Hierbas Artesanas Y Bi",
+    "website": "https://lurreko.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "423e65de-288c-4450-a62e-e9bf92c36956",
+    "company_name": "Vï¿½ï¿½",
+    "website": "https://www.vegola.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "ce26b1fa-4fbd-45cf-b4d9-d3c312a7e32e",
+    "company_name": "Lusini Ibï¿½ï¿½",
+    "website": "https://lusini.es",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "84e23ca4-b3d3-4153-9c82-94c7c01a0fba",
+    "company_name": "M.C. Chorizo De Leï¿½",
+    "website": "https://chorizodeleon.org",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "3bb33bea-d9cb-44a2-ac82-3122f6cea3fd",
+    "company_name": "Lï¿½ï¿½cteas Garcia-Baquero,",
+    "website": "http://www.garciabaquero.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "9d6b0a98-9e50-4438-adcc-6bcd34dae4f9",
+    "company_name": "Latteria Di Soligo Societï¿½ï¿½ Agricola Coopera",
+    "website": "http://www.latteriasoligo.it",
+    "country_of_origin": "Italy"
+  },
+  {
+    "id": "1df7c918-9c3c-40fb-8641-dd0eceb56c5d",
+    "company_name": "La Linea Verde Societï¿½ï¿½ Agricola S.",
+    "website": "http://www.lalineaverde.it",
+    "country_of_origin": "Italy"
+  },
+  {
+    "id": "460e4d92-41d6-4c99-872e-571560a80d8f",
+    "company_name": "Meraner Mï¿½ï¿½hle",
+    "website": "http://www.meranermuehle.it",
+    "country_of_origin": "Italy"
+  },
+  {
+    "id": "e6db64d9-ae3c-4dd0-9f07-fc1b93f69e7a",
+    "company_name": "Jamones Pedro Castaï¿½",
+    "website": "https://www.jamonespedrocastano.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "b2e77272-a2e7-4178-9b0c-c41d95861e8d",
+    "company_name": "Jamones Martï¿½ï¿½nez Pre",
+    "website": "https://www.jamonesmartinez.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "896d4b39-8d98-47ff-8e2c-e00bcbf6e01f",
+    "company_name": "Mapfre Espaï¿½ï¿½a",
+    "website": "http://www.mapfre.es",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "bd51ce4a-13e1-4f84-9916-6a6a3ab70863",
+    "company_name": "Mï¿½ï¿½yla Ph",
+    "website": "https://www.maylapharma.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "2950e975-e805-4c9d-8a03-12fb37b9a533",
+    "company_name": "Manzanilla Olive S.C.A. And 2ï¿½ï¿½ G",
+    "website": "http://www.manzanillaolive.es",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "79e3edd3-5453-46cf-9c0f-ae1b3c0f4711",
+    "company_name": "Seï¿½ï¿½orio De Monta",
+    "website": "https://www.senorio.es",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "4ecfdc0c-b6d5-4027-ac92-6662a4863d95",
+    "company_name": "Argal Alimentaciï¿½",
+    "website": "https://www.argal.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "3ecfaf6a-a2d5-47e1-9050-41543b301057",
+    "company_name": "Porkyï¿½ï¿½vila",
+    "website": "https://www.porkyavila.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "f5f942ca-c47c-4c0a-a59f-8d82c34d7308",
+    "company_name": "Aceites Peï¿½ï¿½a",
+    "website": "https://www.aceitespenaluna.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "f199b46a-09cc-47d7-b4ff-bfb47ac49133",
+    "company_name": "Ahumados Domï¿½ï¿½n",
+    "website": "https://www.ahumadosdominguez.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "cbb6117b-c3fb-48ad-86e7-72116867ac82",
+    "company_name": "Hida Alimentaciï¿½ï¿½n,",
+    "website": "https://www.hida.es",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "01a8d3e2-245a-4e7c-bb9b-724cb5fb3d1b",
+    "company_name": "Jovira \"Ibï¿½ï¿½ricos De Extrema",
+    "website": "https://www.jovira.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "b7d29cdf-1321-440b-9853-24eb7b2750ec",
+    "company_name": "La Montaï¿½ï¿½a Ali",
+    "website": "https://www.lamontanaalinos.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "a6ede08a-c187-4d4b-ab2e-7ca6d2be8545",
+    "company_name": "Cipriano Hernï¿½ï¿½",
+    "website": "https://www.ciprianohernandez.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "35f2a5a3-e89a-4584-8239-3f7b86b3b5cf",
+    "company_name": "Ibï¿½ï¿½ricos La Union",
+    "website": "https://www.launion1890.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "a7484609-e56f-413b-a9b0-69962a4df60a",
+    "company_name": "Ibï¿½ï¿½ricos Guil",
+    "website": "https://www.ibericosguillen.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "e4e7b955-44f2-4f5d-90aa-fc153ab25b1e",
+    "company_name": "Institut Catalï¿½ï¿½ De Fina",
+    "website": "https://www.icf.cat",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "645b1534-fd43-4faa-b255-75202a215780",
+    "company_name": "Vermuts Mirï¿",
+    "website": "https://www.vermutsmirï¿½ï¿½",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "c8bd8c21-d8a0-49ab-af69-befd0259a6aa",
+    "company_name": "I.G.P. Lenteja De La Armuï¿½",
+    "website": "https://www.lentejadelaarmuna.org",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "a5fa8a5f-2a3e-4f39-a93d-13ff6ab341d5",
+    "company_name": "Viï¿½ï¿½als S",
+    "website": "https://www.vinalsoler.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "ac402ab9-6dae-4d76-91d1-7ba8d75d9736",
+    "company_name": "Josï¿½ï¿½ P",
+    "website": "https://www.josepena.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "32c744d4-a72c-4c35-9763-7abe461a9925",
+    "company_name": "Carnicas Iruï¿½ï¿½",
+    "website": "https://carnicasiruna.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "25479c38-4a0c-4748-9e17-ea0db45020c4",
+    "company_name": "Carloteï¿½ï¿½a De As",
+    "website": "https://lacarlotena.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "31aef5fd-2117-4db6-9e0d-82afa8fe59ed",
+    "company_name": "Specialitï¿½ï¿½ Dolciarie Martini",
+    "website": "http://www.dolciariamartini.it/en",
+    "country_of_origin": "Italy"
+  },
+  {
+    "id": "6dffeef2-0044-417c-a8ae-9f07a2f76f33",
+    "company_name": "Segura Jamones De Serï¿½",
+    "website": "https://www.jamonessegura.com/presentacion",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "786599a6-5282-4d9c-9996-fcb3602b0ed6",
+    "company_name": "Twinkle Baker Dï¿½ï¿",
+    "website": "https://www.twinklebakerdecor.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "69af342f-1063-439c-ae42-c6206f2ddd5e",
+    "company_name": "I.G.P. Alubia De La Baï¿½ï¿½eza- L",
+    "website": "https://www.alubiadelabaneza.org",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "8ab9d671-0f3c-4e00-8f93-2c063fca2471",
+    "company_name": "Seï¿½ï¿½orios De Relle",
+    "website": "https://www.senoriosderelleu.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "f6853f8c-cc6a-425f-957b-8c2668c0a2c1",
+    "company_name": "Gremipa ï¿½ï¿½ï¿½ Gremi De Flequers De La Provï¿½ï¿½ncia De",
+    "website": "https://www.gremipa.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "798ec044-3f93-40f1-ba52-dd71d4b7b25d",
+    "company_name": "Queserï¿½ï¿½a La Antigua De Fuentesa",
+    "website": "https://www.queserialaantigua.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "11eaf5f3-2efd-42c8-bb94-bf93baeae1c5",
+    "company_name": "Queserï¿½ï¿½a Iberques Extrema",
+    "website": "https://www.iberques.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "c6fc273b-21cb-4b96-b4e9-b0e26e60f091",
+    "company_name": "Industrias Cï¿½ï¿½rnicas Campoher",
+    "website": "https://www.campohermoso.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "59cac47f-9ee8-4da3-b141-e4768d4eb71e",
+    "company_name": "Almazaras De La Subbï¿½ï¿½",
+    "website": "https://www.dehesa.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "31f5e399-8aa7-4949-b26e-334265dff4cc",
+    "company_name": "Industrias Cï¿½ï¿½rnicas Iglesias.",
+    "website": "https://www.carnicasiglesias.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "9abf7556-dfbd-4a7b-8353-c289664e4a1f",
+    "company_name": "100% Aceite Ecolï¿½ï¿½gico - Aove - Finca Las Plat",
+    "website": "https://www.fincalasplateras.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "68df3066-dc0d-4c3a-9532-6ccf6b65d043",
+    "company_name": "Associaciï¿½ï¿½ Celï¿½ï¿½acs C",
+    "website": "https://www.celiacscatalunya.org",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "ab4ca505-6c17-4025-a0da-08ab82e21f8f",
+    "company_name": "Industrias Cï¿½ï¿½rnicas Diego Mo",
+    "website": "https://www.carnicasdiegomolina.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "0205160c-ee39-48ae-900f-cac391db5fed",
+    "company_name": "Sueï¿½ï¿½os De Alba Gana",
+    "website": "https://www.suenosdealba.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "8328fef7-9832-4f48-a2e2-797ade989c14",
+    "company_name": "La Tarongeta Informï¿½ï¿½",
+    "website": "https://www.latarongetainformatica.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "a791ff20-9195-4170-8021-6b0d15c7011e",
+    "company_name": "Asociaciï¿½ï¿½n Frozen Esp",
+    "website": "https://www.frozenespana.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "0ec9399a-f88d-4ef3-867e-9ae9e188f4d2",
+    "company_name": "La Rï¿½ï¿½s",
+    "website": "https://www.larustica.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "e7bc516a-6c80-4f88-993f-98273b972383",
+    "company_name": "Hosteleria De Espaï¿½",
+    "website": "https://www.hosteleriadigital.es",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "32451805-40c3-470f-a1a2-72ed5ccde6be",
+    "company_name": "Hochland Espaï¿½ï¿½ola,",
+    "website": "https://www.hochland.es",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "2d8ee9d9-b4a6-4fd2-9530-1423004a5530",
+    "company_name": "Albe-Lï¿½ï¿½cteas Del Ja",
+    "website": "https://www.lacteasdeljarama.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "d345d266-8192-4fd2-ae89-16848624844b",
+    "company_name": "Torre De Nuï¿½ï",
+    "website": "https://www.torredenunez.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "320ecdce-9f58-44d0-9de9-b0bf1662712d",
+    "company_name": "Ammerland Ibï¿½ï¿½rica S.",
+    "website": "https://www.ammerland-iberica.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "6485660c-7624-4a6d-baf3-4da38e77980b",
+    "company_name": "Molino Ambrosio - Napoli ï¿½ï¿½ï¿",
+    "website": "http://www.moliniambrosio.com",
+    "country_of_origin": "Italy"
+  },
+  {
+    "id": "bda26541-fd4c-4598-9080-3fbfe76050b2",
+    "company_name": "Nestlï¿½ï¿½ Italiana S.",
+    "website": "http://www.baciperugina.com",
+    "country_of_origin": "Italy"
+  },
+  {
+    "id": "d7abb386-6d2b-4df0-bfc2-3d474d115e1d",
+    "company_name": "Mediterrï¿½ï¿½nean Natural",
+    "website": "https://www.mediterraneannaturallife.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "17a18289-6834-4fa9-91ca-e012faf1e253",
+    "company_name": "Magdalenas Lï¿½ï¿½zaro",
+    "website": "http://www.mr-brownie.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "19545ab0-92be-4407-a399-174adc7f1f49",
+    "company_name": "Otmuchow - Zakï¿½ï¿½ady Przemysï¿½ï¿½u Cukie",
+    "website": "https://www.grupaotmuchow.pl/en",
+    "country_of_origin": "Poland"
+  },
+  {
+    "id": "a0a7c815-6708-4612-a8cc-40d17dd9e734",
+    "company_name": "Maï¿½ï¿½arico,",
+    "website": "http://www.macarico.com",
+    "country_of_origin": "Portugal"
+  },
+  {
+    "id": "12472f02-bf08-4bb7-9fea-9a41a2e17d9c",
+    "company_name": "D.O.S. Srl Specialitï¿½ï¿½ Al Tartufo Since",
+    "website": "https://www.dostartufi.com",
+    "country_of_origin": "Italy"
+  },
+  {
+    "id": "6a73fb67-6aa0-4141-95cd-7aa506fd8abb",
+    "company_name": "Caffï¿½ï¿½ï¿½ï¿½ Gioia - Labcaffï¿½",
+    "website": "http://www.caffegioia.com",
+    "country_of_origin": "Italy"
+  },
+  {
+    "id": "ea891f29-1594-4d28-9d80-248de75a6517",
+    "company_name": "Lï¿½ï¿½becker Marzipan-Fabrik V. Minden & Bruhns Gmbh & Co",
+    "website": "http://www.lubeca-marzipan.de",
+    "country_of_origin": "Germany"
+  },
+  {
+    "id": "3fae11bf-13e8-4d2c-9f29-c9bb301999b3",
+    "company_name": "Valente Marques, S.A. Caï¿½ï¿½a",
+    "website": "http://www.cacarola.com",
+    "country_of_origin": "Portugal"
+  },
+  {
+    "id": "869f61a5-a682-47ac-b83b-668cd2efe65e",
+    "company_name": "Lopes Dos Leitï¿½ï",
+    "website": "https://www.lopesdosleitoes.com",
+    "country_of_origin": "Portugal"
+  },
+  {
+    "id": "5bd13d22-0512-42fb-aa05-ab9a26996b2d",
+    "company_name": "Lacticï¿½ï¿½nios Do P",
+    "website": "https://www.lacticiniospaiva.pt",
+    "country_of_origin": "Portugal"
+  },
+  {
+    "id": "972b52b1-fa42-4589-96e8-dcc64ffa1ab4",
+    "company_name": "Caffeï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿",
+    "website": "https://caffebarbaro.it",
+    "country_of_origin": "Italy"
+  },
+  {
+    "id": "a5c0a61e-5100-4ad2-9f54-24c0bb51eb90",
+    "company_name": "Mendes Gonï¿½ï¿½alves,",
+    "website": "http://www.mendesgoncalves.pt",
+    "country_of_origin": "Portugal"
+  },
+  {
+    "id": "b00040a2-f397-4e7d-ba9b-935158bb230f",
+    "company_name": "Casalasco Societï¿½ï¿½ Agricola S.",
+    "website": "http://www.casalasco.com",
+    "country_of_origin": "Italy"
+  },
+  {
+    "id": "4eb539c0-3071-448d-995d-e499de396c5a",
+    "company_name": "Nawarra Sï¿½ï¿½ï¿½ï¿½wa",
+    "website": "http://www.nawarra.com",
+    "country_of_origin": "Germany"
+  },
+  {
+    "id": "1ae33a16-5487-4bde-99c4-24b55849a8b8",
+    "company_name": "Rï¿½ï¿½cker",
+    "website": "http://www.molkerei-ruecker.de",
+    "country_of_origin": "Germany"
+  },
+  {
+    "id": "a2f1b58b-8c10-4051-91d4-04d83c1afbca",
+    "company_name": "Rï¿½ï¿½bezahl Schokoladen",
+    "website": "http://www.rk-schoko.de",
+    "country_of_origin": "Germany"
+  },
+  {
+    "id": "a890895a-8d07-4a03-a4c6-41098bea6a92",
+    "company_name": "Aceites Oro Bailï¿½ï¿½n Galgon 99",
+    "website": "http://www.orobailen.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "90ef8618-bfc0-4bb6-bf47-09ffbba6fa7e",
+    "company_name": "Caseificio Famiglia Olanda ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½",
+    "website": "https://www.caseificioolanda.it",
+    "country_of_origin": "Italy"
+  },
+  {
+    "id": "78eefc25-f118-4e91-a0e6-86a2aaba25a1",
+    "company_name": "Caffï¿½ï¿½ Tor",
+    "website": "http://www.caffetoraldo.it",
+    "country_of_origin": "Italy"
+  },
+  {
+    "id": "b0df0cef-fd64-4238-ae1b-5383a319f52b",
+    "company_name": "Schlï¿½ï¿½nder Brot & Kuchen Gmbh & Co",
+    "website": "http://www.schluender-germany.de",
+    "country_of_origin": "Germany"
+  },
+  {
+    "id": "79dbec1a-402a-4daf-a590-d1f95b33b52b",
+    "company_name": "Aceitera La Marï¿½",
+    "website": "https://aceiteralamaria.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "8d321c81-9e9c-4525-84d8-e1d54584cb0c",
+    "company_name": "Caffï¿½ï¿½ Parte",
+    "website": "https://www.caffepartenope.it",
+    "country_of_origin": "Italy"
+  },
+  {
+    "id": "8a92fa95-b6f9-411c-a156-d66531c3c498",
+    "company_name": "S&A - Sociedade Indï¿½ï¿½stria De Aperit",
+    "website": "https://www.siaperitivos.com",
+    "country_of_origin": "Portugal"
+  },
+  {
+    "id": "cb02137e-8b36-4296-ab8e-6618bbf06e92",
+    "company_name": "Caffï¿½ï¿½ Haiti",
+    "website": "http://www.caffehaitiroma.it",
+    "country_of_origin": "Italy"
+  },
+  {
+    "id": "b3dea7ab-0aa4-4439-8dbd-1c5c9351d5bf",
+    "company_name": "Caffï¿½ï¿½ Mokambo S.",
+    "website": "https://www.mokambo.it",
+    "country_of_origin": "Italy"
+  },
+  {
+    "id": "59daea86-924d-4d71-be5f-bce5f1bc2ba2",
+    "company_name": "Agromonte - Rossociliegino Agricola S.R.L. Societï¿½ï¿½ A Socio U",
+    "website": "http://www.agromonte.it",
+    "country_of_origin": "Italy"
+  },
+  {
+    "id": "e767993f-add4-4d28-a835-59b4559bb7bf",
+    "company_name": "Nafpliotis S. Bros ï¿½ï¿",
+    "website": "http://www.nafpliotisgroup.gr",
+    "country_of_origin": "Greece"
+  },
+  {
+    "id": "f52450d1-637d-4660-819c-9e9b0d70eda3",
+    "company_name": "Tï¿½ï¿½ocznia Sokï¿½ï¿½w Owocowych Vero Dari",
+    "website": "http://www.vero-soki.pl",
+    "country_of_origin": "Poland"
+  },
+  {
+    "id": "0fd02d49-8b81-4a22-a057-72991c06fd3e",
+    "company_name": "Tribe Aï¿½ï",
+    "website": "https://www.tribeacai.com",
+    "country_of_origin": "Portugal"
+  },
+  {
+    "id": "7e3ba231-372c-4ea8-961f-6ba42d18f05f",
+    "company_name": "Phu Mateo Stanisï¿½ï¿½aw C",
+    "website": "http://mateodebica.com.pl",
+    "country_of_origin": "Poland"
+  },
+  {
+    "id": "35a9ee09-4d46-4fcd-a32c-e44e40b73d6d",
+    "company_name": "Rhodius Mineralquellen Und Getrï¿½ï¿½nke Gmbh & Co",
+    "website": "http://www.rhodius-mineralquellen.de",
+    "country_of_origin": "Germany"
+  },
+  {
+    "id": "72828845-ebe6-46e2-8d4e-29150d185f65",
+    "company_name": "Bï¿½ï¿½rner-Eisenacher",
+    "website": "http://www.boerner-eisenacher.de",
+    "country_of_origin": "Germany"
+  },
+  {
+    "id": "8f57f02c-ebf3-4a63-b4fa-8edd6ff96239",
+    "company_name": "Wohlgemuth Sï¿½ï¿½ï¿½ï¿½wa",
+    "website": "http://www.wohlgemuth-suesswaren.de",
+    "country_of_origin": "Germany"
+  },
+  {
+    "id": "f316c789-94b2-4eb8-b8a6-51bbe03f438b",
+    "company_name": "Antersdorfer Mï¿½ï¿½hle Gmbh & Co. Vertrieb",
+    "website": "http://www.antersdorfer.bio",
+    "country_of_origin": "Germany"
+  },
+  {
+    "id": "40b68183-4ed3-4a07-9bd8-4a6704a7d329",
+    "company_name": "Confeitaria Carlos Gonï¿½ï¿½alves, Lda. / Biscland Orig",
+    "website": "https://www.confeitariacarlosgoncalves.pt",
+    "country_of_origin": "Portugal"
+  },
+  {
+    "id": "41726071-3833-43e0-941d-573215f3108d",
+    "company_name": "Galletas Gullï¿½ï¿½n, S. A. Gullon Bisc",
+    "website": "http://www.gullon.es",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "93ce76e4-af0d-4cfb-b3c5-9c082b56da61",
+    "company_name": "Burger Knï¿½ï¿½cke Gmbh & Co",
+    "website": "http://www.burgerknaecke.de",
+    "country_of_origin": "Germany"
+  },
+  {
+    "id": "47dd991a-48cd-42ef-9cbb-f17e73a4de81",
+    "company_name": "Axion Esti Dimakopoulos A.A Organic Beekeepï¿½ï",
+    "website": "http://www.axionesti.gr",
+    "country_of_origin": "Greece"
+  },
+  {
+    "id": "2ac31f49-13b5-458c-8701-21f0ad49049d",
+    "company_name": "Aachener Printenbï¿½ï¿½ckerei Klein",
+    "website": "http://www.printen.de",
+    "country_of_origin": "Germany"
+  },
+  {
+    "id": "4bcefea6-9a13-4596-b53c-475de24b2fd1",
+    "company_name": "Torres Filoso Viï¿½ï¿½a Y Bo",
+    "website": "https://www.torresfiloso.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "4492aa3e-df21-4588-a5ab-8f5360f8a650",
+    "company_name": "Petracastalda Societï¿½ï¿½ Agri",
+    "website": "https://www.petracastalda.com",
+    "country_of_origin": "Italy"
+  },
+  {
+    "id": "ac3015cb-c762-48a0-ae6f-da3ba264314a",
+    "company_name": "Bï¿½ï¿½ckerei Haverland Gmbh & Co",
+    "website": "http://www.baeckerei-haverland.de",
+    "country_of_origin": "Germany"
+  },
+  {
+    "id": "f889475a-850c-40a6-b670-fdf3cf78d3fb",
+    "company_name": "Gottfried Wicklein Gmbh & Co. Kg Nï¿½ï¿½rnberger Lebkuchen Und Gebï¿½ï¿½ckspezia",
+    "website": "http://www.wicklein.de",
+    "country_of_origin": "Germany"
+  },
+  {
+    "id": "6108ca4d-230c-4eca-a9ae-a4a6e806a771",
+    "company_name": "Okrï¿½ï¿½gowa Spï¿½ï¿½ï¿½ï¿½dzielnia Mleczarsk",
+    "website": "http://www.mleczarnia.lowicz.pl",
+    "country_of_origin": "Poland"
+  },
+  {
+    "id": "58203528-526f-4604-af84-a198c41a792d",
+    "company_name": "Torrefazione Lucchese Del Caffï¿½ï¿½ S.",
+    "website": "http://www.torrefazionelucchese.it",
+    "country_of_origin": "Italy"
+  },
+  {
+    "id": "eada193f-f1f0-47d1-9c05-8ec68d39e2b3",
+    "company_name": "Alpenhain Kï¿½ï¿½sespezialitï¿½ï¿½",
+    "website": "http://www.alpenhain.de",
+    "country_of_origin": "Germany"
+  },
+  {
+    "id": "b1c63386-7ba8-424a-a623-04e99b3f4f23",
+    "company_name": "Pesce Azzurro Cefalï¿½ï¿½",
+    "website": "http://www.pesceazzurro.it",
+    "country_of_origin": "Italy"
+  },
+  {
+    "id": "94da9751-305b-44ef-9956-359a8a59610b",
+    "company_name": "Goldsteig Kï¿½ï¿½sereien Bayerwald",
+    "website": "http://www.goldsteig.de",
+    "country_of_origin": "Germany"
+  },
+  {
+    "id": "57c302bf-63c6-4c8c-ba0b-0711ef7e28f4",
+    "company_name": "Gï¿½ï¿½nthart & Co",
+    "website": "http://www.guenthart.com",
+    "country_of_origin": "Germany"
+  },
+  {
+    "id": "0722d98e-3585-49eb-aa7e-7068b4c134b8",
+    "company_name": "Girrbach Sï¿½ï¿½ï¿½ï¿½warende",
+    "website": "http://www.girrbach-dekorwelt.de",
+    "country_of_origin": "Germany"
+  },
+  {
+    "id": "c71b915f-9cec-4f79-8b97-93ebdfca0613",
+    "company_name": "Frimancha Industrias Cï¿½ï¿½rnicas, S",
+    "website": "https://www.frimancha.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "754cca5d-341a-4074-bbf3-7603f368ab09",
+    "company_name": "Polski Chï¿½ï¿½ï¿½ï¿½d",
+    "website": "https://www.polskichlod.pl",
+    "country_of_origin": "Poland"
+  },
+  {
+    "id": "b8cce3d0-0870-4234-a1b4-31929aab258e",
+    "company_name": "Bracia Ziï¿½ï¿½ï¿½ï¿½kowscy - Palar",
+    "website": "http://braciaziolkowscy.pl",
+    "country_of_origin": "Poland"
+  },
+  {
+    "id": "abfba67a-5b3c-4878-a0e7-636297b2a72a",
+    "company_name": "Sery Smaï¿½ï¿½one Frï¿½ï¿",
+    "website": "http://www.frackowiak-sery.pl",
+    "country_of_origin": "Poland"
+  },
+  {
+    "id": "542640ab-742f-4f4f-810e-39d3e0ddaebc",
+    "company_name": "Ralï¿½ï¿½",
+    "website": "http://www.castellino.it",
+    "country_of_origin": "Italy"
+  },
+  {
+    "id": "8413d195-d689-49b0-914b-3bf2b200b952",
+    "company_name": "Salaisons De La Semois Pï¿½ï¿½tï¿½ï¿½s Et Salais",
+    "website": "http://www.salaisons-semois.be",
+    "country_of_origin": "Belgium"
+  },
+  {
+    "id": "19533506-b51b-41b0-bfb5-31842335e719",
+    "company_name": "Pï¿½ï¿½rtikas Un Veterinï¿½ï¿½rais",
+    "website": "https://www.pvd.gov.lv",
+    "country_of_origin": "Latvia"
+  },
+  {
+    "id": "967eb42e-1164-4e87-bc11-28763668eff2",
+    "company_name": "Oï¿½ï¿½ Gurmeek",
+    "website": "http://www.gourmetclub.ee",
+    "country_of_origin": "Estonia"
+  },
+  {
+    "id": "be8dcd44-d29b-48b4-ae41-d5a6817e0ff6",
+    "company_name": "Froxï¿½ï¿",
+    "website": "http://www.froxa.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "6c1111ed-041c-4c60-b727-68d3c6d7953e",
+    "company_name": "Prï¿½ï¿½n",
+    "website": "https://www.prana-ko.lv",
+    "country_of_origin": "Latvia"
+  },
+  {
+    "id": "33c7668d-c448-4f93-80d9-518823c1783f",
+    "company_name": "Ingredï¿½ï¿½s",
+    "website": "https://www.ingredissimo.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "d950ba41-fa2a-466e-b1a5-40f87c2e53ab",
+    "company_name": "Chiadï¿½ï¿½a Dr",
+    "website": "http://www.chiadia.com",
+    "country_of_origin": "North Macedonia"
+  },
+  {
+    "id": "86be1ef8-337d-4874-a69d-9ed8d5a5c63b",
+    "company_name": "Jaï¿½ï¿½ncoop G",
+    "website": "https://www.jaencoop.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "35a5e99a-2a50-4252-b81c-e462060979fe",
+    "company_name": "Cremo Sa - Von Mï¿½ï¿½hl",
+    "website": "http://www.cremo.ch",
+    "country_of_origin": "Switzerland"
+  },
+  {
+    "id": "0bc36e32-819e-4c48-9933-ed16262de7c2",
+    "company_name": "Tradycyjna Wï¿½ï¿½dzarnia Warmiï",
+    "website": "http://www.parolryby.pl",
+    "country_of_origin": "Poland"
+  },
+  {
+    "id": "8747dc80-7e61-4960-9fe0-a71a293c768d",
+    "company_name": "Zï¿½ï¿½ger Frischkï¿½",
+    "website": "https://www.frischkaese.ch",
+    "country_of_origin": "Switzerland"
+  },
+  {
+    "id": "7769abcd-9147-4b27-8109-de3cf3f71b11",
+    "company_name": "Adm International Sï¿½ï",
+    "website": "https://www.adm.com",
+    "country_of_origin": "Switzerland"
+  },
+  {
+    "id": "f0d6641e-b672-4274-ad56-81497101f4d2",
+    "company_name": "Jamones De Serï¿½ï¿½n C",
+    "website": "https://www.jamonescheca.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "6b963ab5-ca12-4020-a287-7ad9e62242ba",
+    "company_name": "Vins Gï¿½ï¿",
+    "website": "https://www.vinsgeniu.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "d52c813b-1058-4d2f-9a0e-4d74ee6fce14",
+    "company_name": "Tarsmak Gondek I Wspï¿½ï¿½lnicy Spï¿½ï¿½l",
+    "website": "http://www.tarsmak.pl",
+    "country_of_origin": "Poland"
+  },
+  {
+    "id": "ff5cee91-d818-4cc4-976f-4652be0009f6",
+    "company_name": "Gudrie Graudi (Sia Otaï¿½ï¿½ï¿½ï¿½u Dzirn",
+    "website": "https://gudriegraudi.lv",
+    "country_of_origin": "Latvia"
+  },
+  {
+    "id": "c50375cf-0d9f-4a60-91e6-9511664a63d8",
+    "company_name": "Interprofession Tï¿½ï¿½te De M",
+    "website": "https://www.tetedemoine.ch",
+    "country_of_origin": "Switzerland"
+  },
+  {
+    "id": "cbe4d646-f617-4731-b784-d776c99bef64",
+    "company_name": "Fundacja Hodowcï¿½ï¿½w Polskiej Biaï¿½ï¿½",
+    "website": "http://www.polskabialages.pl",
+    "country_of_origin": "Poland"
+  },
+  {
+    "id": "9bd31089-2b18-4a10-8850-cacf5bfe1aab",
+    "company_name": "Yotuel Bodegas Y Viï¿½ï¿½edos Gallego Zapatero",
+    "website": "https://www.yotuel.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "c769b87a-3709-4d08-8e25-8534c7c4d1f9",
+    "company_name": "Ramon Cusinï¿½ï¿½ Hill, S.",
+    "website": "https://www.cusine.eu",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "23164f4f-75a9-48ae-99c8-3566639dfe4b",
+    "company_name": "Salomï¿½ï¿½n Spices B",
+    "website": "https://www.salomonspices.com/en",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "42231e5e-44ca-4310-a85a-efb94b06e3ef",
+    "company_name": "Embutidos Y Jamones Espaï¿½ï¿½a E H",
+    "website": "https://www.embutidosespaï¿½ï¿½a",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "29cf89a0-b307-4fde-9eb0-c471d3005597",
+    "company_name": "Consejo Regulador Dop Mejillï¿½ï¿½n De Gal",
+    "website": "https://www.mexillondegalicia.org",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "f6006f7f-41a4-41ae-a37f-70a2111d29d8",
+    "company_name": "Interprofession Du Gruyï¿½ï",
+    "website": "http://www.gruyere.com",
+    "country_of_origin": "Switzerland"
+  },
+  {
+    "id": "450005c4-5548-4fc6-8608-273f9ff8f1ce",
+    "company_name": "Goya En Espaï¿½ï¿½a, S.",
+    "website": "https://www.goyaenespaï¿½ï¿½a",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "c00887d0-83cb-44bb-8f81-69d768e996e7",
+    "company_name": "Caï¿½ï¿½a Na",
+    "website": "https://www.cnature.es/en",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "d9288510-5581-49d5-9131-b27ca96157a1",
+    "company_name": "Embutidos Cardeï¿½",
+    "website": "https://www.embutidoscardena.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "e00fe187-3e88-401c-9bd3-5d154f860381",
+    "company_name": "Embutidos Peï¿½ï¿½a",
+    "website": "https://www.embutidospenacruz.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "2f8a29a8-87fc-498a-ab2d-79077d7b9489",
+    "company_name": "Villars Maï¿½ï¿½tre Chocolatie",
+    "website": "http://www.villars.com",
+    "country_of_origin": "Switzerland"
+  },
+  {
+    "id": "29ea5d92-1cb8-4fe4-9078-b7369b1c4469",
+    "company_name": "Ballarï¿",
+    "website": "https://www.ballarï¿½ï¿½",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "18c85c31-ff2f-4a33-aea0-a77c298eb042",
+    "company_name": "Bodega Viï¿½ï¿½a Santa Petro",
+    "website": "https://www.vinasantapetronila.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "67285308-4294-41b9-a9a6-6dd223c0505c",
+    "company_name": "Familia Marï¿½ï¿½ Ma",
+    "website": "https://www.licoresmarimayans.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "4a0b90ea-1f27-4ee5-820c-0ec9781ec0cf",
+    "company_name": "Walo Von Mï¿½ï¿½hl",
+    "website": "https://www.affineurwalo.ch",
+    "country_of_origin": "Switzerland"
+  },
+  {
+    "id": "8e8c1866-eba3-4d1d-8990-a3bf72f7048e",
+    "company_name": "Oficina Espaï¿½ï¿½ola De Patentes Y Ma",
+    "website": "https://www.oepm.es",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "2717691b-9f26-4233-a8dd-34c300dda117",
+    "company_name": "Bodega Manuel Aragï¿½",
+    "website": "https://www.bodegasmanuelearagon.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "ee500440-98e5-46df-b9bc-9eeba6ed4e98",
+    "company_name": "Bodega A. Muï¿½ï¿½oz Cabrera Di",
+    "website": "https://www.dimobe.es",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "7b50df11-48af-4e46-9dc2-7fbf3d4f540a",
+    "company_name": "Sablï¿½ï¿½ Gou",
+    "website": "https://sablesgourmets.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "9c0667f2-acb6-4ed6-a21e-bb5735c4c3b2",
+    "company_name": "Pago Baldï¿½ï¿½os San Ca",
+    "website": "https://www.pagobaldiosancarlos.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "032ab1f2-adf1-4e04-9328-fbe42ab042b9",
+    "company_name": "Bioterrï¿½ï¿",
+    "website": "https://www.bioterraneo.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "7a798d5c-46e7-4903-94bd-3d78ce6c2a2b",
+    "company_name": "Farmi Piimatï¿½ï¿½ï¿½ï¿",
+    "website": "http://www.farmi.ee/en",
+    "country_of_origin": "Estonia"
+  },
+  {
+    "id": "63312309-0f03-49c9-9426-9f4e411f301c",
+    "company_name": "Bodegas Latï¿½",
+    "website": "https://www.latue.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "825684c9-3d62-4708-b2ec-f239f9878dd6",
+    "company_name": "Los Romeros De Alanï¿½",
+    "website": "https://www.losromerosdealanis.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "b8e3a753-de9b-4ac0-befb-3f90b0ea75ee",
+    "company_name": "Los Remedios Embutidos De Serï¿½",
+    "website": "https://www.embutidoslosremedios.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "fa5d3b60-60ce-499a-9d81-20a1f6a4c9fc",
+    "company_name": "Cesar Nieto Ibï¿½ï¿½rico, Carne Y Jamones -Premium-Meat &",
+    "website": "https://www.cesarnieto.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "da46d64c-e9ca-46b8-b921-876025b1c6b8",
+    "company_name": "Porto-Muiï¿½ï¿½os",
+    "website": "https://www.portomuinos.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "dcefab26-d60f-48b3-97ad-fc34f9575334",
+    "company_name": "P.P-H \"Okruszek\" Tomasz Jarosiï¿½ï¿",
+    "website": "http://www.okruszek.pl",
+    "country_of_origin": "Poland"
+  },
+  {
+    "id": "45539b75-7f89-4b57-8ba3-2e286de4f108",
+    "company_name": "Perusiï¿½ï",
+    "website": "https://perusinas.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "6f76c57f-bd2e-42c6-a650-68e5debff86e",
+    "company_name": "Ogï¿½ï¿½lnopolskie Stowarzyszenie Przetwï¿½ï¿½rcï¿½ï¿½w I Producentï¿½ï¿½w Produktï¿\"Polska Ekologia",
+    "website": "https://www.polskaekologia.org/index.php",
+    "country_of_origin": "Poland"
+  },
+  {
+    "id": "f2e141d0-382b-454f-b45c-39b230f008f9",
+    "company_name": "Jamones Eï¿½ï¿½riz Ja",
+    "website": "https://www.jamoneseiriz.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "2f351906-3513-44ef-8e69-6f688c5396ba",
+    "company_name": "Chocolates Clavileï¿½",
+    "website": "https://www.chocolatesclavileno.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "2bfb5fd6-4038-41d9-aa83-92c52a8e6040",
+    "company_name": "Pefrï¿½",
+    "website": "https://www.ibericospefran.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "3ee63b69-496d-4e10-b829-d4de0db03779",
+    "company_name": "Destilerï¿½ï¿½as",
+    "website": "https://www.destileriasraza.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "e2f5770f-c84f-419a-9afa-a083777ecb77",
+    "company_name": "Nudle ï¿½ï¿½lï¿½ï¿½",
+    "website": "https://www.nudleslaskie.pl",
+    "country_of_origin": "Poland"
+  },
+  {
+    "id": "43e95ee4-c6fa-4687-8d12-420972f687ee",
+    "company_name": "Owocowe Smaki Spï¿½ï¿½ï¿½ï¿½ka Z Ograniczonï¿½ï¿½ Odpowied",
+    "website": "http://owocowesmaki.pl",
+    "country_of_origin": "Poland"
+  },
+  {
+    "id": "ab50661f-8b06-4834-a781-b9d0d38b2f04",
+    "company_name": "Owolovo Sp. Z O.O. Komandytowo ï¿½ï¿½ï¿½ A",
+    "website": "http://www.owolovo.eu",
+    "country_of_origin": "Poland"
+  },
+  {
+    "id": "e1b5eac7-f782-4076-8695-1c0b057bc565",
+    "company_name": "Eguï¿½ï¿½a Food Fac",
+    "website": "https://www.eguiafoodfactory.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "3227c843-37e3-4fb4-833c-b918617b7135",
+    "company_name": "Conservera Castreï¿½ï¿½a,",
+    "website": "https://www.conserveracastrena.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "c1c18046-eb03-4b3e-a7da-cda7da017c4d",
+    "company_name": "On Lemon I Wspï¿½ï¿½l",
+    "website": "http://onlemon.pl",
+    "country_of_origin": "Poland"
+  },
+  {
+    "id": "000e2431-8f21-4a9c-a1e3-ba6e5b3f4300",
+    "company_name": "Hijos De Josï¿½ï¿½ Serrats",
+    "website": "https://www.serrats.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "0a2d87e8-f521-4c01-9bc3-0e6627f7e7f1",
+    "company_name": "Jk Sp. Z O.O. - Zm Jasioï¿½ï",
+    "website": "http://www.jasiolka.pl",
+    "country_of_origin": "Poland"
+  },
+  {
+    "id": "fb3cf0e5-ff15-4e87-ad79-7a8bdac82281",
+    "company_name": "Cfed Espaï¿½ï¿½a",
+    "website": "https://www.cfed.es",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "df1d5f0d-81f9-46c1-9e8c-475f6b997ead",
+    "company_name": "Jamones Durï¿½ï¿",
+    "website": "https://www.jamonesduriber.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "ef56d451-9fe7-46b6-b806-02885a95bfb0",
+    "company_name": "Acciona Energï¿½",
+    "website": "https://www.acciona-energia.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "a6790dfe-9bc9-42af-bfed-15d77629ce88",
+    "company_name": "Lï¿½ï¿½ctics U",
+    "website": "https://www.lacticsubach.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "d97a14b4-bd00-4c1f-a3f8-d26fa9ebc502",
+    "company_name": "1725 Ingenio Nuestra Seï¿½ï¿½ora Del Ca",
+    "website": "https://www.ingenio1725.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "2a745f88-5e1d-4eff-b965-e585c453ece6",
+    "company_name": "Grï¿½ï¿½jec Emil Nato",
+    "website": "http://www.grojecfrucht.pl",
+    "country_of_origin": "Poland"
+  },
+  {
+    "id": "6569d968-d34d-4bf8-8fe9-8f4206935c81",
+    "company_name": "Dreimeister Spezialitï¿½ï¿½ten Gmbh & Co",
+    "website": "http://www.dreimeister.de",
+    "country_of_origin": "Germany"
+  },
+  {
+    "id": "01cdb950-93e2-40eb-bf74-76f45fd73e2c",
+    "company_name": "Eichetti Confect Spezialitï¿½ï¿½ten A. Eichelmann Gmbh & Co",
+    "website": "http://www.eichetti.de",
+    "country_of_origin": "Germany"
+  },
+  {
+    "id": "cc7c5602-44c4-4b54-af87-3c0a959ead02",
+    "company_name": "Industria Agroalimentaria Del Condado Jaï¿½",
+    "website": "https://www.condadojaen.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "e9383100-ccae-467f-9bf8-28b9a9a8f3b7",
+    "company_name": "Hï¿½ï¿½lshorst Feinkost",
+    "website": "http://www.huelshorst-feinkost.de",
+    "country_of_origin": "Germany"
+  },
+  {
+    "id": "d9fac270-0d7f-49c9-ad1e-c51ae68b1b40",
+    "company_name": "Dï¿½ï¿½inghaus Cutting And More Gmbh & Co",
+    "website": "https://www.cuttingandmore.de",
+    "country_of_origin": "Germany"
+  },
+  {
+    "id": "c3831221-3b98-461e-a89c-6620b24532b5",
+    "company_name": "La Embajada Del Jamï¿½ï¿½n / Virtus Ibï¿",
+    "website": "https://www.laembajadadeljamon.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "20c165f5-834b-4379-a7e5-2597820d0b24",
+    "company_name": "Chï¿½ï¿½odnie Skï¿½ï¿½adowe R",
+    "website": "https://www.real.com.pl",
+    "country_of_origin": "Poland"
+  },
+  {
+    "id": "1cdd8bfc-708f-49f5-8146-12d75031bc1d",
+    "company_name": "Pieroï¿½ï¿½ek Ar Szelc S",
+    "website": "https://www.pierozek.pl",
+    "country_of_origin": "Poland"
+  },
+  {
+    "id": "8bd733b6-5dcd-4102-b7af-8d044dfa3651",
+    "company_name": "Wiesenhof Geflï¿½ï¿½gel-Kontor",
+    "website": "http://www.wiesenhof-online.de",
+    "country_of_origin": "Germany"
+  },
+  {
+    "id": "879317ad-3dad-428e-80c6-dceb441e221e",
+    "company_name": "Grupo Diseï¿½ï¿½o",
+    "website": "https://www.grupodisenosnt.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "9977daf6-7564-4539-9b6d-22c9c76a88dc",
+    "company_name": "Deutsches Tiefkï¿½ï¿½hlinstitut",
+    "website": "http://www.tiefkuehlkost.de",
+    "country_of_origin": "Germany"
+  },
+  {
+    "id": "fcc8d723-ba0e-474d-a4ff-f5b198af8888",
+    "company_name": "Fundaciï¿½ï¿½ Eur",
+    "website": "https://eurecat.org",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "2b9683b3-bab4-4aee-8f3a-dfaf73652f17",
+    "company_name": "Glez Importaï¿½ï¿½ao & Exportaï¿½ï¿",
+    "website": "https://www.glezimport.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "80a85e8a-5ddc-4b51-abea-96f6372559cf",
+    "company_name": "Fundacion Valle Salado De Aï¿½ï¿½ana Aï¿½ï¿½anako Gatz Harana F",
+    "website": "http://www.vallesalado.eus",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "ef4b1f98-a887-4176-9237-9e41ca778840",
+    "company_name": "Ibï¿½ï¿½ricos Calderï¿½ï¿½n Y Ramos-Estrella De",
+    "website": "https://www.estrelladecastilla.es",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "c9b6c3c0-32c1-4579-8a97-d64b949ea382",
+    "company_name": "El Caserï¿½ï¿½o",
+    "website": "http://www.elcaserio.es",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "eee7a9e6-9c99-4d97-8605-b779f1b479f5",
+    "company_name": "Don Sabor Pimentï¿½ï¿½n Y Espe",
+    "website": "https://www.donsabor.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "9c16930c-b44c-4d6a-8e53-8d73774a6c0c",
+    "company_name": "Weingut Rï¿½ï¿½me",
+    "website": "http://www.roemerwein.de",
+    "country_of_origin": "Germany"
+  },
+  {
+    "id": "96d2fa5d-7309-460a-b777-5f5057cad2f2",
+    "company_name": "Bodegas Muï¿½ï¿",
+    "website": "https://www.munana.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "1c3bec3b-9169-4ffa-bbf2-0e456a1da19e",
+    "company_name": "Caffï¿½ï¿½ Mauro S.",
+    "website": "http://www.caffemauro.com",
+    "country_of_origin": "Italy"
+  },
+  {
+    "id": "37e3d288-0080-40fb-84a6-3321f8debcda",
+    "company_name": "Carn De Caï¿½ï¿½a De Catal",
+    "website": "https://carncaca.cat",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "49406955-d270-4d30-a996-f2427f76caa7",
+    "company_name": "Cerveza Raï¿½ï¿½z Cuad",
+    "website": "https://www.cervezaraizcuadrada.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "70746648-6c7c-4607-9ac9-74d709bf2a36",
+    "company_name": "Bioland Sï¿½ï¿½dt",
+    "website": "https://www.bioland-italia.it/it",
+    "country_of_origin": "Italy"
+  },
+  {
+    "id": "e0e1ec96-6432-4b31-a411-c7f33cfd3605",
+    "company_name": "Buscï¿½ï¿½ndome Las Habichu",
+    "website": "https://www.buscandomelashabichuelas.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "7846b084-df57-4976-80a2-fab82867847b",
+    "company_name": "Cortilia S.P.A. Societï¿½ï¿½ Ben",
+    "website": "http://www.cortilia.it",
+    "country_of_origin": "Italy"
+  },
+  {
+    "id": "4d7bec1f-c4af-4cf2-b5c2-c134f4f8e3e3",
+    "company_name": "Bodegas Navarro Lï¿½ï¿",
+    "website": "https://navarrolopez.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "ae324da9-5563-4dc4-a531-ef2e640da575",
+    "company_name": "Btsa Biotecnologï¿½ï¿½as Aplic",
+    "website": "https://www.btsa.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "47bfe788-e34d-449d-ad88-0db32dd98aa7",
+    "company_name": "Consorcio Del Chorizo Espaï¿½ï",
+    "website": "https://www.chorizoespanol.es",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "7f213625-cbdf-4423-8281-eec0ef748abe",
+    "company_name": "Brontese ï¿½ï¿½ï¿½ Sicilian Pistachio F",
+    "website": "https://www.pistacchiobrontese.it",
+    "country_of_origin": "Italy"
+  },
+  {
+    "id": "8dfaa930-14f2-4f74-b2b1-57d3acd53d4a",
+    "company_name": "Biobï¿½ï¿½",
+    "website": "https://www.biobetica.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "0f0f0d79-c40d-45c2-9494-23cda8e7268d",
+    "company_name": "Yurrita Group - Rubio Gï¿½ï¿½n",
+    "website": "https://www.yurrita.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "40ae629b-fccd-41b7-aff5-3bbf2e4592e7",
+    "company_name": "Cï¿½ï¿½rdoba Selecta-Diputaciï¿½ï¿½n De",
+    "website": "https://www.cordobaselecta.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "ed8eb1bd-c429-435d-a80e-734dbc5732dd",
+    "company_name": "D.O.P. Pimentï¿½ï¿½n De La",
+    "website": "https://www.pimentonvera-origen.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "87f09a90-efee-45e3-ac88-499c37bffe0f",
+    "company_name": "Construcciones Frigorï¿½ï¿½ficas Cru",
+    "website": "https://www.construccionescruz.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "8193d5af-318c-408a-9d11-b055e38611a2",
+    "company_name": "Borgo Titol Societï¿½ï¿½ï¿½ï¿½ï¿½ Agr",
+    "website": "http://www.borgotitol.it",
+    "country_of_origin": "Italy"
+  },
+  {
+    "id": "c9db5c67-6b26-429f-ab28-66d6e9b78074",
+    "company_name": "Cuscï¿½ï¿½ B",
+    "website": "https://www.cuscoberga.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "7c2bf0e4-247c-4d6b-ba28-eb79e8978388",
+    "company_name": "Peï¿½ï¿½a De B",
+    "website": "https://baenaoliva.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "0ce5fe64-b978-4b59-907b-9fdb22f1eb30",
+    "company_name": "Cuï¿½ï¿½",
+    "website": "https://www.cuetara.es/en",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "c7c60468-2924-4fce-ac78-478fa7d3709a",
+    "company_name": "Cristalco Ibï¿½ï¿½rica De Distribuciï¿½ï¿½n Y Tradi",
+    "website": "https://www.cristalco.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "3b6f5de6-734a-44c3-ac29-e48956a04230",
+    "company_name": "Crdop Jamï¿½ï¿½n De Teruel / Paleta De Te",
+    "website": "https://www.jamondeteruel.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "0ccc92b2-e049-4f02-87d5-b278f5446dc9",
+    "company_name": "Cr Igp Aceite De Jaï¿½",
+    "website": "https://aceitedejaen.org",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "d6f44a96-7b9a-414f-a344-e28784c50b01",
+    "company_name": "Crdop Sierra De Cï¿½ï¿",
+    "website": "https://dopsierradecadiz.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "7ecf0398-f357-421a-8f9c-109820b53a38",
+    "company_name": "Dï¿½ï¿½hler",
+    "website": "https://www.doehler.com",
+    "country_of_origin": "Germany"
+  },
+  {
+    "id": "820585fc-5899-44c0-86b4-890c05d0f0d6",
+    "company_name": "Ciudad De Jaï¿½ï¿½n, S",
+    "website": "http://www.aceiteciudaddejaen.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "84f4347e-9cb7-4ad3-abb0-be25d9c2440f",
+    "company_name": "Crigp Carne De Vacï¿½ï¿½n De Gal",
+    "website": "https://www.terneragallega.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "9aa3f077-5676-402f-9623-bc5a051ec2ac",
+    "company_name": "Clun, Cooperativas Lï¿½ï¿½cteas Un",
+    "website": "https://clun.es",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "15a4d947-1991-47e3-b8d5-39e85bf6ca40",
+    "company_name": "Dulce De Leche Mï¿½ï¿½",
+    "website": "https://www.mardeldulce.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "76261bac-0113-469e-801a-0fe6fef716b7",
+    "company_name": "Wasgau C + C Groï¿½ï¿½handel",
+    "website": "http://www.wasgau-cc.de",
+    "country_of_origin": "Germany"
+  },
+  {
+    "id": "c1b58f63-f202-4f7d-ac36-4b55d01ec2cd",
+    "company_name": "Nestle Espaï¿½",
+    "website": "https://www.nestle.es",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "106e7053-3262-491a-8860-49f70601adf9",
+    "company_name": "M.G.Setas De Castilla Y Leï¿½",
+    "website": "https://setasdecastillayleon.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "cd2e5ae3-6f57-4590-9cbe-6684eee0f55b",
+    "company_name": "Sal De Aï¿½ï¿½ana - Aï¿½ï¿½ana",
+    "website": "https://vallesalado.com/VALLE-SALADO-HOME",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "ef65359f-2086-483d-bcf2-5cbb33be19ea",
+    "company_name": "Germï¿½ï¿½n Baena S.",
+    "website": "https://www.germanbaena.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "b595e20f-5b32-44c0-9f7f-4430115aed1e",
+    "company_name": "Gallicoop Pulykafeldolgozï¿½ï¿½",
+    "website": "http://www.gallicoop.hu",
+    "country_of_origin": "Hungary"
+  },
+  {
+    "id": "5859c70e-e247-4a39-a051-365ecf7741e4",
+    "company_name": "Fru Bak's Smï¿½ï¿½k",
+    "website": "http://www.frubak.dk",
+    "country_of_origin": "Denmark"
+  },
+  {
+    "id": "2bb7efaa-79b7-4588-8d75-1b17c2bd2133",
+    "company_name": "Frost A.S. Preï¿½ï",
+    "website": "https://www.frostpresov.sk",
+    "country_of_origin": "Slovakia"
+  },
+  {
+    "id": "7b172157-f96e-427b-9027-4a9b018acb1c",
+    "company_name": "Gasa Odense Frugt-Grï¿½ï¿½nt A.M.",
+    "website": "http://www.gasaodense.dk",
+    "country_of_origin": "Denmark"
+  },
+  {
+    "id": "8f726091-69c9-40e6-a371-316374d03607",
+    "company_name": "Funkciniai Gï¿½ï¿½rimai",
+    "website": "https://ohm-bucha.com/en",
+    "country_of_origin": "Lithuania"
+  },
+  {
+    "id": "41e281bc-20d4-4ed4-b419-dabf16a2fbef",
+    "company_name": "Engrotuï¿½ï¿½ D.",
+    "website": "https://www.tuscc.si",
+    "country_of_origin": "Slovenia"
+  },
+  {
+    "id": "a80f8a97-c376-4a47-aef0-279b04054dda",
+    "company_name": "Egger Getrï¿½ï¿½nke Gmbh & C",
+    "website": "http://www.eggergetraenke.at",
+    "country_of_origin": "Austria"
+  },
+  {
+    "id": "6603b2ed-c100-49b5-ab6b-3fc6b9456df0",
+    "company_name": "Delibake I ï¿½ï¿½rebr",
+    "website": "http://www.delibake.se",
+    "country_of_origin": "Sweden"
+  },
+  {
+    "id": "2be40970-97d5-4da2-96aa-54351ba840ce",
+    "company_name": "Jens Mï¿½ï¿½ller Products",
+    "website": "http://www.cavi-art.com",
+    "country_of_origin": "Denmark"
+  },
+  {
+    "id": "5fa6de25-942a-41b5-91f2-1c4d742ebc0c",
+    "company_name": "Gregor Strniï¿½ï¿½a",
+    "website": "https://mixy.si",
+    "country_of_origin": "Slovenia"
+  },
+  {
+    "id": "f92981d5-c760-4065-bbb8-5cf5d2b6f565",
+    "company_name": "Hermann Pfanner Getrï¿½ï¿½nke",
+    "website": "http://www.pfanner.com",
+    "country_of_origin": "Austria"
+  },
+  {
+    "id": "7efb922d-bf8f-47d8-ba47-3dc354af86a1",
+    "company_name": "Die Kï¿½ï¿½semacher",
+    "website": "http://www.kaesemacher.at",
+    "country_of_origin": "Austria"
+  },
+  {
+    "id": "0e360f85-d455-4175-8965-b5ebcaa2c5fe",
+    "company_name": "Llet Nostra Alimentï¿½ï¿½ria",
+    "website": "https://www.lletnostra.cat",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "4de3bc5e-3733-4ac5-a02c-6249bef3e80c",
+    "company_name": "Polska Wytwï¿½ï¿½rnia Papierï¿½ï¿½w Wartoï",
+    "website": "https://www.pwpw.pl",
+    "country_of_origin": "Poland"
+  },
+  {
+    "id": "3c5cb779-41ef-4ac0-93a1-260b29f6a026",
+    "company_name": "Zï¿½ï¿½st",
+    "website": "http://www.zusto.com",
+    "country_of_origin": "Belgium"
+  },
+  {
+    "id": "e0f243f9-1cf4-4a9d-800d-75961f968622",
+    "company_name": "La Estepeï¿½",
+    "website": "https://www.laestepena.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "ac19d4eb-24f4-49f7-b276-727edb6c9615",
+    "company_name": "Gofio La Piï¿½",
+    "website": "https://www.gofiolapina.es",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "75d56e16-7fbb-46cb-b6b5-21d3d7421afd",
+    "company_name": "Esencia Andalusï¿½ï¿½ Gourmet",
+    "website": "https://www.esenciaandalusi.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "cc27700e-f325-4d24-84c0-17343d572147",
+    "company_name": "Kambly Sa Spï¿½ï¿½cialitï¿½ï¿½s De Biscuits",
+    "website": "http://www.kambly.ch",
+    "country_of_origin": "Switzerland"
+  },
+  {
+    "id": "b75413c3-2779-4148-bfd9-05f109b972cf",
+    "company_name": "Nordic Boba ï¿½ï¿½ï¿½ D",
+    "website": "https://nordicboba.com",
+    "country_of_origin": "Denmark"
+  },
+  {
+    "id": "8c7b7b33-e7ce-4f80-862b-ae10cb08c77c",
+    "company_name": "Pica ï¿½ï¿½ï¿½ Druï¿½ï¿½tvo Kuharjev In Slaï¿½ï¿½ï¿½ï¿½",
+    "website": "https://kuharjislovenije.si",
+    "country_of_origin": "Slovenia"
+  },
+  {
+    "id": "8da45e69-2b96-4738-92cb-8863582df4bc",
+    "company_name": "Nï¿½ï¿½o Lihatï¿½ï¿½ï",
+    "website": "https://www.lihavyrst.ee",
+    "country_of_origin": "Estonia"
+  },
+  {
+    "id": "b6cc7c15-7292-45b7-8397-0eb967a1dd57",
+    "company_name": "Valeï¿½ï¿½s. Sia",
+    "website": "https://www.valezs.lv",
+    "country_of_origin": "Latvia"
+  },
+  {
+    "id": "95464fa6-56e3-4b50-9957-769457fe9d9b",
+    "company_name": "Nestlï¿½ï¿½",
+    "website": "https://www.nestle.com",
+    "country_of_origin": "Switzerland"
+  },
+  {
+    "id": "cad262d3-0e50-4759-a25f-86bf3ccf4067",
+    "company_name": "Mï¿½ï¿½venpick Holdin",
+    "website": "http://www.moevenpick-finefoods.com",
+    "country_of_origin": "Switzerland"
+  },
+  {
+    "id": "a35f2e11-25f1-4a15-8026-41f2a3a9cc0b",
+    "company_name": "Veselï¿½ï¿½bas Laborato",
+    "website": "https://www.veselibaslaboratorija.lv",
+    "country_of_origin": "Latvia"
+  },
+  {
+    "id": "b151edd1-7a17-49c9-b006-b4e5243cf9df",
+    "company_name": "Latvijas Lauku Konsultï¿½ï¿½ciju Un Izglï¿½ï¿½tï¿½ï",
+    "website": "https://llkc.lv",
+    "country_of_origin": "Latvia"
+  },
+  {
+    "id": "b8ac7201-87f5-4600-8013-0aca156e8b3d",
+    "company_name": "Linnamï¿½ï¿½e Lihatï¿½ï",
+    "website": "https://www.linnamae.eu/en",
+    "country_of_origin": "Estonia"
+  },
+  {
+    "id": "1e83dd2a-e7d6-4c9f-b9fb-3902f8a449ea",
+    "company_name": "Latvijas Iepakojuma Asociï¿½ï¿½",
+    "website": "https://www.packaging.lv",
+    "country_of_origin": "Latvia"
+  },
+  {
+    "id": "4f5514c3-dad5-4281-9317-a9904423c0d8",
+    "company_name": "Latvijas Permakultï¿½ï¿½ras Biedrï¿½ï¿½ba / Latvian Permaculture Ass",
+    "website": "https://www.permakultura.lv",
+    "country_of_origin": "Latvia"
+  },
+  {
+    "id": "22936e7c-5b13-41d3-bd9e-89c9205bacb7",
+    "company_name": "Lï¿½ï¿½bas",
+    "website": "https://www.libasdarzi.lv",
+    "country_of_origin": "Latvia"
+  },
+  {
+    "id": "371d5562-45a5-4425-ab40-8b2f94b629b9",
+    "company_name": "Mï¿½ï¿½tra",
+    "website": "https://www.metras.lv",
+    "country_of_origin": "Latvia"
+  },
+  {
+    "id": "d0de1bca-d55e-46ee-9969-30e70db205b8",
+    "company_name": "Maiznï¿½ï¿½ca Liepkalni / Liepkalni Ba",
+    "website": "https://liepkalni.lv/lv/index",
+    "country_of_origin": "Latvia"
+  },
+  {
+    "id": "2ea256fd-63a3-461b-bc3a-d583db9eb18e",
+    "company_name": "Futbolï¿½ï¿½",
+    "website": "https://www.futbolinac.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "c3c7a408-ca8d-4574-98f3-41f94e670f71",
+    "company_name": "Latvijas Biï¿½ï¿½kopï¿½ï¿½bas B",
+    "website": "https://medus.lv",
+    "country_of_origin": "Latvia"
+  },
+  {
+    "id": "478a9ebc-c986-4309-a38f-95f1774effad",
+    "company_name": "So Appenzeller Kï¿½ï¿½se",
+    "website": "https://www.appenzeller.ch",
+    "country_of_origin": "Switzerland"
+  },
+  {
+    "id": "a37fe10e-2c78-40f3-a80e-33c2f194abf0",
+    "company_name": "Saldus Pï¿½ï¿½rtikas Kombin",
+    "website": "https://www.saldusgotina.lv",
+    "country_of_origin": "Latvia"
+  },
+  {
+    "id": "7b54e503-79e5-4ff0-acbb-7fd7e6de4258",
+    "company_name": "Saku ï¿½ï¿½lletehas",
+    "website": "http://www.saku.ee",
+    "country_of_origin": "Estonia"
+  },
+  {
+    "id": "cc4d12e4-7743-48c3-bae7-e235ea02f434",
+    "company_name": "Schweizerische Genossenschaft Fï¿½ï¿½r Weich- Und Halbhartkï¿½ï¿½sefab",
+    "website": "http://www.cheese.ch",
+    "country_of_origin": "Switzerland"
+  },
+  {
+    "id": "73e2c834-3cd6-422d-9d83-68e8fd2e4267",
+    "company_name": "Skrï¿½ï¿½veru Mï¿½ï¿½jas Sa",
+    "website": "https://www.majassaldejums.lv",
+    "country_of_origin": "Latvia"
+  },
+  {
+    "id": "4d645837-6a21-43ed-b9c3-f03302b3053a",
+    "company_name": "Rï¿½ï¿½m",
+    "website": "https://ramriti.lv",
+    "country_of_origin": "Latvia"
+  },
+  {
+    "id": "2f8fb767-e17e-4fa7-b4bb-523b451c7321",
+    "company_name": "Polskie Mï¿½ï¿½yny Sp. Z.",
+    "website": "https://www.polskiemlyny.pl",
+    "country_of_origin": "Poland"
+  },
+  {
+    "id": "c6f93d93-f724-4861-9da9-0f9c1c52b9a0",
+    "company_name": "Ciechanowska Spï¿½ï¿½ï¿½ï¿½dzielnia Ml",
+    "website": "http://www.mleczarnia.ciechanow.pl",
+    "country_of_origin": "Poland"
+  },
+  {
+    "id": "7b080741-f23e-4c5f-95bd-cf6e6c625e4c",
+    "company_name": "A&E Solutions Consultants Ltd ï¿½ï¿½ï¿½ Artima Food Ingre",
+    "website": "http://www.artima.com.cy",
+    "country_of_origin": "Cyprus"
+  },
+  {
+    "id": "2e336d85-0e08-4761-9ffd-221dacbc7e7b",
+    "company_name": "Kelet-Fï¿½ï¿½ldgï¿½ï¿½p Kft. - Hungaria",
+    "website": "https://www.premiumgalamb.hu",
+    "country_of_origin": "Hungary"
+  },
+  {
+    "id": "fe5e6dad-690a-4f6f-9f22-a44d3f7abe10",
+    "company_name": "Nemlï¿½ï¿½ko S.",
+    "website": "http://www.nemleko.cz",
+    "country_of_origin": "Czech Republic"
+  },
+  {
+    "id": "7c94aaa8-cd26-42dc-8ce2-6496669dfa38",
+    "company_name": "Cï¿½ï¿½rï¿½ï¿½lia Netherla",
+    "website": "http://www.cerelia.com",
+    "country_of_origin": "Netherlands"
+  },
+  {
+    "id": "0f94ed1c-be48-4589-9a97-ab927fd82235",
+    "company_name": "Sonnentor Krï¿½ï¿½uterhandels",
+    "website": "http://www.sonenntor.at",
+    "country_of_origin": "Austria"
+  },
+  {
+    "id": "354046a6-77e4-4846-8c36-b02afe1d66bf",
+    "company_name": "Trinkt Glï¿½ï¿½ck",
+    "website": "http://www.trinktglueck.at",
+    "country_of_origin": "Austria"
+  },
+  {
+    "id": "bd938a11-99da-4c21-b56d-1423b085c512",
+    "company_name": "Nyï¿½ï¿½kers Pepparkako",
+    "website": "http://www.nyakers.com",
+    "country_of_origin": "Sweden"
+  },
+  {
+    "id": "9ef99937-009e-4d9c-abe4-10bb79072a96",
+    "company_name": "Pivovarna Bevog ï¿½ï¿½ï¿½ Bevog",
+    "website": "https://bevog.si",
+    "country_of_origin": "Slovenia"
+  },
+  {
+    "id": "1338b5c1-9d59-43a3-b288-90ef1cf2a1cf",
+    "company_name": "7 In ï¿½ï¿½ï¿½ 7Ievos",
+    "website": "https://7in.lt",
+    "country_of_origin": "Lithuania"
+  },
+  {
+    "id": "95af924c-a69e-4f12-8abe-1d65f5146c32",
+    "company_name": "Atlantic Droga Kolinska D.O.O. ï¿½ï¿½ï¿½ Ba",
+    "website": "https://www.drogakolinska.si",
+    "country_of_origin": "Slovenia"
+  },
+  {
+    "id": "5db9f2d1-d99e-4cdc-9844-abb26c9db06a",
+    "company_name": "Adalï¿½ï¿½kmentesen",
+    "website": "https://www.adalekmentesen.hu",
+    "country_of_origin": "Hungary"
+  },
+  {
+    "id": "3976e5f8-a0d0-4710-9994-f6aba4645c9e",
+    "company_name": "Sokoï¿½ï¿",
+    "website": "https://export.sokolow.com",
+    "country_of_origin": "Poland"
+  },
+  {
+    "id": "819c16f3-22ac-40fb-a807-9f6e7adbe489",
+    "company_name": "Euro Pï¿½ï¿½tisserie Producties-Tw",
+    "website": "https://www.europatisserie.nl",
+    "country_of_origin": "Netherlands"
+  },
+  {
+    "id": "e642085d-0698-4e8a-aedc-7bab3c4af7b7",
+    "company_name": "Targowisko Dobre Bo Nasze Warmiï¿½ï¿½sko - Mazur",
+    "website": "https://poludniowawarmia.pl",
+    "country_of_origin": "Poland"
+  },
+  {
+    "id": "ed9ce500-4cfd-427f-8cce-8181ce0d20ac",
+    "company_name": "Rab Jaï¿½ï¿½yniec Sp. J",
+    "website": "https://www.jazyniec.pl",
+    "country_of_origin": "Poland"
+  },
+  {
+    "id": "4656d18e-eade-41dd-b81a-2833d76f7340",
+    "company_name": "Brzeï¿½ï",
+    "website": "https://brzesc.pl",
+    "country_of_origin": "Poland"
+  },
+  {
+    "id": "1cf9ca13-cf5c-4585-bf08-549836347551",
+    "company_name": "Dom Duarte - Indï¿½ï¿½stria De Produtosalimentares,",
+    "website": "https://www.domduarte.pt",
+    "country_of_origin": "Portugal"
+  },
+  {
+    "id": "692a6a8a-9597-4d96-8b9a-c58e8f937168",
+    "company_name": "Ilhopan - Panificaï¿½ï¿½ï¿½ï¿½o E Pastel",
+    "website": "https://www.ilhopan.pt",
+    "country_of_origin": "Portugal"
+  },
+  {
+    "id": "d92bad0d-8e13-4dca-b6ee-34b9acb4f05f",
+    "company_name": "Kï¿½ï¿½serebellen",
+    "website": "http://www.kaeserebellen.com",
+    "country_of_origin": "Germany"
+  },
+  {
+    "id": "bdf64345-4f3d-467a-b6da-daf3d40fbc32",
+    "company_name": "Worlï¿½ï¿½e Naturprodukte",
+    "website": "https://www.worlee.de",
+    "country_of_origin": "Germany"
+  },
+  {
+    "id": "342a729f-86e5-4753-b238-6f5393747189",
+    "company_name": "Modersohn's Mï¿½ï¿½hlen- Und Backbetrieb",
+    "website": "http://www.mestemacher-brot.de",
+    "country_of_origin": "Germany"
+  },
+  {
+    "id": "d968b8df-45de-46a6-98a5-9dc1079447b0",
+    "company_name": "Naturkost ï¿½ï¿½belhï¿½ï¿½r Gmbh",
+    "website": "http://www.organic-germany.com",
+    "country_of_origin": "Germany"
+  },
+  {
+    "id": "e964e19e-8efc-409f-b9d7-177b64315434",
+    "company_name": "Mï¿½ï¿½ller Fleisch",
+    "website": "http://www.mueller-fleisch.de",
+    "country_of_origin": "Germany"
+  },
+  {
+    "id": "ac0a699b-d899-427f-916a-bc9979f4b2d2",
+    "company_name": "Lï¿½ï¿½ls",
+    "website": "https://www.loelsberg.de/products.html",
+    "country_of_origin": "Germany"
+  },
+  {
+    "id": "9410f3ab-9bb3-48d1-86fa-390a36e2e5a7",
+    "company_name": "Luï¿½ï¿½s Silvï¿½ï¿½rio",
+    "website": "https://www.lsf-sa.pt",
+    "country_of_origin": "Portugal"
+  },
+  {
+    "id": "dd67edf3-318e-46dd-8082-1fbea6499d4e",
+    "company_name": "Schwarzwï¿½ï¿½lder-Eismanufaktur",
+    "website": "http://www.schwarzwaelder-eismanufaktur.de",
+    "country_of_origin": "Germany"
+  },
+  {
+    "id": "a8104c43-fece-4171-a429-d172f9de8b49",
+    "company_name": "Termofilm - Embalagens Tï¿½ï¿½cnicas",
+    "website": "http://www.termofilm.pt",
+    "country_of_origin": "Portugal"
+  },
+  {
+    "id": "f80ccc1d-a804-4f06-975c-70670f27ceea",
+    "company_name": "Panike - Indï¿½ï¿½stria De Produtos Alimentares Congelados",
+    "website": "https://panike.pt/en",
+    "country_of_origin": "Portugal"
+  },
+  {
+    "id": "09d1aff9-f24c-45d7-8626-4799f822eb38",
+    "company_name": "Jermi Kï¿½ï¿½sewerk",
+    "website": "http://www.jermi.de",
+    "country_of_origin": "Germany"
+  },
+  {
+    "id": "ba81c933-47a2-4549-8c86-0050e7ff1168",
+    "company_name": "Principessa's Mï¿½ï¿½nchen",
+    "website": "http://www.principessas.de",
+    "country_of_origin": "Germany"
+  },
+  {
+    "id": "47bece54-6cdb-462e-8d54-aae4811cfe19",
+    "company_name": "Stereo Holland-Gebï¿½ï¿½ck Gmbh & C",
+    "website": "http://www.stereo-holland-gebaeck.de",
+    "country_of_origin": "Germany"
+  },
+  {
+    "id": "f0424fbc-2139-4833-8ae4-d33f0c4f48fa",
+    "company_name": "Reber Spezialitï¿½ï¿½ten - Paul Reber Gmbh & Co",
+    "website": "http://www.reber.com",
+    "country_of_origin": "Germany"
+  },
+  {
+    "id": "143536b2-701c-4ecd-a2bb-2b8ccbd8dc17",
+    "company_name": "Prolacto - Lacticï¿½ï¿½nios De Sï¿½ï¿½o Mi",
+    "website": "http://www.prolactoazores.com",
+    "country_of_origin": "Portugal"
+  },
+  {
+    "id": "344c13bd-1fd8-4eae-9b01-c8eb9a67c908",
+    "company_name": "Bï¿½ï¿½nting Groï¿½ï¿½handel Und Service Gmbh",
+    "website": "http://www.buenting.de",
+    "country_of_origin": "Germany"
+  },
+  {
+    "id": "7ee5b58c-fce1-4f78-a021-66ca8bd70636",
+    "company_name": "Delta Einzel Und Groï¿½ï¿½handel",
+    "website": "http://www.delta-getraenke.de",
+    "country_of_origin": "Germany"
+  },
+  {
+    "id": "30a4a893-c5a4-4bfb-a47a-47b78ba30dc6",
+    "company_name": "Brauerei Fï¿½ï¿½rstlich Drehna",
+    "website": "http://www.brauerei-fuerstlich-drehna.de",
+    "country_of_origin": "Germany"
+  },
+  {
+    "id": "829947ad-ed81-473c-80bd-6e18f4702069",
+    "company_name": "Choconasa - Comï¿½ï¿½rcio De Representacoes,",
+    "website": "http://www.choconasa.pt",
+    "country_of_origin": "Portugal"
+  },
+  {
+    "id": "4fdc7e27-52ea-4bfe-abff-b7fc73029f46",
+    "company_name": "Brace Gmbh Chemie-Plastics-Datasystems-Esthï¿½ï¿½ti",
+    "website": "https://www.brace.de",
+    "country_of_origin": "Germany"
+  },
+  {
+    "id": "33d1fa1e-4367-4316-bb17-4d05ca2d9fca",
+    "company_name": "Ada Mï¿½ï¿½ller H",
+    "website": "https://www.adam-mueller-honey.com",
+    "country_of_origin": "Germany"
+  },
+  {
+    "id": "71a843bd-a63c-4147-a9c8-a520f917f206",
+    "company_name": "Alpirsbacher Klosterbrï¿½ï¿½u Glauner Gmbh & C",
+    "website": "http://www.alpirsbacher.de",
+    "country_of_origin": "Germany"
+  },
+  {
+    "id": "ef43d769-2b78-4510-9144-bd91fdd0e512",
+    "company_name": "Bio-Backhï¿½ï¿½usle",
+    "website": "http://www.bio-backhaeusle.de",
+    "country_of_origin": "Germany"
+  },
+  {
+    "id": "74545b13-d3d5-4153-8706-3d53fd13789e",
+    "company_name": "Getrï¿½ï¿½nkewerk Gieï¿½ï¿",
+    "website": "http://www.koka-mate.de",
+    "country_of_origin": "Germany"
+  },
+  {
+    "id": "54b911d6-ab7e-4a8a-b234-87f6e7b1b041",
+    "company_name": "Bayer. Pilze & Waldfrï¿½ï¿½chte Uwe Niklas",
+    "website": "http://www.pilze-niklas.de",
+    "country_of_origin": "Germany"
+  },
+  {
+    "id": "f4abc86e-3366-4d84-b333-e15aa7f5213c",
+    "company_name": "Bicafï¿½ï¿½ - Torrefacï¿½ï¿½ï¿½ï¿½o E Comï¿½ï¿½r",
+    "website": "http://www.bicafecapsulas.com",
+    "country_of_origin": "Portugal"
+  },
+  {
+    "id": "539190fe-7f28-47e6-a5de-ed69fe62189e",
+    "company_name": "Frostkrone Tiefkï¿½ï¿½hlkost",
+    "website": "http://www.frostkrone-foodgroup.de",
+    "country_of_origin": "Germany"
+  },
+  {
+    "id": "709c4aef-e14e-482f-8e13-e2e4a9aeb323",
+    "company_name": "Ipesa Balanï¿½ï¿½as E Basculas Electron",
+    "website": "https://www.ipesabalancas.com",
+    "country_of_origin": "Portugal"
+  },
+  {
+    "id": "81da7116-3425-4409-b019-ab34cdb473aa",
+    "company_name": "Zakï¿½ï¿½ady Miï¿½ï¿½sne Mi",
+    "website": "https://www.zmmielczarek.pl",
+    "country_of_origin": "Poland"
+  },
+  {
+    "id": "7299f324-fee6-4133-bd03-b6358e286c4e",
+    "company_name": "Zakï¿½ï¿½ad Miï¿½ï¿½sny Sma",
+    "website": "https://www.smak-gorno.pl",
+    "country_of_origin": "Poland"
+  },
+  {
+    "id": "5ff3c96a-abfc-497d-b752-c200d39ec5e7",
+    "company_name": "Zaklady Przetwï¿½ï¿½rstwa Miesnego Grot Sp. Z",
+    "website": "https://zpmgrot.pl/pl",
+    "country_of_origin": "Poland"
+  },
+  {
+    "id": "c3acc8cf-c866-401b-97ea-7d002b4ca64d",
+    "company_name": "Bakerï¿½ï¿½ï¿½S",
+    "website": "https://www.bakersdough.nl",
+    "country_of_origin": "Netherlands"
+  },
+  {
+    "id": "e53930f9-38c8-46ca-8bc1-4afa5a3e7634",
+    "company_name": "Bezmiï¿½ï¿",
+    "website": "https://www.bezmiesnymiesny.pl",
+    "country_of_origin": "Poland"
+  },
+  {
+    "id": "ec894715-aada-471a-a0d1-34101b6eb84b",
+    "company_name": "Z.P. Omar - Paweï¿½ï¿½ Okï¿",
+    "website": "http://www.omar.com.pl",
+    "country_of_origin": "Poland"
+  },
+  {
+    "id": "fa92d7f4-ba6c-4f6d-8e84-4e8392847633",
+    "company_name": "Beliï¿½ï¿½s - Pietercil G",
+    "website": "https://www.belies.eu",
+    "country_of_origin": "Belgium"
+  },
+  {
+    "id": "0aa8b092-0695-4361-8171-384fd3c09d69",
+    "company_name": "Gospodarstwo Rolne Alina I Mirosï¿½ï¿½aw Roma",
+    "website": "http://www.kornino.pl",
+    "country_of_origin": "Poland"
+  },
+  {
+    "id": "03ef448d-c893-4393-8cab-07b23e485cab",
+    "company_name": "Bifix Wojciech Piasecki Spï¿½ï¿½ï¿½ï¿½",
+    "website": "https://www.bifix.pl",
+    "country_of_origin": "Poland"
+  },
+  {
+    "id": "c17a202f-5f90-4cb4-a6ae-7c41903e9f8a",
+    "company_name": "Axion Esti - Organic Beekeepï¿½ï¿½ng A.A.Dimakopo",
+    "website": "http://www.axion-esti.gr",
+    "country_of_origin": "Greece"
+  },
+  {
+    "id": "4789170c-0668-459f-9ad5-3d827783d2da",
+    "company_name": "Interchemall Zespï¿½ï¿½ï¿½ï¿½ Mï¿½ï¿½ynï¿½ï¿½w Je",
+    "website": "http://www.zmjelonki.pl",
+    "country_of_origin": "Poland"
+  },
+  {
+    "id": "c7a681ef-9aa3-495f-bb16-283b85185956",
+    "company_name": "Herve Sociï¿½ï¿½tï¿½",
+    "website": "http://www.herve-societe.be",
+    "country_of_origin": "Belgium"
+  },
+  {
+    "id": "3478c7dd-20e8-403c-add5-65d1401a271a",
+    "company_name": "Heritage Industriï¿½ï¿½le Verpakkingen, Agenturen",
+    "website": "https://heritageagenturen.nl",
+    "country_of_origin": "Netherlands"
+  },
+  {
+    "id": "3386cf51-99d1-4b7a-ac6c-ae3f7384cdc9",
+    "company_name": "Wekownia - Rzemieï¿½ï¿½lnicze Weki Restaurac",
+    "website": "https://www.Wekownia.pl",
+    "country_of_origin": "Poland"
+  },
+  {
+    "id": "74de4d04-43c9-486e-9c39-777638981049",
+    "company_name": "Dï¿½ï¿½rr Kampe",
+    "website": "https://dorrkampen.nl/verpakkings-machines",
+    "country_of_origin": "Netherlands"
+  },
+  {
+    "id": "4deb0b0d-cdd9-4e23-9ee8-7323a9f949a4",
+    "company_name": "Dï¿½ï¿½lice Chocolat",
+    "website": "http://www.delice-chocolaterie.be",
+    "country_of_origin": "Belgium"
+  },
+  {
+    "id": "7a663746-0ca8-4646-aabd-27d6cdbba015",
+    "company_name": "Dï¿½ï¿½bï¿½ï¿½r Nederl",
+    "website": "https://www.dubor.nl",
+    "country_of_origin": "Netherlands"
+  },
+  {
+    "id": "c973191a-62ac-4550-9cce-cd92ef825c73",
+    "company_name": "Emix Spï¿½ï¿½lka Z Ograniczonï¿½ï¿½ Odpowiedzial",
+    "website": "http://www.emix.com.pl",
+    "country_of_origin": "Poland"
+  },
+  {
+    "id": "86c43e49-0990-447d-a58c-eeb221509779",
+    "company_name": "Wiatrowy Sad - Tï¿½ï¿½ocznia So",
+    "website": "http://www.wiatrowysad.pl",
+    "country_of_origin": "Poland"
+  },
+  {
+    "id": "8ddf17a2-22d7-47df-8857-c38626da6b23",
+    "company_name": "Firma W.Lewandowski P.H.U. Wiesï¿½ï¿½aw Lewando",
+    "website": "https://www.lewandowski.com.pl",
+    "country_of_origin": "Poland"
+  },
+  {
+    "id": "c9d3ecab-aa04-4c69-befa-b2f67d236e39",
+    "company_name": "Foodbrain International (L'Hï¿½ï¿½ritage Chocola",
+    "website": "https://foodbrain-international.com/en",
+    "country_of_origin": "Belgium"
+  },
+  {
+    "id": "5144c7df-f61e-44e5-b7ae-bbbf35bc09a4",
+    "company_name": "Wrocï¿½ï¿½awski Park Technologiczny S.A. I Klaster Nutribi",
+    "website": "https://www.technologpark.pl",
+    "country_of_origin": "Poland"
+  },
+  {
+    "id": "13ea9e40-57d0-4923-97b5-e07ca24b1455",
+    "company_name": "Wojewï¿½ï¿½dztwo Mazowie",
+    "website": "https://www.mazovia.pl",
+    "country_of_origin": "Poland"
+  },
+  {
+    "id": "bdb8c906-5100-4851-8476-b36020590cb7",
+    "company_name": "Wyrï¿½ï¿½b Wï¿½ï¿½dlin Tradycyjnych Adam Wï¿",
+    "website": "https://www.wedlinykarniewo.pl",
+    "country_of_origin": "Poland"
+  },
+  {
+    "id": "7847a017-856a-42b9-a5bf-1818ba8148c7",
+    "company_name": "Chocolaterie Carrï¿½ï¿½",
+    "website": "http://www.chocolateriecarre.be",
+    "country_of_origin": "Belgium"
+  },
+  {
+    "id": "75c18952-2903-4011-bc8c-435c3a6a3e0a",
+    "company_name": "Caffeï¿½ï¿½ï¿½ Luigi Hask",
+    "website": "http://www.haskos.com",
+    "country_of_origin": "Greece"
+  },
+  {
+    "id": "731af7ea-1cea-46ef-89d3-243db8dd9dcc",
+    "company_name": "Abeavï¿½ï¿½ï¿½ï",
+    "website": "http://www.abea.gr",
+    "country_of_origin": "Greece"
+  },
+  {
+    "id": "480e271b-142e-4f69-a245-b474a993ecd5",
+    "company_name": "Mï¿½ï¿½yn Batory Jerzy Karbo",
+    "website": "http://www.mlynbatory.pl",
+    "country_of_origin": "Poland"
+  },
+  {
+    "id": "f823d996-2c08-41af-81c2-9d65b972c559",
+    "company_name": "Mï¿½ï¿½yn Niedï¿½ï¿½wiady A.Siewkows",
+    "website": "https://www.mlynniedzwiady.com",
+    "country_of_origin": "Poland"
+  },
+  {
+    "id": "81df01d8-b2ee-48e7-977e-3914e4d62058",
+    "company_name": "Luk-Mar Grupa Producentï¿½ï¿½w Grzy",
+    "website": "https://www.gpglukmar.pl",
+    "country_of_origin": "Poland"
+  },
+  {
+    "id": "fbd2cf55-3c1c-45b1-a0a1-af735fdac07f",
+    "company_name": "Lubelskie Zioï¿½",
+    "website": "http://www.lubelskieziola.pl",
+    "country_of_origin": "Poland"
+  },
+  {
+    "id": "6fafa912-9d22-4ed6-8b19-fb900fdd5915",
+    "company_name": "Natura Cold Press/Sï¿½ï¿½o",
+    "website": "http://www.sokislonce.pl",
+    "country_of_origin": "Poland"
+  },
+  {
+    "id": "9a50c9f0-fb60-44a6-95dc-ca94372d1155",
+    "company_name": "Na Zdrowie Edyta Wystï¿½ï¿",
+    "website": "https://www.enazdrowie.pl",
+    "country_of_origin": "Poland"
+  },
+  {
+    "id": "c0789c54-2b9b-4994-8f23-f043c740e66a",
+    "company_name": "Madej Wrï¿½ï¿½bel",
+    "website": "http://www.madejwrobel.pl",
+    "country_of_origin": "Poland"
+  },
+  {
+    "id": "883fdf74-3134-42fd-b760-67a604aad893",
+    "company_name": "Nalewki Staropolskie Karol Majewski I Wspï¿½ï¿½lnicy Sp. Z O",
+    "website": "https://www.nalewki.pl",
+    "country_of_origin": "Poland"
+  },
+  {
+    "id": "9b7c6d4a-b8aa-47ea-a0fe-818040a39886",
+    "company_name": "Kï¿½ï¿½nig Neder",
+    "website": "https://www.koenig-rex.nl",
+    "country_of_origin": "Netherlands"
+  },
+  {
+    "id": "382d770d-6d6b-4e1c-ad99-871026721739",
+    "company_name": "Socamel Espaï¿½",
+    "website": "https://www.socamel.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "24afa6e4-6ef0-4c20-90aa-3372e49031a3",
+    "company_name": "Kollectiva ï¿½ï¿½.ï¿",
+    "website": "http://www.kollectiva.gr",
+    "country_of_origin": "Greece"
+  },
+  {
+    "id": "78cd3077-dd02-4c1e-a39d-26b8a59a4e90",
+    "company_name": "Feinbï¿½ï¿½ckerei Otten Gmbh & Co",
+    "website": "http://www.feinbaeckerei-otten.de",
+    "country_of_origin": "Germany"
+  },
+  {
+    "id": "7c56a51a-eb7b-40a1-a6c5-326a23266325",
+    "company_name": "Kykao Handcrafted - ï¿½ï¿½ï¿½ï¿",
+    "website": "https://kykao.gr",
+    "country_of_origin": "Greece"
+  },
+  {
+    "id": "51f5eedb-80bd-4e37-beeb-7ef664a85a9a",
+    "company_name": "Embutidos Entrepeï¿½ï",
+    "website": "https://www.embutidosentrepenas.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "3390fde8-ef9e-4c71-841b-a9a26fcc4197",
+    "company_name": "Makedonï¿½ï¿½ka Zacharod",
+    "website": "https://www.mak-zach.gr",
+    "country_of_origin": "Greece"
+  },
+  {
+    "id": "1b77b22d-976e-490d-99e0-60b8b58c0c8e",
+    "company_name": "Krajowa Rada Suplementï¿½ï¿½w I Odï¿½ï¿½ywek",
+    "website": "https://www.krsio.org.pl",
+    "country_of_origin": "Poland"
+  },
+  {
+    "id": "38c9d8cd-bfa6-4d91-82d5-b3175bb9bff2",
+    "company_name": "Delfï¿½ï¿½n Ultracongel",
+    "website": "http://www.delfinultracongelados.es",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "7acc0650-9beb-457d-848b-1330c180f51c",
+    "company_name": "El Pequeï¿½ï¿½o Molino,",
+    "website": "http://www.arruabarrena.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "053cb95c-30d5-4bb4-a173-0f1e5b620bd0",
+    "company_name": "Dealcï¿½ï¿",
+    "website": "https://www.dealcazar.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "368bd0f7-4752-4788-a4e8-a7c6c6e211c1",
+    "company_name": "Dolce Bontï¿½ï¿½ S.",
+    "website": "http://www.dolcebonta.it",
+    "country_of_origin": "Italy"
+  },
+  {
+    "id": "da84cbec-8bb5-424f-845a-7bd355998933",
+    "company_name": "Dï¿½ï¿½hler Nutrafood S.",
+    "website": "http://www.nutrafood.it",
+    "country_of_origin": "Italy"
+  },
+  {
+    "id": "4b30d7d7-e234-4ca1-86ea-f1147bd57f28",
+    "company_name": "Destilerï¿½ï¿½as Xoriguer - Gin Xori",
+    "website": "http://XORIGUER.ES",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "117fb798-45bb-42d8-8c71-1e5a88b7dae7",
+    "company_name": "Voilï¿½ï¿½",
+    "website": "https://www.voilabio.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "68fe29aa-4cad-4f56-907e-0516bbd4d3db",
+    "company_name": "Fini Golosinas Espaï¿½ï¿½a S",
+    "website": "https://finicompany.com/en",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "e2fdebb9-e1fa-4825-befd-4f58ca5b0b85",
+    "company_name": "Euroambrosï¿½ï",
+    "website": "https://euroambrosias.es",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "23db6f34-5b04-4c38-81eb-779fcc051536",
+    "company_name": "Esteban Espuï¿½ï¿½a",
+    "website": "http://www.espuna.es",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "2d0361ac-6993-4b71-8091-ebe307582dfe",
+    "company_name": "Essse Caffï¿½ï¿½ S.",
+    "website": "http://www.essecaffe.com",
+    "country_of_origin": "Italy"
+  },
+  {
+    "id": "bc3ff998-a14f-44d4-b787-15d7653fdb8a",
+    "company_name": "Junta De Andalucï¿½",
+    "website": "https://www.juntadeandalucia.es",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "e83267a6-7d2d-4a72-9f26-cf0b9a48ff6f",
+    "company_name": "Tï¿½ï¿½rtaros Gonzalo Castellï¿½ï",
+    "website": "https://www.tartaric.com/es",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "75fda78c-f1e3-4378-9787-c690a9ebd6c4",
+    "company_name": "Balcï¿½ï¿½n Del Guadalqu",
+    "website": "https://balcondelguadalquivir.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "486e3ba8-9b77-4a35-bd14-4c39a6c0e7de",
+    "company_name": "Aral / Hostelerï¿½",
+    "website": "https://aral.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "941e1360-545c-4209-9221-1825fc7489d8",
+    "company_name": "Pobillecolï¿½ï¿½",
+    "website": "https://pobillecologics.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "5f90a132-5a28-4709-9578-882f8d71636e",
+    "company_name": "Pnp Di Peluso Societï¿½ï¿½ Unipersonale S.",
+    "website": "https://www.granroma.com",
+    "country_of_origin": "Italy"
+  },
+  {
+    "id": "0ae98dea-fb42-4bda-b263-959487ec9bab",
+    "company_name": "Oro Del Jabalï¿½ï¿½n S.C",
+    "website": "https://orodeljabalon.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "f6b3cc8c-b405-44d1-897b-8f4d88bd1635",
+    "company_name": "Castellï¿½ï¿½ Ruta De S",
+    "website": "https://castellorutadesabor.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "90ca0445-68ab-4841-aad4-a6b9eef49856",
+    "company_name": "Diputaciï¿½ï¿½n De Ciudad",
+    "website": "https://dipucr.es",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "f5d6b613-1bca-48f7-aebf-add027355e6e",
+    "company_name": "Diputaciï¿½ï¿½n De Mï¿",
+    "website": "https://www.malaga.es",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "30c82a8b-0f83-4620-bba4-c1a70a47b670",
+    "company_name": "Bodegas Pï¿½ï¿½o Del",
+    "website": "https://bodegaspiodelramo.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "6ca5462f-9e4f-4ffd-9448-781111205591",
+    "company_name": "Cï¿½ï¿½rdoba Virgene",
+    "website": "https://cordobavirgenextra.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "67dab76a-f011-472a-b6ed-697266869cd2",
+    "company_name": "Dop Sierra Mï¿½ï¿½",
+    "website": "https://sierramagina.org",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "1edabb82-02b8-48ef-9c36-2c965178a835",
+    "company_name": "Diputaciï¿½ï¿½n De Alba",
+    "website": "https://dipualba.es",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "290c4577-e65a-4386-bcb5-0c6f54908ba7",
+    "company_name": "Agraria Santa ï¿½ï¿½g",
+    "website": "https://agrariasantaagueda.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "ae945815-70c5-4e06-9455-6fd90091626f",
+    "company_name": "Icex Espaï¿½ï¿½a Exportacion E Inversiones E.",
+    "website": "https://icex.es",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "4e3796dc-4633-48bb-9aab-3253e80148c3",
+    "company_name": "Indyk-Slask Spï¿½ï¿½lka Z",
+    "website": "https://www.indyk-slask.pl",
+    "country_of_origin": "Poland"
+  },
+  {
+    "id": "10c3355e-8904-4606-97f1-e46531e6b5f7",
+    "company_name": "Oleï¿½ï¿½cola J",
+    "website": "https://oleicolajaen.es",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "7a0307e1-f59e-45bb-97b9-1309fa500a3e",
+    "company_name": "Notos Distillery ï¿½ï¿½",
+    "website": "http://www.agouridis.gr",
+    "country_of_origin": "Greece"
+  },
+  {
+    "id": "6d2d57b3-1ef1-4ad2-bf7a-aa460b1b4eb5",
+    "company_name": "Whoreca ï¿½ï¿½",
+    "website": "http://www.wishbone.gr",
+    "country_of_origin": "Greece"
+  },
+  {
+    "id": "6f1ade2f-3998-420f-9691-c4e9deaf7313",
+    "company_name": "Union Of Agricultural Coop. ï¿½ï¿½f Naxos Agricultural Partnershi",
+    "website": "http://www.easnaxos.com",
+    "country_of_origin": "Greece"
+  },
+  {
+    "id": "7215db2c-4efc-43d0-9851-9751cab11392",
+    "company_name": "Ciconea Nutriciï¿½",
+    "website": "http://www.ciconea.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "a221bb15-3874-4c4f-b4ed-6a19c91efae8",
+    "company_name": "Aceite De Jaï¿½",
+    "website": "https://www.aceitedejaen.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "f1d1936a-5ae0-46e1-8356-0dd62494b370",
+    "company_name": "Badï¿½ï¿½ Forma",
+    "website": "https://www.badoformatges.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "119c9f84-b76a-4d14-a124-f9d0f139a0e1",
+    "company_name": "Aceite Molï¿½ï¿½ La V",
+    "website": "https://www.molilavansa.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "75bba16d-6c52-4339-bcbd-bcd3b5809886",
+    "company_name": "A Conserveira Tradiciï¿½",
+    "website": "https://www.aconserveira.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "0bac5b4c-dce5-4c67-bd29-dc48abe7c722",
+    "company_name": "Batallï¿½ï¿½, S.A. & Unex",
+    "website": "http://www.batalle.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "6549b2c5-e5d5-4c83-8e05-be6debc46cf3",
+    "company_name": "Bï¿½ï¿½sculas Servi",
+    "website": "http://www.servipesa.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "b1da19af-29e4-4494-8633-7bec90db1872",
+    "company_name": "Arrozï¿½ï¿½a, S.",
+    "website": "https://www.arrozua.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "20ca5ca1-b6ff-462c-9f27-8bd265d3981e",
+    "company_name": "Agencia Per La Competitivitat De L'Empresa (Acciï¿½",
+    "website": "https://www.accio.gencat.cat",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "646cb6da-cc67-4c1c-8041-c037a1a35dfb",
+    "company_name": "Arqueogastronomï¿½",
+    "website": "https://www.arqueogastronomia.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "ec3b3962-c974-4e45-bcbf-0369d576a0ed",
+    "company_name": "Coraï¿½ï¿½aï¿½ï¿½ Allianc",
+    "website": "https://www.coracaialliance.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "a5048cc4-b3af-477a-9030-0b1d8e9945ca",
+    "company_name": "Arabicaffï¿½ï¿½",
+    "website": "http://www.arabicaffe.it",
+    "country_of_origin": "Italy"
+  },
+  {
+    "id": "f442b64c-1b81-4f00-86fa-9bf527e48919",
+    "company_name": "Aproli Bari Societï¿½ï¿½ Cooperativa Agri",
+    "website": "https://aproli.shop",
+    "country_of_origin": "Italy"
+  },
+  {
+    "id": "ddee3200-4863-43bd-8cd1-f4a1c7f70d88",
+    "company_name": "Aove Tesoro Espaï¿½ï",
+    "website": "https://www.aovetesoroespanol.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "ba0d0732-38f0-4f0f-a4fb-9b612b50aca0",
+    "company_name": "Az. Agricola Lï¿½ï¿½ï¿½Arco Anti",
+    "website": "https://aziendagricolalarcoantico.com",
+    "country_of_origin": "Italy"
+  },
+  {
+    "id": "c0c86523-ff61-430d-ae18-057f9d64df2a",
+    "company_name": "Granja Ecolï¿½ï¿½gica Vil",
+    "website": "https://www.granjaecologicavillada.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "baaaa559-4f44-40e0-a499-29840738c54e",
+    "company_name": "Granja Avï¿½ï¿½cola S",
+    "website": "https://www.granjasalvi.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "153c7880-5734-49bc-8f99-ab5d9d478266",
+    "company_name": "Asesores I Mï¿½ï¿",
+    "website": "https://www.imasd.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "9b341320-c934-402a-80aa-6d22dd02b81f",
+    "company_name": "Grupo Ybarra Alimentaciï¿½ï¿½n,",
+    "website": "http://www.ybarragroup.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "20c39a46-98f3-4809-8eaf-e2edaa1dc8e1",
+    "company_name": "Societï¿½ï¿½ Agricola Calemma Societï¿½ï¿½",
+    "website": "https://soc.agricolacalemma@gmail.com",
+    "country_of_origin": "Italy"
+  },
+  {
+    "id": "f9c32f8d-b418-402b-9fea-c373c71d26e6",
+    "company_name": "Smï¿½ï¿½oy - Eb",
+    "website": "https://smooy.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "1738db02-4d84-49a7-b72b-3ebc5798d769",
+    "company_name": "Fresbeira - Indï¿½ï¿½stria De Ca",
+    "website": "https://www.fresbeira.pt",
+    "country_of_origin": "Portugal"
+  },
+  {
+    "id": "ae82c20c-33c1-4871-b2dd-69f69d19907a",
+    "company_name": "Tï¿½ï¿½cnica De Envases Pesqueros Tep",
+    "website": "http://www.e-tepsa.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "b31ca130-289e-47fe-b5c6-040880ebb466",
+    "company_name": "Termavi (Terminales Marï¿½ï¿½timas De Vigo)",
+    "website": "http://www.termavi.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "0a84e7b6-7175-4da3-9e7e-df38a10cb433",
+    "company_name": "Teresa Mate, Piï¿½ï¿½ones Y Frutos Secos Carameliz",
+    "website": "https://www.teresamate.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "bb685b97-d586-4b16-862d-612ad85e2abb",
+    "company_name": "Torry Harris America Inc Sucursal Espaï¿½",
+    "website": "http://www.torryharris.es",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "ab56ebfa-ef12-4b58-a24b-b8fae283fc78",
+    "company_name": "Sï¿½ï¿½dtiroler Speck Consor",
+    "website": "http://www.speck.it",
+    "country_of_origin": "Italy"
+  },
+  {
+    "id": "721f0a37-0de5-41b0-a2b9-3f9cc1de96c3",
+    "company_name": "Torrezno De Soria, Marca De Garantï¿½",
+    "website": "https://www.torrezno.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "7d8cb52f-c3b6-44df-b07a-79df431c6128",
+    "company_name": "To.Da. Caffï¿½ï¿½ S.",
+    "website": "http://www.todacaffe.it",
+    "country_of_origin": "Italy"
+  },
+  {
+    "id": "b0b9c087-45c5-4c06-b452-f5c7b2f41662",
+    "company_name": "Tapamania Espaï¿½",
+    "website": "https://www.tapamania.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "64079062-e6ef-4fe9-b905-a61e10347953",
+    "company_name": "Stohos Foods Espaï¿½",
+    "website": "https://www.stohos.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "a66fd30b-6d6d-46c5-84f7-8b427e4e71d7",
+    "company_name": "Swisspac Espaï¿½",
+    "website": "https://www.swisspac.com",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "7d859ee1-1cba-4fb5-bb10-386edfad1a89",
+    "company_name": "Specialitï¿½ï¿½ Dei Piceni S.R.L. - Bacchetti",
+    "website": "http://www.bacchettifood.it",
+    "country_of_origin": "Italy"
+  },
+  {
+    "id": "aaee5986-c26c-45b3-93f1-c778c46775d3",
+    "company_name": "Tama Caffï¿½ï¿½",
+    "website": "https://www.tamacaffe.it",
+    "country_of_origin": "Italy"
+  },
+  {
+    "id": "b937548d-01d2-4429-b229-ab864fc578d4",
+    "company_name": "Sushi Robots Espaï¿½ï¿½",
+    "website": "https://www.sushirobots.es",
+    "country_of_origin": "Spain"
+  },
+  {
+    "id": "a049ab48-0b07-435a-9a77-e4340a7a0bbc",
+    "company_name": "Diatosta Indï¿½ï¿½stria Alimentar",
+    "website": "http://www.diatosta.pt",
+    "country_of_origin": "Portugal"
+  },
+  {
+    "id": "37d83853-9780-49b5-8451-ee5962e179ce",
+    "company_name": "Ernst Bï¿½ï¿½cker Gmbh & Co",
+    "website": "https://www.sauerteig.de",
+    "country_of_origin": "Germany"
+  },
+  {
+    "id": "d9d02bed-95df-4b35-a28d-e1875f86c3ab",
+    "company_name": "Ing. Peter Kudlac ï¿½ï¿½ï¿½",
+    "website": "http://www.apimed.sk",
+    "country_of_origin": "Slovakia"
+  }
+]
