@@ -79,10 +79,6 @@ export async function POST(req: Request) {
     return Response.json({ error: msg }, { status: 400 });
   }
 
-  if (rows.length > 500) {
-    return Response.json({ error: "Maximum 500 rows per upload" }, { status: 400 });
-  }
-
   const batchId = `csv-${Date.now()}`;
   const fileName = file.name;
   
