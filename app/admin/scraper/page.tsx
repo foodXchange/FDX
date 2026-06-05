@@ -111,7 +111,7 @@ export default async function ScraperPage() {
       .from("scraper_csv_uploads")
       .select("id, batch_id, filename, rows_total, rows_pending, uploaded_at")
       .order("uploaded_at", { ascending: false })
-      .limit(20),
+      .limit(50),
     supabaseAdmin
       .from("supplier_offerings")
       .select("id, csv_import_batch, scrape_source")
@@ -243,7 +243,7 @@ export default async function ScraperPage() {
       const bTime = b.firstSeen ? new Date(b.firstSeen).getTime() : 0;
       return bTime - aTime;
     })
-    .slice(0, 10);
+    .slice(0, 50);
 
   // Backfill scraper_csv_uploads if table is empty but batches exist
   if (uploadHistory.length === 0 && batchSummaries.length > 0) {
@@ -289,25 +289,36 @@ export default async function ScraperPage() {
     };
   });
 
-  // Build options for ScraperConsole dropdown
-  const batchOptions = uploadHistory
+  // Build options for ScraperConsole dropdown.
+  // Primary source: scraper_csv_uploads (row counts, timestamps).
+  // Supplement with enriched batches that have no upload log entry — covers
+  // cases where the scraper_csv_uploads insert failed silently on a large upload.
+  const batchOptionsFromHistory = uploadHistory
     .filter((u) => u.batch_id)
     .map((u) => ({
       batchId: u.batch_id as string,
-      filename: u.filename,
+      filename: (u.batch_id && origFilenameMap[u.batch_id]) ?? u.filename,
       rowsTotal: u.rows_total,
       uploadedAt: u.uploaded_at,
     }));
 
-  const effectiveBatchOptions =
-    batchOptions.length > 0
-      ? batchOptions
-      : enrichedBatches.map((b) => ({
-          batchId: b.batchId,
-          filename: b.filename ?? b.batchId,
-          rowsTotal: b.total,
-          uploadedAt: b.firstSeen,
-        }));
+  const batchIdsInHistory = new Set(batchOptionsFromHistory.map((b) => b.batchId));
+
+  const effectiveBatchOptions = [
+    ...batchOptionsFromHistory,
+    ...enrichedBatches
+      .filter((b) => !batchIdsInHistory.has(b.batchId))
+      .map((b) => ({
+        batchId: b.batchId,
+        filename: b.filename ?? b.batchId,
+        rowsTotal: b.total,
+        uploadedAt: b.firstSeen,
+      })),
+  ].sort((a, b) => {
+    const aTime = a.uploadedAt ? new Date(a.uploadedAt).getTime() : 0;
+    const bTime = b.uploadedAt ? new Date(b.uploadedAt).getTime() : 0;
+    return bTime - aTime;
+  });
 
   // Upload history display: fall back to enriched batches if scraper_csv_uploads is empty.
   // Prefer original_filename from scrape_batches over whatever was stored in scraper_csv_uploads.
