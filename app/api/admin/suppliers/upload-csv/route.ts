@@ -92,6 +92,7 @@ export async function POST(req: Request) {
     .insert({
       batch_key: batchId,
       filenames: [fileName],
+      original_filename: fileName,
       total_rows: rows.length,
       status: "pending",
     })

@@ -37,6 +37,11 @@ type BatchSourceRow = {
   scrape_source: string | null;
 };
 
+type ScrapeBatchFilenameRow = {
+  batch_key: string;
+  original_filename: string | null;
+};
+
 type BatchSummary = {
   batchId: string;
   pending: number;
@@ -80,6 +85,7 @@ export default async function ScraperPage() {
     batchStatsResult,
     uploadHistoryResult,
     batchSourceResult,
+    scrapeBatchFilenamesResult,
   ] = await Promise.all([
     supabaseAdmin
       .from("supplier_offerings")
@@ -111,12 +117,24 @@ export default async function ScraperPage() {
       .select("id, csv_import_batch, scrape_source")
       .not("csv_import_batch", "is", null)
       .neq("csv_import_batch", ""),
+    supabaseAdmin
+      .from("scrape_batches")
+      .select("batch_key, original_filename")
+      .not("original_filename", "is", null)
+      .order("created_at", { ascending: false })
+      .limit(50),
   ]);
 
   const suppliers = (suppliersResult.data ?? []) as SupplierRow[];
   const totalProducts = productsCountResult.count ?? 0;
   const uploadHistory = (uploadHistoryResult.data ?? []) as UploadHistoryRow[];
   const batchSourceRows = (batchSourceResult.data ?? []) as BatchSourceRow[];
+
+  // Map batch_key → original_filename for display in batch cards and upload history
+  const origFilenameMap: Record<string, string> = {};
+  for (const b of (scrapeBatchFilenamesResult.data ?? []) as ScrapeBatchFilenameRow[]) {
+    if (b.original_filename) origFilenameMap[b.batch_key] = b.original_filename;
+  }
 
   const factories = (factoriesResult.data ?? []) as FactoryRow[];
   const factoryCountMap: Record<string, number> = {};
@@ -256,13 +274,15 @@ export default async function ScraperPage() {
     productCountByBatch[r.batchId] = r.count;
   }
 
-  // Enrich batch summaries with filename, productsCount, source counts, and batch number
+  // Enrich batch summaries with filename, productsCount, source counts, and batch number.
+  // Prefer original_filename from scrape_batches; fall back to scraper_csv_uploads.filename.
   const enrichedBatches: BatchSummary[] = batchSummaries.map((b) => {
     const uploadRecord = uploadByBatchId[b.batchId];
+    const filename = origFilenameMap[b.batchId] ?? uploadRecord?.filename;
     return {
       ...b,
-      filename: uploadRecord?.filename,
-      batchNumber: extractBatchNumber(uploadRecord?.filename),
+      filename,
+      batchNumber: extractBatchNumber(filename),
       productsCount: productCountByBatch[b.batchId] ?? 0,
       firecrawlCount: batchFirecrawlCount[b.batchId] ?? 0,
       perplexityCount: batchPerplexityCount[b.batchId] ?? 0,
@@ -289,10 +309,14 @@ export default async function ScraperPage() {
           uploadedAt: b.firstSeen,
         }));
 
-  // Upload history display: fall back to enriched batches if scraper_csv_uploads is empty
+  // Upload history display: fall back to enriched batches if scraper_csv_uploads is empty.
+  // Prefer original_filename from scrape_batches over whatever was stored in scraper_csv_uploads.
   const displayHistory: UploadHistoryRow[] =
     uploadHistory.length > 0
-      ? uploadHistory
+      ? uploadHistory.map((u) => ({
+          ...u,
+          filename: (u.batch_id && origFilenameMap[u.batch_id]) ?? u.filename,
+        }))
       : enrichedBatches.map((b) => ({
           id: b.batchId,
           batch_id: b.batchId,
