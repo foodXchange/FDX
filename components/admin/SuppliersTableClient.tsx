@@ -83,9 +83,6 @@ export function SuppliersTableClient({
 
   return (
     <>
-      <div className="text-xs text-gray-400">
-        Debug: {selectedIds.size} selected
-      </div>
       {selectedIds.size > 0 && (
         <div className="mb-4 rounded-3xl bg-amber-50 border border-amber-200 p-4">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -102,9 +99,10 @@ export function SuppliersTableClient({
                 >
                   <option value="">Set status…</option>
                   <option value="approved">Approved</option>
-                  <option value="active">Active</option>
                   <option value="pending">Pending</option>
-                  <option value="inactive">Inactive</option>
+                  <option value="sent">Sent</option>
+                  <option value="responded">Responded</option>
+                  <option value="closed">Closed</option>
                 </select>
               </label>
               <button
