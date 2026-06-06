@@ -83,6 +83,9 @@ export function SuppliersTableClient({
 
   return (
     <>
+      <div className="text-xs text-gray-400">
+        Debug: {selectedIds.size} selected
+      </div>
       {selectedIds.size > 0 && (
         <div className="mb-4 rounded-3xl bg-amber-50 border border-amber-200 p-4">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -157,7 +160,11 @@ export function SuppliersTableClient({
                     <input
                       type="checkbox"
                       checked={selectedIds.has(supplier.id)}
-                      onChange={() => toggleRow(supplier.id)}
+                      onChange={(e) => {
+                        e.stopPropagation();
+                        toggleRow(supplier.id);
+                      }}
+                      onClick={(e) => e.stopPropagation()}
                       className="h-4 w-4 rounded border-gray-300 text-orange-600 focus:ring-orange-500"
                     />
                   </td>
