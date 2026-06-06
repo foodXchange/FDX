@@ -94,18 +94,18 @@ const COUNTRY_ALIAS_MAP: Record<string, string> = {
   TR: "Turkey",
 };
 
-function normalizeCountry(raw?: string | null): string {
-  if (!raw) return "";
-  const cleaned = raw
-    .trim()
-    .replace(/\s+/g, " ")
-    .replace(/[.,]+$/, "")
-    .replace(/’/g, "'")
-    .replace(/–/g, "-");
+function normalizeCountry(raw?: string | null): string | null {
+  if (!raw) return null;
 
-  const upper = cleaned.toUpperCase();
+  let s = raw.trim();
+  s = s.replace(/\s*\(.*$/, "").trim();
+  s = s.replace(/[.,;]+$/, "").trim();
+
+  if (!s || s.length < 2) return null;
+
+  const upper = s.toUpperCase();
   if (COUNTRY_ALIAS_MAP[upper]) {
-    return COUNTRY_ALIAS_MAP[upper];
+    s = COUNTRY_ALIAS_MAP[upper];
   }
 
   if (/^[A-Z]{2}$/.test(upper)) {
@@ -113,10 +113,14 @@ function normalizeCountry(raw?: string | null): string {
     const matchedName = Object.entries(COUNTRY_CODE_MAP).find(
       ([, mappedCode]) => mappedCode === code
     )?.[0];
-    return matchedName ?? code;
+    s = matchedName ?? code;
   }
 
-  return cleaned
+  if (["EUROPE", "GLOBAL", "VARIOUS", "UNKNOWN"].includes(s.toUpperCase())) {
+    return null;
+  }
+
+  return s
     .split(" ")
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
     .join(" ");
@@ -284,7 +288,7 @@ export default async function AdminSuppliersPage({
   const countries = [...new Set(
     (countriesResult.data ?? [])
       .map((row) => normalizeCountry(row.country_of_origin))
-      .filter((value): value is string => value.length > 0)
+      .filter((value): value is string => typeof value === "string" && value.length > 0)
   )].sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
 
   const priorities = [...new Set(
@@ -318,13 +322,15 @@ export default async function AdminSuppliersPage({
 
   if (country) {
     const normalizedCountry = normalizeCountry(country);
-    const countryCode = getCountryCode(normalizedCountry);
-    if (countryCode && countryCode !== normalizedCountry) {
-      query = query.or(
-        `country_of_origin.ilike.%${normalizedCountry}%,country_of_origin.ilike.%${countryCode}%`
-      );
-    } else {
-      query = query.ilike("country_of_origin", `%${normalizedCountry}%`);
+    if (normalizedCountry) {
+      const countryCode = getCountryCode(normalizedCountry);
+      if (countryCode && countryCode !== normalizedCountry) {
+        query = query.or(
+          `country_of_origin.ilike.%${normalizedCountry}%,country_of_origin.ilike.%${countryCode}%`
+        );
+      } else {
+        query = query.ilike("country_of_origin", `%${normalizedCountry}%`);
+      }
     }
   }
   if (category) query = query.contains("categories", [category]);
