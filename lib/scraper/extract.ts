@@ -163,20 +163,40 @@ export async function detectManufacturerType(
   }
 }
 
+let extractionDebugLogged = false;
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function safeParseProducts(raw: string): any[] {
-  // Try direct parse first
+  const trimmed = raw.trim();
+
+  // Try direct parse first, even if there is surrounding text.
   try {
-    const match = raw.match(/\[[\s\S]*\]/);
-    if (match) return JSON.parse(match[0]);
+    const match = trimmed.match(/\[[\s\S]*\]/);
+    if (match) {
+      const parsed = JSON.parse(match[0]);
+      if (Array.isArray(parsed)) return parsed;
+    }
   } catch {}
 
-  // Try to extract partial valid JSON by finding complete product objects
+  // Try to parse an array-like response with single-quoted strings or trailing commas.
+  try {
+    const arrayLike = trimmed
+      .replace(/\r\n/g, "\n")
+      .replace(/,\s*\]/g, "]")
+      .replace(/,\s*\}/g, "}");
+    const match = arrayLike.match(/\[[\s\S]*\]/);
+    if (match) {
+      const parsed = JSON.parse(match[0]);
+      if (Array.isArray(parsed)) return parsed;
+    }
+  } catch {}
+
+  // Try to extract partial valid JSON by finding complete product objects.
   try {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const objects: any[] = [];
     const regex = /\{[^{}]*"product_name"[^{}]*\}/g;
-    const matches = raw.match(regex) ?? [];
+    const matches = trimmed.match(regex) ?? [];
     for (const m of matches) {
       try {
         objects.push(JSON.parse(m));
@@ -273,13 +293,23 @@ export async function extractProducts(
       messages: [{ role: "user", content: userPrompt }],
     });
 
-    const raw =
-      response.content[0].type === "text"
-        ? response.content[0].text.trim()
-        : "";
+    const raw = response.content
+      .filter((item) => item.type === "text")
+      .map((item) => "text" in item ? item.text : "")
+      .join("")
+      .trim();
 
     const parsed = safeParseProducts(raw);
-    if (!Array.isArray(parsed) || parsed.length === 0) return [];
+    if (!Array.isArray(parsed) || parsed.length === 0) {
+      if (!extractionDebugLogged) {
+        extractionDebugLogged = true;
+        console.error("EXTRACT_PRODUCTS_RAW_RESPONSE: first failed extraction raw text below");
+        console.error(raw || "<empty response>");
+        console.error("EXTRACT_PRODUCTS_RAW_LENGTH:", raw.length);
+        console.error("EXTRACT_PRODUCTS_PROMPT_LENGTH:", userPrompt.length);
+      }
+      return [];
+    }
 
     const filtered = (parsed as ExtractedProduct[]).filter(
       (p) => (p.confidence ?? 0) >= CONFIDENCE_THRESHOLD
@@ -290,7 +320,7 @@ export async function extractProducts(
     }));
   } catch (err) {
     console.error("Extraction error:", err);
-    return [];
+    throw err;
   }
 }
 
