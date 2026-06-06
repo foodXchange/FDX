@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
-import SupplierRowActions from "@/components/admin/SupplierRowActions";
 import { SupplierFiltersBar } from "@/components/admin/SupplierFiltersBar";
+import { SuppliersTableClient } from "@/components/admin/SuppliersTableClient";
 
 export const dynamic = "force-dynamic";
 
@@ -467,123 +467,7 @@ export default async function AdminSuppliersPage({
           </div>
         ) : (
           <>
-            <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-sm">
-              <table className="w-full text-sm">
-                <thead className="bg-gray-50 border-b border-gray-200">
-                  <tr>
-                    {[
-                      "Company",
-                      "Country",
-                      "Categories",
-                      "Certs",
-                      "Type",
-                      "Markets",
-                      "Qual",
-                      "Status",
-                      "Prio",
-                      "Actions",
-                    ].map((h) => (
-                      <th
-                        key={h}
-                        className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider"
-                      >
-                        {h}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {suppliers.map((s) => {
-                    const flag = s.country_of_origin
-                      ? COUNTRY_FLAGS[s.country_of_origin] ?? ""
-                      : "";
-                    return (
-                      <tr key={s.id} className="hover:bg-gray-50 transition-colors">
-                        <td className="px-4 py-3">
-                          <div className="flex items-center gap-2">
-                            <Link
-                              href={`/admin/suppliers/${s.id}`}
-                              className="font-medium text-gray-900 hover:text-orange-600 transition text-sm"
-                            >
-                              {s.company_name}
-                            </Link>
-                            {s.verified && (
-                              <span
-                                className="text-green-500 text-xs font-bold"
-                                title="Verified"
-                              >
-                                ✓
-                              </span>
-                            )}
-                          </div>
-                        </td>
-                        <td className="px-4 py-3 text-sm text-gray-600">
-                          {flag && <span className="mr-1">{flag}</span>}
-                          {s.country_of_origin ?? "—"}
-                        </td>
-                        <td className="px-4 py-3">
-                          <div className="flex gap-1 flex-wrap">
-                            {(s.categories ?? []).slice(0, 2).map((c) => (
-                              <span
-                                key={c}
-                                className="text-xs bg-slate-100 text-slate-600 rounded-full px-2 py-0.5"
-                              >
-                                {c}
-                              </span>
-                            ))}
-                            {(s.categories?.length ?? 0) > 2 && (
-                              <span className="text-xs text-gray-400">
-                                +{(s.categories?.length ?? 0) - 2}
-                              </span>
-                            )}
-                          </div>
-                        </td>
-                        <td className="px-4 py-3">
-                          <span className="text-xs bg-orange-50 text-orange-700 border border-orange-200 rounded-full px-2 py-0.5">
-                            {s.certifications?.length ?? 0} certs
-                          </span>
-                        </td>
-                        <td className="px-4 py-3">
-                          <ProductTypeBadge type={s.product_type} />
-                        </td>
-                        <td className="px-4 py-3">
-                          <div className="flex gap-1 flex-wrap">
-                            {(s.markets_served ?? []).slice(0, 2).map((m) => (
-                              <span
-                                key={m}
-                                className="text-xs text-gray-500 border border-gray-200 rounded-full px-2 py-0.5"
-                              >
-                                {m}
-                              </span>
-                            ))}
-                          </div>
-                        </td>
-                        <td className="px-4 py-3">
-                          <QualificationBadge qualification={s.qualification_status} />
-                        </td>
-                        <td className="px-4 py-3">
-                          <StatusBadge status={s.status} />
-                        </td>
-                        <td className="px-4 py-3 text-sm text-gray-500">
-                          {s.priority ?? 0}
-                        </td>
-                        <td className="px-4 py-3">
-                          <div className="flex items-center gap-3">
-                            <Link
-                              href={`/admin/suppliers/${s.id}`}
-                              className="text-xs text-orange-600 hover:text-orange-700 font-medium"
-                            >
-                              Edit
-                            </Link>
-                            <SupplierRowActions id={s.id} />
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+            <SuppliersTableClient suppliers={suppliers} />
 
             {totalPages > 1 && (
               <div className="flex flex-col gap-3 mt-4 sm:flex-row sm:items-center sm:justify-between">

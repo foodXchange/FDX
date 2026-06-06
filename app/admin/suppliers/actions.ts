@@ -146,6 +146,26 @@ export async function toggleStatus(
   return { ok: true };
 }
 
+export async function bulkUpdateSupplierStatus(
+  ids: string[],
+  newStatus: string
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  if (ids.length === 0) return { ok: true };
+
+  const { error } = await supabaseAdmin
+    .from("supplier_offerings")
+    .update({ status: newStatus, updated_at: new Date().toISOString() })
+    .in("id", ids);
+
+  if (error) {
+    console.error("bulkUpdateSupplierStatus error:", error);
+    return { ok: false, error: "Database error" };
+  }
+
+  revalidatePath("/admin/suppliers");
+  return { ok: true };
+}
+
 const ContactSchema = z.object({
   name: z.string().min(1),
   role: z.string().optional().nullable(),
