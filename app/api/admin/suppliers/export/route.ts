@@ -47,13 +47,10 @@ export async function GET(req: NextRequest) {
 
   const rows = (data ?? []) as Array<Record<string, any>>;
 
-  function escapeCsv(value: unknown) {
-    if (value === null || value === undefined) return "";
+  function quoteField(value: unknown) {
+    if (value === null || value === undefined) return '""';
     const s = String(value);
-    if (s.includes("\",") || s.includes("\n") || s.includes('"')) {
-      return '"' + s.replace(/"/g, '""') + '"';
-    }
-    return s;
+    return '"' + s.replace(/"/g, '""') + '"';
   }
 
   const header = [
@@ -68,21 +65,24 @@ export async function GET(req: NextRequest) {
     "created_at",
   ];
 
-  const lines = [header.join(",")];
+  const lines: string[] = [];
+  // Always quote header fields
+  lines.push(header.map(quoteField).join(","));
 
   for (const r of rows) {
-    const line = [
-      escapeCsv(r.id),
-      escapeCsv(r.company_name),
-      escapeCsv(r.website),
-      escapeCsv(r.country_of_origin),
-      escapeCsv(r.qualification_status),
-      escapeCsv(r.product_count),
-      escapeCsv(r.scrape_status),
-      escapeCsv(r.internal_notes),
-      escapeCsv(r.created_at),
-    ].join(",");
-    lines.push(line);
+    const fields = [
+      r.id,
+      r.company_name,
+      r.website,
+      r.country_of_origin,
+      r.qualification_status,
+      r.product_count,
+      r.scrape_status,
+      r.internal_notes,
+      r.created_at,
+    ];
+
+    lines.push(fields.map(quoteField).join(","));
   }
 
   const csv = lines.join("\n");
