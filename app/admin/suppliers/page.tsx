@@ -253,7 +253,7 @@ export default async function AdminSuppliersPage({
         .select("country_of_origin")
         .not("country_of_origin", "is", null)
         .order("country_of_origin", { ascending: true })
-        .limit(500),
+        .limit(99999),
       supabaseAdmin
         .from("supplier_offerings")
         .select("priority")
