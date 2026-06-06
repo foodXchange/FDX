@@ -139,7 +139,14 @@ export function SupplierFiltersBar({
           <p className="text-sm text-gray-500">
             Showing {showingStart}–{showingEnd} of {totalCount.toLocaleString()} suppliers
           </p>
-          {hasActiveFilters && (
+          <div className="flex items-center gap-2">
+            <a
+              href={`/api/admin/suppliers/export${buildSearchParams({}).toString() ? `?${buildSearchParams({}).toString()}` : ""}`}
+              className="inline-flex items-center justify-center rounded-full border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-600 transition hover:bg-gray-50"
+            >
+              ⬇ Export CSV
+            </a>
+            {hasActiveFilters && (
             <button
               type="button"
               className="inline-flex items-center justify-center rounded-full border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-600 transition hover:bg-gray-50"
@@ -148,7 +155,8 @@ export function SupplierFiltersBar({
             >
               Clear filters
             </button>
-          )}
+            )}
+          </div>
         </div>
       </div>
     </div>
