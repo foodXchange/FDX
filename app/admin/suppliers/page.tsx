@@ -44,6 +44,89 @@ const CATEGORY_OPTIONS = [
   { value: "Sugars & Sweeteners", label: "Sugars & Sweeteners" },
 ];
 
+const COUNTRY_CODE_MAP: Record<string, string> = {
+  Belgium: "BE",
+  Italy: "IT",
+  Spain: "ES",
+  France: "FR",
+  Germany: "DE",
+  Netherlands: "NL",
+  Portugal: "PT",
+  Greece: "GR",
+  Poland: "PL",
+  Turkey: "TR",
+  Israel: "IL",
+  "United States": "US",
+  "United Kingdom": "GB",
+  "United Arab Emirates": "AE",
+  Canada: "CA",
+  Brazil: "BR",
+  Mexico: "MX",
+  China: "CN",
+  Japan: "JP",
+  "South Korea": "KR",
+  Vietnam: "VN",
+  "Czech Republic": "CZ",
+  Australia: "AU",
+  India: "IN",
+  Argentina: "AR",
+  Thailand: "TH",
+};
+
+const COUNTRY_ALIAS_MAP: Record<string, string> = {
+  UK: "United Kingdom",
+  GB: "United Kingdom",
+  USA: "United States",
+  US: "United States",
+  UAE: "United Arab Emirates",
+  KSA: "Saudi Arabia",
+  CZ: "Czech Republic",
+  BR: "Brazil",
+  IL: "Israel",
+  ES: "Spain",
+  FR: "France",
+  DE: "Germany",
+  IT: "Italy",
+  NL: "Netherlands",
+  PT: "Portugal",
+  GR: "Greece",
+  PL: "Poland",
+  TR: "Turkey",
+};
+
+function normalizeCountry(raw?: string | null): string {
+  if (!raw) return "";
+  const cleaned = raw
+    .trim()
+    .replace(/\s+/g, " ")
+    .replace(/[.,]+$/, "")
+    .replace(/’/g, "'")
+    .replace(/–/g, "-");
+
+  const upper = cleaned.toUpperCase();
+  if (COUNTRY_ALIAS_MAP[upper]) {
+    return COUNTRY_ALIAS_MAP[upper];
+  }
+
+  if (/^[A-Z]{2}$/.test(upper)) {
+    const code = upper;
+    const matchedName = Object.entries(COUNTRY_CODE_MAP).find(
+      ([, mappedCode]) => mappedCode === code
+    )?.[0];
+    return matchedName ?? code;
+  }
+
+  return cleaned
+    .split(" ")
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
+    .join(" ");
+}
+
+function getCountryCode(normalized: string): string | undefined {
+  if (/^[A-Z]{2}$/.test(normalized)) return normalized;
+  return COUNTRY_CODE_MAP[normalized];
+}
+
 const SUPPLIER_QUALIFICATION_TABS = ["review", "strong", "empty", "all"] as const;
 type QualificationTab = (typeof SUPPLIER_QUALIFICATION_TABS)[number];
 
@@ -200,8 +283,8 @@ export default async function AdminSuppliersPage({
 
   const countries = [...new Set(
     (countriesResult.data ?? [])
-      .map((row) => row.country_of_origin)
-      .filter((value): value is string => typeof value === "string")
+      .map((row) => normalizeCountry(row.country_of_origin))
+      .filter((value): value is string => value.length > 0)
   )].sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
 
   const priorities = [...new Set(
@@ -233,7 +316,17 @@ export default async function AdminSuppliersPage({
     query = query.or(`company_name.ilike.%${safeSearchValue}%,website.ilike.%${safeSearchValue}%`);
   }
 
-  if (country) query = query.eq("country_of_origin", country);
+  if (country) {
+    const normalizedCountry = normalizeCountry(country);
+    const countryCode = getCountryCode(normalizedCountry);
+    if (countryCode && countryCode !== normalizedCountry) {
+      query = query.or(
+        `country_of_origin.ilike.%${normalizedCountry}%,country_of_origin.ilike.%${countryCode}%`
+      );
+    } else {
+      query = query.ilike("country_of_origin", `%${normalizedCountry}%`);
+    }
+  }
   if (category) query = query.contains("categories", [category]);
 
   if (status === "approved") {
