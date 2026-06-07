@@ -50,15 +50,13 @@ function trackEvent(name: string, props: Record<string, string>) {
 
 export function CardView({ card, cardUrl, preview = false }: CardViewProps) {
   const [linkCopied, setLinkCopied] = useState(false);
-  const [canShare, setCanShare] = useState(false);
+  const [copied, setCopied] = useState(false);
   const [activePhoto, setActivePhoto] = useState(0);
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const touchStartX = useRef(0);
   const touchStartY = useRef(0);
 
   useEffect(() => {
-    setCanShare(typeof navigator.share === "function");
-
     if (!preview) {
       fetch("/api/card/track", {
         method: "POST",
@@ -93,9 +91,32 @@ export function CardView({ card, cardUrl, preview = false }: CardViewProps) {
     setTimeout(() => setLinkCopied(false), 2000);
   }
 
-  function handleShare() {
-    navigator.share({ title: card.name, url: window.location.href }).catch(() => {});
-    track("share_card");
+  async function handleShare() {
+    const shareUrl = "https://fdx.trading/business-card/udi";
+    const shareData = {
+      title: "Udi Stryk — FoodXchange",
+      text: "Connecting European manufacturers with the Israeli food market.",
+      url: shareUrl,
+    };
+
+    if (navigator.share && navigator.canShare && navigator.canShare(shareData)) {
+      try {
+        await navigator.share(shareData);
+        track("share_card");
+        return;
+      } catch (err) {
+        if ((err as Error).name === "AbortError") return;
+      }
+    }
+
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      setCopied(true);
+      track("share_card");
+      setTimeout(() => setCopied(false), 2500);
+    } catch {
+      window.prompt("Copy this link:", shareUrl);
+    }
   }
 
   const photos = card.photos;
@@ -355,14 +376,36 @@ export function CardView({ card, cardUrl, preview = false }: CardViewProps) {
           >
             {linkCopied ? "Copied!" : "Copy link"}
           </button>
-          {canShare && (
-            <button
-              onClick={handleShare}
-              className="text-xs text-slate-400 hover:text-white transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-orange-400 rounded"
-            >
-              Share
-            </button>
-          )}
+          <button
+            onClick={handleShare}
+            className="text-xs text-slate-400 hover:text-white transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-orange-400 rounded"
+          >
+            {copied ? "✓ Link copied!" : "Share"}
+          </button>
+        </div>
+        <div className="flex gap-3 justify-center mt-2">
+          <a
+            href={`https://wa.me/?text=${encodeURIComponent("Udi Stryk — FoodXchange: https://fdx.trading/business-card/udi")}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-xs text-white/50 hover:text-white/80 transition-colors"
+          >
+            WhatsApp
+          </a>
+          <a
+            href={`mailto:?subject=FoodXchange&body=${encodeURIComponent("https://fdx.trading/business-card/udi")}`}
+            className="text-xs text-white/50 hover:text-white/80 transition-colors"
+          >
+            Email
+          </a>
+          <a
+            href={`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent("https://fdx.trading/business-card/udi")}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-xs text-white/50 hover:text-white/80 transition-colors"
+          >
+            LinkedIn
+          </a>
         </div>
       </div>
 
