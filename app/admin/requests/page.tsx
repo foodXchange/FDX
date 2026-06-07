@@ -84,15 +84,17 @@ export default async function AdminRequestsPage() {
   }));
 
   const totalCount = requests.length;
-  const matchedCount = requests.filter((r) => r.match_count > 0).length;
-  const unmatchedCount = requests.filter((r) => r.match_count === 0).length;
+  const matchedCount = requests.filter((r) => r.status === "matched").length;
+  const unmatchedCount = requests.filter(
+    (r) => r.status !== "matched" && r.status !== "closed"
+  ).length;
   const highScoreCount = requests.filter(
     (r) => (r.best_match_score ?? 0) >= 70
   ).length;
   const awaitingCount = requests.filter((r) => r.status === "matched").length;
 
   const unmatchedIds = requests
-    .filter((r) => r.match_count === 0)
+    .filter((r) => r.status !== "matched" && r.status !== "closed")
     .map((r) => r.id);
 
   const reMatchIds = requests
