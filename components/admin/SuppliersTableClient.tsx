@@ -5,6 +5,19 @@ import { useRouter } from "next/navigation";
 import { bulkUpdateSupplierStatus } from "@/app/admin/suppliers/actions";
 import SupplierRowActions from "@/components/admin/SupplierRowActions";
 
+const HEADER_MIN_WIDTHS: Record<string, string> = {
+  Company: "min-w-[220px]",
+  Country: "min-w-[120px]",
+  Categories: "min-w-[200px]",
+  Certs: "min-w-[110px]",
+  Type: "min-w-[130px]",
+  Markets: "min-w-[170px]",
+  Qual: "min-w-[110px]",
+  Status: "min-w-[110px]",
+  Prio: "min-w-[80px]",
+  Actions: "min-w-[120px]",
+};
+
 type SupplierRow = {
   id: string;
   company_name: string;
@@ -118,8 +131,8 @@ export function SuppliersTableClient({
         </div>
       )}
 
-      <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-sm">
-        <table className="w-full text-sm">
+      <div className="bg-white border border-gray-200 rounded-2xl overflow-x-auto shadow-sm">
+        <table className="w-full text-sm min-w-max">
           <thead className="bg-gray-50 border-b border-gray-200">
             <tr>
               <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
@@ -144,7 +157,13 @@ export function SuppliersTableClient({
               ].map((header) => (
                 <th
                   key={header}
-                  className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider"
+                  className={`px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider ${
+                    HEADER_MIN_WIDTHS[header] ?? ""
+                  } ${
+                    header === "Company"
+                      ? "sticky left-0 z-10 bg-gray-50 border-r border-gray-200"
+                      : ""
+                  }`}
                 >
                   {header}
                 </th>
@@ -153,7 +172,7 @@ export function SuppliersTableClient({
           </thead>
           <tbody className="divide-y divide-gray-100">
             {suppliers.map((supplier) => (
-                <tr key={supplier.id} className="hover:bg-gray-50 transition-colors">
+                <tr key={supplier.id} className="group hover:bg-gray-50 transition-colors">
                   <td className="px-4 py-3">
                     <input
                       type="checkbox"
@@ -166,7 +185,7 @@ export function SuppliersTableClient({
                       className="h-4 w-4 rounded border-gray-300 text-orange-600 focus:ring-orange-500"
                     />
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="px-4 py-3 sticky left-0 z-10 bg-white border-r border-gray-200 group-hover:bg-gray-50 transition-colors">
                     <div className="flex items-center gap-2">
                       <span className="font-medium text-gray-900 text-sm">
                         {supplier.company_name}
