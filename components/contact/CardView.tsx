@@ -111,15 +111,14 @@ export function CardView({ card, cardUrl, preview = false }: CardViewProps) {
   const mfgNum = card.whatsappManufacturer.replace(/^\+/, "");
 
   return (
-    <div className="bg-slate-900 border border-white/10 rounded-3xl p-8 w-full max-w-sm shadow-2xl mx-auto">
+    <div className="bg-[#1B2A4A] border border-white/10 rounded-3xl p-8 w-full max-w-sm shadow-2xl mx-auto">
       {/* ── Profile ── */}
       <div className="relative flex flex-col items-center text-center mb-8">
         {hasGallery ? (
           <div className="w-full mb-4">
             {/* Main photo */}
             <div
-              className="w-full overflow-hidden rounded-xl"
-              style={{ height: 220 }}
+              className="w-32 h-32 mx-auto overflow-hidden rounded-full ring-2 ring-white/20 shadow-lg"
               onTouchStart={(e) => {
                 touchStartX.current = e.touches[0].clientX;
                 touchStartY.current = e.touches[0].clientY;
@@ -141,13 +140,10 @@ export function CardView({ card, cardUrl, preview = false }: CardViewProps) {
                     key={photo.src}
                     src={photo.src}
                     alt={photo.alt}
+                    className="rounded-full object-cover w-32 h-32"
                     style={{
                       display: index === activePhoto ? "block" : "none",
-                      width: "100%",
-                      height: "220px",
-                      objectFit: "cover",
                       objectPosition: `calc(50% + ${ox}px) calc(0% + ${oy}px)`,
-                      borderRadius: "12px",
                       cursor: "pointer",
                     }}
                     onClick={() => setLightboxOpen(true)}
@@ -157,23 +153,29 @@ export function CardView({ card, cardUrl, preview = false }: CardViewProps) {
             </div>
 
             {/* Thumbnail strip */}
-            <div className="flex justify-center gap-2 mt-2">
+            <div className="flex justify-center gap-2 mt-3">
               {photos.map((ph, i) => (
                 <button
                   key={ph.src}
                   onClick={() => setActivePhoto(i)}
-                  className="shrink-0 rounded-lg overflow-hidden focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-orange-400"
+                  className="shrink-0 rounded-md overflow-hidden focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-orange-400"
                   style={{
                     width: 52,
                     height: 52,
-                    border: i === activePhoto ? "2px solid #f97316" : "2px solid transparent",
+                    border: i === activePhoto ? "2px solid #F47920" : "2px solid transparent",
                     opacity: i === activePhoto ? 1 : 0.6,
                     transform: i === activePhoto ? "scale(1.05)" : "scale(1)",
                     transition: "all 0.15s",
                   }}
                   aria-label={ph.alt}
                 >
-                  <Image src={ph.src} alt={ph.alt} width={52} height={52} className="w-full h-full object-cover" />
+                  <Image
+                    src={ph.src}
+                    alt={ph.alt}
+                    width={52}
+                    height={52}
+                    className="rounded-md border border-white/10 object-cover cursor-pointer hover:opacity-80 transition-opacity w-full h-full"
+                  />
                 </button>
               ))}
             </div>
@@ -187,23 +189,41 @@ export function CardView({ card, cardUrl, preview = false }: CardViewProps) {
           </div>
         ) : photos.length === 1 ? (
           <div
-            className="w-24 h-24 rounded-full overflow-hidden ring-2 ring-white/20 shadow-lg mb-4 shrink-0 cursor-pointer"
+            className="w-32 h-32 rounded-full overflow-hidden ring-2 ring-white/20 shadow-lg mb-4 shrink-0 cursor-pointer mx-auto"
             onClick={() => setLightboxOpen(true)}
           >
-            <Image src={photos[0].src} alt={photos[0].alt} width={96} height={96} className="w-full h-full object-cover" />
+            <Image src={photos[0].src} alt={photos[0].alt} width={128} height={128} className="rounded-full object-cover w-32 h-32" />
           </div>
         ) : null}
 
         <h1 className="text-2xl font-semibold text-white tracking-tight">{card.name}</h1>
-        <p className="text-sm text-orange-400 font-semibold mt-1">{card.title}</p>
-        <p className="text-sm text-slate-400">{card.company}</p>
-        <p className="text-sm text-slate-300 leading-relaxed mt-3 max-w-60">{card.tagline}</p>
+        <p className="text-[#F47920] font-semibold text-sm tracking-wide mt-1">{card.title}</p>
+        <Image
+          src="/logo-dark.svg"
+          alt="FoodXchange"
+          width={140}
+          height={32}
+          className="mx-auto mt-1"
+        />
+        <p className="text-base font-medium text-white/90 text-center leading-snug mt-3 max-w-60">{card.tagline}</p>
 
         {card.pitch && (
           <div className="mt-4 rounded-xl bg-white/5 border border-white/10 px-4 py-3 w-full max-w-70">
             <p className="text-xs text-slate-400 leading-relaxed text-start">{card.pitch}</p>
           </div>
         )}
+      </div>
+
+      {/* ── Save Contact (primary CTA) ── */}
+      <div className="mb-6">
+        <a
+          href={`/api/vcard/${card.handle}`}
+          download
+          onClick={() => track("contact_card_vcard_download_clicked")}
+          className="w-full bg-[#F47920] hover:bg-[#d96810] text-white font-semibold py-3 rounded-xl flex items-center justify-center gap-2 transition-colors"
+        >
+          <UserPlusIcon /> Save Contact
+        </a>
       </div>
 
       {/* ── WhatsApp CTAs ── */}
@@ -214,10 +234,10 @@ export function CardView({ card, cardUrl, preview = false }: CardViewProps) {
         <div className="space-y-2">
           {preview ? (
             <>
-              <div className={`${btnBase} bg-green-600 text-white opacity-60 cursor-default`}>
+              <div className={`${btnBase} bg-[#1DA851] text-white opacity-60 cursor-default`}>
                 <WhatsAppIcon /> WhatsApp — I&apos;m a Buyer
               </div>
-              <div className={`${btnBase} bg-green-800 text-white opacity-60 cursor-default`}>
+              <div className={`${btnBase} bg-[#1DA851] text-white opacity-60 cursor-default`}>
                 <WhatsAppIcon /> WhatsApp — I&apos;m a Manufacturer
               </div>
             </>
@@ -228,7 +248,7 @@ export function CardView({ card, cardUrl, preview = false }: CardViewProps) {
                 target="_blank"
                 rel="noopener noreferrer"
                 onClick={() => track("contact_card_whatsapp_clicked", { audience: "buyer" })}
-                className={`${btnBase} bg-green-600 hover:bg-green-500 text-white`}
+                className={`${btnBase} bg-[#1DA851] hover:bg-[#189a47] text-white`}
               >
                 <WhatsAppIcon /> WhatsApp — I&apos;m a Buyer
               </a>
@@ -237,7 +257,7 @@ export function CardView({ card, cardUrl, preview = false }: CardViewProps) {
                 target="_blank"
                 rel="noopener noreferrer"
                 onClick={() => track("contact_card_whatsapp_clicked", { audience: "supplier" })}
-                className={`${btnBase} bg-green-800 hover:bg-green-700 text-white`}
+                className={`${btnBase} bg-[#1DA851] hover:bg-[#189a47] text-white`}
               >
                 <WhatsAppIcon /> WhatsApp — I&apos;m a Manufacturer
               </a>
@@ -252,11 +272,11 @@ export function CardView({ card, cardUrl, preview = false }: CardViewProps) {
           className="mb-6 rounded-xl px-4 py-3"
           style={{ background: "rgba(249,115,22,0.08)", border: "1px solid rgba(249,115,22,0.2)" }}
         >
-          <p className="text-xs font-semibold text-orange-400 mb-2">Currently sourcing:</p>
+          <p className="text-xs font-semibold text-[#F47920] mb-2">Currently sourcing:</p>
           <ul className="space-y-1">
             {card.activeSourcing.map((item) => (
               <li key={item} className="flex items-center gap-2 text-xs text-slate-300">
-                <span className="w-1.5 h-1.5 rounded-full bg-orange-400 shrink-0" />
+                <span className="w-1.5 h-1.5 rounded-full bg-[#F47920] shrink-0" />
                 {item}
               </li>
             ))}
@@ -296,15 +316,6 @@ export function CardView({ card, cardUrl, preview = false }: CardViewProps) {
             </a>
           )}
         </div>
-
-        <a
-          href={`/api/vcard/${card.handle}`}
-          download
-          onClick={() => track("contact_card_vcard_download_clicked")}
-          className={`${btnBase} bg-orange-500 hover:bg-orange-600 text-white`}
-        >
-          Save Contact
-        </a>
       </div>
 
       {/* ── Copy row ── */}
@@ -434,6 +445,17 @@ function EmailIcon() {
   return (
     <svg viewBox="0 0 24 24" className="w-5 h-5 shrink-0" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
       <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" />
+    </svg>
+  );
+}
+
+function UserPlusIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="w-4.5 h-4.5 shrink-0" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+      <circle cx="9" cy="7" r="4" />
+      <line x1="19" x2="19" y1="8" y2="14" />
+      <line x1="22" x2="16" y1="11" y2="11" />
     </svg>
   );
 }
