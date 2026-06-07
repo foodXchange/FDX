@@ -83,7 +83,7 @@ export function CardView({ card, cardUrl, preview = false }: CardViewProps) {
 
   function track(event: string, extra: Record<string, string> = {}) {
     if (preview) return;
-    trackEvent(event, { handle: card.handle, page_path: `/c/${card.handle}`, ...extra });
+    trackEvent(event, { handle: card.handle, page_path: `/business-card/${card.handle}`, ...extra });
   }
 
   function handleCopyLink() {
@@ -346,7 +346,7 @@ export function CardView({ card, cardUrl, preview = false }: CardViewProps) {
 
       {/* ── QR Code ── */}
       <div className="flex flex-col items-center gap-3">
-        <QrCode url={cardUrl} size={164} onRendered={() => track("contact_card_qr_rendered")} />
+        <QrCode url="https://fdx.trading/" size={164} onRendered={() => track("contact_card_qr_rendered")} />
         <p className="text-xs text-slate-600">Scan to open this card</p>
         <div className="flex items-center gap-4">
           <button

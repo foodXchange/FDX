@@ -11,6 +11,15 @@ try {
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  async redirects() {
+    return [
+      {
+        source: "/c/:handle",
+        destination: "/business-card/:handle",
+        permanent: true,
+      },
+    ];
+  },
   images: {
     remotePatterns: [
       { protocol: "https", hostname: "**.supabase.co" },

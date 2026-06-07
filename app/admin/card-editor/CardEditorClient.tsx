@@ -1,5 +1,6 @@
 "use client";
 import { useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { CardView, type CardViewData } from "@/components/contact/CardView";
 
 export interface CardEditorPhoto {
@@ -63,6 +64,7 @@ const labelCls = "block text-xs text-slate-500 mb-0.5";
 const panelCls = "bg-slate-800/60 border border-white/8 rounded-2xl p-5 mb-4";
 
 export function CardEditorClient({ initialData, siteUrl }: Props) {
+  const router = useRouter();
   const [data, setData] = useState<CardEditorData>(initialData);
   const [saving, setSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState<"idle" | "saved" | "error">("idle");
@@ -87,7 +89,7 @@ export function CardEditorClient({ initialData, siteUrl }: Props) {
   } | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const cardUrl = `${siteUrl}/c/${data.handle}`;
+  const cardUrl = `${siteUrl}/business-card/${data.handle}`;
 
   // ── Field helpers ──────────────────────────────────────────────
 
@@ -264,8 +266,9 @@ export function CardEditorClient({ initialData, siteUrl }: Props) {
       }
       setSaveStatus("saved");
       setTimeout(() => setSaveStatus("idle"), 2000);
+      router.refresh();
     } catch (err) {
-      console.error(err);
+      console.error("Card save failed:", err);
       setSaveStatus("error");
     } finally {
       setSaving(false);

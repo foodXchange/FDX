@@ -98,8 +98,8 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   if (!card) return { title: "Contact Not Found" };
 
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://foodz-x.com";
-  const cardUrl = `${siteUrl}/c/${handle}`;
-  const ogImageUrl = `${siteUrl}/c/${handle}/opengraph-image`;
+  const cardUrl = `${siteUrl}/business-card/${handle}`;
+  const ogImageUrl = `${siteUrl}/business-card/${handle}/opengraph-image`;
 
   return {
     title: `${card.name} | ${card.company}`,
@@ -127,7 +127,7 @@ export default async function ContactCardPage({ params }: PageProps) {
   if (!card) notFound();
 
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://foodz-x.com";
-  const cardUrl = `${siteUrl}/c/${handle}`;
+  const cardUrl = `${siteUrl}/business-card/${handle}`;
   const plausibleDomain = process.env.NEXT_PUBLIC_PLAUSIBLE_DOMAIN;
 
   return (

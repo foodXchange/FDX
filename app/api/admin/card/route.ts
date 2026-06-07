@@ -64,26 +64,29 @@ export async function PUT(req: Request) {
 
   const { error } = await supabaseAdmin
     .from("contact_cards")
-    .update({
-      name: card.name,
-      title: card.title,
-      company: card.company,
-      tagline: card.tagline,
-      pitch: card.pitch,
-      email: card.email,
-      phone: card.phone,
-      whatsapp_buyer: card.whatsapp_buyer,
-      whatsapp_manufacturer: card.whatsapp_manufacturer,
-      website: card.website,
-      linkedin: card.linkedin,
-      photos: card.photos,
-      active_sourcing: card.active_sourcing,
-      updated_at: new Date().toISOString(),
-    })
-    .eq("handle", card.handle);
+    .upsert(
+      {
+        handle: card.handle,
+        name: card.name,
+        title: card.title,
+        company: card.company,
+        tagline: card.tagline,
+        pitch: card.pitch,
+        email: card.email,
+        phone: card.phone,
+        whatsapp_buyer: card.whatsapp_buyer,
+        whatsapp_manufacturer: card.whatsapp_manufacturer,
+        website: card.website,
+        linkedin: card.linkedin,
+        photos: card.photos,
+        active_sourcing: card.active_sourcing,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "handle" }
+    );
 
   if (error) {
-    console.error("Card update error:", error);
+    console.error("Card save error:", error);
     return Response.json({ error: "Failed to save card" }, { status: 500 });
   }
 
