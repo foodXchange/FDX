@@ -110,7 +110,7 @@ async function insertProducts(
     .eq("supplier_id", supplierId)
     .eq("manually_verified", false);
 
-  const rows = pageProducts.map(({ source_url, page_type, product: p }) => ({
+  const rows = pageProducts.map(({ source_url, page_type, product: p, image_url, image_source }) => ({
     supplier_id: supplierId,
     product_name: p.product_name,
     category: p.category,
@@ -131,6 +131,8 @@ async function insertProducts(
     markets_suitable: p.markets_suitable ?? [],
     source_url,
     page_type,
+    image_url: image_url ?? null,
+    image_source: image_source ?? null,
     scrape_source: scrapeSource,
     scrape_confidence: p.confidence ?? 0.5,
     last_scraped_at: new Date().toISOString(),
@@ -472,7 +474,7 @@ async function main(): Promise<void> {
               return;
             }
             const legacySource = isPerplexity ? `perplexity:${supplier.website}` : supplier.website!;
-            const legacyPageProds: PageProduct[] = legacyProds.map((p: ExtractedProduct) => ({ source_url: legacySource, page_type: "homepage", supplier_id: supplier.id, product: p }));
+            const legacyPageProds: PageProduct[] = legacyProds.map((p: ExtractedProduct) => ({ source_url: legacySource, page_type: "homepage", supplier_id: supplier.id, product: p, image_url: null, image_source: null }));
             const legacyInserted = await insertProducts(supplier.id, legacyPageProds, legacySource);
             const legacyAvg = legacyProds.reduce((s: number, p: ExtractedProduct) => s + (p.confidence ?? 0), 0) / legacyProds.length;
             await supabase.from("supplier_offerings").update({ scrape_status: "scraped", last_scraped_at: new Date().toISOString(), products_found: legacyInserted }).eq("id", supplier.id);

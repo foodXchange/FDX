@@ -277,7 +277,11 @@ export async function POST(req: Request) {
           private_label: data.private_label ?? null,
           ai_analysis: (data.ai_analysis as Record<string, unknown>) ?? null,
         });
-        const { category_id, category_name } = await resolveCategoryId(data.category ?? "");
+        // Buyer-page submissions rarely set category/product_name — fall back to
+        // the free-text description so the LLM classifier has something to work with.
+        const categoryClassificationText =
+          data.category?.trim() || data.product_name?.trim() || data.description?.trim() || "";
+        const { category_id, category_name } = await resolveCategoryId(categoryClassificationText);
         pip.category.category_id = category_id;
         pip.category.category_name = category_name;
         await supabaseAdmin

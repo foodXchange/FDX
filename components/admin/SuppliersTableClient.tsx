@@ -172,8 +172,12 @@ export function SuppliersTableClient({
           </thead>
           <tbody className="divide-y divide-gray-100">
             {suppliers.map((supplier) => (
-                <tr key={supplier.id} className="group hover:bg-gray-50 transition-colors">
-                  <td className="px-4 py-3">
+                <tr
+                  key={supplier.id}
+                  onClick={() => router.push(`/admin/suppliers/${supplier.id}`)}
+                  className="group cursor-pointer hover:bg-gray-50 transition-colors"
+                >
+                  <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
                     <input
                       type="checkbox"
                       checked={selectedIds.has(supplier.id)}
@@ -255,7 +259,7 @@ export function SuppliersTableClient({
                   <td className="px-4 py-3 text-sm text-gray-500">
                     {supplier.priority ?? 0}
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
                     <div className="flex items-center gap-3">
                       <SupplierRowActions id={supplier.id} />
                     </div>

@@ -2,6 +2,7 @@ import Firecrawl from "@mendable/firecrawl-js";
 import { MAP_LIMIT_DEFAULT, MAX_PRODUCT_PAGES, FIRECRAWL_SCRAPE_OPTIONS } from "./constants";
 import { isProductUrl, isContactUrl } from "./urlFilters";
 import { extractProducts, ExtractedProduct } from "./extract";
+import { resolveProductImage } from "./resolveProductImage";
 
 const PIPELINE_TIMEOUT_MS = 180_000;
 
@@ -121,6 +122,14 @@ export function deduplicateProducts(pageProducts: PageProduct[]): PageProduct[] 
     primary.product.sizes = Array.from(mergedSizes);
     primary.product.description = bestDescription || null;
 
+    if (!primary.image_url) {
+      const withImage = bucket.find((item) => item.image_url);
+      if (withImage) {
+        primary.image_url = withImage.image_url;
+        primary.image_source = withImage.image_source;
+      }
+    }
+
     console.log(
       `Merged ${bucket.length} variants of ${primary.product.product_name} → 1 row with ${primary.product.formats.length} formats`
     );
@@ -141,6 +150,8 @@ export interface PageProduct {
   page_type: string;
   supplier_id: string;
   product: ExtractedProduct;
+  image_url: string | null;
+  image_source: string | null;
 }
 
 export interface ContactPage {
@@ -202,20 +213,20 @@ export async function scrapeSupplier(supplierId: string, supplierUrl: string, op
   const needsReview = selected.length === 0;
 
   // Stage 3: Batch scrape
-  let pages: Array<{ url: string; markdown: string }> = [];
+  let pages: Array<{ url: string; markdown: string; metadata?: { ogImage?: string | null } | null }> = [];
   try {
     // Firecrawl types are permissive here — cast to any to avoid strict SDK type mismatches
     const job: any = await firecrawl.batchScrape(pagesToScrape, FIRECRAWL_SCRAPE_OPTIONS as any);
     const results: any[] = job?.data || [];
     for (const p of results) {
-      pages.push({ url: p.url, markdown: p.markdown || p.content || "" });
+      pages.push({ url: p.url, markdown: p.markdown || p.content || "", metadata: p.metadata });
     }
   } catch (err) {
     console.warn("Firecrawl batchScrape errors — attempting best-effort per-URL:", err);
     for (const u of pagesToScrape) {
       try {
         const job: any = await firecrawl.scrape(u, FIRECRAWL_SCRAPE_OPTIONS as any);
-        pages.push({ url: u, markdown: job?.markdown || job?.content || "" });
+        pages.push({ url: u, markdown: job?.markdown || job?.content || "", metadata: job?.metadata });
       } catch (e) {
         console.warn("Failed to scrape", u, e);
       }
@@ -251,8 +262,19 @@ export async function scrapeSupplier(supplierId: string, supplierUrl: string, op
   for (const p of pages) {
     try {
       const prods = await extractProducts(p.markdown, { company_name: supplierId, country_of_origin: null, certifications: [] });
+      const { url: image_url, source: image_source } = resolveProductImage(
+        { metadata: p.metadata, markdown: p.markdown },
+        p.url
+      );
       for (const pr of prods) {
-        extractedAll.push({ source_url: p.url, page_type: "product", supplier_id: supplierId, product: pr });
+        extractedAll.push({
+          source_url: p.url,
+          page_type: "product",
+          supplier_id: supplierId,
+          product: pr,
+          image_url,
+          image_source,
+        });
       }
     } catch (err) {
       console.warn("Extraction failed for page", p.url, err);

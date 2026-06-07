@@ -79,21 +79,48 @@ function safeStringArray(val: unknown): string[] {
   return val.filter((t): t is string => typeof t === "string");
 }
 
+type RequestFallbackFields = {
+  productName: string | null;
+  category: string | null;
+  message: string | null;
+};
+
+// Buyer-page submissions often carry no product_name/category — the actual
+// product description lives in `message`. Compose from whatever is non-empty
+// so the embed string is never just punctuation (which would skip embedding).
+function composeFallbackText(fallback: RequestFallbackFields): string {
+  return [fallback.productName, fallback.category, fallback.message]
+    .filter((v): v is string => typeof v === "string" && v.trim().length > 1)
+    .join(". ");
+}
+
 function extractFromPip(
   pipJson: Record<string, unknown> | null,
-  fallbackProductName: string | null
+  fallback: RequestFallbackFields
 ): { productText: string; niceToHave: string[] } {
+  const composedFallback = composeFallbackText(fallback);
+
   if (!pipJson) {
-    return { productText: fallbackProductName ?? "", niceToHave: [] };
+    return { productText: composedFallback, niceToHave: [] };
   }
 
   // Support both v2 (MergedAttr: { value }) and v1 (plain string) product name fields
   const productNode = (pipJson.product as Record<string, unknown> | undefined)?.name;
   const rawAttrValue = (productNode as Record<string, unknown> | undefined)?.value;
-  const productText: string =
+  const pipProductName: string =
     typeof rawAttrValue === "string" ? rawAttrValue
     : typeof productNode === "string" ? productNode
-    : fallbackProductName ?? "";
+    : "";
+
+  // v1 PIPs always carry `raw_description` (the buyer's free-text message) —
+  // a much richer embedding source than an empty `product.name`.
+  const rawDescription = (pipJson.product as Record<string, unknown> | undefined)?.raw_description;
+  const pipRawDescription = typeof rawDescription === "string" ? rawDescription : "";
+
+  const productText =
+    pipProductName.trim().length > 1 ? pipProductName
+    : pipRawDescription.trim().length > 1 ? pipRawDescription
+    : composedFallback;
 
   const mc = pipJson.match_config as Record<string, unknown> | undefined;
   const niceToHave = safeStringArray(mc?.nice_to_have);
@@ -115,7 +142,7 @@ export async function runMatchV3(requestId: string): Promise<RunMatchV3Result> {
       .maybeSingle(),
     supabaseAdmin
       .from("sourcing_requests")
-      .select("intent_json, product_name")
+      .select("intent_json, product_name, category, message")
       .eq("id", requestId)
       .single(),
   ]);
@@ -127,10 +154,11 @@ export async function runMatchV3(requestId: string): Promise<RunMatchV3Result> {
     (srResult.data?.intent_json as Record<string, unknown> | null) ??
     null;
 
-  const { productText, niceToHave } = extractFromPip(
-    pipJson,
-    srResult.data?.product_name as string | null
-  );
+  const { productText, niceToHave } = extractFromPip(pipJson, {
+    productName: (srResult.data?.product_name as string | null) ?? null,
+    category: (srResult.data?.category as string | null) ?? null,
+    message: (srResult.data?.message as string | null) ?? null,
+  });
 
   const embedString = buildRequestEmbedString(productText, niceToHave);
 

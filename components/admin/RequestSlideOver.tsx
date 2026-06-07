@@ -22,6 +22,8 @@ type SavedMatch = {
     reasons?: string[];
   } | null;
   status: string;
+  image_url?: string | null;
+  image_source?: string | null;
 };
 
 interface Props {
@@ -552,44 +554,57 @@ export default function RequestSlideOver({
                     >
                       {/* Card header: rank + company + score */}
                       <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-1.5 mb-0.5">
-                            <span className="text-xs text-gray-400 font-mono">
-                              #{idx + 1}
-                            </span>
-                            {isApproved && (
-                              <span className="text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full font-medium">
-                                ✓ Approved
+                        <div className="flex items-start gap-2.5 min-w-0 flex-1">
+                          {m.image_url && (
+                            <img
+                              src={m.image_url}
+                              alt={m.product_name ?? m.company_name ?? "Product"}
+                              className="w-10 h-10 rounded object-cover border border-gray-200 shrink-0"
+                              loading="lazy"
+                              onError={(e) => {
+                                e.currentTarget.style.display = "none";
+                              }}
+                            />
+                          )}
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-1.5 mb-0.5">
+                              <span className="text-xs text-gray-400 font-mono">
+                                #{idx + 1}
                               </span>
+                              {isApproved && (
+                                <span className="text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full font-medium">
+                                  ✓ Approved
+                                </span>
+                              )}
+                            </div>
+                            {m.supplier_id ? (
+                              <a
+                                href={`/admin/suppliers/${m.supplier_id}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="font-semibold text-gray-900 text-sm hover:text-[#F47920] hover:underline transition-colors inline-flex items-center gap-1"
+                              >
+                                {m.company_name ?? "—"}
+                                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                  <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+                                  <polyline points="15 3 21 3 21 9"/>
+                                  <line x1="10" y1="14" x2="21" y2="3"/>
+                                </svg>
+                              </a>
+                            ) : (
+                              <p className="font-semibold text-gray-900 text-sm">
+                                {m.company_name ?? "—"}
+                              </p>
+                            )}
+                            {m.country && (
+                              <p className="text-xs text-gray-400">{m.country}</p>
+                            )}
+                            {m.product_name && (
+                              <p className="text-xs text-gray-600 mt-1">
+                                {m.product_name}
+                              </p>
                             )}
                           </div>
-                          {m.supplier_id ? (
-                            <a
-                              href={`/admin/suppliers/${m.supplier_id}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="font-semibold text-gray-900 text-sm hover:text-[#F47920] hover:underline transition-colors inline-flex items-center gap-1"
-                            >
-                              {m.company_name ?? "—"}
-                              <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
-                                <polyline points="15 3 21 3 21 9"/>
-                                <line x1="10" y1="14" x2="21" y2="3"/>
-                              </svg>
-                            </a>
-                          ) : (
-                            <p className="font-semibold text-gray-900 text-sm">
-                              {m.company_name ?? "—"}
-                            </p>
-                          )}
-                          {m.country && (
-                            <p className="text-xs text-gray-400">{m.country}</p>
-                          )}
-                          {m.product_name && (
-                            <p className="text-xs text-gray-600 mt-1">
-                              {m.product_name}
-                            </p>
-                          )}
                         </div>
                         <ScoreDisplay score={m.match_score} />
                       </div>

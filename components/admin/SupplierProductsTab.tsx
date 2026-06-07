@@ -27,6 +27,8 @@ export interface SupplierProduct {
   scrape_confidence: number;
   manually_verified: boolean;
   factory_id: string | null;
+  image_url: string | null;
+  image_source: string | null;
 }
 
 const VALID_CATEGORIES = [
@@ -97,6 +99,49 @@ const BULK_ACTIONS = [
   { label: "✓ Add Organic", type: "dietary", values: ["Organic"] },
   { label: "✓ Add Halal", type: "dietary", values: ["Halal"] },
 ] as const;
+
+function ImagePlaceholder() {
+  return (
+    <div className="w-12 h-12 rounded bg-gray-100 flex items-center justify-center border border-gray-200">
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        width="18"
+        height="18"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className="text-gray-300"
+      >
+        <rect x="3" y="3" width="18" height="18" rx="2" />
+        <circle cx="9" cy="9" r="2" />
+        <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" />
+      </svg>
+    </div>
+  );
+}
+
+function ProductThumbnail({ url, alt }: { url: string | null; alt: string }) {
+  const [broken, setBroken] = useState(false);
+
+  if (!url || broken) {
+    return <ImagePlaceholder />;
+  }
+
+  return (
+    <a href={url} target="_blank" rel="noopener noreferrer" title="Open full image">
+      <img
+        src={url}
+        alt={alt}
+        className="w-12 h-12 rounded object-cover border border-gray-200"
+        loading="lazy"
+        onError={() => setBroken(true)}
+      />
+    </a>
+  );
+}
 
 function ConfidenceBar({ score }: { score: number }) {
   const pct = Math.round(score * 100);
@@ -287,6 +332,8 @@ function ProductSlideOver({
       onSave({
         id: result.id ?? product?.id ?? "",
         scrape_confidence: product?.scrape_confidence ?? 1.0,
+        image_url: product?.image_url ?? null,
+        image_source: product?.image_source ?? null,
         ...form,
       });
     });
@@ -572,6 +619,7 @@ export function SupplierProductsTab({
             <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
                 <th className="px-3 py-2.5 w-8" />
+                <th className="px-3 py-2.5 w-16" />
                 <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase">
                   Product
                 </th>
@@ -600,6 +648,9 @@ export function SupplierProductsTab({
                       onChange={() => toggleSelect(p.id)}
                       className="rounded"
                     />
+                  </td>
+                  <td className="px-3 py-2.5">
+                    <ProductThumbnail url={p.image_url} alt={p.product_name} />
                   </td>
                   <td className="px-3 py-2.5">
                     <span className="font-medium text-gray-900">{p.product_name}</span>

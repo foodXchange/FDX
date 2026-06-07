@@ -1,11 +1,18 @@
 "use client";
 
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { WORLD_COUNTRIES } from "@/lib/constants/countries";
 
 type Option = {
   value: string;
   label: string;
+};
+
+const COUNTRY_SEARCH_ALIASES: Record<string, string> = {
+  UAE: "United Arab Emirates",
+  US: "United States",
+  USA: "United States",
 };
 
 type SupplierFiltersBarProps = {
@@ -17,7 +24,6 @@ type SupplierFiltersBarProps = {
   page: number;
   perPage: number;
   totalCount: number;
-  countries: string[];
   priorities: number[];
   categories: Option[];
 };
@@ -31,7 +37,6 @@ export function SupplierFiltersBar({
   page,
   perPage,
   totalCount,
-  countries,
   priorities,
   categories,
 }: SupplierFiltersBarProps) {
@@ -100,11 +105,10 @@ export function SupplierFiltersBar({
             className="w-full rounded-2xl border border-gray-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-orange-400 focus:ring-2 focus:ring-orange-100"
           />
           <div className="flex flex-wrap gap-2">
-            <SelectField
+            <CountryCombobox
               label="Country"
               value={country}
-              options={[{ value: "", label: "All countries" },
-                ...countries.map((value) => ({ value, label: value }))]}
+              countries={WORLD_COUNTRIES}
               onChange={(nextValue) => updateUrl({ country: nextValue, page: "0" })}
             />
             <SelectField
@@ -159,6 +163,109 @@ export function SupplierFiltersBar({
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+function CountryCombobox({
+  label,
+  value,
+  countries,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  countries: string[];
+  onChange: (value: string) => void;
+}) {
+  const [query, setQuery] = useState(value);
+  const [open, setOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    setQuery(value);
+  }, [value]);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+        setOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const matches = useMemo(() => {
+    const trimmed = query.trim();
+    if (!trimmed) return countries;
+    const needle = trimmed.toLowerCase();
+    const aliasTarget = COUNTRY_SEARCH_ALIASES[trimmed.toUpperCase()];
+    return countries.filter(
+      (c) => c.toLowerCase().includes(needle) || (aliasTarget !== undefined && c === aliasTarget)
+    );
+  }, [query, countries]);
+
+  function selectCountry(nextCountry: string) {
+    setQuery(nextCountry);
+    setOpen(false);
+    onChange(nextCountry);
+  }
+
+  function handleInputChange(next: string) {
+    setQuery(next);
+    setOpen(true);
+    if (next.trim() === "") onChange("");
+  }
+
+  function clear() {
+    setQuery("");
+    setOpen(false);
+    onChange("");
+  }
+
+  return (
+    <div className="relative min-w-40 text-xs text-slate-500" ref={containerRef}>
+      <span className="mb-2 block font-semibold uppercase tracking-[0.18em] text-slate-500">
+        {label}
+      </span>
+      <div className="relative">
+        <input
+          type="text"
+          value={query}
+          onChange={(event) => handleInputChange(event.target.value)}
+          onFocus={() => setOpen(true)}
+          placeholder="All countries"
+          className="w-full rounded-2xl border border-gray-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-orange-400 focus:ring-2 focus:ring-orange-100"
+        />
+        {query && (
+          <button
+            type="button"
+            onClick={clear}
+            aria-label="Clear country filter"
+            className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+          >
+            ×
+          </button>
+        )}
+      </div>
+      {open && matches.length > 0 && (
+        <ul className="absolute z-20 mt-1 max-h-60 w-full overflow-auto rounded-2xl border border-gray-200 bg-white py-1 shadow-lg">
+          {matches.map((c) => (
+            <li key={c}>
+              <button
+                type="button"
+                onClick={() => selectCountry(c)}
+                className={`block w-full px-3 py-2 text-left text-sm hover:bg-orange-50 ${
+                  c === value ? "bg-orange-50 font-semibold text-orange-700" : "text-slate-700"
+                }`}
+              >
+                {c}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }

@@ -310,12 +310,6 @@ export default async function AdminSuppliersPage({
     }
   }
 
-  const countries = [...new Set(
-    (countriesResult.data ?? [])
-      .map((row) => normalizeCountry(row.country_of_origin))
-      .filter((value): value is string => typeof value === "string" && value.length > 0)
-  )].sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
-
   const priorities = [...new Set(
     (prioritiesResult.data ?? [])
       .map((row) => row.priority)
@@ -478,7 +472,6 @@ export default async function AdminSuppliersPage({
           page={page}
           perPage={pageSize}
           totalCount={totalCount}
-          countries={countries}
           priorities={priorities}
           categories={CATEGORY_OPTIONS}
         />
