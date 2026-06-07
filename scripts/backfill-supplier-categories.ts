@@ -65,8 +65,17 @@ Conflict rules:
 - Chips, crisps, puffed snacks, popcorn, pretzels → "Chips & Puffed Snacks"
 - Chocolate, chocolate-coated, confectionery candy → "Chocolate & Confectionery"
 - Granola bars, energy bars, protein bars, cereal bars → "Energy & Protein Bars"
-- Cakes, pastries, tarts, croissants (finished baked goods) → "Pastry & Sweet Baked Goods" or "Cakes & Desserts"
-- Bread, baguette, focaccia, rolls → leave null (no Bakery leaf exists in new taxonomy)
+- Croissants, danishes, laminated/viennoiserie pastry → "Pastry & Croissants"
+- Cakes, tarts, muffins, sweet pastries (non-laminated) → "Pastry & Sweet Baked Goods" or "Cakes & Desserts"
+- Bread, baguette, focaccia, rolls, sourdough, buns → "Bread & Bread Products"
+- Pizza, flatbread, naan, pita, calzone → "Pizza & Flatbreads"
+- Soup, broth, stew, ready meals, instant meals → "Soups & Ready Meals"
+- Canned/preserved fish, sardines, tuna in cans/jars → "Canned & Preserved Fish"
+- Smoked salmon, marinated/cured fish, ceviche, gravlax → "Smoked & Marinated Fish"
+- Fresh or frozen raw fish/seafood (whole, fillets, shellfish) → leave null (no matching fresh-fish leaf)
+- Food additives, emulsifiers, stabilizers, preservatives, thickeners → "Food Additives & Emulsifiers"
+- Natural colors, flavorings, extracts, essences → "Natural Colors & Flavors"
+- Protein powder, isolates, amino acids, collagen peptides (raw ingredient form) → "Proteins & Amino Acids"
 - Honey, royal jelly, bee pollen, honeycomb → "Honey & Bee Products"
 - Jam, marmalade, fruit spread → "Jams & Fruit Preserves"
 - Olives, capers, pickles, gherkins → "Olives & Pickled Products"
@@ -92,7 +101,7 @@ Conflict rules:
 - Fresh whole herbs (basil plants, fresh parsley) → "Herbs"
 - Dried herbs, spice blends, seasoning mixes → "Herbs, Spices & Seasonings"
 - Nut butter (peanut, almond, hazelnut) → "Nut Butters & Spreads"
-- Whey, protein isolate, soy protein, tofu, tempeh → leave null (no matching leaf)
+- Tofu, tempeh, seitan, plant-based meat alternatives (finished foods) → leave null (no matching leaf)
 - Raw flour, starch, bulk sweetener (B2B ingredient) → "Flour & Starches"
 - Retail baking mix, leavening agents → "Flour & Baking Ingredients"
 - Ham, salami, prosciutto, mortadella → "Cured & Smoked Meats"
