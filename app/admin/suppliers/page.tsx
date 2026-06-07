@@ -78,9 +78,11 @@ const COUNTRY_ALIAS_MAP: Record<string, string> = {
   GB: "United Kingdom",
   USA: "United States",
   US: "United States",
+  "UNITED STATES OF AMERICA": "United States",
   UAE: "United Arab Emirates",
   KSA: "Saudi Arabia",
   CZ: "Czech Republic",
+  CZECHIA: "Czech Republic",
   BR: "Brazil",
   IL: "Israel",
   ES: "Spain",
@@ -92,6 +94,16 @@ const COUNTRY_ALIAS_MAP: Record<string, string> = {
   GR: "Greece",
   PL: "Poland",
   TR: "Turkey",
+  TÜRKİYE: "Turkey",
+  BULGARY: "Bulgaria",
+  ESTHONIA: "Estonia",
+  "BOSNIA AND HERZEGOVINA": "Bosnia & Herzegovina",
+  "BOSNIA HERCEGOVINA": "Bosnia & Herzegovina",
+  "GREAT BRITAIN": "United Kingdom",
+  KOREA: "South Korea",
+  "REPUBLIC OF KOREA": "South Korea",
+  "VIET NAM": "Vietnam",
+  "CHINA / GLOBAL": "China",
 };
 
 function normalizeCountry(raw?: string | null): string | null {
@@ -116,7 +128,7 @@ function normalizeCountry(raw?: string | null): string | null {
     s = matchedName ?? code;
   }
 
-  if (["EUROPE", "GLOBAL", "VARIOUS", "UNKNOWN"].includes(s.toUpperCase())) {
+  if (["EUROPE", "GLOBAL", "VARIOUS", "UNKNOWN", "N/A", "OTHER", "INTERNATIONAL", "EMPTY"].includes(s.toUpperCase())) {
     return null;
   }
 
@@ -285,6 +297,19 @@ export default async function AdminSuppliersPage({
         .eq("qualification_status", "empty"),
     ]);
 
+  const reverseCountryMap = new Map<string, string[]>();
+  for (const row of (countriesResult.data ?? [])) {
+    const raw = row.country_of_origin;
+    if (!raw) continue;
+    const normalized = normalizeCountry(raw);
+    if (!normalized) continue;
+    const existing = reverseCountryMap.get(normalized) ?? [];
+    if (!existing.includes(raw)) {
+      existing.push(raw);
+      reverseCountryMap.set(normalized, existing);
+    }
+  }
+
   const countries = [...new Set(
     (countriesResult.data ?? [])
       .map((row) => normalizeCountry(row.country_of_origin))
@@ -321,17 +346,8 @@ export default async function AdminSuppliersPage({
   }
 
   if (country) {
-    const normalizedCountry = normalizeCountry(country);
-    if (normalizedCountry) {
-      const countryCode = getCountryCode(normalizedCountry);
-      if (countryCode && countryCode !== normalizedCountry) {
-        query = query.or(
-          `country_of_origin.ilike.%${normalizedCountry}%,country_of_origin.ilike.%${countryCode}%`
-        );
-      } else {
-        query = query.ilike("country_of_origin", `%${normalizedCountry}%`);
-      }
-    }
+    const rawVariants = reverseCountryMap.get(country) ?? [country];
+    query = query.in("country_of_origin", rawVariants);
   }
   if (category) query = query.contains("categories", [category]);
 

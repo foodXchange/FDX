@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 611 136" width="611" height="136">
+  <title>FoodXchange</title>
+  <defs>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@700&amp;display=swap');
+      text { font-family: 'Poppins', 'DejaVu Sans', Arial Black, sans-serif; }
+    </style>
+  </defs>
+  <!-- Food -->
+  <text x="20" y="106" font-family="Poppins, Arial Black, sans-serif" font-size="80" font-weight="700" fill="#1B2A4A">Food</text>
+  <!-- X (orange) - starts at x=220, FoodX=257px total -->
+  <text x="220" y="106" font-family="Poppins, Arial Black, sans-serif" font-size="80" font-weight="700" fill="#F47920">X</text>
+  <!-- change - starts at x=277 -->
+  <text x="277" y="106" font-family="Poppins, Arial Black, sans-serif" font-size="80" font-weight="700" fill="#1B2A4A">change</text>
+</svg>

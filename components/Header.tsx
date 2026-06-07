@@ -39,7 +39,7 @@ export default function Header() {
           className="flex items-center gap-3 hover:opacity-90 transition"
         >
           <Image
-            src="/logo-white.png"
+            src="/logo-dark.svg"
             alt="FoodXchange"
             width={140}
             height={40}
