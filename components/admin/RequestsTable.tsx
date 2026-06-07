@@ -9,6 +9,17 @@ interface Props {
   requests: RequestRow[];
 }
 
+const HEADER_MIN_WIDTHS: Record<string, string> = {
+  Buyer: "min-w-[160px]",
+  Product: "min-w-[180px]",
+  Category: "min-w-[120px]",
+  Kosher: "min-w-[100px]",
+  Status: "min-w-[100px]",
+  Matches: "min-w-[150px]",
+  Date: "min-w-[100px]",
+  Actions: "min-w-[100px]",
+};
+
 function StatusBadge({ status }: { status: string | null }) {
   const s = status ?? "new";
   const cls =
@@ -24,6 +35,13 @@ function StatusBadge({ status }: { status: string | null }) {
       {s}
     </span>
   );
+}
+
+function getKosherRequired(req: RequestRow): boolean | null {
+  const compliance = (req.intent_json as { compliance?: { kosher_required?: unknown } } | null)
+    ?.compliance;
+  const value = compliance?.kosher_required;
+  return typeof value === "boolean" ? value : null;
 }
 
 function timeAgo(dateStr: string): string {
@@ -45,6 +63,7 @@ export default function RequestsTable({ requests }: Props) {
   const [statusFilter, setStatusFilter] = useState("");
   const [matchQualityFilter, setMatchQualityFilter] = useState("");
   const [buyerFilter, setBuyerFilter] = useState("");
+  const [kosherFilter, setKosherFilter] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("");
   const [selected, setSelected] = useState<string[]>([]);
   const [bulkRunning, setBulkRunning] = useState(false);
@@ -88,6 +107,15 @@ export default function RequestsTable({ requests }: Props) {
       list = list.filter((r) => (r.name ?? r.company ?? r.email) === buyerFilter);
     }
 
+    if (kosherFilter) {
+      list = list.filter((r) => {
+        const kosherRequired = getKosherRequired(r);
+        if (kosherFilter === "required") return kosherRequired === true;
+        if (kosherFilter === "not_required") return kosherRequired !== true;
+        return true;
+      });
+    }
+
     if (categoryFilter) {
       list = list.filter((r) => r.category === categoryFilter);
     }
@@ -110,6 +138,7 @@ export default function RequestsTable({ requests }: Props) {
     statusFilter,
     matchQualityFilter,
     buyerFilter,
+    kosherFilter,
     categoryFilter,
     searchQuery,
     localStatuses,
@@ -222,6 +251,16 @@ export default function RequestsTable({ requests }: Props) {
                 ]}
               />
               <FilterSelect
+                label="Kosher"
+                value={kosherFilter}
+                onChange={setKosherFilter}
+                options={[
+                  { value: "", label: "All kosher" },
+                  { value: "required", label: "Kosher required" },
+                  { value: "not_required", label: "Not required" },
+                ]}
+              />
+              <FilterSelect
                 label="Category"
                 value={categoryFilter}
                 onChange={setCategoryFilter}
@@ -270,8 +309,8 @@ export default function RequestsTable({ requests }: Props) {
         </div>
       )}
 
-      <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-sm">
-        <table className="w-full text-sm">
+      <div className="bg-white border border-gray-200 rounded-2xl overflow-x-auto shadow-sm">
+        <table className="w-full text-sm min-w-max">
           <thead className="bg-gray-50 border-b border-gray-200">
             <tr>
               <th className="px-3 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider w-10">
@@ -282,8 +321,10 @@ export default function RequestsTable({ requests }: Props) {
                   className="h-4 w-4 rounded border-gray-300 text-orange-600 focus:ring-orange-500"
                 />
               </th>
+              <th className="px-3 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider w-12">
+                {""}
+              </th>
               {[
-                "",
                 "Buyer",
                 "Product",
                 "Category",
@@ -295,7 +336,13 @@ export default function RequestsTable({ requests }: Props) {
               ].map((h) => (
                 <th
                   key={h}
-                  className="px-3 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider"
+                  className={`px-3 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider ${
+                    HEADER_MIN_WIDTHS[h] ?? ""
+                  } ${
+                    h === "Buyer"
+                      ? "sticky left-0 z-10 bg-gray-50 border-r border-gray-200"
+                      : ""
+                  }`}
                 >
                   {h}
                 </th>
@@ -314,7 +361,7 @@ export default function RequestsTable({ requests }: Props) {
               return (
                 <tr
                   key={req.id}
-                  className="hover:bg-gray-50 transition-colors cursor-pointer"
+                  className="group hover:bg-gray-50 transition-colors cursor-pointer"
                   onClick={() =>
                     setOpenRequest({
                       ...req,
@@ -349,7 +396,7 @@ export default function RequestsTable({ requests }: Props) {
                   </td>
 
                   {/* Buyer */}
-                  <td className="px-3 py-3">
+                  <td className="px-3 py-3 sticky left-0 z-10 bg-white border-r border-gray-200 group-hover:bg-gray-50 transition-colors">
                     <p className="font-medium text-gray-900 text-xs">
                       {req.name ?? "—"}
                     </p>
