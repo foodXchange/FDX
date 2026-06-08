@@ -3,6 +3,7 @@
 import { useState, useTransition, useEffect } from "react";
 import type { RequestRow } from "@/app/admin/requests/page";
 import { updateRequestStatus } from "@/app/admin/requests/actions";
+import ProductImage from "@/components/ProductImage";
 import PostGenerator from "@/components/admin/PostGenerator";
 import ScriptGenerator from "@/components/admin/ScriptGenerator";
 import PipPanel from "@/components/admin/PipPanel";
@@ -24,6 +25,7 @@ type SavedMatch = {
   status: string;
   image_url?: string | null;
   image_source?: string | null;
+  category?: string | null;
 };
 
 interface Props {
@@ -555,17 +557,12 @@ export default function RequestSlideOver({
                       {/* Card header: rank + company + score */}
                       <div className="flex items-start justify-between gap-3">
                         <div className="flex items-start gap-2.5 min-w-0 flex-1">
-                          {m.image_url && (
-                            <img
-                              src={m.image_url}
-                              alt={m.product_name ?? m.company_name ?? "Product"}
-                              className="w-10 h-10 rounded object-cover border border-gray-200 shrink-0"
-                              loading="lazy"
-                              onError={(e) => {
-                                e.currentTarget.style.display = "none";
-                              }}
-                            />
-                          )}
+                          <ProductImage
+                            imageUrl={m.image_url ?? null}
+                            categoryName={m.category ?? null}
+                            productName={m.product_name ?? m.company_name ?? "Product"}
+                            size={40}
+                          />
                           <div className="min-w-0 flex-1">
                             <div className="flex items-center gap-1.5 mb-0.5">
                               <span className="text-xs text-gray-400 font-mono">

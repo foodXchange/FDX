@@ -52,36 +52,41 @@ export async function GET(
   // Best-effort enrichment with product thumbnails — looked up by (supplier_id, product_name)
   // since sourcing_matches doesn't store a product_id reference.
   const supplierIds = Array.from(new Set(matches.map((m) => m.supplier_id).filter(Boolean)));
-  const imageMap = new Map<string, { image_url: string | null; image_source: string | null }>();
+  const productMap = new Map<
+    string,
+    { image_url: string | null; image_source: string | null; category: string | null }
+  >();
 
   if (supplierIds.length > 0) {
     const { data: productRows } = await supabaseAdmin
       .from("supplier_products")
-      .select("supplier_id, product_name, image_url, image_source")
-      .in("supplier_id", supplierIds)
-      .not("image_url", "is", null);
+      .select("supplier_id, product_name, image_url, image_source, category")
+      .in("supplier_id", supplierIds);
 
     for (const p of (productRows ?? []) as {
       supplier_id: string;
       product_name: string;
       image_url: string | null;
       image_source: string | null;
+      category: string | null;
     }[]) {
-      imageMap.set(`${p.supplier_id}::${p.product_name}`, {
+      productMap.set(`${p.supplier_id}::${p.product_name}`, {
         image_url: p.image_url,
         image_source: p.image_source,
+        category: p.category,
       });
     }
   }
 
   const enriched = matches.map((m) => {
-    const image = m.product_name
-      ? imageMap.get(`${m.supplier_id}::${m.product_name}`)
+    const product = m.product_name
+      ? productMap.get(`${m.supplier_id}::${m.product_name}`)
       : undefined;
     return {
       ...m,
-      image_url: image?.image_url ?? null,
-      image_source: image?.image_source ?? null,
+      image_url: product?.image_url ?? null,
+      image_source: product?.image_source ?? null,
+      category: product?.category ?? null,
     };
   });
 

@@ -24,6 +24,9 @@ import { embedBatch } from "../lib/ai/embed";
 
 const BATCH_SIZE = 64;
 const FORCE = process.argv.includes("--force");
+const DRY_RUN = process.argv.includes("--dry-run");
+const limitFlagIndex = process.argv.indexOf("--limit");
+const LIMIT = limitFlagIndex !== -1 ? parseInt(process.argv[limitFlagIndex + 1], 10) : null;
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -137,8 +140,9 @@ async function main() {
 
   console.log(`Total rows: ${rows.length}`);
 
-  const toEmbed = FORCE ? rows : rows.filter((r) => r.embedding === null);
-  const toSkip  = rows.length - toEmbed.length;
+  const toEmbedAll = FORCE ? rows : rows.filter((r) => r.embedding === null);
+  const toSkip     = rows.length - toEmbedAll.length;
+  const toEmbed    = LIMIT !== null ? toEmbedAll.slice(0, LIMIT) : toEmbedAll;
   if (FORCE) {
     console.log(`--force: embedding all ${rows.length} rows (ignoring existing vectors)`);
   } else {
@@ -198,6 +202,25 @@ async function main() {
   // ── Embed rows that need it ───────────────────────────────────────────────
   if (toEmbed.length === 0) {
     console.log("\nAll rows already have embeddings. Done.");
+    return;
+  }
+
+  if (DRY_RUN) {
+    console.log(`\n[dry-run] Printing embed strings for ${toEmbed.length} rows (no Voyage calls, no DB writes)...\n`);
+    toEmbed.forEach((r, i) => {
+      const text = buildSupplierEmbedString({
+        product_name:      r.product_name as string | null,
+        description:       r.description  as string | null,
+        subcategory:       r.subcategory  as string | null,
+        processing_type:   (r as any).processing_type ?? null,
+        ingredients:       (r as any).ingredients ?? null,
+        tags:              r.tags         as string[] | null,
+        country_of_origin:
+          (r.supplier_offerings as { country_of_origin: string | null }[] | null)?.[0]
+            ?.country_of_origin ?? null,
+      });
+      console.log(`[${i + 1}] ${r.product_name} | ${text.slice(0, 120)}...`);
+    });
     return;
   }
 

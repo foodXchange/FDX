@@ -30,6 +30,7 @@ const nextConfig = {
       { protocol: "https", hostname: "**.amazonaws.com" },
       { protocol: "https", hostname: "cdn.midjourney.com" },
       { protocol: "https", hostname: "oaidalleapiprodscus.blob.core.windows.net" },
+      { protocol: "https", hostname: "**" },
     ],
   },
 };
