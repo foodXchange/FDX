@@ -9,6 +9,7 @@ export type RequestRow = {
   name: string | null;
   email: string | null;
   company: string | null;
+  buyer_id: string | null;
   message: string | null;
   product_name: string | null;
   category: string | null;
@@ -33,7 +34,7 @@ export default async function AdminRequestsPage() {
     supabaseAdmin
       .from("sourcing_requests")
       .select(
-        "id, name, email, company, message, product_name, category, certifications, target_market, private_label, ai_analysis, source, status, created_at, is_published, published_product_name, published_message, intent_json"
+        "id, name, email, company, buyer_id, message, product_name, category, certifications, target_market, private_label, ai_analysis, source, status, created_at, is_published, published_product_name, published_message, intent_json"
       )
       .order("created_at", { ascending: false })
       .limit(200),

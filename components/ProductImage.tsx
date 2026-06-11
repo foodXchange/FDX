@@ -25,7 +25,9 @@ function paletteForCategory(categoryName: string | null): { bg: string; fg: stri
 
 function categoryLabel(categoryName: string | null): string {
   if (!categoryName) return "";
-  return categoryName.trim().split(/\s+/).slice(0, 2).join(" ");
+  const firstWord = categoryName.trim().split(/\s+/)[0] ?? "";
+  if (firstWord.length <= 8) return firstWord;
+  return `${firstWord.slice(0, 7)}…`;
 }
 
 // Generic open-box / package icon, drawn in a 24×24 grid and scaled to fit.

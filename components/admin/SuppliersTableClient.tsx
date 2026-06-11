@@ -1,11 +1,23 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { bulkUpdateSupplierStatus } from "@/app/admin/suppliers/actions";
 import SupplierRowActions from "@/components/admin/SupplierRowActions";
+import { getInitials, avatarColors } from "@/lib/admin/avatarPalette";
+
+type SortColumn = "company" | "country" | "categories" | "certs";
+type SortDirection = "asc" | "desc";
+
+const SORTABLE_COLUMNS: Partial<Record<string, SortColumn>> = {
+  Company: "company",
+  Country: "country",
+  Categories: "categories",
+  Certs: "certs",
+};
 
 const HEADER_MIN_WIDTHS: Record<string, string> = {
+  Logo: "w-14",
   Company: "min-w-[220px]",
   Country: "min-w-[120px]",
   Categories: "min-w-[200px]",
@@ -21,6 +33,7 @@ const HEADER_MIN_WIDTHS: Record<string, string> = {
 type SupplierRow = {
   id: string;
   company_name: string;
+  logo_url: string | null;
   country_of_origin: string | null;
   categories: string[] | null;
   certifications: string[] | null;
@@ -41,6 +54,9 @@ export function SuppliersTableClient({
   const [statusValue, setStatusValue] = useState("");
   const [pending, setPending] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+  const [sortColumn, setSortColumn] = useState<SortColumn | null>(null);
+  const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
+  const [lightboxImage, setLightboxImage] = useState<string | null>(null);
   const router = useRouter();
 
   useEffect(() => {
@@ -52,6 +68,16 @@ export function SuppliersTableClient({
     const timer = setTimeout(() => setToast(null), 2000);
     return () => clearTimeout(timer);
   }, [toast]);
+
+  // Close lightbox on Escape
+  useEffect(() => {
+    if (!lightboxImage) return;
+    function handleKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setLightboxImage(null);
+    }
+    window.addEventListener("keydown", handleKey);
+    return () => window.removeEventListener("keydown", handleKey);
+  }, [lightboxImage]);
 
   const allSelected =
     suppliers.length > 0 && suppliers.every((supplier) => selectedIds.has(supplier.id));
@@ -75,6 +101,32 @@ export function SuppliersTableClient({
       return next;
     });
   }
+
+  function handleSort(column: SortColumn) {
+    if (sortColumn === column) {
+      setSortDirection((d) => (d === "asc" ? "desc" : "asc"));
+    } else {
+      setSortColumn(column);
+      setSortDirection("asc");
+    }
+  }
+
+  const sortedSuppliers = useMemo(() => {
+    if (!sortColumn) return suppliers;
+    const dir = sortDirection === "asc" ? 1 : -1;
+    return [...suppliers].sort((a, b) => {
+      switch (sortColumn) {
+        case "company":
+          return dir * a.company_name.localeCompare(b.company_name);
+        case "country":
+          return dir * (a.country_of_origin ?? "").localeCompare(b.country_of_origin ?? "");
+        case "categories":
+          return dir * ((a.categories?.length ?? 0) - (b.categories?.length ?? 0));
+        case "certs":
+          return dir * ((a.certifications?.length ?? 0) - (b.certifications?.length ?? 0));
+      }
+    });
+  }, [suppliers, sortColumn, sortDirection]);
 
   async function handleApplyStatus() {
     if (selectedIds.size === 0 || !statusValue) return;
@@ -144,6 +196,7 @@ export function SuppliersTableClient({
                 />
               </th>
               {[
+                "Logo",
                 "Company",
                 "Country",
                 "Categories",
@@ -154,24 +207,42 @@ export function SuppliersTableClient({
                 "Status",
                 "Prio",
                 "Actions",
-              ].map((header) => (
-                <th
-                  key={header}
-                  className={`px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider ${
-                    HEADER_MIN_WIDTHS[header] ?? ""
-                  } ${
-                    header === "Company"
-                      ? "sticky left-0 z-10 bg-gray-50 border-r border-gray-200"
-                      : ""
-                  }`}
-                >
-                  {header}
-                </th>
-              ))}
+              ].map((header) => {
+                const sortKey = SORTABLE_COLUMNS[header];
+                const isActive = sortKey !== undefined && sortColumn === sortKey;
+                return (
+                  <th
+                    key={header}
+                    onClick={sortKey ? () => handleSort(sortKey) : undefined}
+                    className={`px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider group ${
+                      HEADER_MIN_WIDTHS[header] ?? ""
+                    } ${
+                      header === "Company"
+                        ? "sticky left-0 z-10 bg-gray-50 border-r border-gray-200"
+                        : ""
+                    } ${sortKey ? "cursor-pointer select-none" : ""}`}
+                  >
+                    <span className="inline-flex items-center gap-1">
+                      {header}
+                      {sortKey && (
+                        <span
+                          className={
+                            isActive
+                              ? "text-gray-700"
+                              : "text-gray-300 opacity-0 group-hover:opacity-100 transition-opacity"
+                          }
+                        >
+                          {isActive ? (sortDirection === "asc" ? "↑" : "↓") : "↕"}
+                        </span>
+                      )}
+                    </span>
+                  </th>
+                );
+              })}
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
-            {suppliers.map((supplier) => (
+            {sortedSuppliers.map((supplier) => (
                 <tr
                   key={supplier.id}
                   onClick={() => router.push(`/admin/suppliers/${supplier.id}`)}
@@ -188,6 +259,31 @@ export function SuppliersTableClient({
                       onClick={(e) => e.stopPropagation()}
                       className="h-4 w-4 rounded border-gray-300 text-orange-600 focus:ring-orange-500"
                     />
+                  </td>
+                  <td className="px-4 py-3">
+                    {supplier.logo_url ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={supplier.logo_url}
+                        alt=""
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setLightboxImage(supplier.logo_url);
+                        }}
+                        className="w-9 h-9 rounded-full object-cover border border-gray-200 cursor-pointer"
+                      />
+                    ) : (
+                      (() => {
+                        const { bg, text } = avatarColors(supplier.company_name);
+                        return (
+                          <div
+                            className={`w-9 h-9 rounded-full border border-gray-200 flex items-center justify-center text-xs font-bold ${bg} ${text}`}
+                          >
+                            {getInitials(supplier.company_name)}
+                          </div>
+                        );
+                      })()
+                    )}
                   </td>
                   <td className="px-4 py-3 sticky left-0 z-10 bg-white border-r border-gray-200 group-hover:bg-gray-50 transition-colors">
                     <div className="flex items-center gap-2">
@@ -273,6 +369,22 @@ export function SuppliersTableClient({
       {toast && (
         <div className="mt-4 rounded-3xl bg-slate-900 px-4 py-3 text-sm text-white shadow-lg">
           {toast}
+        </div>
+      )}
+
+      {/* Image lightbox */}
+      {lightboxImage && (
+        <div
+          className="fixed inset-0 bg-black/70 flex items-center justify-center z-50"
+          onClick={() => setLightboxImage(null)}
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={lightboxImage}
+            alt=""
+            className="max-w-[80vw] max-h-[80vh] object-contain"
+            onClick={(e) => e.stopPropagation()}
+          />
         </div>
       )}
     </>

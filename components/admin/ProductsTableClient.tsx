@@ -10,6 +10,7 @@ import {
   bulkMarkVerified,
 } from "@/app/admin/products/actions";
 import ProductEditSlideOver from "@/components/admin/ProductEditSlideOver";
+import ProductImage from "@/components/ProductImage";
 
 type ProductRow = {
   id: string;
@@ -23,6 +24,7 @@ type ProductRow = {
   scrape_confidence: number;
   manually_verified: boolean;
   private_label: boolean;
+  image_url: string | null;
   supplier_id: string;
   supplier: {
     company_name: string;
@@ -50,6 +52,15 @@ const BULK_CERT_OPTIONS = [
   "GlobalG.A.P.",
 ];
 
+// Strips leftover mojibake artifacts (ï¿½ / U+FFFD) from corrupted
+// supplier_offerings.company_name values — display only, DB unchanged.
+function cleanDisplayName(name: string): string {
+  return name
+    .replace(/(?:ï¿½|�)+/g, "")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+}
+
 function ConfidenceBar({ score }: { score: number }) {
   const pct = Math.round(score * 100);
   const color =
@@ -64,36 +75,6 @@ function ConfidenceBar({ score }: { score: number }) {
         <div className={`h-full ${color}`} style={{ width: `${pct}%` }} />
       </div>
       <span className="text-xs text-gray-400">{pct}%</span>
-    </div>
-  );
-}
-
-function completenessScore(p: ProductRow): number {
-  let s = 0;
-  if (p.product_name) s += 20;
-  if (p.category) s += 20;
-  if ((p.kosher_types ?? []).length > 0) s += 20;
-  if ((p.formats ?? []).length > 0) s += 15;
-  if ((p.certifications ?? []).length > 0) s += 15;
-  if (p.description) s += 10;
-  return s;
-}
-
-function CompletenessBar({ score }: { score: number }) {
-  const color =
-    score >= 80 ? "bg-green-500" : score >= 50 ? "bg-orange-400" : "bg-red-400";
-  const textColor =
-    score >= 80
-      ? "text-green-700"
-      : score >= 50
-      ? "text-orange-600"
-      : "text-red-500";
-  return (
-    <div>
-      <span className={`text-xs font-medium ${textColor}`}>{score}%</span>
-      <div className="h-1 w-14 bg-gray-100 rounded-full mt-0.5 overflow-hidden">
-        <div className={`h-full ${color}`} style={{ width: `${score}%` }} />
-      </div>
     </div>
   );
 }
@@ -118,6 +99,8 @@ export function ProductsTableClient({
   );
   const [searchQuery, setSearchQuery] = useState("");
   const [displaySearch, setDisplaySearch] = useState("");
+  const [showBackToTop, setShowBackToTop] = useState(false);
+  const [lightboxImage, setLightboxImage] = useState<string | null>(null);
 
   // Debounce search
   useEffect(() => {
@@ -125,12 +108,31 @@ export function ProductsTableClient({
     return () => clearTimeout(t);
   }, [searchQuery]);
 
+  // Show "back to top" button after scrolling down
+  useEffect(() => {
+    function handleScroll() {
+      setShowBackToTop(window.scrollY > 400);
+    }
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
   // Auto-dismiss toast
   useEffect(() => {
     if (!toast) return;
     const t = setTimeout(() => setToast(null), 2000);
     return () => clearTimeout(t);
   }, [toast]);
+
+  // Close lightbox on Escape
+  useEffect(() => {
+    if (!lightboxImage) return;
+    function handleKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setLightboxImage(null);
+    }
+    window.addEventListener("keydown", handleKey);
+    return () => window.removeEventListener("keydown", handleKey);
+  }, [lightboxImage]);
 
   // Filtered list (search applied client-side on top of server-filtered data)
   const filtered = useMemo(
@@ -394,8 +396,8 @@ export function ProductsTableClient({
         </div>
       )}
 
-      <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-sm">
-        <table className="w-full text-sm">
+      <div className="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-x-auto">
+        <table className="w-full min-w-275 text-sm">
           <thead className="bg-gray-50 border-b border-gray-200">
             <tr>
               <th className="px-3 py-3 w-8">
@@ -412,19 +414,21 @@ export function ProductsTableClient({
                 />
               </th>
               {[
+                "Image",
                 "Supplier",
                 "Product",
                 "Category",
                 "Kosher",
                 "Certs",
                 "Conf",
-                "Complete",
                 "Verified",
                 "",
               ].map((h) => (
                 <th
                   key={h}
-                  className="px-3 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider"
+                  className={`py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider ${
+                    h === "" ? "pl-3 pr-5" : "px-3"
+                  } ${h === "Verified" || h === "" ? "whitespace-nowrap" : ""}`}
                 >
                   {h}
                 </th>
@@ -433,8 +437,12 @@ export function ProductsTableClient({
           </thead>
           <tbody className="divide-y divide-gray-100">
             {filtered.map((p) => (
-              <tr key={p.id} className="hover:bg-gray-50">
-                <td className="px-3 py-2.5">
+              <tr
+                key={p.id}
+                onClick={() => setSlideOverProduct(p)}
+                className="hover:bg-gray-50 cursor-pointer"
+              >
+                <td className="px-3 py-2.5" onClick={(e) => e.stopPropagation()}>
                   <input
                     type="checkbox"
                     checked={selectedIds.has(p.id)}
@@ -442,12 +450,30 @@ export function ProductsTableClient({
                     className="rounded"
                   />
                 </td>
+                <td
+                  className="px-3 py-2.5"
+                  onClick={(e) => {
+                    if (p.image_url) {
+                      e.stopPropagation();
+                      setLightboxImage(p.image_url);
+                    }
+                  }}
+                >
+                  <ProductImage
+                    imageUrl={p.image_url}
+                    categoryName={p.category}
+                    productName={p.product_name}
+                    size={48}
+                  />
+                </td>
                 <td className="px-3 py-2.5">
                   <a
                     href={`/admin/suppliers/${p.supplier_id}`}
                     className="text-xs text-blue-600 hover:underline font-medium"
                   >
-                    {p.supplier?.company_name ?? "—"}
+                    {p.supplier?.company_name
+                      ? cleanDisplayName(p.supplier.company_name)
+                      : "—"}
                   </a>
                   {p.supplier?.country_of_origin && (
                     <span className="block text-xs text-gray-400">
@@ -501,10 +527,7 @@ export function ProductsTableClient({
                 <td className="px-3 py-2.5">
                   <ConfidenceBar score={p.scrape_confidence} />
                 </td>
-                <td className="px-3 py-2.5">
-                  <CompletenessBar score={completenessScore(p)} />
-                </td>
-                <td className="px-3 py-2.5">
+                <td className="px-3 py-2.5 whitespace-nowrap">
                   {p.manually_verified ? (
                     <span className="text-green-600 text-xs font-medium">
                       ✓
@@ -513,7 +536,7 @@ export function ProductsTableClient({
                     <span className="text-gray-300 text-xs">○</span>
                   )}
                 </td>
-                <td className="px-3 py-2.5">
+                <td className="pl-3 pr-5 py-2.5 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
                   <div className="flex items-center gap-2">
                     <button
                       type="button"
@@ -560,6 +583,34 @@ export function ProductsTableClient({
       {toast && (
         <div className="fixed bottom-4 right-4 bg-slate-800 text-white text-sm px-4 py-2.5 rounded-lg shadow-lg z-50">
           {toast}
+        </div>
+      )}
+
+      {/* Back to top */}
+      {showBackToTop && (
+        <button
+          type="button"
+          onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+          aria-label="Back to top"
+          className="fixed bottom-6 right-6 flex h-11 w-11 items-center justify-center rounded-full bg-[#0f172a] text-white shadow-lg transition hover:opacity-90 z-50"
+        >
+          ↑
+        </button>
+      )}
+
+      {/* Image lightbox */}
+      {lightboxImage && (
+        <div
+          className="fixed inset-0 bg-black/70 flex items-center justify-center z-50"
+          onClick={() => setLightboxImage(null)}
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={lightboxImage}
+            alt=""
+            className="max-w-[80vw] max-h-[80vh] object-contain"
+            onClick={(e) => e.stopPropagation()}
+          />
         </div>
       )}
     </>

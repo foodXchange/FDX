@@ -7,6 +7,7 @@ const links = [
   { href: "/admin/requests", label: "Requests" },
   { href: "/admin/matches", label: "Matches" },
   { href: "/admin/suppliers", label: "Suppliers" },
+  { href: "/admin/buyers", label: "Buyers" },
   { href: "/admin/scraper", label: "Scraper" },
   { href: "/admin/products", label: "Products" },
   { href: "/admin/data-quality", label: "Data Quality" },

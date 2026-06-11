@@ -160,6 +160,7 @@ type SearchParams = {
 type SupplierRow = {
   id: string;
   company_name: string;
+  logo_url: string | null;
   country_of_origin: string | null;
   categories: string[] | null;
   certifications: string[] | null;
@@ -326,7 +327,7 @@ export default async function AdminSuppliersPage({
   let query: any = supabaseAdmin
     .from("supplier_offerings")
     .select(
-      `id, company_name, country_of_origin, categories, certifications,
+      `id, company_name, logo_url, country_of_origin, categories, certifications,
        status, priority, verified, product_type, private_label,
        product_count, qualification_status,
        markets_served, price_positioning,

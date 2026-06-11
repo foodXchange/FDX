@@ -366,6 +366,17 @@ function ProductSlideOver({
     });
   }
 
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      const isSaveShortcut = (e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s";
+      if (!isSaveShortcut) return;
+      e.preventDefault();
+      handleSave();
+    }
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [handleSave]);
+
   return (
     <div className="fixed inset-0 z-50 flex justify-end">
       <div className="absolute inset-0 bg-black/30" onClick={onClose} />

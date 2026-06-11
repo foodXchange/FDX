@@ -1,9 +1,11 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import ArrayInput from "@/components/admin/ArrayInput";
 import type { SupplierInput } from "@/app/admin/suppliers/actions";
+import { uploadSupplierLogo } from "@/app/admin/suppliers/actions";
+import { getInitials, avatarColors } from "@/lib/admin/avatarPalette";
 
 type ActionResult = { ok: boolean; id?: string; error?: string };
 type Action = (data: SupplierInput) => Promise<ActionResult>;
@@ -97,6 +99,59 @@ export default function SupplierForm({ action, initialData, redirectOnCreate }: 
   const [sourcingNotes, setSourcingNotes] = useState(initialData?.sourcing_notes ?? "");
   const [annualCapacity, setAnnualCapacity] = useState(initialData?.annual_capacity ?? "");
 
+  // ── Logo section state ───────────────────────────────────────────────────
+  const [logoUrl, setLogoUrl] = useState<string | null>(initialData?.logo_url ?? null);
+  const [logoUrlInput, setLogoUrlInput] = useState(initialData?.logo_url ?? "");
+  const [previewBroken, setPreviewBroken] = useState(false);
+  const [dragOver, setDragOver] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  // Storage path needs an id even for not-yet-saved suppliers.
+  const [tempId] = useState(() => initialData?.id ?? crypto.randomUUID());
+  const [lightboxImage, setLightboxImage] = useState<string | null>(null);
+
+  useEffect(() => {
+    setPreviewBroken(false);
+  }, [logoUrl]);
+
+  // Close lightbox on Escape
+  useEffect(() => {
+    if (!lightboxImage) return;
+    function handleKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setLightboxImage(null);
+    }
+    window.addEventListener("keydown", handleKey);
+    return () => window.removeEventListener("keydown", handleKey);
+  }, [lightboxImage]);
+
+  function handleFile(file: File) {
+    setUploadError(null);
+    setUploading(true);
+    (async () => {
+      try {
+        const fd = new FormData();
+        fd.set("file", file);
+        const result = await uploadSupplierLogo(tempId, fd);
+        if (!result.ok) {
+          setUploadError(result.error);
+          return;
+        }
+        setLogoUrl(result.url);
+        setLogoUrlInput(result.url);
+      } catch (err) {
+        setUploadError(err instanceof Error ? err.message : "Upload failed");
+      } finally {
+        setUploading(false);
+      }
+    })();
+  }
+
+  function clearLogo() {
+    setLogoUrl(null);
+    setLogoUrlInput("");
+    setUploadError(null);
+  }
+
   function handleSave() {
     setError("");
     const data: SupplierInput = {
@@ -129,6 +184,7 @@ export default function SupplierForm({ action, initialData, redirectOnCreate }: 
       israeli_market_fit: israeliMarketFit || null,
       sourcing_notes: sourcingNotes || null,
       annual_capacity: annualCapacity || null,
+      logo_url: logoUrl,
     };
 
     startTransition(async () => {
@@ -152,6 +208,108 @@ export default function SupplierForm({ action, initialData, redirectOnCreate }: 
 
   return (
     <div className="max-w-3xl mx-auto px-6 py-8">
+
+      {/* LOGO */}
+      <div className={cardCls}>
+        <label className={labelCls}>Logo</label>
+        <div className="flex gap-4 items-start">
+          <div className="shrink-0">
+            {logoUrl && !previewBroken ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={logoUrl}
+                alt="Supplier logo"
+                className="w-20 h-20 rounded-full object-cover border border-gray-200 cursor-pointer"
+                onError={() => setPreviewBroken(true)}
+                onClick={() => setLightboxImage(logoUrl)}
+              />
+            ) : (
+              (() => {
+                const { bg, text } = avatarColors(companyName || "?");
+                return (
+                  <div
+                    className={`w-20 h-20 rounded-full border border-gray-200 flex items-center justify-center text-xl font-bold ${bg} ${text}`}
+                  >
+                    {getInitials(companyName || "?")}
+                  </div>
+                );
+              })()
+            )}
+          </div>
+
+          <div className="flex-1 space-y-2 min-w-0">
+            <div>
+              <label className={labelCls}>Logo URL</label>
+              <input
+                type="text"
+                value={logoUrlInput}
+                onChange={(e) => setLogoUrlInput(e.target.value)}
+                onBlur={() => {
+                  const trimmed = logoUrlInput.trim();
+                  if (trimmed.startsWith("http")) {
+                    setLogoUrl(trimmed);
+                  }
+                }}
+                placeholder="https://example.com/logo.png"
+                className={inputCls}
+              />
+            </div>
+
+            <div
+              onDragOver={(e) => {
+                e.preventDefault();
+                setDragOver(true);
+              }}
+              onDragLeave={() => setDragOver(false)}
+              onDrop={(e) => {
+                e.preventDefault();
+                setDragOver(false);
+                const file = e.dataTransfer.files?.[0];
+                if (file) handleFile(file);
+              }}
+              className={`flex items-center justify-center gap-2 border-2 border-dashed rounded-lg px-3 py-3 text-xs text-gray-400 transition ${
+                dragOver ? "border-orange-300 bg-orange-50" : "border-gray-200"
+              }`}
+            >
+              {uploading ? (
+                <span className="flex items-center gap-2 text-gray-500">
+                  <span className="w-3.5 h-3.5 border-2 border-gray-300 border-t-orange-500 rounded-full animate-spin" />
+                  Uploading…
+                </span>
+              ) : (
+                <>
+                  <span>or drag &amp; drop an image</span>
+                  <label className="text-orange-600 hover:text-orange-700 cursor-pointer underline">
+                    browse
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) handleFile(file);
+                        e.target.value = "";
+                      }}
+                      className="hidden"
+                    />
+                  </label>
+                </>
+              )}
+            </div>
+
+            {uploadError && <p className="text-xs text-red-600">{uploadError}</p>}
+
+            {logoUrl && (
+              <button
+                type="button"
+                onClick={clearLogo}
+                className="text-xs text-gray-400 hover:text-gray-600"
+              >
+                ✕ Remove logo
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
 
       {/* COMPANY NAME */}
       <div className="mb-6">
@@ -314,6 +472,22 @@ export default function SupplierForm({ action, initialData, redirectOnCreate }: 
           Cancel
         </a>
       </div>
+
+      {/* Image lightbox */}
+      {lightboxImage && (
+        <div
+          className="fixed inset-0 bg-black/70 flex items-center justify-center z-50"
+          onClick={() => setLightboxImage(null)}
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={lightboxImage}
+            alt=""
+            className="max-w-[80vw] max-h-[80vh] object-contain"
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
+      )}
     </div>
   );
 }

@@ -17,6 +17,7 @@ type ProductUpdate = {
   needs_review?: boolean;
   factory_id?: string | null;
   product_override_kosher?: boolean;
+  image_url?: string | null;
 };
 
 export interface FactoryOption {

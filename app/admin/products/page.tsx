@@ -1,6 +1,8 @@
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { ProductsTableClient } from "@/components/admin/ProductsTableClient";
 import { SyncFactoryCertsButton } from "@/components/admin/SyncFactoryCertsButton";
+import { ProductCountryFilter } from "@/components/admin/ProductCountryFilter";
+import { WORLD_COUNTRIES } from "@/lib/constants/countries";
 
 export const dynamic = "force-dynamic";
 
@@ -11,6 +13,7 @@ type SearchParams = {
   verified?: string;
   status?: string;
   country?: string;
+  image?: string;
   page?: string;
   per_page?: string;
 };
@@ -27,6 +30,7 @@ type ProductRow = {
   scrape_confidence: number;
   manually_verified: boolean;
   private_label: boolean;
+  image_url: string | null;
   supplier_id: string;
   supplier: {
     company_name: string;
@@ -68,6 +72,7 @@ export default async function ProductsPage({
   const verified = params.verified ?? "any";
   const status = params.status ?? "all";
   const country = params.country ?? "";
+  const image = params.image ?? "any";
 
   const pageSizeRaw = parseInt(params.per_page ?? "50");
   const pageSize = [50, 100, 200].includes(pageSizeRaw) ? pageSizeRaw : 50;
@@ -104,8 +109,8 @@ export default async function ProductsPage({
     .select(
       `id, product_name, category, certifications, kosher_types, formats,
        description, needs_review, scrape_confidence, manually_verified,
-       private_label, supplier_id,
-       supplier:supplier_offerings(company_name, country_of_origin, status)`,
+       private_label, image_url, supplier_id,
+       supplier:supplier_offerings!inner(company_name, country_of_origin, status)`,
       { count: "exact" }
     )
     .order("scrape_confidence", { ascending: false });
@@ -120,6 +125,9 @@ export default async function ProductsPage({
       .lt("scrape_confidence", 0.8);
   }
   if (confidence === "low") query = query.lt("scrape_confidence", 0.5);
+  if (country) query = query.eq("supplier_offerings.country_of_origin", country);
+  if (image === "yes") query = query.not("image_url", "is", null);
+  if (image === "no") query = query.is("image_url", null);
 
   // Status filter (takes precedence over legacy verified param)
   if (status !== "all") {
@@ -157,6 +165,7 @@ export default async function ProductsPage({
     if (confidence !== "any") sp.set("confidence", confidence);
     if (status !== "all") sp.set("status", status);
     if (country) sp.set("country", country);
+    if (image !== "any") sp.set("image", image);
     if (pageSize !== 50) sp.set("per_page", String(pageSize));
     if (page > 0) sp.set("page", String(page));
     for (const [k, v] of Object.entries(overrides)) {
@@ -174,7 +183,9 @@ export default async function ProductsPage({
     !!category ||
     kosher !== "any" ||
     confidence !== "any" ||
-    status !== "all";
+    status !== "all" ||
+    !!country ||
+    image !== "any";
 
   return (
     <main className="min-h-screen bg-gray-50">
@@ -187,14 +198,24 @@ export default async function ProductsPage({
         {/* Stats row */}
         <div className="flex items-center gap-3 flex-wrap mb-3">
           <StatCard label="Total" count={statTotal} color="gray" />
-          <StatCard label="Kosher" count={statKosher} color="green" />
+          <StatCard
+            label="Kosher"
+            count={statKosher}
+            color="green"
+            href="/admin/products?kosher=yes"
+          />
           <StatCard
             label="Needs review"
             count={statNeedsReview}
             color="orange"
             href="/admin/products?status=needs_review"
           />
-          <StatCard label="Verified" count={statVerified} color="blue" />
+          <StatCard
+            label="Verified"
+            count={statVerified}
+            color="blue"
+            href="/admin/products?status=verified"
+          />
         </div>
 
         {/* Filters */}
@@ -240,6 +261,17 @@ export default async function ProductsPage({
               { value: "unverified", label: "Unverified" },
             ]}
           />
+          <FilterSelect
+            label="Image"
+            value={image}
+            onChange={(v) => buildUrl({ image: v, page: "0" })}
+            options={[
+              { value: "any", label: "Any image" },
+              { value: "yes", label: "Has image" },
+              { value: "no", label: "No image" },
+            ]}
+          />
+          <ProductCountryFilter value={country} countries={WORLD_COUNTRIES} />
 
           {hasActiveFilters && (
             <a

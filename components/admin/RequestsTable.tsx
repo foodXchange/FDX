@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import type { RequestRow } from "@/app/admin/requests/page";
 import RequestSlideOver from "@/components/admin/RequestSlideOver";
 
@@ -400,9 +401,34 @@ export default function RequestsTable({ requests }: Props) {
                     <p className="font-medium text-gray-900 text-xs">
                       {req.name ?? "—"}
                     </p>
-                    <p className="text-xs text-orange-600 truncate max-w-[130px]">
-                      {req.company ?? req.email ?? "—"}
-                    </p>
+                    {req.buyer_id ? (
+                      <Link
+                        href={`/admin/buyers/${req.buyer_id}`}
+                        onClick={(e) => e.stopPropagation()}
+                        className="block text-xs text-orange-600 hover:text-orange-700 truncate max-w-[130px]"
+                      >
+                        {req.company ?? req.email ?? "—"}
+                      </Link>
+                    ) : (
+                      <>
+                        <p className="text-xs text-orange-600 truncate max-w-[130px]">
+                          {req.company ?? req.email ?? "—"}
+                        </p>
+                        {(req.name || req.email || req.company) && (
+                          <Link
+                            href={`/admin/buyers/new?company_name=${encodeURIComponent(
+                              req.company ?? ""
+                            )}&contact_name=${encodeURIComponent(
+                              req.name ?? ""
+                            )}&contact_email=${encodeURIComponent(req.email ?? "")}`}
+                            onClick={(e) => e.stopPropagation()}
+                            className="text-xs text-gray-400 hover:text-orange-600 underline"
+                          >
+                            + Create buyer
+                          </Link>
+                        )}
+                      </>
+                    )}
                   </td>
 
                   {/* Product */}

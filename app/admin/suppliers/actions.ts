@@ -42,6 +42,7 @@ const SupplierSchema = z.object({
   region: z.string().optional().nullable(),
   founded: z.string().optional().nullable(),
   company_size: z.string().optional().nullable(),
+  logo_url: z.string().optional().nullable(),
 });
 
 export type SupplierInput = z.infer<typeof SupplierSchema>;
@@ -265,6 +266,30 @@ export async function deleteDocument(
 
   revalidatePath(`/admin/suppliers/${supplierId}`);
   return { ok: true };
+}
+
+export async function uploadSupplierLogo(
+  supplierId: string,
+  formData: FormData
+): Promise<{ ok: true; url: string } | { ok: false; error: string }> {
+  const file = formData.get("file") as File | null;
+  if (!file) return { ok: false, error: "No file provided" };
+
+  // Ensure bucket exists (swallow "already exists" error), same pattern as category-images upload route.
+  await supabaseAdmin.storage.createBucket("supplier-logos", { public: true });
+
+  const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
+  const path = `${supplierId}/logo.${ext}`;
+  const buffer = Buffer.from(await file.arrayBuffer());
+
+  const { error: uploadError } = await supabaseAdmin.storage
+    .from("supplier-logos")
+    .upload(path, buffer, { contentType: file.type, upsert: true });
+
+  if (uploadError) return { ok: false, error: uploadError.message };
+
+  const { data } = supabaseAdmin.storage.from("supplier-logos").getPublicUrl(path);
+  return { ok: true, url: data.publicUrl };
 }
 
 export async function getSupplierMatches(supplierId: string) {

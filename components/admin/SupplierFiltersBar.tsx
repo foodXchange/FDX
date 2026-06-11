@@ -167,7 +167,7 @@ export function SupplierFiltersBar({
   );
 }
 
-function CountryCombobox({
+export function CountryCombobox({
   label,
   value,
   countries,

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { createClient } from "@supabase/supabase-js";
 import ArrayInput from "@/components/admin/ArrayInput";
 import {
   updateProduct,
@@ -8,6 +9,11 @@ import {
   getFactoriesForSupplier,
   type FactoryOption,
 } from "@/app/admin/products/actions";
+
+const supabaseStorage = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
 
 const CATEGORIES = [
   "Tomato Products",
@@ -63,6 +69,7 @@ type ProductRow = {
   scrape_confidence: number;
   manually_verified: boolean;
   private_label: boolean;
+  image_url: string | null;
   supplier_id: string;
   factory_id?: string | null;
   product_override_kosher?: boolean;
@@ -137,11 +144,67 @@ export default function ProductEditSlideOver({
     product_override_kosher: product.product_override_kosher ?? false,
   });
 
+  const [imageUrl, setImageUrl] = useState<string | null>(product.image_url);
+  const [imageUrlInput, setImageUrlInput] = useState(product.image_url ?? "");
+  const [previewBroken, setPreviewBroken] = useState(false);
+  const [dragOver, setDragOver] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+
   useEffect(() => {
     getFactoriesForSupplier(product.supplier_id).then(setFactories);
   }, [product.supplier_id]);
 
+  useEffect(() => {
+    setPreviewBroken(false);
+  }, [imageUrl]);
+
   const selectedFactory = factories.find((f) => f.id === form.factory_id) ?? null;
+
+  function handleFile(file: File) {
+    setUploadError(null);
+
+    // Show the picked file immediately via a base64 data URL preview.
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === "string") setImageUrl(reader.result);
+    };
+    reader.readAsDataURL(file);
+
+    setUploading(true);
+    (async () => {
+      try {
+        const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
+        const path = `${product.supplier_id}/${product.id}.${ext}`;
+        const { error: uploadErr } = await supabaseStorage.storage
+          .from("product-images")
+          .upload(path, file, { upsert: true });
+
+        if (uploadErr) {
+          setUploadError(
+            /not found/i.test(uploadErr.message)
+              ? `Bucket "product-images" not found — ask an admin to create it in Supabase Storage.`
+              : uploadErr.message
+          );
+          return;
+        }
+
+        const { data: pub } = supabaseStorage.storage.from("product-images").getPublicUrl(path);
+        setImageUrl(pub.publicUrl);
+        setImageUrlInput(pub.publicUrl);
+      } catch (err) {
+        setUploadError(err instanceof Error ? err.message : "Upload failed");
+      } finally {
+        setUploading(false);
+      }
+    })();
+  }
+
+  function clearImage() {
+    setImageUrl(null);
+    setImageUrlInput("");
+    setUploadError(null);
+  }
 
   function toggleKosher(k: string) {
     setForm((f) => ({
@@ -174,6 +237,7 @@ export default function ProductEditSlideOver({
       needs_review: form.needs_review,
       factory_id: form.factory_id,
       product_override_kosher: form.product_override_kosher,
+      image_url: imageUrl,
     });
     setSaving(false);
     if (result.ok) {
@@ -189,6 +253,7 @@ export default function ProductEditSlideOver({
         needs_review: form.needs_review,
         factory_id: form.factory_id,
         product_override_kosher: form.product_override_kosher,
+        image_url: imageUrl,
       });
     }
   }
@@ -234,6 +299,114 @@ export default function ProductEditSlideOver({
 
         {/* Body */}
         <div className="flex-1 overflow-y-auto p-5 space-y-5">
+          {/* Image */}
+          <div>
+            <SectionLabel>Image</SectionLabel>
+            <div className="flex gap-4 items-start">
+              <div className="shrink-0">
+                {imageUrl && !previewBroken ? (
+                  <img
+                    src={imageUrl}
+                    alt="Product preview"
+                    className="w-30 h-30 rounded-lg object-cover border border-gray-200"
+                    onError={() => setPreviewBroken(true)}
+                  />
+                ) : (
+                  <div className="w-30 h-30 rounded-lg bg-gray-100 flex items-center justify-center border border-gray-200">
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="36"
+                      height="36"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      className="text-gray-300"
+                    >
+                      <rect x="3" y="3" width="18" height="18" rx="2" />
+                      <circle cx="9" cy="9" r="2" />
+                      <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" />
+                    </svg>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex-1 space-y-2 min-w-0">
+                <div>
+                  <SectionLabel>Image URL</SectionLabel>
+                  <input
+                    type="text"
+                    value={imageUrlInput}
+                    onChange={(e) => setImageUrlInput(e.target.value)}
+                    onBlur={() => {
+                      const trimmed = imageUrlInput.trim();
+                      if (trimmed.startsWith("http")) {
+                        setImageUrl(trimmed);
+                      }
+                    }}
+                    placeholder="https://example.com/product.jpg"
+                    className={inputCls}
+                  />
+                </div>
+
+                <div
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    setDragOver(true);
+                  }}
+                  onDragLeave={() => setDragOver(false)}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    setDragOver(false);
+                    const file = e.dataTransfer.files?.[0];
+                    if (file) handleFile(file);
+                  }}
+                  className={`flex items-center justify-center gap-2 border-2 border-dashed rounded-lg px-3 py-3 text-xs text-gray-400 transition ${
+                    dragOver ? "border-orange-300 bg-orange-50" : "border-gray-200"
+                  }`}
+                >
+                  {uploading ? (
+                    <span className="flex items-center gap-2 text-gray-500">
+                      <span className="w-3.5 h-3.5 border-2 border-gray-300 border-t-orange-500 rounded-full animate-spin" />
+                      Uploading…
+                    </span>
+                  ) : (
+                    <>
+                      <span>or drag &amp; drop an image</span>
+                      <label className="text-orange-600 hover:text-orange-700 cursor-pointer underline">
+                        browse
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) handleFile(file);
+                            e.target.value = "";
+                          }}
+                          className="hidden"
+                        />
+                      </label>
+                    </>
+                  )}
+                </div>
+
+                {uploadError && <p className="text-xs text-red-600">{uploadError}</p>}
+
+                {imageUrl && (
+                  <button
+                    type="button"
+                    onClick={clearImage}
+                    className="text-xs text-gray-400 hover:text-gray-600"
+                  >
+                    ✕ Remove image
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+
           {/* Product name */}
           <div>
             <SectionLabel>Product name</SectionLabel>
