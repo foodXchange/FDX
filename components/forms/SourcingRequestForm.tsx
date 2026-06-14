@@ -1,10 +1,10 @@
 "use client";
 
-import { FormEvent, useEffect, useRef, useState } from "react";
-import { useSearchParams } from "next/navigation";
-import PhoneInput, { isValidPhoneNumber } from "react-phone-number-input";
+import { type FormEvent, type ReactNode, useEffect, useRef, useState } from "react";
+import { isValidPhoneNumber } from "react-phone-number-input";
 import "react-phone-number-input/style.css";
-import MultiImageUpload, { UploadedImage } from "@/components/ui/MultiImageUpload";
+
+import MultiImageUpload, { type UploadedImage } from "@/components/ui/MultiImageUpload";
 import ContactFields from "@/components/forms/ContactFields";
 import { isValidName } from "@/lib/validation/isValidName";
 import { isValidCompanyName } from "@/lib/validation/isValidCompanyName";
@@ -18,7 +18,7 @@ const VOLUME_UNIT_OPTIONS = [
   { value: "units", label: "units / year" },
   { value: "pallets", label: "pallets / year" },
   { value: "containers", label: "containers / year" },
-];
+] as const;
 
 interface SourcingRequestFormProps {
   source?: string;
@@ -37,6 +37,33 @@ interface ExampleRequest {
   details: string;
   description: string;
   kosher: KosherOption;
+}
+
+interface StoredFormData {
+  description?: string;
+  category?: string;
+  kosher?: KosherOption;
+  volume?: string;
+  volumeUnit?: string;
+  packaging?: string;
+  privateLabel?: boolean;
+  name?: string;
+  email?: string;
+  whatsapp?: string;
+  company?: string;
+}
+
+interface ContactCache {
+  name?: string;
+  email?: string;
+  whatsapp?: string;
+  company?: string;
+}
+
+interface SubmitResponse {
+  ok?: boolean;
+  error?: string;
+  message?: string;
 }
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
@@ -96,25 +123,24 @@ const EXAMPLES: ExampleRequest[] = [
   {
     title: "Tahini 100% sesame",
     details: "Glass jar 500g · Chief Rabbinate",
-    description:
-      "Pure 100% sesame tahini, 500ml glass jar, Chief Rabbinate kosher certification",
+    description: "Pure 100% sesame tahini, 500g glass jar, Chief Rabbinate kosher certification",
     kosher: "chief-rabbinate",
   },
 ];
 
-function Label({ htmlFor, children }: { htmlFor?: string; children: React.ReactNode }) {
+function Label({ htmlFor, children }: { htmlFor?: string; children: ReactNode }) {
   return (
-    <label htmlFor={htmlFor} className="block text-sm font-medium text-slate-300 mb-1">
+    <label htmlFor={htmlFor} className="mb-1 block text-sm font-medium text-slate-300">
       {children}
     </label>
   );
 }
 
-function Helper({ children }: { children: React.ReactNode }) {
-  return <p className="mt-1 text-xs text-slate-500 leading-relaxed">{children}</p>;
+function Helper({ children }: { children: ReactNode }) {
+  return <p className="mt-1 text-xs leading-relaxed text-slate-500">{children}</p>;
 }
 
-function FieldGroup({ children }: { children: React.ReactNode }) {
+function FieldGroup({ children }: { children: ReactNode }) {
   return <div className="space-y-3">{children}</div>;
 }
 
@@ -125,15 +151,15 @@ function FieldError({ message }: { message?: string }) {
 
 function Tooltip({ text }: { text: string }) {
   return (
-    <span className="relative group inline-block ml-1.5 align-middle">
+    <span className="relative ml-1.5 inline-block align-middle group">
       <button
         type="button"
         aria-label="More info"
-        className="w-4 h-4 rounded-full border border-white/20 text-slate-500 text-[10px] font-bold flex items-center justify-center hover:border-white/40 hover:text-slate-300 transition-colors focus:outline-none"
+        className="flex h-4 w-4 items-center justify-center rounded-full border border-white/20 text-[10px] font-bold text-slate-500 transition-colors hover:border-white/40 hover:text-slate-300 focus:outline-none"
       >
         ?
       </button>
-      <span className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 bg-dark-900 text-slate-200 text-xs rounded-lg px-3 py-2 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity duration-200 delay-100 z-50 leading-relaxed shadow-lg border border-white/10">
+      <span className="pointer-events-none absolute bottom-full left-1/2 z-50 mb-2 w-64 -translate-x-1/2 rounded-lg border border-white/10 bg-dark-900 px-3 py-2 text-xs leading-relaxed text-slate-200 opacity-0 shadow-lg transition-opacity duration-200 delay-100 group-hover:opacity-100 group-focus-within:opacity-100">
         {text}
       </span>
     </span>
@@ -141,13 +167,13 @@ function Tooltip({ text }: { text: string }) {
 }
 
 function inputClass(extra = "") {
-  return `w-full rounded-xl border border-white/10 bg-[#0f172a] px-4 py-3 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-orange-500/30 focus:border-orange-500 transition ${extra}`;
+  return `w-full rounded-xl border border-white/10 bg-[#0f172a] px-4 py-3 text-sm text-slate-100 placeholder-slate-500 transition focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-500/30 ${extra}`;
 }
 
 function SectionHeader({ n, title, first }: { n: number; title: string; first?: boolean }) {
   return (
     <div className={`${first ? "" : "border-t border-white/10 pt-6"} mb-1`}>
-      <h3 className="text-xs font-semibold text-orange-500 uppercase tracking-wider">
+      <h3 className="text-xs font-semibold uppercase tracking-wider text-orange-500">
         {n}. {title}
       </h3>
     </div>
@@ -167,24 +193,24 @@ export default function SourcingRequestForm({
     source === "sourcing-page"
       ? "fdx_sourcing_form"
       : source === "buyers-page"
-      ? "fdx_buyer_form"
-      : source
-      ? `fdx_${source}_form`
-      : "fdx_buyer_form";
-  const searchParams = useSearchParams();
+        ? "fdx_buyer_form"
+        : source
+          ? `fdx_${source}_form`
+          : "fdx_buyer_form";
+
   const [images, setImages] = useState<UploadedImage[]>([]);
   const [description, setDescription] = useState("");
   const [descHighlight, setDescHighlight] = useState(false);
   const [category, setCategory] = useState("");
   const [kosher, setKosher] = useState<KosherOption>("chief-rabbinate");
   const [volume, setVolume] = useState("");
-  const [volumeUnit, setVolumeUnit] = useState("tons");
+  const [volumeUnit, setVolumeUnit] = useState<(typeof VOLUME_UNIT_OPTIONS)[number]["value"]>("tons");
   const [packaging, setPackaging] = useState("");
   const [privateLabel, setPrivateLabel] = useState(false);
-  const [name, setName] = useState(searchParams.get("name") ?? "");
-  const [email, setEmail] = useState(searchParams.get("email") ?? "");
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
   const [whatsapp, setWhatsapp] = useState("");
-  const [company, setCompany] = useState(searchParams.get("company") ?? "");
+  const [company, setCompany] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [submittedSummary, setSubmittedSummary] = useState("");
@@ -197,53 +223,43 @@ export default function SourcingRequestForm({
   const formRef = useRef<HTMLDivElement>(null);
   const descRef = useRef<HTMLTextAreaElement>(null);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const prefillTimer = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
     try {
       const saved = localStorage.getItem(formKey);
+
       if (saved) {
-        const parsed = JSON.parse(saved) as {
-          description?: string;
-          category?: string;
-          kosher?: KosherOption;
-          volume?: string;
-          volumeUnit?: string;
-          packaging?: string;
-          privateLabel?: boolean;
-          name?: string;
-          email?: string;
-          whatsapp?: string;
-          company?: string;
-        };
+        const parsed = JSON.parse(saved) as StoredFormData;
+
         if (parsed.description) setDescription(parsed.description);
         if (parsed.category) setCategory(parsed.category);
         if (parsed.kosher) setKosher(parsed.kosher);
         if (parsed.volume) setVolume(parsed.volume);
-        if (parsed.volumeUnit) setVolumeUnit(parsed.volumeUnit);
+        if (parsed.volumeUnit) setVolumeUnit(parsed.volumeUnit as (typeof VOLUME_UNIT_OPTIONS)[number]["value"]);
         if (parsed.packaging) setPackaging(parsed.packaging);
         if (parsed.privateLabel !== undefined) setPrivateLabel(parsed.privateLabel);
         if (parsed.name) setName(parsed.name);
         if (parsed.email) setEmail(parsed.email);
         if (parsed.whatsapp) setWhatsapp(parsed.whatsapp);
         if (parsed.company) setCompany(parsed.company);
-        const hasData = !!(
+
+        const hasData = Boolean(
           parsed.description ||
-          parsed.name ||
-          parsed.email ||
-          parsed.whatsapp ||
-          parsed.company ||
-          parsed.volume
+            parsed.name ||
+            parsed.email ||
+            parsed.whatsapp ||
+            parsed.company ||
+            parsed.volume
         );
+
         if (hasData) setSavedBanner(true);
       } else {
         const cached = localStorage.getItem("fdx_contact_cache");
+
         if (cached) {
-          const contactCache = JSON.parse(cached) as {
-            name?: string;
-            email?: string;
-            whatsapp?: string;
-            company?: string;
-          };
+          const contactCache = JSON.parse(cached) as ContactCache;
+
           if (contactCache.name) setName(contactCache.name);
           if (contactCache.email) setEmail(contactCache.email);
           if (contactCache.whatsapp) setWhatsapp(contactCache.whatsapp);
@@ -251,12 +267,27 @@ export default function SourcingRequestForm({
         }
       }
     } catch {
-      // ignore localStorage parsing errors
+      // Ignore localStorage parsing errors
     }
   }, [formKey]);
 
   useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const params = new URLSearchParams(window.location.search);
+
+    const qsName = params.get("name")?.trim() ?? "";
+    const qsEmail = params.get("email")?.trim() ?? "";
+    const qsCompany = params.get("company")?.trim() ?? "";
+
+    if (qsName) setName((prev) => prev || qsName);
+    if (qsEmail) setEmail((prev) => prev || qsEmail);
+    if (qsCompany) setCompany((prev) => prev || qsCompany);
+  }, []);
+
+  useEffect(() => {
     if (saveTimer.current) clearTimeout(saveTimer.current);
+
     saveTimer.current = setTimeout(() => {
       try {
         localStorage.setItem(
@@ -273,12 +304,18 @@ export default function SourcingRequestForm({
             email,
             whatsapp,
             company,
-          })
+          } satisfies StoredFormData)
         );
       } catch {
-        // ignore write errors
+        // Ignore localStorage write errors
       }
     }, 400);
+
+    return () => {
+      if (saveTimer.current) {
+        clearTimeout(saveTimer.current);
+      }
+    };
   }, [formKey, description, category, kosher, volume, volumeUnit, packaging, privateLabel, name, email, whatsapp, company]);
 
   useEffect(() => {
@@ -286,6 +323,13 @@ export default function SourcingRequestForm({
       setDescription(initialDescription);
     }
   }, [initialDescription, description]);
+
+  useEffect(() => {
+    return () => {
+      if (prefillTimer.current) clearInterval(prefillTimer.current);
+      if (saveTimer.current) clearTimeout(saveTimer.current);
+    };
+  }, []);
 
   function clearFieldError(field: string) {
     setFieldErrors((prev) => {
@@ -307,10 +351,13 @@ export default function SourcingRequestForm({
     setImages([]);
     setUrls([""]);
     setSavedBanner(false);
+    setFieldErrors({});
+    setError(null);
+
     try {
       localStorage.removeItem(formKey);
     } catch {
-      // ignore
+      // Ignore localStorage errors
     }
   }
 
@@ -324,6 +371,9 @@ export default function SourcingRequestForm({
     setPrivateLabel(false);
     setSubmitted(false);
     setShowAddAnother(false);
+    setFieldErrors({});
+    setError(null);
+
     formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
@@ -339,47 +389,59 @@ export default function SourcingRequestForm({
     setPrivateLabel(false);
     setSubmitted(false);
     setShowAddAnother(false);
+    setFieldErrors({});
+    setError(null);
+
     try {
       localStorage.removeItem(formKey);
     } catch {
-      // ignore
+      // Ignore localStorage errors
     }
+
     formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
   function addUrlInput() {
-    if (urls.length < 5) setUrls([...urls, ""]);
+    setUrls((prev) => (prev.length < 5 ? [...prev, ""] : prev));
   }
 
   function removeUrlInput(index: number) {
-    setUrls(urls.filter((_, idx) => idx !== index));
+    setUrls((prev) => prev.filter((_, idx) => idx !== index));
   }
 
   function updateUrl(index: number, value: string) {
-    setUrls(urls.map((url, idx) => (idx === index ? value : url)));
+    setUrls((prev) => prev.map((url, idx) => (idx === index ? value : url)));
   }
 
   function prefill(example: ExampleRequest) {
     formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
     setKosher(example.kosher);
     setDescription("");
+
+    if (prefillTimer.current) clearInterval(prefillTimer.current);
+
     let i = 0;
     const text = example.description;
-    const interval = setInterval(() => {
+
+    prefillTimer.current = setInterval(() => {
       setDescription(text.slice(0, i + 1));
       i += 1;
-      if (i >= text.length) {
-        clearInterval(interval);
+
+      if (i >= text.length && prefillTimer.current) {
+        clearInterval(prefillTimer.current);
+        prefillTimer.current = null;
         descRef.current?.focus();
       }
     }, 30);
+
     setDescHighlight(true);
-    setTimeout(() => setDescHighlight(false), 1400);
+    window.setTimeout(() => setDescHighlight(false), 1400);
   }
 
   function validateField(field: "description" | "name" | "email" | "whatsapp" | "company") {
     setFieldErrors((prev) => {
       const next = { ...prev };
+
       switch (field) {
         case "description":
           if (!description.trim() && images.length === 0) {
@@ -388,6 +450,7 @@ export default function SourcingRequestForm({
             delete next.description;
           }
           break;
+
         case "name":
           if (!isValidName(name)) {
             next.name = "Please enter your real name (first name is fine)";
@@ -395,6 +458,7 @@ export default function SourcingRequestForm({
             delete next.name;
           }
           break;
+
         case "email":
           if (email.trim() && !EMAIL_REGEX.test(email.trim())) {
             next.email = "Please enter a valid email address";
@@ -407,6 +471,7 @@ export default function SourcingRequestForm({
             }
           }
           break;
+
         case "whatsapp":
           if (whatsapp.trim() && !isValidPhoneNumber(whatsapp)) {
             next.whatsapp = "Please enter a valid WhatsApp number including country code";
@@ -419,6 +484,7 @@ export default function SourcingRequestForm({
             }
           }
           break;
+
         case "company":
           if (company.trim() && !isValidCompanyName(company)) {
             next.company = "Please enter your company name";
@@ -427,6 +493,7 @@ export default function SourcingRequestForm({
           }
           break;
       }
+
       return next;
     });
   }
@@ -435,23 +502,29 @@ export default function SourcingRequestForm({
     event.preventDefault();
 
     const errors: Record<string, string> = {};
+
     if (!isValidName(name)) {
       errors.name = "Please enter your real name (first name is fine)";
     }
+
     if (email.trim() && !EMAIL_REGEX.test(email.trim())) {
       errors.email = "Please enter a valid email address";
     }
+
     if (whatsapp.trim() && !isValidPhoneNumber(whatsapp)) {
       errors.whatsapp = "Please enter a valid WhatsApp number including country code";
     }
+
     if (!email.trim() && !whatsapp.trim()) {
       const msg = "Please provide an email or WhatsApp number so we can reach you";
       errors.email = msg;
       errors.whatsapp = msg;
     }
+
     if (company.trim() && !isValidCompanyName(company)) {
       errors.company = "Please enter your company name";
     }
+
     if (!description.trim() && images.length === 0) {
       errors.description = "Please describe the product you're looking for";
     }
@@ -465,12 +538,19 @@ export default function SourcingRequestForm({
     setError(null);
     setSubmitting(true);
 
-    const extraUrls = urls.filter((url) => url.trim().startsWith("http"));
+    const extraUrls = urls.filter((url) => {
+      const trimmed = url.trim();
+      return trimmed.startsWith("http://") || trimmed.startsWith("https://");
+    });
+
     let fullDescription = description.trim();
+
     if (volume.trim()) {
-      const unitLabel = VOLUME_UNIT_OPTIONS.find((u) => u.value === volumeUnit)?.label ?? "tons / year";
+      const unitLabel =
+        VOLUME_UNIT_OPTIONS.find((unit) => unit.value === volumeUnit)?.label ?? "tons / year";
       fullDescription += `\n\nEstimated annual volume: ${volume} ${unitLabel}`;
     }
+
     if (packaging.trim()) {
       fullDescription += `\n\nFormat/packaging preference: ${packaging.trim()}`;
     }
@@ -478,14 +558,16 @@ export default function SourcingRequestForm({
     const payload = {
       name: name.trim(),
       email: email.trim() || undefined,
-      whatsapp: whatsapp || undefined,
+      whatsapp: whatsapp.trim() || undefined,
       company: company.trim() || undefined,
       description: fullDescription || undefined,
       category: category || undefined,
       certifications: KOSHER_CERTS[kosher],
       private_label: privateLabel || null,
       image_urls: [
-        ...images.filter((img) => !img.uploading && !img.error && img.url).map((img) => img.url),
+        ...images
+          .filter((img) => !img.uploading && !img.error && img.url)
+          .map((img) => img.url),
         ...extraUrls,
       ].slice(0, 5),
       source,
@@ -497,11 +579,17 @@ export default function SourcingRequestForm({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
-      const data = (await res.json()) as { ok?: boolean; error?: string; message?: string };
+
+      const data = (await res.json()) as SubmitResponse;
+
       if (res.status === 429) {
-        setError(data.message ?? "You've submitted several requests — please wait a few minutes before submitting again.");
+        setError(
+          data.message ??
+            "You've submitted several requests — please wait a few minutes before submitting again."
+        );
         return;
       }
+
       if (!data.ok) {
         setError(data.error ?? "Something went wrong. Please try again.");
         return;
@@ -511,23 +599,30 @@ export default function SourcingRequestForm({
         localStorage.removeItem(formKey);
         localStorage.setItem(
           "fdx_contact_cache",
-          JSON.stringify({ name, email, whatsapp, company })
+          JSON.stringify({
+            name: name.trim(),
+            email: email.trim(),
+            whatsapp: whatsapp.trim(),
+            company: company.trim(),
+          } satisfies ContactCache)
         );
       } catch {
-        // ignore
+        // Ignore localStorage errors
       }
+
       if (onSuccess) {
         onSuccess();
         return;
       }
+
       const shortDescription = description.trim().slice(0, 80);
+
       setSubmittedSummary(
-        category
-          ? `${category}${shortDescription ? `: ${shortDescription}` : ""}`
-          : shortDescription
+        category ? `${category}${shortDescription ? `: ${shortDescription}` : ""}` : shortDescription
       );
+
       setSubmitted(true);
-      setTimeout(() => setShowAddAnother(true), 2000);
+      window.setTimeout(() => setShowAddAnother(true), 2000);
     } catch {
       setError("Network error — please check your connection and try again.");
     } finally {
@@ -540,22 +635,23 @@ export default function SourcingRequestForm({
   return (
     <div ref={formRef} className="space-y-10">
       {showExamples && (
-        <section className="px-6 py-10 border-b border-dark-border">
-          <div className="max-w-4xl mx-auto">
-            <p className="text-xs font-semibold text-slate-500 uppercase tracking-widest mb-4 text-center">
+        <section className="border-b border-dark-border px-6 py-10">
+          <div className="mx-auto max-w-4xl">
+            <p className="mb-4 text-center text-xs font-semibold uppercase tracking-widest text-slate-500">
               Example requests — click to pre-fill the form
             </p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {EXAMPLES.map((example, idx) => (
                 <button
                   key={idx}
                   type="button"
                   onClick={() => prefill(example)}
-                  className="group text-left p-4 dark-card hover:border-orange-500/40 transition-all hover:shadow-black/30 hover:shadow-md"
+                  className="group p-4 text-left transition-all hover:border-orange-500/40 hover:shadow-md hover:shadow-black/30 dark-card"
                 >
-                  <p className="font-semibold text-dark-text-primary text-sm mb-1">{example.title}</p>
-                  <p className="text-xs text-slate-500 leading-relaxed">{example.details}</p>
-                  <p className="text-xs text-orange-400 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <p className="mb-1 text-sm font-semibold text-dark-text-primary">{example.title}</p>
+                  <p className="text-xs leading-relaxed text-slate-500">{example.details}</p>
+                  <p className="mt-2 text-xs text-orange-400 opacity-0 transition-opacity group-hover:opacity-100">
                     Try this example →
                   </p>
                 </button>
@@ -566,30 +662,33 @@ export default function SourcingRequestForm({
       )}
 
       <section className="px-6 py-14">
-        <div className="max-w-xl mx-auto">
+        <div className="mx-auto max-w-xl">
           {!compact && (
             <>
-              <h2 className="text-2xl font-bold text-dark-text-primary mb-2 text-center">{heading}</h2>
-              <p className="text-slate-400 text-center text-sm mb-8">{subheading}</p>
+              <h2 className="mb-2 text-center text-2xl font-bold text-dark-text-primary">{heading}</h2>
+              <p className="mb-8 text-center text-sm text-slate-400">{subheading}</p>
             </>
           )}
 
           {submitted ? (
-            <div className="text-center py-14 px-6 bg-green-500/10 rounded-2xl border border-green-500/20">
+            <div className="rounded-2xl border border-green-500/20 bg-green-500/10 px-6 py-14 text-center">
               <div
-                className="w-16 h-16 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-5"
+                className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full bg-green-500"
                 style={{ animation: "pop 0.4s cubic-bezier(0.175,0.885,0.32,1.275)" }}
               >
-                <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="h-8 w-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
                 </svg>
               </div>
-              <h3 className="text-xl font-semibold text-dark-text-primary mb-2">Request received</h3>
-              <p className="text-slate-400 text-sm mb-2">
+
+              <h3 className="mb-2 text-xl font-semibold text-dark-text-primary">Request received</h3>
+
+              <p className="mb-2 text-sm text-slate-400">
                 We&apos;ll review your request and send you matched suppliers within 24 hours.
               </p>
+
               {submittedSummary && (
-                <p className="text-slate-300 text-sm mb-6 italic">
+                <p className="mb-6 text-sm italic text-slate-300">
                   Your request: &ldquo;{submittedSummary}
                   {submittedSummary.length >= 80 ? "…" : ""}&rdquo;
                 </p>
@@ -598,42 +697,42 @@ export default function SourcingRequestForm({
               <button
                 type="button"
                 onClick={handleDifferentProduct}
-                className="btn-brand px-6 py-3 rounded-lg text-sm"
+                className="btn-brand rounded-lg px-6 py-3 text-sm"
               >
                 Submit another request
               </button>
 
               <div
                 className={`transition-all duration-700 ${
-                  showAddAnother
-                    ? "opacity-100 translate-y-0"
-                    : "opacity-0 translate-y-2 pointer-events-none"
+                  showAddAnother ? "translate-y-0 opacity-100" : "pointer-events-none translate-y-2 opacity-0"
                 }`}
               >
-                <div className="flex gap-3 justify-center flex-wrap mt-4">
+                <div className="mt-4 flex flex-wrap justify-center gap-3">
                   <button
                     type="button"
                     onClick={handleSameCategory}
-                    className="border border-white/20 text-slate-300 hover:bg-white/5 px-5 py-2.5 rounded-lg text-sm transition"
+                    className="rounded-lg border border-white/20 px-5 py-2.5 text-sm text-slate-300 transition hover:bg-white/5"
                   >
                     + Same category
                   </button>
                 </div>
-                <a href="/" className="block mt-6 text-sm text-slate-500 hover:text-slate-300 transition">
+
+                <a href="/" className="mt-6 block text-sm text-slate-500 transition hover:text-slate-300">
                   ← Go to homepage
                 </a>
               </div>
+
               <style>{`@keyframes pop{0%{transform:scale(0)}80%{transform:scale(1.12)}100%{transform:scale(1)}}`}</style>
             </div>
           ) : (
             <form onSubmit={handleSubmit} className="space-y-6">
               {savedBanner && (
-                <div className="flex items-center justify-between text-sm bg-blue-500/10 border border-blue-500/20 rounded-lg px-4 py-2.5">
+                <div className="flex items-center justify-between rounded-lg border border-blue-500/20 bg-blue-500/10 px-4 py-2.5 text-sm">
                   <span className="text-slate-300">We saved your progress — continue where you left off</span>
                   <button
                     type="button"
                     onClick={() => setSavedBanner(false)}
-                    className="text-slate-500 hover:text-slate-300 ml-3 shrink-0 text-base leading-none"
+                    className="ml-3 shrink-0 text-base leading-none text-slate-500 hover:text-slate-300"
                   >
                     ×
                   </button>
@@ -647,6 +746,7 @@ export default function SourcingRequestForm({
                   What do you need to source?
                   <Tooltip text="The more detail you provide, the better our matching. Include: product type, packaging format, size/weight, certifications required, annual volume if known, target price range." />
                 </Label>
+
                 <textarea
                   id="description"
                   ref={descRef}
@@ -661,12 +761,14 @@ export default function SourcingRequestForm({
                   placeholder="e.g. Extra virgin olive oil, 750ml glass bottle, Chief Rabbinate kosher certification, private label"
                   className={`${inputClass("resize-none")} ${descHighlight ? "border-orange-500/60" : ""}`}
                 />
+
                 <FieldError message={fieldErrors.description} />
                 <Helper>Be as specific as possible — format, size, certifications, quantity.</Helper>
               </FieldGroup>
 
               <FieldGroup>
                 <Label htmlFor="category">Product category</Label>
+
                 <select
                   id="category"
                   value={category}
@@ -680,6 +782,7 @@ export default function SourcingRequestForm({
                     </option>
                   ))}
                 </select>
+
                 <Helper>Helps us route your request to the right suppliers.</Helper>
               </FieldGroup>
 
@@ -688,6 +791,7 @@ export default function SourcingRequestForm({
                   Estimated annual volume
                   <Tooltip text="Suppliers have minimum order quantities. Knowing your volume helps us filter out suppliers who are too large or too small for your needs." />
                 </Label>
+
                 <div className="flex items-center gap-2">
                   <input
                     id="volume"
@@ -700,9 +804,12 @@ export default function SourcingRequestForm({
                     className={inputClass()}
                     style={{ maxWidth: "150px" }}
                   />
+
                   <select
                     value={volumeUnit}
-                    onChange={(event) => setVolumeUnit(event.target.value)}
+                    onChange={(event) =>
+                      setVolumeUnit(event.target.value as (typeof VOLUME_UNIT_OPTIONS)[number]["value"])
+                    }
                     className={inputClass()}
                     style={{ maxWidth: "170px" }}
                     aria-label="Volume unit"
@@ -714,26 +821,33 @@ export default function SourcingRequestForm({
                     ))}
                   </select>
                 </div>
-                <Helper>Approximate is fine — this helps us match you with suppliers of the right scale.</Helper>
+
+                <Helper>
+                  Approximate is fine — this helps us match you with suppliers of the right scale.
+                </Helper>
               </FieldGroup>
 
               <FieldGroup>
                 <Label>
-                  Product images <span className="text-slate-500 font-normal">(optional)</span>
+                  Product images <span className="font-normal text-slate-500">(optional)</span>
                 </Label>
+
                 <MultiImageUpload value={images} onChange={setImages} maxImages={5} bucket="requests" />
+
                 {images.length > 0 && (
                   <p className="mt-1 text-xs text-slate-500">{images.length} of 5 images added</p>
                 )}
+
                 <Helper>Up to 5 images — drop files or paste a URL. Max 5 MB each.</Helper>
               </FieldGroup>
 
               <FieldGroup>
                 <Label>
-                  Or paste product / catalogue URL <span className="text-slate-500 font-normal">(optional)</span>
+                  Or paste product / catalogue URL <span className="font-normal text-slate-500">(optional)</span>
                 </Label>
+
                 {urls.map((url, index) => (
-                  <div key={index} className="flex items-center gap-2 mb-1">
+                  <div key={index} className="mb-1 flex items-center gap-2">
                     <input
                       type="url"
                       value={url}
@@ -741,22 +855,24 @@ export default function SourcingRequestForm({
                       placeholder="https://..."
                       className={inputClass()}
                     />
+
                     {urls.length > 1 && (
                       <button
                         type="button"
                         onClick={() => removeUrlInput(index)}
-                        className="text-slate-400 hover:text-red-400 text-lg leading-none px-1"
+                        className="px-1 text-lg leading-none text-slate-400 hover:text-red-400"
                       >
                         ×
                       </button>
                     )}
                   </div>
                 ))}
+
                 {urls.length < 5 && (
                   <button
                     type="button"
                     onClick={addUrlInput}
-                    className="text-sm text-orange-400 hover:text-orange-300 mt-1"
+                    className="mt-1 text-sm text-orange-400 hover:text-orange-300"
                   >
                     + Add another URL
                   </button>
@@ -770,11 +886,12 @@ export default function SourcingRequestForm({
                   Kosher certification required?
                   <Tooltip text="Chief Rabbinate (Rabbanut) is accepted by all Israeli retailers. Badatz is a higher standard required by some buyers. Mehadrin is the strictest standard for premium kosher." />
                 </Label>
-                <div className="space-y-1 mt-1">
+
+                <div className="mt-1 space-y-1">
                   {KOSHER_OPTIONS.map((option) => (
                     <label
                       key={option.value}
-                      className="flex items-center gap-3 cursor-pointer group rounded-lg px-3 py-2.5 hover:bg-white/5 transition-colors"
+                      className="group flex cursor-pointer items-center gap-3 rounded-lg px-3 py-2.5 transition-colors hover:bg-white/5"
                     >
                       <input
                         type="radio"
@@ -782,25 +899,27 @@ export default function SourcingRequestForm({
                         value={option.value}
                         checked={kosher === option.value}
                         onChange={() => setKosher(option.value)}
-                        className="w-5 h-5 accent-orange-500 cursor-pointer"
+                        className="h-5 w-5 cursor-pointer accent-orange-500"
                       />
-                      <span className="text-sm text-slate-300 group-hover:text-dark-text-primary transition-colors">
+                      <span className="text-sm text-slate-300 transition-colors group-hover:text-dark-text-primary">
                         {option.label}
                       </span>
                     </label>
                   ))}
                 </div>
+
                 <Helper>Most Israeli retailers require Chief Rabbinate as minimum.</Helper>
               </FieldGroup>
 
               <FieldGroup>
                 <div className="flex items-center justify-between">
                   <Label>Do you need private label?</Label>
+
                   <button
                     type="button"
                     role="switch"
                     aria-checked={privateLabel}
-                    onClick={() => setPrivateLabel(!privateLabel)}
+                    onClick={() => setPrivateLabel((prev) => !prev)}
                     className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-orange-500/40 ${
                       privateLabel ? "bg-orange-500" : "bg-dark-500"
                     }`}
@@ -812,11 +931,13 @@ export default function SourcingRequestForm({
                     />
                   </button>
                 </div>
+
                 <Helper>We will only show suppliers who offer private label production.</Helper>
               </FieldGroup>
 
               <FieldGroup>
                 <Label htmlFor="packaging">Format / packaging preference</Label>
+
                 <input
                   id="packaging"
                   type="text"
@@ -825,6 +946,7 @@ export default function SourcingRequestForm({
                   placeholder="e.g. 500g jars, 12/case"
                   className={inputClass()}
                 />
+
                 <Helper>Optional — let suppliers know your preferred pack size or format.</Helper>
               </FieldGroup>
 
@@ -861,20 +983,20 @@ export default function SourcingRequestForm({
               />
 
               {error && (
-                <p className="text-sm text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-4 py-3">
+                <p className="rounded-lg border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-400">
                   {error}
                 </p>
               )}
 
-              <div className="sticky bottom-0 z-20 -mx-6 sm:-mx-8 mt-2 border-t border-white/10 bg-dark-900/95 backdrop-blur px-6 sm:px-8 py-3">
+              <div className="sticky bottom-0 z-20 -mx-6 mt-2 border-t border-white/10 bg-dark-900/95 px-6 py-3 backdrop-blur sm:-mx-8 sm:px-8">
                 <button
                   type="submit"
                   disabled={submitting || anyUploading}
-                  className="btn-brand w-full justify-center py-3.5 rounded-xl disabled:opacity-60 disabled:cursor-not-allowed"
+                  className="btn-brand w-full justify-center rounded-xl py-3.5 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {submitting ? (
                     <>
-                      <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                      <svg className="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24">
                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
                       </svg>
@@ -882,7 +1004,7 @@ export default function SourcingRequestForm({
                     </>
                   ) : anyUploading ? (
                     <>
-                      <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                      <svg className="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24">
                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
                       </svg>
@@ -897,13 +1019,16 @@ export default function SourcingRequestForm({
               <button
                 type="button"
                 onClick={clearForm}
-                className="text-xs text-slate-500 hover:text-slate-300 text-center block mx-auto"
+                className="mx-auto block text-center text-xs text-slate-500 hover:text-slate-300"
               >
                 Clear form
               </button>
 
-              <div className="mt-8 dark-card px-6 py-5">
-                <p className="text-sm font-semibold text-dark-text-primary mb-3">What happens after you submit?</p>
+              <div className="mt-8 px-6 py-5 dark-card">
+                <p className="mb-3 text-sm font-semibold text-dark-text-primary">
+                  What happens after you submit?
+                </p>
+
                 <ul className="space-y-2">
                   {[
                     "You receive a confirmation immediately",
@@ -912,14 +1037,20 @@ export default function SourcingRequestForm({
                     "You decide who to connect with — no obligation",
                   ].map((item, idx) => (
                     <li key={idx} className="flex items-start gap-2 text-sm text-slate-400">
-                      <svg className="w-4 h-4 text-green-400 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg
+                        className="mt-0.5 h-4 w-4 shrink-0 text-green-400"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
                       </svg>
                       {item}
                     </li>
                   ))}
                 </ul>
-                <p className="mt-4 text-xs text-slate-500 italic">
+
+                <p className="mt-4 text-xs italic text-slate-500">
                   Every request is reviewed by a human. No automated emails. No spam.
                 </p>
               </div>
