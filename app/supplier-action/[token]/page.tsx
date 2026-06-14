@@ -55,6 +55,15 @@ export default async function SupplierActionPage({ params }: { params: Params })
     );
   }
 
+  if (action.status === "revoked") {
+    return (
+      <Message
+        title="This request is no longer active"
+        body="If you think this is a mistake, contact info@foodz-x.com."
+      />
+    );
+  }
+
   if (new Date(action.expires_at) < new Date()) {
     return (
       <Message
@@ -71,6 +80,10 @@ export default async function SupplierActionPage({ params }: { params: Params })
         body="We've already received your response for this request — thank you! If you need to send anything else, just reply to the original email."
       />
     );
+  }
+
+  if (action.status === "pending") {
+    void supabaseAdmin.from("supplier_actions").update({ status: "opened" }).eq("id", action.id);
   }
 
   const companyName = action.supplier_offerings?.company_name ?? "there";
