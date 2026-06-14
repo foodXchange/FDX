@@ -36,7 +36,7 @@ export default async function PortalDashboardPage() {
       .select(
         "id, product_name, category, message, status, certifications, private_label, match_count, created_at"
       )
-      .eq("auth_user_id", user.id)
+      .eq("email", user.email ?? "")
       .order("created_at", { ascending: false }),
     supabaseAdmin.from("buyer_profiles").select("name, company").eq("id", user.id).maybeSingle(),
   ]);

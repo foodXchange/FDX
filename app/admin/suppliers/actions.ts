@@ -1,11 +1,13 @@
 "use server";
 
 import { z } from "zod";
+import { headers } from "next/headers";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { revalidatePath } from "next/cache";
 import { getAdminEmail } from "@/lib/adminAuth";
 import { logAdminAction } from "@/lib/auditLog";
 import { sendSupplierApprovalEmail, sendSupplierRejectionEmail } from "@/lib/email/mailer";
+import { getOriginFromHeaders } from "@/lib/getOrigin";
 
 const SupplierSchema = z.object({
   company_name: z.string().min(1, "Company name is required").max(300),
@@ -211,11 +213,11 @@ export async function approveSupplier(
 
     let portalLink: string | undefined;
     try {
-      const site = process.env.NEXT_PUBLIC_SITE_URL ?? "https://fdx.trading";
+      const origin = getOriginFromHeaders(await headers());
       const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
         type: "magiclink",
         email: contact_email,
-        options: { redirectTo: `${site}/en/supplier-portal/auth/callback` },
+        options: { redirectTo: `${origin}/en/supplier-portal/auth/callback` },
       });
       if (linkError) throw linkError;
       portalLink = linkData.properties?.action_link ?? undefined;

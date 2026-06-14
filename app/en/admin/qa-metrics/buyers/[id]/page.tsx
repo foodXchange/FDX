@@ -31,7 +31,7 @@ type EventRow = {
   event_type: string;
   entity_type: string | null;
   entity_id: string | null;
-  event_data: Record<string, unknown> | null;
+  metadata: Record<string, unknown> | null;
   created_at: string;
 };
 
@@ -76,7 +76,7 @@ export default async function BuyerDrilldownPage({ params }: { params: Params })
       .order("created_at", { ascending: false }),
     supabaseAdmin
       .from("platform_events")
-      .select("id, event_type, entity_type, entity_id, event_data, created_at")
+      .select("id, event_type, entity_type, entity_id, metadata, created_at")
       .eq("user_id", id)
       .order("created_at", { ascending: false })
       .limit(20),

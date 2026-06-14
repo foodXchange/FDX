@@ -4,6 +4,7 @@ import { checkRateLimit } from "@/lib/rateLimit";
 import { sendSupplierNotification, sendSupplierConfirmation } from "@/lib/email/mailer";
 import { createNotification } from "@/lib/notifications/createNotification";
 import { logEvent } from "@/lib/events/logEvent";
+import { getOriginFromHeaders } from "@/lib/getOrigin";
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
@@ -177,12 +178,12 @@ export async function POST(req: Request) {
 
     let portalLink: string | undefined;
     try {
-      const site = process.env.NEXT_PUBLIC_SITE_URL ?? "https://fdx.trading";
+      const origin = getOriginFromHeaders(req.headers);
       const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
         type: "magiclink",
         email: data.contact_email,
         options: {
-          redirectTo: `${site}/en/supplier-portal/auth/callback`,
+          redirectTo: `${origin}/en/supplier-portal/auth/callback`,
           data: { name: data.contact_name, supplier_id: newSupplier.id },
         },
       });

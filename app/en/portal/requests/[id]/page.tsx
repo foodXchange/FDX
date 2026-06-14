@@ -24,7 +24,7 @@ export default async function PortalRequestDetailPage({ params }: { params: Para
     .eq("id", id)
     .single();
 
-  if (!request || request.auth_user_id !== user.id) return notFound();
+  if (!request || request.email !== user.email) return notFound();
 
   const { data: rawMatches } = await supabaseAdmin
     .from("sourcing_matches")

@@ -2,6 +2,7 @@ import { cookies } from "next/headers";
 import { verifySession, COOKIE_NAME, getAdminEmail } from "@/lib/adminAuth";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { logAdminAction } from "@/lib/auditLog";
+import { getOriginFromHeaders } from "@/lib/getOrigin";
 
 async function checkAuth(): Promise<boolean> {
   const cookieStore = await cookies();
@@ -10,7 +11,7 @@ async function checkAuth(): Promise<boolean> {
 }
 
 export async function POST(
-  _req: Request,
+  req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   if (!(await checkAuth())) {
@@ -30,17 +31,31 @@ export async function POST(
   }
 
   const contactEmail = buyer.contact_email as string | null;
-  if (!contactEmail) {
-    return Response.json({ error: "Buyer has no contact email on file" }, { status: 400 });
-  }
+  const email = contactEmail || `buyer-${buyer.id}@fdx.internal`;
 
   const adminEmail = getAdminEmail();
-  if (contactEmail.toLowerCase() === adminEmail.toLowerCase()) {
+  if (email.toLowerCase() === adminEmail.toLowerCase()) {
     return Response.json({ error: "Cannot impersonate an admin account" }, { status: 403 });
   }
 
-  const companyName = (buyer.company_name as string | null) ?? contactEmail;
-  const site = process.env.NEXT_PUBLIC_SITE_URL ?? "https://fdx.trading";
+  const { error: createUserError } = await supabaseAdmin.auth.admin.createUser({
+    email,
+    email_confirm: true,
+  });
+  if (
+    createUserError &&
+    createUserError.code !== "email_exists" &&
+    createUserError.code !== "user_already_exists"
+  ) {
+    return Response.json({ error: createUserError.message }, { status: 500 });
+  }
+
+  if (!contactEmail) {
+    await supabaseAdmin.from("buyers").update({ contact_email: email }).eq("id", buyer.id);
+  }
+
+  const companyName = (buyer.company_name as string | null) ?? email;
+  const origin = getOriginFromHeaders(req.headers);
   const redirectParams = new URLSearchParams({
     impersonation: "1",
     admin_email: adminEmail,
@@ -50,14 +65,14 @@ export async function POST(
   });
 
   const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
-    type: "magiclink",
-    email: contactEmail,
+    type: "recovery",
+    email,
     options: {
-      redirectTo: `${site}/en/portal/auth/callback?${redirectParams.toString()}`,
+      redirectTo: `${origin}/en/portal/auth/callback?${redirectParams.toString()}`,
     },
   });
 
-  if (linkError || !linkData.properties?.action_link) {
+  if (linkError || !linkData.properties?.hashed_token) {
     return Response.json({ error: linkError?.message ?? "Failed to generate link" }, { status: 500 });
   }
 
@@ -66,9 +81,16 @@ export async function POST(
     action: "impersonation_started",
     targetType: "buyer",
     targetId: buyer.id as string,
-    targetEmail: contactEmail,
+    targetEmail: email,
     metadata: { company_name: companyName },
   });
 
-  return Response.json({ magicLink: linkData.properties.action_link, buyerName: companyName });
+  const callbackParams = new URLSearchParams(redirectParams);
+  callbackParams.set("token_hash", linkData.properties.hashed_token);
+  callbackParams.set("type", "recovery");
+
+  return Response.json({
+    url: `${origin}/en/portal/auth/callback?${callbackParams.toString()}`,
+    buyerName: companyName,
+  });
 }

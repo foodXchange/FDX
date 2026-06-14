@@ -15,7 +15,7 @@ export async function logEvent(
     event_type: eventType,
     entity_type: entityType ?? null,
     entity_id: entityId ?? null,
-    event_data: eventData ?? null,
+    metadata: eventData ?? null,
   });
 
   if (error) {

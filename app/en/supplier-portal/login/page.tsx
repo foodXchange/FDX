@@ -2,7 +2,7 @@
 
 import { FormEvent, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { redirect, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
 function FieldError({ msg }: { msg?: string | null }) {
@@ -11,6 +11,7 @@ function FieldError({ msg }: { msg?: string | null }) {
 }
 
 export default function SupplierPortalLoginPage() {
+  redirect("/en/login");
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");

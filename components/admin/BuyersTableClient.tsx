@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { getInitials, avatarColors } from "@/lib/admin/avatarPalette";
+import ImpersonateButton from "@/components/admin/ImpersonateButton";
 
 export type BuyerRow = {
   id: string;
@@ -57,7 +58,7 @@ export function BuyersTableClient({ buyers }: { buyers: BuyerRow[] }) {
         <table className="w-full text-sm min-w-max">
           <thead className="bg-gray-50 border-b border-gray-200">
             <tr>
-              {["Logo", "Company", "Contact name", "Email", "Country", "Type", "Requests", "Active"].map((header) => (
+              {["Logo", "Company", "Contact name", "Email", "Country", "Type", "Requests", "Active", "Actions"].map((header) => (
                 <th
                   key={header}
                   className={`px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider ${
@@ -137,6 +138,9 @@ export function BuyersTableClient({ buyers }: { buyers: BuyerRow[] }) {
                       Inactive
                     </span>
                   )}
+                </td>
+                <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                  <ImpersonateButton kind="buyer" id={buyer.id} label="View as" />
                 </td>
               </tr>
             ))}

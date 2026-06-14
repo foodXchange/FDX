@@ -4,6 +4,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import { useState } from 'react';
+import { AuthNavDesktop, AuthNavMobile } from '@/components/AuthNav';
 
 export default function Header() {
   const pathname = usePathname();
@@ -14,14 +15,10 @@ export default function Header() {
 
   const navLinks = [
     { href: '/', label: 'Home' },
-    { href: '/en/about', label: 'About' },
-    { href: '/en/buyers', label: 'Buyers' },
-    { href: '/en/manufacturers', label: 'Manufacturers' },
-    { href: '/en/suppliers/register', label: 'Become a Supplier' },
-    { href: '/en/portfolio', label: 'Portfolio' },
+    { href: '/en/buyers', label: 'For Buyers' },
+    { href: '/en/suppliers/register', label: 'For Suppliers' },
     { href: '/en/products', label: 'Products' },
     { href: '/en/sourcing', label: 'Sourcing' },
-    { href: '/en/import-guide', label: 'Import Guide' },
     { href: '/en/help', label: 'Help' },
   ];
 
@@ -56,7 +53,7 @@ export default function Header() {
         </Link>
 
         {/* ✅ DESKTOP NAV */}
-        <nav className="hidden md:flex items-center gap-8">
+        <nav className="hidden md:flex items-center gap-6">
 
           {navLinks.map((link) => (
             <Link
@@ -78,6 +75,9 @@ export default function Header() {
               Contact
             </button>
           </Link>
+
+          {/* ✅ SIGN IN / PORTAL ACCESS */}
+          <AuthNavDesktop />
 
         </nav>
 
@@ -135,9 +135,12 @@ export default function Header() {
             Contact
           </Link>
 
+          <div className="border-t border-nav-border pt-3 space-y-2">
+            <AuthNavMobile onNavigate={() => setMobileMenuOpen(false)} />
+          </div>
+
         </nav>
       )}
     </header>
   );
 }
-``

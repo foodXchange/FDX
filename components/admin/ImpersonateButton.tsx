@@ -21,7 +21,7 @@ export default function ImpersonateButton({
       const res = await fetch(`/api/admin/impersonate/${kind}/${id}`, { method: "POST" });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error ?? "Failed to generate link");
-      window.open(json.magicLink as string, "_blank", "noopener,noreferrer");
+      window.open(json.url as string, "_blank", "noopener,noreferrer");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to generate link");
     } finally {

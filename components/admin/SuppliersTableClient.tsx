@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { bulkUpdateSupplierStatus } from "@/app/admin/suppliers/actions";
 import SupplierRowActions from "@/components/admin/SupplierRowActions";
 import TrustScoreBadge from "@/components/admin/TrustScoreBadge";
+import ImpersonateButton from "@/components/admin/ImpersonateButton";
 import { getInitials, avatarColors } from "@/lib/admin/avatarPalette";
 
 type SortColumn = "company" | "country" | "categories" | "certs";
@@ -364,6 +365,7 @@ export function SuppliersTableClient({
                   </td>
                   <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
                     <div className="flex items-center gap-3">
+                      <ImpersonateButton kind="supplier" id={supplier.id} label="View as" />
                       <SupplierRowActions id={supplier.id} />
                     </div>
                   </td>

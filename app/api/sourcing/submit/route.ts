@@ -11,6 +11,7 @@ import { buildPipV1 } from "@/lib/pip/buildPipV1";
 import { resolveCategoryId } from "@/lib/pip/resolveCategoryId";
 import { runMatchV1 } from "@/lib/matching/runMatchV1";
 import { groupImages } from "@/lib/pip/groupImages";
+import { getOriginFromHeaders } from "@/lib/getOrigin";
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
@@ -88,9 +89,43 @@ export async function POST(req: Request) {
     "No specific intent detected";
 
   try {
+    let buyerId: string | null = null;
+    if (data.email) {
+      const { data: existingBuyer } = await supabaseAdmin
+        .from("buyers")
+        .select("id")
+        .eq("contact_email", data.email)
+        .limit(1)
+        .maybeSingle();
+
+      if (existingBuyer) {
+        buyerId = existingBuyer.id as string;
+      } else {
+        const { data: newBuyer, error: buyerError } = await supabaseAdmin
+          .from("buyers")
+          .insert({
+            company_name: data.company || data.name,
+            contact_name: data.name,
+            contact_email: data.email,
+            contact_whatsapp: data.whatsapp ?? null,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          })
+          .select("id")
+          .single();
+
+        if (buyerError) {
+          console.error("Buyer insert error:", buyerError);
+        } else {
+          buyerId = newBuyer.id as string;
+        }
+      }
+    }
+
     const { data: newRequest, error: insertError } = await supabaseAdmin
       .from("sourcing_requests")
       .insert({
+        buyer_id: buyerId,
         name: data.name,
         email: data.email ?? null,
         company: data.company ?? null,
@@ -334,12 +369,12 @@ export async function POST(req: Request) {
     if (data.email) {
       let portalLink: string | undefined;
       try {
-        const site = process.env.NEXT_PUBLIC_SITE_URL ?? "https://fdx.trading";
+        const origin = getOriginFromHeaders(req.headers);
         const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
           type: "magiclink",
           email: data.email,
           options: {
-            redirectTo: `${site}/en/portal/auth/callback?next=/en/portal/requests/${newRequest.id}`,
+            redirectTo: `${origin}/en/portal/auth/callback?next=/en/portal/requests/${newRequest.id}`,
           },
         });
         if (linkError) throw linkError;

@@ -113,8 +113,8 @@ export default function HomePage() {
                 </p>
                 <div className="mt-6 pt-6 border-t border-slate-800 grid grid-cols-3 gap-4 text-center">
                   <div>
-                    <div className="text-lg font-bold text-orange-400">1</div>
-                    <div className="text-xs text-slate-500 mt-0.5">Retailer matched</div>
+                    <div className="text-lg font-bold text-orange-400">200+</div>
+                    <div className="text-xs text-slate-500 mt-0.5">Sourcing Requests</div>
                   </div>
                   <div>
                     <div className="text-lg font-bold text-orange-400">Long-term</div>
