@@ -4,9 +4,9 @@ import { createClient } from "@/lib/supabase/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { cleanRequestName } from "@/lib/matching/cleanRequestName";
 import { logEvent } from "@/lib/events/logEvent";
+import { buyerOwnsRequest } from "@/lib/matches/buyerAuth";
 import StatusBadge from "@/components/portal/StatusBadge";
-import MatchCard from "@/components/matches/MatchCard";
-import type { SupplierMatch } from "@/components/matches/types";
+import BuyerMatchCard, { type BuyerMatch } from "@/components/matches/BuyerMatchCard";
 
 type Params = Promise<{ id: string }>;
 
@@ -24,19 +24,27 @@ export default async function PortalRequestDetailPage({ params }: { params: Para
     .eq("id", id)
     .single();
 
-  if (!request || request.email !== user.email) return notFound();
+  if (!request) return notFound();
+
+  const authorized = await buyerOwnsRequest(
+    { email: request.email as string | null, buyer_id: request.buyer_id as string | null },
+    user.email
+  );
+  if (!authorized) redirect("/en/portal");
 
   const { data: rawMatches } = await supabaseAdmin
     .from("sourcing_matches")
     .select(
-      `id, company_name, country, product_name, match_score, match_breakdown, status,
-       supplier_response, supplier_message, supplier_responded_at, sent_at, closed_at, created_at`
+      `id, supplier_id, company_name, country, product_name, match_score, match_summary, match_breakdown, status,
+       supplier_response, supplier_message, supplier_responded_at, sent_at, closed_at, created_at,
+       buyer_interest, buyer_interest_at,
+       supplier:supplier_offerings(logo_url, certifications)`
     )
     .eq("request_id", id)
     .in("status", VISIBLE_MATCH_STATUSES)
     .order("match_score", { ascending: false });
 
-  const matches = (rawMatches ?? []) as unknown as SupplierMatch[];
+  const matches = (rawMatches ?? []) as unknown as BuyerMatch[];
 
   void logEvent(user.id, "buyer", "request_viewed", "request", id);
   if (matches.length > 0) {
@@ -91,14 +99,19 @@ export default async function PortalRequestDetailPage({ params }: { params: Para
             </p>
           )}
 
-          <p className="mt-3 text-xs text-slate-500">
-            Submitted{" "}
-            {new Date(request.created_at as string).toLocaleDateString("en-GB", {
-              day: "numeric",
-              month: "short",
-              year: "numeric",
-            })}
-          </p>
+          <div className="mt-3 flex items-center justify-between flex-wrap gap-2 text-xs text-slate-500">
+            <span>
+              Submitted{" "}
+              {new Date(request.created_at as string).toLocaleDateString("en-GB", {
+                day: "numeric",
+                month: "short",
+                year: "numeric",
+              })}
+            </span>
+            <span>
+              {matches.length} supplier{matches.length !== 1 ? "s" : ""} matched
+            </span>
+          </div>
         </div>
 
         <h2 className="text-lg font-semibold text-white mt-10 mb-4">Matched suppliers</h2>
@@ -110,7 +123,7 @@ export default async function PortalRequestDetailPage({ params }: { params: Para
         ) : (
           <div className="space-y-3">
             {matches.map((m) => (
-              <MatchCard key={m.id} match={m} viewerRole="buyer" />
+              <BuyerMatchCard key={m.id} match={m} />
             ))}
           </div>
         )}

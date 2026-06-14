@@ -800,6 +800,169 @@ export async function sendSupplierDocRequestEmail(payload: SupplierDocRequestEma
   }
 }
 
+export interface BuyerInterestNotificationPayload {
+  buyerName: string | null;
+  buyerEmail: string | null;
+  supplierName: string | null;
+  requestProductName: string | null;
+  matchedProductName: string | null;
+  matchId: string;
+}
+
+export async function sendBuyerInterestNotification(
+  payload: BuyerInterestNotificationPayload
+): Promise<void> {
+  if (!process.env.RESEND_API_KEY) {
+    console.warn("RESEND_API_KEY not set — skipping buyer interest notification");
+    return;
+  }
+
+  const resend = new Resend(process.env.RESEND_API_KEY);
+  const to = process.env.NOTIFY_EMAIL_TO ?? "info@foodz-x.com";
+  const from = process.env.NOTIFY_EMAIL_FROM ?? "info@foodz-x.com";
+  const { buyerName, buyerEmail, supplierName, requestProductName, matchedProductName, matchId } = payload;
+
+  const html = `<div style="font-family:sans-serif;max-width:600px;margin:0 auto;">
+  <div style="background:#0f172a;padding:24px;border-radius:12px 12px 0 0;">
+    <h2 style="color:#ffffff;margin:0;font-size:20px;">Buyer interested in a supplier</h2>
+    <p style="color:#94a3b8;margin:6px 0 0;font-size:13px;">via FoodXchange buyer portal</p>
+  </div>
+
+  <div style="border:1px solid #e2e8f0;border-top:none;border-radius:0 0 12px 12px;padding:24px;">
+    <table style="width:100%;font-size:14px;border-collapse:collapse;margin-bottom:20px;">
+      <tr>
+        <td style="color:#64748b;padding:5px 0;width:150px;">Buyer</td>
+        <td style="color:#1e293b;font-weight:600;">${buyerName ?? "—"} ${buyerEmail ? `(${buyerEmail})` : ""}</td>
+      </tr>
+      <tr>
+        <td style="color:#64748b;padding:5px 0;">Supplier</td>
+        <td style="color:#1e293b;">${supplierName ?? "—"}</td>
+      </tr>
+      <tr>
+        <td style="color:#64748b;padding:5px 0;">Request</td>
+        <td style="color:#1e293b;">${requestProductName ?? "—"}</td>
+      </tr>
+      <tr>
+        <td style="color:#64748b;padding:5px 0;">Matched product</td>
+        <td style="color:#1e293b;">${matchedProductName ?? "—"}</td>
+      </tr>
+      <tr>
+        <td style="color:#64748b;padding:5px 0;">Match ID</td>
+        <td style="color:#1e293b;font-family:monospace;font-size:12px;">${matchId}</td>
+      </tr>
+    </table>
+
+    <a href="https://fdx.trading/admin/matches"
+      style="display:inline-block;background:#ea580c;color:#ffffff;font-weight:600;font-size:14px;padding:12px 24px;border-radius:8px;text-decoration:none;">
+      Review in admin →
+    </a>
+
+    <hr style="border:none;border-top:1px solid #e2e8f0;margin:24px 0 16px;"/>
+    <p style="color:#94a3b8;font-size:12px;margin:0;">FoodXchange · fdx.trading</p>
+  </div>
+</div>`;
+
+  try {
+    await resend.emails.send({
+      from,
+      to,
+      subject: `Buyer ${buyerName ?? "—"} interested in supplier ${supplierName ?? "—"} for request ${requestProductName ?? "—"}`,
+      html,
+    });
+  } catch (err) {
+    console.error("sendBuyerInterestNotification email send failed:", err);
+  }
+}
+
+export interface BuyerInfoRequestNotificationPayload {
+  buyerName: string | null;
+  buyerEmail: string | null;
+  supplierName: string | null;
+  matchedProductName: string | null;
+  requestedInfo: string[];
+  message: string | null;
+  matchId: string;
+}
+
+export async function sendBuyerInfoRequestNotification(
+  payload: BuyerInfoRequestNotificationPayload
+): Promise<void> {
+  if (!process.env.RESEND_API_KEY) {
+    console.warn("RESEND_API_KEY not set — skipping buyer info request notification");
+    return;
+  }
+
+  const resend = new Resend(process.env.RESEND_API_KEY);
+  const to = process.env.NOTIFY_EMAIL_TO ?? "info@foodz-x.com";
+  const from = process.env.NOTIFY_EMAIL_FROM ?? "info@foodz-x.com";
+  const { buyerName, buyerEmail, supplierName, matchedProductName, requestedInfo, message, matchId } = payload;
+
+  const infoList =
+    requestedInfo.length > 0
+      ? `<ul style="color:#475569;font-size:14px;line-height:1.7;margin:0 0 16px;padding-left:20px;">
+        ${requestedInfo.map((item) => `<li>${item}</li>`).join("")}
+      </ul>`
+      : "";
+
+  const html = `<div style="font-family:sans-serif;max-width:600px;margin:0 auto;">
+  <div style="background:#0f172a;padding:24px;border-radius:12px 12px 0 0;">
+    <h2 style="color:#ffffff;margin:0;font-size:20px;">Buyer requesting more info on a match</h2>
+    <p style="color:#94a3b8;margin:6px 0 0;font-size:13px;">via FoodXchange buyer portal</p>
+  </div>
+
+  <div style="border:1px solid #e2e8f0;border-top:none;border-radius:0 0 12px 12px;padding:24px;">
+    <table style="width:100%;font-size:14px;border-collapse:collapse;margin-bottom:20px;">
+      <tr>
+        <td style="color:#64748b;padding:5px 0;width:150px;">Buyer</td>
+        <td style="color:#1e293b;font-weight:600;">${buyerName ?? "—"} ${buyerEmail ? `(${buyerEmail})` : ""}</td>
+      </tr>
+      <tr>
+        <td style="color:#64748b;padding:5px 0;">Supplier</td>
+        <td style="color:#1e293b;">${supplierName ?? "—"}</td>
+      </tr>
+      <tr>
+        <td style="color:#64748b;padding:5px 0;">Matched product</td>
+        <td style="color:#1e293b;">${matchedProductName ?? "—"}</td>
+      </tr>
+      <tr>
+        <td style="color:#64748b;padding:5px 0;">Match ID</td>
+        <td style="color:#1e293b;font-family:monospace;font-size:12px;">${matchId}</td>
+      </tr>
+    </table>
+
+    ${infoList}
+
+    ${
+      message
+        ? `<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:16px;margin-bottom:20px;">
+      <p style="color:#64748b;font-size:12px;margin:0 0 6px;text-transform:uppercase;letter-spacing:0.05em;">Buyer's message</p>
+      <p style="color:#334155;font-size:14px;line-height:1.6;margin:0;white-space:pre-wrap;">${message}</p>
+    </div>`
+        : ""
+    }
+
+    <a href="https://fdx.trading/admin/matches"
+      style="display:inline-block;background:#ea580c;color:#ffffff;font-weight:600;font-size:14px;padding:12px 24px;border-radius:8px;text-decoration:none;">
+      Review in admin →
+    </a>
+
+    <hr style="border:none;border-top:1px solid #e2e8f0;margin:24px 0 16px;"/>
+    <p style="color:#94a3b8;font-size:12px;margin:0;">FoodXchange · fdx.trading</p>
+  </div>
+</div>`;
+
+  try {
+    await resend.emails.send({
+      from,
+      to,
+      subject: `Buyer requesting more info on match ${matchId}`,
+      html,
+    });
+  } catch (err) {
+    console.error("sendBuyerInfoRequestNotification email send failed:", err);
+  }
+}
+
 export interface SupplierActionResponseNotificationPayload {
   companyName: string;
   supplierId: string;
