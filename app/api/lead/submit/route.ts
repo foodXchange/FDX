@@ -3,6 +3,7 @@ import { z } from "zod";
 import { checkRateLimit } from "@/lib/rateLimit";
 import { runMatch } from "@/lib/matching/runMatch";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { createNotification } from "@/lib/notifications/createNotification";
 import {
   sendLeadNotification,
   sendBuyerConfirmation,
@@ -93,16 +94,29 @@ export async function POST(req: Request) {
   // Fire-and-forget: DB write
   void (async () => {
     try {
-      await supabaseAdmin.from("sourcing_requests").insert({
-        name,
-        email,
-        company: company ?? null,
-        message,
-        market: market ?? null,
-        private_label: privateLabel ?? null,
-        intent_json: matchOutput.intent,
-        matched_slugs: matchOutput.results.map((r) => r.slug),
-      });
+      const { data: newLead, error } = await supabaseAdmin
+        .from("sourcing_requests")
+        .insert({
+          name,
+          email,
+          company: company ?? null,
+          message,
+          market: market ?? null,
+          private_label: privateLabel ?? null,
+          intent_json: matchOutput.intent,
+          matched_slugs: matchOutput.results.map((r) => r.slug),
+        })
+        .select("id")
+        .single();
+
+      if (error) throw error;
+
+      void createNotification(
+        "lead",
+        `New lead from ${company ?? name}`,
+        undefined,
+        { lead_id: newLead.id, company_name: company ?? null, contact_email: email }
+      );
     } catch (err) {
       Sentry.captureException(err);
       console.error("sourcing_requests insert failed:", err);

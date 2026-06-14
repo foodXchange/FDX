@@ -36,4 +36,8 @@ export async function verifySession(cookie: string): Promise<boolean> {
   }
 }
 
+export function getAdminEmail(): string {
+  return process.env.ADMIN_EMAIL ?? "admin";
+}
+
 export { COOKIE_NAME };

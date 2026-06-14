@@ -110,3 +110,95 @@ export async function updateImageUrl(
   revalidatePath(`/admin/catalogue/${id}`);
   return { ok: true };
 }
+
+export async function linkCatalogueProductToRequest(
+  catalogueProductId: string,
+  requestId: string
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const { data: product } = await supabaseAdmin
+    .from("catalogue_products")
+    .select("product_name, supplier_id, country_of_origin")
+    .eq("id", catalogueProductId)
+    .single();
+
+  if (!product) {
+    return { ok: false, error: "Product not found" };
+  }
+
+  if (!product.supplier_id) {
+    return { ok: false, error: "This product has no linked supplier" };
+  }
+
+  const { data: supplier } = await supabaseAdmin
+    .from("supplier_offerings")
+    .select("company_name, country_of_origin")
+    .eq("id", product.supplier_id)
+    .single();
+
+  const { data: existing } = await supabaseAdmin
+    .from("sourcing_matches")
+    .select("id")
+    .eq("request_id", requestId)
+    .eq("supplier_id", product.supplier_id)
+    .eq("product_name", product.product_name)
+    .maybeSingle();
+
+  if (existing) {
+    return { ok: true };
+  }
+
+  const { error } = await supabaseAdmin.from("sourcing_matches").insert({
+    request_id: requestId,
+    supplier_id: product.supplier_id,
+    product_name: product.product_name,
+    company_name: supplier?.company_name ?? null,
+    country: product.country_of_origin ?? supplier?.country_of_origin ?? null,
+    match_score: 100,
+    match_summary: "Manually linked from catalogue",
+    status: "suggested",
+  });
+
+  if (error) {
+    console.error("linkCatalogueProductToRequest error:", error);
+    return { ok: false, error: "Database error" };
+  }
+
+  revalidatePath("/admin/catalogue");
+  revalidatePath("/admin/requests");
+  return { ok: true };
+}
+
+export async function duplicateCatalogueProduct(
+  id: string
+): Promise<{ ok: true; id: string } | { ok: false; error: string }> {
+  const { data: original, error: fetchError } = await supabaseAdmin
+    .from("catalogue_products")
+    .select("*")
+    .eq("id", id)
+    .single();
+
+  if (fetchError || !original) {
+    return { ok: false, error: "Product not found" };
+  }
+
+  const { id: _id, created_at, updated_at, ...rest } = original;
+
+  const { data: row, error } = await supabaseAdmin
+    .from("catalogue_products")
+    .insert({
+      ...rest,
+      product_name: `Copy of ${original.product_name}`,
+      status: "draft",
+      featured: false,
+    })
+    .select("id")
+    .single();
+
+  if (error) {
+    console.error("duplicateCatalogueProduct error:", error);
+    return { ok: false, error: "Database error" };
+  }
+
+  revalidatePath("/admin/catalogue");
+  return { ok: true, id: row.id as string };
+}

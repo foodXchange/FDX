@@ -3,12 +3,16 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import type { SavedMatch } from "./page";
+import MatchPipelineBadge from "@/components/matches/MatchPipelineBadge";
+import { getPipelineStatus } from "@/lib/matches/pipelineStatus";
+import { sleep, waLink } from "@/lib/outreach/waLink";
 
 interface Props {
   requestId: string;
   initialMatches: SavedMatch[];
   productName: string;
   company: string | null;
+  contactMap: Record<string, { phone: string | null; email: string | null }>;
 }
 
 type MatchStatus =
@@ -74,7 +78,9 @@ function fmtDate(iso: string | null): string {
   });
 }
 
-export default function MatchCards({ requestId, initialMatches, productName, company }: Props) {
+const SENT_VIA_ICON: Record<string, string> = { email: "📧", whatsapp: "💬" };
+
+export default function MatchCards({ requestId, initialMatches, productName, company, contactMap }: Props) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [matches, setMatches] = useState<LocalMatch[]>(
@@ -88,6 +94,12 @@ export default function MatchCards({ requestId, initialMatches, productName, com
   const [runError, setRunError] = useState<string | null>(null);
   const [respondingIds, setRespondingIds] = useState<Set<string>>(new Set());
   const [responseNotes, setResponseNotes] = useState<Record<string, string>>({});
+  const [bulkState, setBulkState] = useState<{
+    index: number;
+    total: number;
+    company: string;
+    countdown: number;
+  } | null>(null);
 
   async function patchMatch(
     matchId: string,
@@ -168,6 +180,29 @@ export default function MatchCards({ requestId, initialMatches, productName, com
     }
   }
 
+  async function runBulkWhatsapp() {
+    const eligible = matches.filter((m) => m.localStatus === "approved");
+    for (let i = 0; i < eligible.length; i++) {
+      const m = eligible[i];
+      const contact = contactMap[m.supplier_id];
+      window.open(waLink(contact?.phone ?? null, m.localWhatsappMessage ?? ""), "_blank");
+      patchMatch(m.id, "send", { sent_via: "whatsapp" });
+
+      if (i < eligible.length - 1) {
+        for (let c = 1; c >= 0; c--) {
+          setBulkState({
+            index: i + 1,
+            total: eligible.length,
+            company: eligible[i + 1].company_name ?? "next supplier",
+            countdown: c,
+          });
+          await sleep(500);
+        }
+      }
+    }
+    setBulkState(null);
+  }
+
   void productName;
   void company;
 
@@ -196,25 +231,42 @@ export default function MatchCards({ requestId, initialMatches, productName, com
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-2 flex-wrap">
         <h2 className="text-sm font-semibold text-gray-700">
           {matches.length} match{matches.length !== 1 ? "es" : ""}
         </h2>
-        <button
-          onClick={runMatching}
-          disabled={isRunning || isPending}
-          className="inline-flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-800 disabled:opacity-50 transition-colors border border-slate-200 rounded-lg px-3 py-1.5"
-        >
-          {isRunning || isPending ? (
-            <>
-              <Spinner size="sm" />
-              Re-running…
-            </>
-          ) : (
-            "↺ Re-run matching"
+        <div className="flex items-center gap-2">
+          {matches.some((m) => m.localStatus === "approved") && (
+            <button
+              onClick={runBulkWhatsapp}
+              disabled={!!bulkState}
+              className="inline-flex items-center gap-1.5 text-xs text-white bg-green-600 hover:bg-green-700 disabled:opacity-60 px-3 py-1.5 rounded-lg transition-colors"
+            >
+              💬 Send WhatsApp to {matches.filter((m) => m.localStatus === "approved").length} approved
+            </button>
           )}
-        </button>
+          <button
+            onClick={runMatching}
+            disabled={isRunning || isPending}
+            className="inline-flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-800 disabled:opacity-50 transition-colors border border-slate-200 rounded-lg px-3 py-1.5"
+          >
+            {isRunning || isPending ? (
+              <>
+                <Spinner size="sm" />
+                Re-running…
+              </>
+            ) : (
+              "↺ Re-run matching"
+            )}
+          </button>
+        </div>
       </div>
+
+      {bulkState && (
+        <p className="text-xs text-green-700 bg-green-50 border border-green-200 rounded-lg px-3 py-2">
+          Opening WhatsApp for {bulkState.company} in {bulkState.countdown}s… ({bulkState.index}/{bulkState.total})
+        </p>
+      )}
 
       {runError && (
         <p className="text-xs text-red-500 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
@@ -235,6 +287,9 @@ export default function MatchCards({ requestId, initialMatches, productName, com
           breakdown !== undefined &&
           typeof breakdown.category === "number";
         const isResponding = respondingIds.has(match.id);
+        const contact = contactMap[match.supplier_id];
+        const pipelineFields = { status: s, supplier_response: match.supplier_response, closed_at: match.closed_at };
+        const pipeline = getPipelineStatus(pipelineFields);
 
         return (
           <div
@@ -259,6 +314,7 @@ export default function MatchCards({ requestId, initialMatches, productName, com
                   {match.match_score}/100
                 </span>
                 <StatusBadge status={s} />
+                {match.supplier_response && <MatchPipelineBadge match={pipelineFields} />}
               </div>
 
               {/* new / pending: approve + reject */}
@@ -279,14 +335,28 @@ export default function MatchCards({ requestId, initialMatches, productName, com
                 </div>
               )}
 
-              {/* responded: close */}
+              {/* responded: mark as won + close */}
               {s === "responded" && (
-                <button
-                  onClick={() => patchMatch(match.id, "close")}
-                  className="text-xs text-gray-600 border border-gray-200 hover:border-gray-400 hover:bg-gray-50 px-3 py-1.5 rounded-lg transition-colors"
-                >
-                  Close
-                </button>
+                <div className="flex items-center gap-2">
+                  {pipeline === "accepted" && (
+                    <button
+                      onClick={() => {
+                        if (window.confirm("This will notify both the buyer and supplier that the deal is closed. Continue?")) {
+                          patchMatch(match.id, "close");
+                        }
+                      }}
+                      className="text-xs font-medium text-white bg-green-600 hover:bg-green-700 px-3 py-1.5 rounded-lg transition-colors"
+                    >
+                      🎉 Mark as won
+                    </button>
+                  )}
+                  <button
+                    onClick={() => patchMatch(match.id, "close")}
+                    className="text-xs text-gray-600 border border-gray-200 hover:border-gray-400 hover:bg-gray-50 px-3 py-1.5 rounded-lg transition-colors"
+                  >
+                    Close
+                  </button>
+                </div>
               )}
             </div>
 
@@ -297,6 +367,37 @@ export default function MatchCards({ requestId, initialMatches, productName, com
                 {match.company_name}
                 {match.country ? ` · ${match.country}` : ""}
               </p>
+              <div className="flex items-center gap-1.5 mt-1.5">
+                <a
+                  href={contact?.email ? `mailto:${contact.email}` : undefined}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  title={contact?.email ?? "No email on file"}
+                  className={`text-sm transition-transform ${
+                    contact?.email ? "opacity-100 hover:scale-110" : "opacity-25 pointer-events-none"
+                  }`}
+                >
+                  📧
+                </a>
+                <a
+                  href={waLink(contact?.phone ?? null, match.localWhatsappMessage ?? "")}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  title={contact?.phone ?? "No phone on file — opens WhatsApp without a recipient"}
+                  className="text-sm opacity-100 hover:scale-110 transition-transform"
+                >
+                  💬
+                </a>
+                <a
+                  href={contact?.phone ? `tel:${contact.phone}` : undefined}
+                  title={contact?.phone ?? "No phone on file"}
+                  className={`text-sm transition-transform ${
+                    contact?.phone ? "opacity-100 hover:scale-110" : "opacity-25 pointer-events-none"
+                  }`}
+                >
+                  📞
+                </a>
+              </div>
             </div>
 
             {/* v1 score breakdown chips */}
@@ -369,9 +470,7 @@ export default function MatchCards({ requestId, initialMatches, productName, com
                   <button
                     onClick={() => {
                       window.open(
-                        `https://wa.me/?text=${encodeURIComponent(
-                          match.localWhatsappMessage ?? ""
-                        )}`,
+                        waLink(contact?.phone ?? null, match.localWhatsappMessage ?? ""),
                         "_blank"
                       );
                       patchMatch(match.id, "send", { sent_via: "whatsapp" });
@@ -404,7 +503,9 @@ export default function MatchCards({ requestId, initialMatches, productName, com
                 <p className="text-xs text-gray-400">
                   Sent {fmtDate(match.sent_at)}
                   {match.sent_via && (
-                    <span className="ml-1 text-gray-400">via {match.sent_via}</span>
+                    <span className="ml-1 text-gray-400">
+                      {SENT_VIA_ICON[match.sent_via] ?? ""} via {match.sent_via}
+                    </span>
                   )}
                 </p>
                 {!isResponding ? (
@@ -469,6 +570,26 @@ export default function MatchCards({ requestId, initialMatches, productName, com
                 </p>
                 <p className="text-xs text-gray-700 leading-relaxed bg-green-50 border border-green-100 rounded-lg p-3">
                   {match.response_note}
+                </p>
+              </div>
+            )}
+
+            {/* ── Supplier reply via Matches portal ── */}
+            {match.supplier_message && (
+              <div className="mt-4 border-t border-gray-100 pt-3">
+                <p className="text-xs text-gray-400 mb-1">
+                  Supplier {match.supplier_response} {fmtDate(match.supplier_responded_at)}
+                </p>
+                <p
+                  className={`text-xs leading-relaxed rounded-lg p-3 border ${
+                    match.supplier_response === "declined"
+                      ? "bg-red-50 border-red-100 text-red-700"
+                      : match.supplier_response === "countered"
+                      ? "bg-yellow-50 border-yellow-100 text-yellow-700"
+                      : "bg-green-50 border-green-100 text-green-700"
+                  }`}
+                >
+                  {match.supplier_message}
                 </p>
               </div>
             )}

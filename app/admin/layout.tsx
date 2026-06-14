@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import AdminNav from "@/components/admin/AdminNav";
+import NotificationBell from "@/components/admin/NotificationBell";
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -34,7 +35,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           </Link>
         </div>
       </aside>
-      <div className="flex-1 min-w-0">{children}</div>
+      <div className="flex-1 min-w-0">
+        <div className="sticky top-0 z-40 flex justify-end border-b border-slate-200 bg-white px-4 py-2">
+          <NotificationBell />
+        </div>
+        {children}
+      </div>
     </div>
   );
 }

@@ -252,20 +252,13 @@ export default function BuyerForm({ action, initialData, redirectOnCreate }: Pro
         </div>
       </div>
 
-      {/* COMPANY NAME */}
-      <div className="mb-6">
-        <input
-          type="text"
-          value={companyName}
-          onChange={(e) => setCompanyName(e.target.value)}
-          placeholder="Company name…"
-          className="w-full text-2xl font-bold text-gray-900 border-0 border-b border-gray-200 pb-2 outline-none focus:border-orange-400 bg-transparent placeholder:text-gray-300"
-        />
-      </div>
-
       {/* IDENTITY */}
       <div className={cardCls}>
         <div className="grid grid-cols-2 gap-4">
+          <div className="col-span-2">
+            <label className={labelCls}>Company name *</label>
+            <input type="text" value={companyName} onChange={(e) => setCompanyName(e.target.value)} placeholder="e.g. Acme Foods Ltd" className={inputCls} />
+          </div>
           <div>
             <label className={labelCls}>Website</label>
             <input type="url" value={website ?? ""} onChange={(e) => setWebsite(e.target.value)} placeholder="https://…" className={inputCls} />
@@ -323,7 +316,7 @@ export default function BuyerForm({ action, initialData, redirectOnCreate }: Pro
       <div className="flex items-center gap-4">
         <button
           onClick={handleSave}
-          disabled={pending || !companyName}
+          disabled={pending || !companyName.trim()}
           className="px-6 py-2.5 rounded-lg bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold transition disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {pending ? "Saving…" : "Save"}

@@ -46,6 +46,7 @@ export async function GET() {
     { loc: `${baseUrl}/en/portfolio`, lastmod: today },
     { loc: `${baseUrl}/en/sourcing`, lastmod: today, priority: 0.9 },
     { loc: `${baseUrl}/en/contact`, lastmod: today },
+    { loc: `${baseUrl}/en/help`, lastmod: today, priority: 0.7 },
     { loc: `${baseUrl}/he/blog`, lastmod: today },
   ];
 
@@ -104,6 +105,20 @@ export async function GET() {
     priority: 0.8,
   }));
 
+  // Help Center
+  const { data: helpArticles } = await supabaseServer
+    .from("kb_articles")
+    .select("slug, updated_at")
+    .eq("is_public", true)
+    .eq("status", "published");
+
+  const helpArticleUrls = (helpArticles || []).map((article) => ({
+    loc: `${baseUrl}/en/help/${article.slug}`,
+    lastmod: new Date(article.updated_at).toISOString().split("T")[0],
+    changefreq: "monthly",
+    priority: 0.6,
+  }));
+
   const allUrls = [
     ...staticUrls,
     ...categoryUrls,
@@ -112,6 +127,7 @@ export async function GET() {
     ...portfolioUrls,
     ...importGuideStaticUrls,
     ...importGuideArticleUrls,
+    ...helpArticleUrls,
   ];
 
   const xml = `<?xml version="1.0" encoding="UTF-8"?>

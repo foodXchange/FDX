@@ -11,13 +11,13 @@ async function checkAuth(): Promise<boolean> {
 
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: Promise<{ matchId: string }> }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   if (!(await checkAuth())) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { matchId } = await params;
+  const { id } = await params;
   const body = (await req.json()) as { status: "approved" | "rejected" };
 
   if (!["approved", "rejected"].includes(body.status)) {
@@ -34,7 +34,7 @@ export async function PATCH(
   const { error } = await supabaseAdmin
     .from("sourcing_matches")
     .update(updates)
-    .eq("id", matchId);
+    .eq("id", id);
 
   if (error) {
     return Response.json({ error: error.message }, { status: 500 });

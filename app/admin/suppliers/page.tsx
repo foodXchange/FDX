@@ -174,6 +174,7 @@ type SupplierRow = {
   supplier_contacts: { id: string }[];
   supplier_documents: { id: string }[];
   qualification_status: string | null;
+  trust_score: number | null;
 };
 
 function StatusBadge({ status }: { status: string | null }) {
@@ -183,6 +184,8 @@ function StatusBadge({ status }: { status: string | null }) {
       ? "bg-green-100 text-green-700"
       : s === "pending"
       ? "bg-yellow-100 text-yellow-700"
+      : s === "rejected"
+      ? "bg-red-100 text-red-700"
       : "bg-gray-100 text-gray-500";
   return (
     <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${cls}`}>{s}</span>
@@ -329,7 +332,7 @@ export default async function AdminSuppliersPage({
     .select(
       `id, company_name, logo_url, country_of_origin, categories, certifications,
        status, priority, verified, product_type, private_label,
-       product_count, qualification_status,
+       product_count, qualification_status, trust_score,
        markets_served, price_positioning,
        supplier_contacts(id), supplier_documents(id)`,
       { count: "exact" }

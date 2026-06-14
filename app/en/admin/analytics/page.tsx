@@ -190,6 +190,20 @@ export default async function AnalyticsPage() {
           ))}
         </div>
 
+        {/* QA Metrics cross-link */}
+        <Link
+          href="/en/admin/qa-metrics"
+          className="block bg-white border border-slate-200 rounded-2xl p-5 shadow-sm hover:shadow-md transition group mb-10"
+        >
+          <p className="text-xs text-slate-500 font-medium uppercase tracking-wide">Sourcing Funnel</p>
+          <p className="text-lg font-semibold text-slate-900 mt-1 group-hover:text-orange-600 transition">
+            QA Metrics dashboard →
+          </p>
+          <p className="text-sm text-slate-500 mt-1">
+            Buyer funnel, supplier performance, and bottleneck alerts
+          </p>
+        </Link>
+
         {/* Activity feed */}
         <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
           <div className="px-6 py-4 border-b border-slate-100">

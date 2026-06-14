@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import Link from "next/link";
 import SupplierForm from "@/components/admin/SupplierForm";
 import type { SupplierInput, ContactInput, DocumentInput } from "@/app/admin/suppliers/actions";
 import {
@@ -22,6 +23,7 @@ interface Contact {
   role: string | null;
   email: string | null;
   phone: string | null;
+  linkedin_url: string | null;
   is_primary: boolean | null;
 }
 
@@ -47,6 +49,8 @@ type MatchRow = {
     message: string | null;
     status: string | null;
     created_at: string;
+    company: string | null;
+    name: string | null;
   } | null;
 };
 
@@ -96,6 +100,7 @@ function ContactsTab({
   const [role, setRole] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
+  const [linkedinUrl, setLinkedinUrl] = useState("");
   const [isPrimary, setIsPrimary] = useState(false);
 
   function handleAdd() {
@@ -105,6 +110,7 @@ function ContactsTab({
       role: role || null,
       email: email || null,
       phone: phone || null,
+      linkedin_url: linkedinUrl || null,
       is_primary: isPrimary,
     };
     startTransition(async () => {
@@ -121,6 +127,7 @@ function ContactsTab({
           role: role || null,
           email: email || null,
           phone: phone || null,
+          linkedin_url: linkedinUrl || null,
           is_primary: isPrimary,
         },
       ]);
@@ -128,6 +135,7 @@ function ContactsTab({
       setRole("");
       setEmail("");
       setPhone("");
+      setLinkedinUrl("");
       setIsPrimary(false);
       setShowForm(false);
     });
@@ -202,6 +210,16 @@ function ContactsTab({
                 className={inputCls}
               />
             </div>
+            <div>
+              <label className={labelCls}>LinkedIn</label>
+              <input
+                type="url"
+                value={linkedinUrl}
+                onChange={(e) => setLinkedinUrl(e.target.value)}
+                placeholder="https://linkedin.com/in/…"
+                className={inputCls}
+              />
+            </div>
           </div>
           <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer select-none">
             <input
@@ -236,7 +254,7 @@ function ContactsTab({
           <table className="w-full text-sm">
             <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
-                {["Name", "Role", "Email", "Phone", ""].map((h) => (
+                {["Name", "Role", "Email", "Phone", "LinkedIn", ""].map((h) => (
                   <th
                     key={h}
                     className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider"
@@ -271,6 +289,20 @@ function ContactsTab({
                     )}
                   </td>
                   <td className="px-4 py-3 text-gray-600">{c.phone ?? "—"}</td>
+                  <td className="px-4 py-3 text-gray-600">
+                    {c.linkedin_url ? (
+                      <a
+                        href={c.linkedin_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="hover:text-orange-600 transition"
+                      >
+                        View
+                      </a>
+                    ) : (
+                      "—"
+                    )}
+                  </td>
                   <td className="px-4 py-3">
                     <button
                       onClick={() => handleDelete(c.id)}
@@ -480,6 +512,24 @@ function DocumentsTab({
   );
 }
 
+function MatchStatusBadge({ status }: { status: string | null }) {
+  const map: Record<string, { label: string; cls: string }> = {
+    pending: { label: "New", cls: "bg-gray-100 text-gray-600 border-gray-200" },
+    new: { label: "New", cls: "bg-gray-100 text-gray-600 border-gray-200" },
+    approved: { label: "Approved", cls: "bg-blue-50 text-blue-700 border-blue-200" },
+    rejected: { label: "Rejected", cls: "bg-gray-100 text-gray-500 border-gray-200" },
+    sent: { label: "Sent", cls: "bg-orange-50 text-orange-700 border-orange-200" },
+    responded: { label: "Responded", cls: "bg-green-50 text-green-700 border-green-200" },
+    closed: { label: "Closed", cls: "bg-gray-100 text-gray-500 border-gray-200" },
+  };
+  const { label, cls } = map[status ?? "pending"] ?? map.pending;
+  return (
+    <span className={`text-xs font-semibold px-2 py-0.5 rounded-full border ${cls}`}>
+      {label}
+    </span>
+  );
+}
+
 function MatchesTab({ supplierId }: { supplierId: string }) {
   const [matches, setMatches] = useState<MatchRow[] | null>(null);
   const [loading, startTransition] = useTransition();
@@ -502,7 +552,7 @@ function MatchesTab({ supplierId }: { supplierId: string }) {
           disabled={loading}
           className="px-4 py-2 rounded-lg bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold transition disabled:opacity-50"
         >
-          {loading ? "Loading…" : "Load demand signals"}
+          {loading ? "Loading…" : "Load matches"}
         </button>
       </div>
     );
@@ -521,7 +571,7 @@ function MatchesTab({ supplierId }: { supplierId: string }) {
     <div className="p-6">
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-sm font-semibold text-gray-700">
-          Demand signals ({matches.length})
+          Matches ({matches.length})
         </h3>
         <button
           onClick={loadMatches}
@@ -535,7 +585,7 @@ function MatchesTab({ supplierId }: { supplierId: string }) {
         <table className="w-full text-sm">
           <thead className="bg-gray-50 border-b border-gray-200">
             <tr>
-              {["Request", "Category", "Score", "Status", "Date"].map((h) => (
+              {["Buyer", "Request", "Category", "Score", "Status", "Date"].map((h) => (
                 <th
                   key={h}
                   className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider"
@@ -550,10 +600,20 @@ function MatchesTab({ supplierId }: { supplierId: string }) {
               const req = m.sourcing_requests;
               return (
                 <tr key={m.id} className="hover:bg-gray-50">
+                  <td className="px-4 py-3 text-gray-600">
+                    {req?.company ?? req?.name ?? "—"}
+                  </td>
                   <td className="px-4 py-3">
-                    <span className="font-medium text-gray-900">
-                      {req?.product_name ?? "—"}
-                    </span>
+                    {req ? (
+                      <Link
+                        href={`/admin/requests/${req.id}`}
+                        className="font-medium text-gray-900 hover:text-orange-600 transition"
+                      >
+                        {req.product_name ?? "—"}
+                      </Link>
+                    ) : (
+                      <span className="font-medium text-gray-900">—</span>
+                    )}
                     {req?.message && (
                       <p className="text-xs text-gray-400 truncate max-w-xs mt-0.5">
                         {req.message}
@@ -567,9 +627,7 @@ function MatchesTab({ supplierId }: { supplierId: string }) {
                     <ScoreChip score={m.match_score} />
                   </td>
                   <td className="px-4 py-3">
-                    <span className="text-xs text-gray-500">
-                      {m.status ?? "suggested"}
-                    </span>
+                    <MatchStatusBadge status={m.status} />
                   </td>
                   <td className="px-4 py-3 text-xs text-gray-400">
                     {new Date(m.created_at).toLocaleDateString("en-US", {
@@ -605,7 +663,7 @@ export default function SupplierDetailTabs({
     { id: "details", label: "Details" },
     { id: "contacts", label: "Contacts", count: contacts.length },
     { id: "documents", label: "Documents", count: documents.length },
-    { id: "matches", label: "Demand signals" },
+    { id: "matches", label: "Matches" },
     { id: "factories", label: "Factories", count: factories.length },
     { id: "products", label: "Products", count: products.length },
     { id: "scraper", label: "Scraper" },

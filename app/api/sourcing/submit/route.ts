@@ -1,6 +1,9 @@
 import { z } from "zod";
 import { Resend } from "resend";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { createClient } from "@/lib/supabase/server";
+import { createNotification } from "@/lib/notifications/createNotification";
+import { logEvent } from "@/lib/events/logEvent";
 import { checkRateLimit } from "@/lib/rateLimit";
 import { sendLeadNotification, sendBuyerConfirmation } from "@/lib/email/mailer";
 import { matchSupplierProducts, formatWhatsAppMatch } from "@/lib/matching/matchSuppliers";
@@ -16,25 +19,30 @@ function validPhone(v: string): boolean {
   return digits.length >= 7 && digits.length <= 15;
 }
 
-const SubmitSchema = z.object({
-  name: z.string().min(1).max(200),
-  email: z.string().regex(EMAIL_REGEX, "Invalid email address"),
-  whatsapp: z
-    .string()
-    .max(30)
-    .optional()
-    .refine((v) => !v || validPhone(v), "Invalid phone number"),
-  company: z.string().max(200).optional(),
-  description: z.string().max(2000).optional(),
-  product_name: z.string().max(300).optional(),
-  category: z.string().optional(),
-  certifications: z.array(z.string()).default([]),
-  target_market: z.string().optional(),
-  private_label: z.boolean().optional().nullable(),
-  image_urls: z.array(z.string()).max(5).default([]),
-  ai_analysis: z.record(z.string(), z.unknown()).optional(),
-  source: z.string().optional(),
-});
+const SubmitSchema = z
+  .object({
+    name: z.string().min(1).max(200),
+    email: z.string().regex(EMAIL_REGEX, "Invalid email address").optional(),
+    whatsapp: z
+      .string()
+      .max(30)
+      .optional()
+      .refine((v) => !v || validPhone(v), "Invalid phone number"),
+    company: z.string().max(200).optional(),
+    description: z.string().max(2000).optional(),
+    product_name: z.string().max(300).optional(),
+    category: z.string().optional(),
+    certifications: z.array(z.string()).default([]),
+    target_market: z.string().optional(),
+    private_label: z.boolean().optional().nullable(),
+    image_urls: z.array(z.string()).max(5).default([]),
+    ai_analysis: z.record(z.string(), z.unknown()).optional(),
+    source: z.string().optional(),
+  })
+  .refine((data) => !!(data.email || data.whatsapp), {
+    message: "Either email or WhatsApp is required",
+    path: ["email"],
+  });
 
 export async function POST(req: Request) {
   const forwarded = req.headers.get("x-forwarded-for");
@@ -84,7 +92,7 @@ export async function POST(req: Request) {
       .from("sourcing_requests")
       .insert({
         name: data.name,
-        email: data.email,
+        email: data.email ?? null,
         company: data.company ?? null,
         message: data.description ?? null,
         product_name: data.product_name ?? null,
@@ -104,6 +112,28 @@ export async function POST(req: Request) {
       return Response.json({ error: "Failed to save request." }, { status: 500 });
     }
 
+    void createNotification(
+      "new_request",
+      `${data.name} submitted a sourcing request`,
+      undefined,
+      {
+        request_id: newRequest.id,
+        product_name: data.product_name ?? null,
+        buyer_name: data.name,
+        category: data.category ?? null,
+      }
+    );
+
+    void (async () => {
+      const supabase = await createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      await logEvent(user?.id ?? null, "buyer", "request_submitted", "request", newRequest.id, {
+        product_name: data.product_name ?? null,
+        category: data.category ?? null,
+        source: data.source ?? "buyers_page",
+      });
+    })();
+
     // Guaranteed admin notification — fires for every submission
     if (process.env.RESEND_API_KEY) {
       const resend = new Resend(process.env.RESEND_API_KEY);
@@ -117,7 +147,7 @@ export async function POST(req: Request) {
         ["Company", data.company ?? "—"],
         ["Name", data.name],
         ["WhatsApp", data.whatsapp ?? "—"],
-        ["Email", data.email],
+        ["Email", data.email ?? "—"],
         ["Private label", data.private_label ? "Yes" : "No"],
       ];
       const tableRows = rows
@@ -227,7 +257,7 @@ export async function POST(req: Request) {
         if ((top10[0]?.score ?? 0) >= 60) {
           await sendLeadNotification({
             name: data.name,
-            email: data.email,
+            email: data.email ?? "",
             company: data.company ?? "",
             message: data.description ?? intentSummary,
             intentSummary,
@@ -244,7 +274,7 @@ export async function POST(req: Request) {
         } else {
           await sendLeadNotification({
             name: data.name,
-            email: data.email,
+            email: data.email ?? "",
             company: data.company ?? "",
             message: data.description ?? intentSummary,
             intentSummary,
@@ -256,7 +286,7 @@ export async function POST(req: Request) {
         console.error("Auto-match error:", err);
         sendLeadNotification({
           name: data.name,
-          email: data.email,
+          email: data.email ?? "",
           company: data.company ?? "",
           message: data.description ?? intentSummary,
           intentSummary,
@@ -301,12 +331,39 @@ export async function POST(req: Request) {
       }
     })();
 
-    sendBuyerConfirmation({
-      name: data.name,
-      email: data.email,
-      intentSummary,
-      matchedItems: [],
-    }).catch(console.error);
+    if (data.email) {
+      let portalLink: string | undefined;
+      try {
+        const site = process.env.NEXT_PUBLIC_SITE_URL ?? "https://fdx.trading";
+        const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
+          type: "magiclink",
+          email: data.email,
+          options: {
+            redirectTo: `${site}/en/portal/auth/callback?next=/en/portal/requests/${newRequest.id}`,
+          },
+        });
+        if (linkError) throw linkError;
+
+        if (linkData.user?.id) {
+          await supabaseAdmin
+            .from("sourcing_requests")
+            .update({ auth_user_id: linkData.user.id })
+            .eq("id", newRequest.id);
+        }
+
+        portalLink = linkData.properties?.action_link ?? undefined;
+      } catch (err) {
+        console.error("Portal invite link generation failed:", err);
+      }
+
+      sendBuyerConfirmation({
+        name: data.name,
+        email: data.email,
+        intentSummary,
+        matchedItems: [],
+        portalLink,
+      }).catch(console.error);
+    }
 
     return Response.json({ ok: true, id: newRequest.id, intentSummary });
   } catch (err) {

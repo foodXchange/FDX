@@ -24,7 +24,7 @@ export async function GET(
   const { data, error } = await supabaseAdmin
     .from("sourcing_matches")
     .select(
-      "id, supplier_id, match_score, product_name, company_name, country, match_summary, whatsapp_message, match_breakdown, status, approved_at, rejected_at"
+      "id, supplier_id, match_score, product_name, company_name, country, match_summary, whatsapp_message, match_breakdown, status, approved_at, rejected_at, sent_at, sent_via"
     )
     .eq("request_id", id)
     .neq("status", "rejected")
@@ -47,6 +47,8 @@ export async function GET(
     status: string;
     approved_at: string | null;
     rejected_at: string | null;
+    sent_at: string | null;
+    sent_via: string | null;
   }[];
 
   // Best-effort enrichment with product thumbnails — looked up by (supplier_id, product_name)
@@ -78,6 +80,18 @@ export async function GET(
     }
   }
 
+  const trustMap = new Map<string, number>();
+  if (supplierIds.length > 0) {
+    const { data: trustRows } = await supabaseAdmin
+      .from("supplier_offerings")
+      .select("id, trust_score")
+      .in("id", supplierIds);
+
+    for (const t of (trustRows ?? []) as { id: string; trust_score: number | null }[]) {
+      trustMap.set(t.id, t.trust_score ?? 0);
+    }
+  }
+
   const enriched = matches.map((m) => {
     const product = m.product_name
       ? productMap.get(`${m.supplier_id}::${m.product_name}`)
@@ -87,8 +101,14 @@ export async function GET(
       image_url: product?.image_url ?? null,
       image_source: product?.image_source ?? null,
       category: product?.category ?? null,
+      trust_score: trustMap.get(m.supplier_id) ?? 0,
     };
   });
+
+  enriched.sort(
+    (a, b) =>
+      b.match_score * 0.6 + b.trust_score * 0.4 - (a.match_score * 0.6 + a.trust_score * 0.4)
+  );
 
   return Response.json({ ok: true, matches: enriched });
 }

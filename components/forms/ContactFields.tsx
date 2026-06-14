@@ -14,12 +14,16 @@ interface ContactFieldsErrors {
 interface ContactFieldsProps {
   name: string;
   onNameChange: (v: string) => void;
+  onNameBlur?: () => void;
   company?: string;
   onCompanyChange?: (v: string) => void;
+  onCompanyBlur?: () => void;
   whatsapp: string;
   onWhatsappChange: (v: string) => void;
+  onWhatsappBlur?: () => void;
   email: string;
   onEmailChange: (v: string) => void;
+  onEmailBlur?: () => void;
   errors: ContactFieldsErrors;
   defaultCountry?: string;
   companyOptional?: boolean;
@@ -41,12 +45,16 @@ function FieldError({ msg }: { msg?: string }) {
 export default function ContactFields({
   name,
   onNameChange,
+  onNameBlur,
   company,
   onCompanyChange,
+  onCompanyBlur,
   whatsapp,
   onWhatsappChange,
+  onWhatsappBlur,
   email,
   onEmailChange,
+  onEmailBlur,
   errors,
   defaultCountry,
   companyOptional,
@@ -63,6 +71,7 @@ export default function ContactFields({
             type="text"
             value={company ?? ""}
             onChange={(e) => onCompanyChange(e.target.value)}
+            onBlur={onCompanyBlur}
             placeholder="e.g. Yochananof, ABC Imports"
             className="dark-input"
           />
@@ -79,6 +88,7 @@ export default function ContactFields({
             required
             value={name}
             onChange={(e) => onNameChange(e.target.value)}
+            onBlur={onNameBlur}
             placeholder="Full name"
             className="dark-input"
           />
@@ -97,6 +107,7 @@ export default function ContactFields({
               numberInputProps={{
                 id: "cf-whatsapp",
                 className: "flex-1 bg-transparent outline-none text-[#f1f5f9] placeholder-slate-500 text-sm min-w-0",
+                onBlur: onWhatsappBlur,
               }}
             />
           </div>
@@ -108,17 +119,20 @@ export default function ContactFields({
       </div>
 
       <div className="space-y-1">
-        <Label htmlFor="cf-email">Email address *</Label>
+        <Label htmlFor="cf-email">Email address</Label>
         <input
           id="cf-email"
           type="email"
-          required
           value={email}
           onChange={(e) => onEmailChange(e.target.value)}
+          onBlur={onEmailBlur}
           placeholder="you@company.com"
           className="dark-input"
         />
         <FieldError msg={errors.email} />
+        <p className="mt-1 text-xs text-slate-500">
+          Please provide an email or WhatsApp number so we can reach you.
+        </p>
       </div>
     </div>
   );

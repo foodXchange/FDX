@@ -113,6 +113,14 @@ body {
   border-color: rgba(232,93,38,0.5);
 }
 
+/* Phone input country dropdown — the option list is rendered by the OS
+   with a white background, but inherits the dark page's light text
+   color, making unselected rows invisible (white on white). */
+.PhoneInputCountrySelect option {
+  color: #0f172a;
+  background-color: #ffffff;
+}
+
 /* Dark badge — kosher */
 .badge-kosher {
   background: rgba(245,158,11,0.12);

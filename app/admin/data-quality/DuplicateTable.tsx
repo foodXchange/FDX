@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { markSupplierDuplicate } from "./actions";
+import { markSupplierDuplicate, approveAllDuplicates } from "./actions";
 
 type DuplicateRow = {
   keep_id: string;
@@ -12,6 +12,8 @@ type DuplicateRow = {
   dup_status: string | null;
 };
 
+const PAGE_SIZE = 50;
+
 export default function DuplicateTable({
   duplicates,
 }: {
@@ -19,6 +21,10 @@ export default function DuplicateTable({
 }) {
   const [states, setStates] = useState<Record<string, "idle" | "saving" | "done" | "error">>({});
   const [hidden, setHidden] = useState<Set<string>>(new Set());
+  const [search, setSearch] = useState("");
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+  const [bulkSaving, setBulkSaving] = useState(false);
+  const [bulkError, setBulkError] = useState<string | null>(null);
 
   async function handleMark(duplicateId: string, keepId: string) {
     setStates((s) => ({ ...s, [duplicateId]: "saving" }));
@@ -36,6 +42,34 @@ export default function DuplicateTable({
 
   const visible = duplicates.filter((d) => !hidden.has(d.duplicate_id));
 
+  const filtered = search.trim()
+    ? visible.filter((d) => {
+        const needle = search.trim().toLowerCase();
+        return (
+          d.company_name.toLowerCase().includes(needle) ||
+          (d.country ?? "").toLowerCase().includes(needle)
+        );
+      })
+    : visible;
+
+  const shown = filtered.slice(0, visibleCount);
+
+  async function handleApproveAllPending() {
+    setBulkSaving(true);
+    setBulkError(null);
+    const pairs = visible.map((d) => ({
+      duplicate_id: d.duplicate_id,
+      keep_id: d.keep_id,
+    }));
+    const result = await approveAllDuplicates(pairs);
+    if (result.ok) {
+      setHidden((h) => new Set([...h, ...visible.map((d) => d.duplicate_id)]));
+    } else {
+      setBulkError(result.error ?? "Failed to approve duplicates");
+    }
+    setBulkSaving(false);
+  }
+
   if (visible.length === 0) {
     return (
       <p className="text-sm text-green-600 font-medium py-4">
@@ -45,7 +79,33 @@ export default function DuplicateTable({
   }
 
   return (
-    <div className="overflow-x-auto">
+    <div>
+      <div className="mb-3 flex items-center gap-3 flex-wrap">
+        <input
+          type="text"
+          value={search}
+          onChange={(e) => {
+            setSearch(e.target.value);
+            setVisibleCount(PAGE_SIZE);
+          }}
+          placeholder="Search company or country…"
+          className="w-full max-w-xs text-xs border border-gray-200 rounded-lg px-3 py-1.5 bg-white text-gray-700 outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-100"
+        />
+        <button
+          type="button"
+          onClick={handleApproveAllPending}
+          disabled={bulkSaving}
+          className="px-3 py-1.5 text-xs font-medium rounded-lg bg-orange-500 text-white hover:bg-orange-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+        >
+          {bulkSaving ? "Approving…" : `Approve all pending (${visible.length})`}
+        </button>
+        {bulkError && <span className="text-xs text-red-500">{bulkError}</span>}
+      </div>
+
+      {filtered.length === 0 ? (
+        <p className="text-sm text-gray-400 py-4">No duplicates match this search.</p>
+      ) : (
+      <div className="overflow-x-auto">
       <table className="w-full text-sm">
         <thead>
           <tr className="text-left border-b border-gray-200">
@@ -58,7 +118,7 @@ export default function DuplicateTable({
           </tr>
         </thead>
         <tbody className="divide-y divide-gray-100">
-          {visible.map((row) => {
+          {shown.map((row) => {
             const state = states[row.duplicate_id] ?? "idle";
             return (
               <tr key={row.duplicate_id} className="group">
@@ -99,6 +159,20 @@ export default function DuplicateTable({
           })}
         </tbody>
       </table>
+      </div>
+      )}
+
+      {filtered.length > shown.length && (
+        <div className="mt-3 text-center">
+          <button
+            type="button"
+            onClick={() => setVisibleCount((c) => c + PAGE_SIZE)}
+            className="px-4 py-1.5 text-xs font-medium rounded-lg border border-gray-200 text-gray-600 hover:border-orange-300 hover:text-orange-600 transition-colors"
+          >
+            Load more ({filtered.length - shown.length} remaining)
+          </button>
+        </div>
+      )}
     </div>
   );
 }

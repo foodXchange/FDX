@@ -4,6 +4,7 @@ import { usePathname } from "next/navigation";
 
 const links = [
   { href: "/admin/analytics", label: "Analytics" },
+  { href: "/en/admin/qa-metrics", label: "QA Metrics" },
   { href: "/admin/requests", label: "Requests" },
   { href: "/admin/matches", label: "Matches" },
   { href: "/admin/suppliers", label: "Suppliers" },
@@ -28,7 +29,9 @@ const marketingLinks = [
 
 const settingsLinks = [
   { href: "/admin/settings/category-images", label: "Category Images" },
+  { href: "/admin/settings/email-templates", label: "Email Templates" },
   { href: "/admin/settings/trash", label: "Trash" },
+  { href: "/admin/settings/audit-log", label: "Audit Log" },
 ];
 
 export default function AdminNav() {

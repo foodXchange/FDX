@@ -27,6 +27,7 @@ export type RequestRow = {
   published_product_name?: string | null;
   published_message?: string | null;
   intent_json?: Record<string, unknown> | null;
+  buyer_logo_url: string | null;
 };
 
 export default async function AdminRequestsPage() {
@@ -77,11 +78,27 @@ export default async function AdminRequestsPage() {
     imageMap.set(img.request_id, existing);
   }
 
+  const buyerIds = Array.from(
+    new Set(rawRequests.map((r) => r.buyer_id).filter((id): id is string => Boolean(id)))
+  );
+
+  const buyersResult =
+    buyerIds.length > 0
+      ? await supabaseAdmin.from("buyers").select("id, logo_url").in("id", buyerIds)
+      : { data: [] };
+
+  const buyerLogoMap = new Map<string, string | null>();
+  for (const b of buyersResult.data ?? []) {
+    const row = b as { id: string; logo_url: string | null };
+    buyerLogoMap.set(row.id, row.logo_url);
+  }
+
   const requests: RequestRow[] = rawRequests.map((r) => ({
     ...r,
     images: imageMap.get(r.id) ?? [],
     match_count: matchCountMap.get(r.id) ?? 0,
     best_match_score: bestScoreMap.get(r.id) ?? null,
+    buyer_logo_url: r.buyer_id ? buyerLogoMap.get(r.buyer_id) ?? null : null,
   }));
 
   const totalCount = requests.length;

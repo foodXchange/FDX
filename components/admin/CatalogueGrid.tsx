@@ -1,11 +1,23 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import type { CatalogueProduct } from "@/app/admin/catalogue/actions";
+import {
+  linkCatalogueProductToRequest,
+  duplicateCatalogueProduct,
+} from "@/app/admin/catalogue/actions";
+
+type OpenRequest = {
+  id: string;
+  product_name: string | null;
+  company: string | null;
+};
 
 interface Props {
   products: CatalogueProduct[];
+  openRequests: OpenRequest[];
+  linkedCounts: Record<string, number>;
 }
 
 const TABS = ["all", "ready", "draft", "archived"] as const;
@@ -27,8 +39,16 @@ function StatusBadge({ status }: { status: string }) {
   );
 }
 
-export default function CatalogueGrid({ products }: Props) {
+export default function CatalogueGrid({ products, openRequests, linkedCounts }: Props) {
   const [activeTab, setActiveTab] = useState<Tab>("all");
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [toast, setToast] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!toast) return;
+    const timer = setTimeout(() => setToast(null), 2000);
+    return () => clearTimeout(timer);
+  }, [toast]);
 
   const filtered =
     activeTab === "all"
@@ -41,6 +61,32 @@ export default function CatalogueGrid({ products }: Props) {
     draft: products.filter((p) => p.status === "draft").length,
     archived: products.filter((p) => p.status === "archived").length,
   };
+
+  async function handleLinkToRequest(product: CatalogueProduct, requestId: string) {
+    if (!requestId) return;
+    setBusyId(product.id);
+    try {
+      const result = await linkCatalogueProductToRequest(product.id, requestId);
+      if (result.ok) {
+        const request = openRequests.find((r) => r.id === requestId);
+        setToast(`Linked to ${request?.product_name ?? request?.company ?? "request"}`);
+      } else {
+        setToast(result.error);
+      }
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  async function handleDuplicate(product: CatalogueProduct) {
+    setBusyId(product.id);
+    try {
+      const result = await duplicateCatalogueProduct(product.id);
+      setToast(result.ok ? "Duplicated as draft" : result.error);
+    } finally {
+      setBusyId(null);
+    }
+  }
 
   return (
     <>
@@ -103,12 +149,21 @@ export default function CatalogueGrid({ products }: Props) {
                     {product.category}
                   </span>
                 )}
+                {(() => {
+                  const linkedCount =
+                    linkedCounts[`${product.supplier_id}::${product.product_name}`] ?? 0;
+                  return linkedCount > 0 ? (
+                    <span className="inline-block mt-2 ml-1 text-xs bg-blue-50 text-blue-700 border border-blue-100 rounded-full px-2.5 py-0.5">
+                      Linked to {linkedCount} request{linkedCount === 1 ? "" : "s"}
+                    </span>
+                  ) : null;
+                })()}
                 {product.format && (
                   <p className="text-xs text-slate-400 mt-1.5 truncate">{product.format}</p>
                 )}
 
                 {/* Actions */}
-                <div className="flex gap-2 mt-3">
+                <div className="flex items-center gap-2 mt-3">
                   <Link
                     href={`/admin/catalogue/${product.id}`}
                     className="text-xs text-orange-600 hover:text-orange-700 font-medium transition"
@@ -123,10 +178,46 @@ export default function CatalogueGrid({ products }: Props) {
                       ✦ Generate brand
                     </Link>
                   )}
+                  <button
+                    type="button"
+                    onClick={() => handleDuplicate(product)}
+                    disabled={busyId === product.id}
+                    className="text-xs text-slate-500 hover:text-slate-700 font-medium transition disabled:opacity-50"
+                  >
+                    Duplicate
+                  </button>
                 </div>
+
+                {/* Link to request */}
+                <select
+                  value=""
+                  onChange={(e) => handleLinkToRequest(product, e.target.value)}
+                  disabled={!product.supplier_id || busyId === product.id}
+                  title={
+                    !product.supplier_id
+                      ? "Assign a supplier to this product first"
+                      : undefined
+                  }
+                  className="mt-2 w-full text-xs border border-slate-200 rounded-lg px-2 py-1.5 text-slate-600 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:border-orange-400"
+                >
+                  <option value="">Link to request…</option>
+                  {openRequests.map((r) => (
+                    <option key={r.id} value={r.id}>
+                      {r.product_name ?? r.company ?? r.id}
+                      {r.company ? ` — ${r.company}` : ""}
+                    </option>
+                  ))}
+                </select>
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Toast */}
+      {toast && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 rounded-full bg-slate-900 px-4 py-2 text-xs text-white shadow-lg z-50">
+          {toast}
         </div>
       )}
     </>

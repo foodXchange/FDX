@@ -5,6 +5,7 @@ type SearchParams = {
   company_name?: string;
   contact_name?: string;
   contact_email?: string;
+  contact_whatsapp?: string;
 };
 
 export default async function NewBuyerPage({
@@ -32,6 +33,7 @@ export default async function NewBuyerPage({
           company_name: params.company_name ?? "",
           contact_name: params.contact_name ?? "",
           contact_email: params.contact_email ?? "",
+          contact_whatsapp: params.contact_whatsapp ?? "",
         }}
       />
     </main>

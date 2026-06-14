@@ -2,6 +2,8 @@ import { z } from "zod";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { checkRateLimit } from "@/lib/rateLimit";
 import { sendSupplierNotification, sendSupplierConfirmation } from "@/lib/email/mailer";
+import { createNotification } from "@/lib/notifications/createNotification";
+import { logEvent } from "@/lib/events/logEvent";
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
@@ -161,11 +163,47 @@ export async function POST(req: Request) {
       supplier_id: newSupplier.id,
     }).catch(console.error);
 
+    void createNotification(
+      "supplier_signup",
+      `New supplier signup: ${data.company_name}`,
+      data.country ?? undefined,
+      { supplier_id: newSupplier.id }
+    );
+
+    void logEvent(null, "supplier", "supplier_signup", "supplier", newSupplier.id, {
+      company_name: data.company_name,
+      source: data.source ?? "manufacturer-widget",
+    });
+
+    let portalLink: string | undefined;
+    try {
+      const site = process.env.NEXT_PUBLIC_SITE_URL ?? "https://fdx.trading";
+      const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
+        type: "magiclink",
+        email: data.contact_email,
+        options: {
+          redirectTo: `${site}/en/supplier-portal/auth/callback`,
+          data: { name: data.contact_name, supplier_id: newSupplier.id },
+        },
+      });
+      if (linkError) throw linkError;
+
+      if (linkData.user?.id) {
+        await supabaseAdmin.from("supplier_offerings").update({ auth_user_id: linkData.user.id }).eq("id", newSupplier.id);
+        await supabaseAdmin.from("supplier_profiles").update({ supplier_id: newSupplier.id }).eq("id", linkData.user.id);
+      }
+
+      portalLink = linkData.properties?.action_link ?? undefined;
+    } catch (err) {
+      console.error("Supplier portal invite link generation failed:", err);
+    }
+
     sendSupplierConfirmation({
       contact_name: data.contact_name,
       contact_email: data.contact_email,
       company_name: data.company_name,
       image_count: data.image_urls.length,
+      portalLink,
     }).catch(console.error);
 
     return Response.json({ ok: true, id: newSupplier.id });

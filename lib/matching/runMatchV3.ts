@@ -56,7 +56,7 @@ function stripSoftToken(token: string): string | null {
   return token;
 }
 
-function buildRequestEmbedString(
+export function buildRequestEmbedString(
   productText: string,
   niceToHave: string[]
 ): string {
@@ -79,7 +79,7 @@ function safeStringArray(val: unknown): string[] {
   return val.filter((t): t is string => typeof t === "string");
 }
 
-type RequestFallbackFields = {
+export type RequestFallbackFields = {
   productName: string | null;
   category: string | null;
   message: string | null;
@@ -94,7 +94,7 @@ function composeFallbackText(fallback: RequestFallbackFields): string {
     .join(". ");
 }
 
-function extractFromPip(
+export function extractFromPip(
   pipJson: Record<string, unknown> | null,
   fallback: RequestFallbackFields
 ): { productText: string; niceToHave: string[] } {
@@ -167,6 +167,18 @@ export async function runMatchV3(requestId: string): Promise<RunMatchV3Result> {
   const requestEmbedding = embedString.trim().length > 1
     ? await embedText(embedString, "query")
     : null;
+
+  // Persist for reuse (e.g. future re-matches, analytics) — best-effort,
+  // doesn't block matching if the column is missing or the write fails.
+  if (requestEmbedding) {
+    const { error: embErr } = await supabaseAdmin
+      .from("sourcing_requests")
+      .update({ embedding: requestEmbedding as unknown as string })
+      .eq("id", requestId);
+    if (embErr) {
+      console.error("[runMatchV3] failed to store request embedding:", embErr.message);
+    }
+  }
 
   // All constraint derivation (kosher hierarchy, temperature, channel, organic, halal)
   // happens inside the match_v3 SQL function via the pip_c CTE.

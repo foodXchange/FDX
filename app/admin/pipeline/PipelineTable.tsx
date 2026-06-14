@@ -1,11 +1,14 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { STAGE_COLORS, STAGE_LABELS, statusToStage } from "./stage";
 
 export type PipelineRow = {
   id: string;
   request_id: string;
+  supplier_id: string;
   status: string;
   match_score: number;
   product_name: string;
@@ -18,6 +21,7 @@ export type PipelineRow = {
   sent_via: string | null;
   buyer_company: string | null;
   buyer_product: string | null;
+  buyer_id: string | null;
 };
 
 function lastUpdated(row: PipelineRow): string {
@@ -32,33 +36,23 @@ function lastUpdated(row: PipelineRow): string {
   });
 }
 
+function truncate(text: string, max: number): string {
+  return text.length > max ? text.slice(0, max) + "…" : text;
+}
+
 function StatusBadge({ status }: { status: string }) {
-  const map: Record<string, string> = {
-    pending: "bg-gray-100 text-gray-600",
-    new: "bg-gray-100 text-gray-600",
-    approved: "bg-blue-50 text-blue-700",
-    rejected: "bg-red-50 text-red-600",
-    sent: "bg-orange-50 text-orange-700",
-    responded: "bg-green-50 text-green-700",
-    closed: "bg-gray-100 text-gray-500",
-  };
-  const label =
-    status === "pending" ? "New" : status.charAt(0).toUpperCase() + status.slice(1);
+  const stage = statusToStage(status);
   return (
-    <span
-      className={`inline-block text-xs font-medium px-2 py-0.5 rounded-full ${
-        map[status] ?? "bg-gray-100 text-gray-600"
-      }`}
-    >
-      {label}
+    <span className={`inline-block text-xs font-medium px-2 py-0.5 rounded-full ${STAGE_COLORS[stage]}`}>
+      {STAGE_LABELS[stage]}
     </span>
   );
 }
 
 function actionLabel(status: string): string | null {
-  if (status === "pending" || status === "new") return "Approve";
+  if (status === "pending" || status === "new") return "Send proposal";
   if (status === "approved") return "Send";
-  if (status === "sent") return "Responded";
+  if (status === "sent") return "Mark responded";
   if (status === "responded") return "Close";
   return null;
 }
@@ -149,13 +143,32 @@ export default function PipelineTable({ rows }: { rows: PipelineRow[] }) {
                 className="cursor-pointer hover:bg-gray-50 transition-colors group"
               >
                 <td className="py-2.5 pr-4 text-gray-600 text-xs max-w-[120px] truncate">
-                  {row.buyer_company ?? "—"}
+                  {row.buyer_id ? (
+                    <Link
+                      href={`/admin/buyers/${row.buyer_id}`}
+                      onClick={(e) => e.stopPropagation()}
+                      className="hover:text-orange-600 hover:underline"
+                    >
+                      {row.buyer_company ?? "—"}
+                    </Link>
+                  ) : (
+                    row.buyer_company ?? "—"
+                  )}
                 </td>
-                <td className="py-2.5 pr-4 text-gray-800 font-medium text-xs max-w-[140px] truncate">
-                  {row.product_name}
+                <td
+                  className="py-2.5 pr-4 text-gray-800 font-medium text-xs max-w-[140px] truncate"
+                  title={row.product_name}
+                >
+                  {truncate(row.product_name, 40)}
                 </td>
                 <td className="py-2.5 pr-4 text-gray-700 text-xs max-w-[140px] truncate">
-                  {row.company_name}
+                  <Link
+                    href={`/admin/suppliers/${row.supplier_id}`}
+                    onClick={(e) => e.stopPropagation()}
+                    className="hover:text-orange-600 hover:underline"
+                  >
+                    {row.company_name}
+                  </Link>
                 </td>
                 <td className="py-2.5 pr-4 text-gray-400 text-xs">
                   {row.country ?? "—"}

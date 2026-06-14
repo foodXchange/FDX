@@ -5,6 +5,10 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import type { RequestRow } from "@/app/admin/requests/page";
 import RequestSlideOver from "@/components/admin/RequestSlideOver";
+import { getInitials, avatarColors } from "@/lib/admin/avatarPalette";
+
+type SortColumn = "date" | "score";
+type SortDirection = "asc" | "desc";
 
 interface Props {
   requests: RequestRow[];
@@ -45,6 +49,34 @@ function getKosherRequired(req: RequestRow): boolean | null {
   return typeof value === "boolean" ? value : null;
 }
 
+function getWhatsApp(req: RequestRow): string | null {
+  const match = req.message?.match(/\[WhatsApp:\s*([^\]]+)\]/i);
+  return match ? match[1].trim() : null;
+}
+
+function getVolume(req: RequestRow): string | null {
+  const value = (req.ai_analysis as { volume?: unknown } | null)?.volume;
+  return typeof value === "string" && value.trim() ? value : null;
+}
+
+function getUrgency(req: RequestRow): "urgent" | "high" | null {
+  const value = (req.ai_analysis as { urgency?: unknown } | null)?.urgency;
+  if (value === "urgent" || value === "high") return value;
+  return null;
+}
+
+function UrgencyBadge({ urgency }: { urgency: "urgent" | "high" | null }) {
+  if (urgency === "urgent")
+    return (
+      <span className="text-xs bg-red-50 text-red-600 rounded-full px-2 py-0.5">Urgent</span>
+    );
+  if (urgency === "high")
+    return (
+      <span className="text-xs bg-orange-50 text-orange-700 rounded-full px-2 py-0.5">High</span>
+    );
+  return null;
+}
+
 function timeAgo(dateStr: string): string {
   const diff = Date.now() - new Date(dateStr).getTime();
   const mins = Math.floor(diff / 60000);
@@ -68,6 +100,17 @@ export default function RequestsTable({ requests }: Props) {
   const [categoryFilter, setCategoryFilter] = useState("");
   const [selected, setSelected] = useState<string[]>([]);
   const [bulkRunning, setBulkRunning] = useState(false);
+  const [sortColumn, setSortColumn] = useState<SortColumn>("date");
+  const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
+
+  function handleSort(column: SortColumn) {
+    if (sortColumn === column) {
+      setSortDirection((d) => (d === "asc" ? "desc" : "asc"));
+    } else {
+      setSortColumn(column);
+      setSortDirection("desc");
+    }
+  }
 
   const uniqueCategories = useMemo(() => {
     const cats = new Set(
@@ -131,9 +174,13 @@ export default function RequestsTable({ requests }: Props) {
       );
     }
 
-    return [...list].sort(
-      (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-    );
+    return [...list].sort((a, b) => {
+      const dir = sortDirection === "asc" ? 1 : -1;
+      if (sortColumn === "score") {
+        return dir * ((a.best_match_score ?? 0) - (b.best_match_score ?? 0));
+      }
+      return dir * (new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+    });
   }, [
     requests,
     statusFilter,
@@ -144,6 +191,8 @@ export default function RequestsTable({ requests }: Props) {
     searchQuery,
     localStatuses,
     localMatchCounts,
+    sortColumn,
+    sortDirection,
   ]);
 
   const allVisibleSelected =
@@ -334,20 +383,39 @@ export default function RequestsTable({ requests }: Props) {
                 "Matches",
                 "Date",
                 "Actions",
-              ].map((h) => (
-                <th
-                  key={h}
-                  className={`px-3 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider ${
-                    HEADER_MIN_WIDTHS[h] ?? ""
-                  } ${
-                    h === "Buyer"
-                      ? "sticky left-0 z-10 bg-gray-50 border-r border-gray-200"
-                      : ""
-                  }`}
-                >
-                  {h}
-                </th>
-              ))}
+              ].map((h) => {
+                const sortKey: SortColumn | null =
+                  h === "Date" ? "date" : h === "Matches" ? "score" : null;
+                const isActive = sortKey !== null && sortColumn === sortKey;
+                return (
+                  <th
+                    key={h}
+                    onClick={sortKey ? () => handleSort(sortKey) : undefined}
+                    className={`px-3 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider group ${
+                      HEADER_MIN_WIDTHS[h] ?? ""
+                    } ${
+                      h === "Buyer"
+                        ? "sticky left-0 z-10 bg-gray-50 border-r border-gray-200"
+                        : ""
+                    } ${sortKey ? "cursor-pointer select-none" : ""}`}
+                  >
+                    <span className="inline-flex items-center gap-1">
+                      {h}
+                      {sortKey && (
+                        <span
+                          className={
+                            isActive
+                              ? "text-gray-700"
+                              : "text-gray-300 opacity-0 group-hover:opacity-100 transition-opacity"
+                          }
+                        >
+                          {isActive ? (sortDirection === "asc" ? "↑" : "↓") : "↕"}
+                        </span>
+                      )}
+                    </span>
+                  </th>
+                );
+              })}
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
@@ -398,51 +466,87 @@ export default function RequestsTable({ requests }: Props) {
 
                   {/* Buyer */}
                   <td className="px-3 py-3 sticky left-0 z-10 bg-white border-r border-gray-200 group-hover:bg-gray-50 transition-colors">
-                    <p className="font-medium text-gray-900 text-xs">
-                      {req.name ?? "—"}
-                    </p>
-                    {req.buyer_id ? (
-                      <Link
-                        href={`/admin/buyers/${req.buyer_id}`}
-                        onClick={(e) => e.stopPropagation()}
-                        className="block text-xs text-orange-600 hover:text-orange-700 truncate max-w-[130px]"
-                      >
-                        {req.company ?? req.email ?? "—"}
-                      </Link>
-                    ) : (
-                      <>
-                        <p className="text-xs text-orange-600 truncate max-w-[130px]">
-                          {req.company ?? req.email ?? "—"}
+                    <div className="flex items-center gap-2">
+                      {req.buyer_id &&
+                        (req.buyer_logo_url ? (
+                          <img
+                            src={req.buyer_logo_url}
+                            alt=""
+                            className="w-8 h-8 rounded-full object-cover border border-gray-200 flex-shrink-0"
+                          />
+                        ) : (
+                          (() => {
+                            const { bg, text } = avatarColors(req.company ?? req.name ?? "");
+                            return (
+                              <div
+                                className={`w-8 h-8 rounded-full border border-gray-200 flex items-center justify-center text-xs font-bold flex-shrink-0 ${bg} ${text}`}
+                              >
+                                {getInitials(req.company ?? req.name ?? "?")}
+                              </div>
+                            );
+                          })()
+                        ))}
+                      <div className="min-w-0">
+                        <p className="font-medium text-gray-900 text-xs">
+                          {req.name ?? "—"}
                         </p>
-                        {(req.name || req.email || req.company) && (
+                        {req.buyer_id ? (
                           <Link
-                            href={`/admin/buyers/new?company_name=${encodeURIComponent(
-                              req.company ?? ""
-                            )}&contact_name=${encodeURIComponent(
-                              req.name ?? ""
-                            )}&contact_email=${encodeURIComponent(req.email ?? "")}`}
+                            href={`/admin/buyers/${req.buyer_id}`}
                             onClick={(e) => e.stopPropagation()}
-                            className="text-xs text-gray-400 hover:text-orange-600 underline"
+                            className="block text-xs text-orange-600 hover:text-orange-700 truncate max-w-[130px]"
                           >
-                            + Create buyer
+                            {req.company ?? req.email ?? "—"}
                           </Link>
+                        ) : (
+                          <>
+                            <p className="text-xs text-orange-600 truncate max-w-[130px]">
+                              {req.company ?? req.email ?? "—"}
+                            </p>
+                            {(req.name || req.email || req.company) && (
+                              <Link
+                                href={`/admin/buyers/new?company_name=${encodeURIComponent(
+                                  req.company ?? ""
+                                )}&contact_name=${encodeURIComponent(
+                                  req.name ?? ""
+                                )}&contact_email=${encodeURIComponent(
+                                  req.email ?? ""
+                                )}&contact_whatsapp=${encodeURIComponent(getWhatsApp(req) ?? "")}`}
+                                onClick={(e) => e.stopPropagation()}
+                                className="text-xs text-gray-400 hover:text-orange-600 underline"
+                              >
+                                + Create buyer
+                              </Link>
+                            )}
+                          </>
                         )}
-                      </>
-                    )}
+                      </div>
+                    </div>
                   </td>
 
                   {/* Product */}
                   <td className="px-3 py-3 max-w-[160px]">
-                    {req.product_name ? (
-                      <p className="text-xs font-medium text-gray-800 truncate">
-                        {req.product_name}
-                      </p>
-                    ) : req.message ? (
-                      <p className="text-xs text-gray-400 italic truncate">
-                        {req.message.slice(0, 50)}…
-                      </p>
-                    ) : (
-                      <span className="text-gray-300 text-xs">—</span>
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      {req.product_name ? (
+                        <p className="text-xs font-medium text-gray-800 truncate">
+                          {req.product_name}
+                        </p>
+                      ) : req.message ? (
+                        <p className="text-xs text-gray-400 italic truncate">
+                          {req.message.slice(0, 50)}…
+                        </p>
+                      ) : (
+                        <span className="text-gray-300 text-xs">—</span>
+                      )}
+                      {req.category && (
+                        <span className="text-xs bg-slate-100 text-slate-600 rounded-full px-2 py-0.5 flex-shrink-0">
+                          {req.category}
+                        </span>
+                      )}
+                      <UrgencyBadge urgency={getUrgency(req)} />
+                    </div>
+                    {getVolume(req) && (
+                      <p className="text-xs text-gray-400 mt-0.5 truncate">{getVolume(req)}</p>
                     )}
                   </td>
 

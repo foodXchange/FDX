@@ -662,6 +662,18 @@ export function SupplierProductsTab({
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkAction, setBulkAction] = useState("");
   const [pending, startTransition] = useTransition();
+  const [searchQuery, setSearchQuery] = useState("");
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  const filteredProducts = products.filter((p) =>
+    p.product_name.toLowerCase().includes(searchQuery.trim().toLowerCase())
+  );
+
+  function handleCopy(p: SupplierProduct) {
+    navigator.clipboard.writeText(p.product_name);
+    setCopiedId(p.id);
+    setTimeout(() => setCopiedId((current) => (current === p.id ? null : current)), 2000);
+  }
 
   function handleProductSave(saved: SupplierProduct) {
     setProducts((prev) => {
@@ -757,8 +769,24 @@ export function SupplierProductsTab({
         </button>
       </div>
 
+      {products.length > 0 && (
+        <div className="mb-4">
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search products by name…"
+            className={inputCls}
+          />
+        </div>
+      )}
+
       {products.length === 0 ? (
         <p className="text-sm text-gray-400 py-6 text-center">No products yet.</p>
+      ) : filteredProducts.length === 0 ? (
+        <p className="text-sm text-gray-400 py-6 text-center">
+          No products match &quot;{searchQuery}&quot;.
+        </p>
       ) : (
         <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
           <table className="w-full text-sm">
@@ -785,7 +813,7 @@ export function SupplierProductsTab({
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {products.map((p) => (
+              {filteredProducts.map((p) => (
                 <tr
                   key={p.id}
                   onClick={() => setSlideOver({ open: true, product: p })}
@@ -819,7 +847,11 @@ export function SupplierProductsTab({
                       </div>
                     )}
                   </td>
-                  <td className="px-3 py-2.5 text-xs text-gray-600">{p.category}</td>
+                  <td className="px-3 py-2.5">
+                    <span className="text-xs bg-slate-100 text-slate-600 rounded-full px-2 py-0.5">
+                      {p.category}
+                    </span>
+                  </td>
                   <td className="px-3 py-2.5">
                     {p.kosher_types.length > 0 ? (
                       <span className="text-xs bg-orange-50 text-orange-700 rounded-full px-2 py-0.5">
@@ -841,6 +873,12 @@ export function SupplierProductsTab({
                   </td>
                   <td className="px-3 py-2.5" onClick={(e) => e.stopPropagation()}>
                     <div className="flex gap-2">
+                      <button
+                        onClick={() => handleCopy(p)}
+                        className="text-xs text-gray-500 hover:text-gray-700"
+                      >
+                        {copiedId === p.id ? "Copied!" : "Copy"}
+                      </button>
                       <button
                         onClick={() => setSlideOver({ open: true, product: p })}
                         className="text-xs text-blue-500 hover:text-blue-700"

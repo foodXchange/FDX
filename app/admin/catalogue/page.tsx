@@ -5,7 +5,7 @@ import type { CatalogueProduct } from "@/app/admin/catalogue/actions";
 import CatalogueGrid from "@/components/admin/CatalogueGrid";
 
 export default async function AdminCataloguePage() {
-  const [productsResult, presCountResult] = await Promise.all([
+  const [productsResult, presCountResult, openRequestsResult] = await Promise.all([
     supabaseAdmin
       .from("catalogue_products")
       .select("*")
@@ -13,13 +13,68 @@ export default async function AdminCataloguePage() {
     supabaseAdmin
       .from("catalogue_presentations")
       .select("*", { count: "exact", head: true }),
+    supabaseAdmin
+      .from("sourcing_requests")
+      .select("id, product_name, company")
+      .neq("status", "closed")
+      .order("created_at", { ascending: false })
+      .limit(100),
   ]);
 
   const products = (productsResult.data ?? []) as CatalogueProduct[];
   const presCount = presCountResult.count ?? 0;
+  const openRequests = (openRequestsResult.data ?? []) as {
+    id: string;
+    product_name: string | null;
+    company: string | null;
+  }[];
 
   const readyCount = products.filter((p) => p.status === "ready").length;
   const draftCount = products.filter((p) => p.status === "draft").length;
+
+  // Linked-match counts per product, keyed by `${supplier_id}::${product_name}`
+  const supplierIds = Array.from(
+    new Set(products.map((p) => p.supplier_id).filter((id): id is string => Boolean(id)))
+  );
+
+  const linkedCounts: Record<string, number> = {};
+
+  if (supplierIds.length > 0) {
+    const { data: matchRows } = await supabaseAdmin
+      .from("sourcing_matches")
+      .select("request_id, supplier_id, product_name, status")
+      .in("supplier_id", supplierIds)
+      .neq("status", "rejected");
+
+    const matches = (matchRows ?? []) as {
+      request_id: string;
+      supplier_id: string;
+      product_name: string | null;
+      status: string;
+    }[];
+
+    const requestIds = Array.from(new Set(matches.map((m) => m.request_id)));
+
+    const { data: requestRows } =
+      requestIds.length > 0
+        ? await supabaseAdmin
+            .from("sourcing_requests")
+            .select("id, status")
+            .in("id", requestIds)
+        : { data: [] as { id: string; status: string }[] };
+
+    const closedRequestIds = new Set(
+      (requestRows ?? [])
+        .filter((r) => (r as { status: string }).status === "closed")
+        .map((r) => (r as { id: string }).id)
+    );
+
+    for (const m of matches) {
+      if (closedRequestIds.has(m.request_id)) continue;
+      const key = `${m.supplier_id}::${m.product_name}`;
+      linkedCounts[key] = (linkedCounts[key] ?? 0) + 1;
+    }
+  }
 
   return (
     <main className="min-h-screen bg-gray-50">
@@ -68,7 +123,11 @@ export default async function AdminCataloguePage() {
             .
           </div>
         ) : (
-          <CatalogueGrid products={products} />
+          <CatalogueGrid
+            products={products}
+            openRequests={openRequests}
+            linkedCounts={linkedCounts}
+          />
         )}
       </div>
     </main>

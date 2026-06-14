@@ -7,6 +7,8 @@ import ProductImage from "@/components/ProductImage";
 import PostGenerator from "@/components/admin/PostGenerator";
 import ScriptGenerator from "@/components/admin/ScriptGenerator";
 import PipPanel from "@/components/admin/PipPanel";
+import TrustScoreBadge from "@/components/admin/TrustScoreBadge";
+import { getInitials, avatarColors } from "@/lib/admin/avatarPalette";
 
 type SavedMatch = {
   id: string;
@@ -26,6 +28,9 @@ type SavedMatch = {
   image_url?: string | null;
   image_source?: string | null;
   category?: string | null;
+  sent_at?: string | null;
+  sent_via?: string | null;
+  trust_score?: number | null;
 };
 
 interface Props {
@@ -36,7 +41,6 @@ interface Props {
 }
 
 const STATUS_OPTIONS = ["new", "reviewed", "matched", "closed"] as const;
-const WHATSAPP = "972525222291";
 
 function timeAgo(dateStr: string): string {
   const diff = Date.now() - new Date(dateStr).getTime();
@@ -46,6 +50,19 @@ function timeAgo(dateStr: string): string {
   const hrs = Math.floor(mins / 60);
   if (hrs < 24) return `${hrs}h ago`;
   return `${Math.floor(hrs / 24)}d ago`;
+}
+
+function formatDate(dateStr: string): string {
+  return new Date(dateStr).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+}
+
+function getWhatsApp(req: RequestRow): string | null {
+  const match = req.message?.match(/\[WhatsApp:\s*([^\]]+)\]/i);
+  return match ? match[1].trim() : null;
 }
 
 function ScoreDisplay({ score }: { score: number }) {
@@ -69,6 +86,12 @@ export default function RequestSlideOver({
   const [matchError, setMatchError] = useState<string | null>(null);
   const [pipReady, setPipReady] = useState(true);
   const [, startTransition] = useTransition();
+
+  // Supplier outreach email state
+  const [emailSending, setEmailSending] = useState<Set<string>>(new Set());
+  const [selectedForEmail, setSelectedForEmail] = useState<Set<string>>(new Set());
+  const [bulkProgress, setBulkProgress] = useState<{ done: number; total: number } | null>(null);
+  const [toast, setToast] = useState<string | null>(null);
 
   // Sourcing board publish state
   const [isPublished, setIsPublished] = useState(request?.is_published ?? false);
@@ -94,6 +117,8 @@ export default function RequestSlideOver({
     }
     setMatches(null);
     setMatchError(null);
+    setSelectedForEmail(new Set());
+    setBulkProgress(null);
     const id = request.id;
     Promise.all([
       fetch(`/api/admin/requests/${id}/match`)
@@ -107,6 +132,13 @@ export default function RequestSlideOver({
       setPipReady(pipData.ready ?? true);
     });
   }, [request?.id]);
+
+  // Auto-clear toast
+  useEffect(() => {
+    if (!toast) return;
+    const t = setTimeout(() => setToast(null), 2000);
+    return () => clearTimeout(t);
+  }, [toast]);
 
   // Sync publish state when request changes
   useEffect(() => {
@@ -206,6 +238,8 @@ export default function RequestSlideOver({
       `. Can we discuss further?`
   );
 
+  const waDigits = getWhatsApp(request)?.replace(/\D/g, "") ?? null;
+
   async function handleRunMatch() {
     setMatchLoading(true);
     setMatchError(null);
@@ -253,6 +287,75 @@ export default function RequestSlideOver({
       body: JSON.stringify({ status: "rejected" }),
     });
     setMatches((prev) => prev?.filter((m) => m.id !== matchId) ?? null);
+  }
+
+  async function sendOutreachEmail(matchId: string): Promise<{ success: boolean; companyName: string }> {
+    const companyName = matches?.find((m) => m.id === matchId)?.company_name ?? "supplier";
+    try {
+      const res = await fetch(`/api/admin/matches/${matchId}/send-email`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      });
+      const d = (await res.json()) as { success?: boolean; sent_at?: string; error?: string };
+      if (!d.success) {
+        return { success: false, companyName };
+      }
+      setMatches((prev) =>
+        prev?.map((m) =>
+          m.id === matchId ? { ...m, sent_at: d.sent_at ?? new Date().toISOString(), sent_via: "email", status: "sent" } : m
+        ) ?? null
+      );
+      return { success: true, companyName };
+    } catch {
+      return { success: false, companyName };
+    }
+  }
+
+  async function handleSendEmail(matchId: string) {
+    setEmailSending((prev) => new Set(prev).add(matchId));
+    const { success, companyName } = await sendOutreachEmail(matchId);
+    setEmailSending((prev) => {
+      const next = new Set(prev);
+      next.delete(matchId);
+      return next;
+    });
+    setToast(success ? `Email sent to ${companyName}` : `Failed to send email to ${companyName}`);
+  }
+
+  function toggleSelectedForEmail(matchId: string) {
+    setSelectedForEmail((prev) => {
+      const next = new Set(prev);
+      if (next.has(matchId)) {
+        next.delete(matchId);
+      } else {
+        next.add(matchId);
+      }
+      return next;
+    });
+  }
+
+  async function handleBulkSendEmail() {
+    const ids = Array.from(selectedForEmail);
+    if (ids.length === 0) return;
+    setBulkProgress({ done: 0, total: ids.length });
+    let sent = 0;
+    let failed = 0;
+    for (let i = 0; i < ids.length; i++) {
+      setEmailSending((prev) => new Set(prev).add(ids[i]));
+      const { success } = await sendOutreachEmail(ids[i]);
+      setEmailSending((prev) => {
+        const next = new Set(prev);
+        next.delete(ids[i]);
+        return next;
+      });
+      if (success) sent++;
+      else failed++;
+      setBulkProgress({ done: i + 1, total: ids.length });
+    }
+    setSelectedForEmail(new Set());
+    setBulkProgress(null);
+    setToast(`${sent} sent, ${failed} failed`);
   }
 
   function handleStatusChange(newStatus: string) {
@@ -304,9 +407,29 @@ export default function RequestSlideOver({
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
               <p className="text-base font-bold text-gray-900 leading-tight">
-                {request.product_name ?? "Sourcing request"}
+                {request.product_name ??
+                  (request.message
+                    ? request.message.trim().slice(0, 60) +
+                      (request.message.trim().length > 60 ? "…" : "")
+                    : "Sourcing request")}
               </p>
-              <div className="flex flex-wrap gap-1.5 mt-1.5">
+              <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
+                {request.buyer_id &&
+                  (request.buyer_logo_url ? (
+                    <img
+                      src={request.buyer_logo_url}
+                      alt=""
+                      className="w-8 h-8 rounded-full object-cover shrink-0"
+                    />
+                  ) : (
+                    <span
+                      className={`w-8 h-8 rounded-full shrink-0 flex items-center justify-center text-xs font-semibold ${
+                        avatarColors(request.company ?? "").bg
+                      } ${avatarColors(request.company ?? "").text}`}
+                    >
+                      {getInitials(request.company ?? "")}
+                    </span>
+                  ))}
                 {request.company && (
                   <span className="text-xs bg-slate-100 text-slate-700 px-2 py-0.5 rounded-full">
                     {request.company}
@@ -323,8 +446,13 @@ export default function RequestSlideOver({
                   </span>
                 )}
                 <span className="text-xs text-gray-400">
-                  {timeAgo(request.created_at)}
+                  {formatDate(request.created_at)}
                 </span>
+                {request.source && (
+                  <span className="text-xs bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full">
+                    {request.source}
+                  </span>
+                )}
               </div>
             </div>
             <button
@@ -537,6 +665,25 @@ export default function RequestSlideOver({
               </div>
             )}
 
+            {/* Bulk email send bar */}
+            {selectedForEmail.size > 0 && (
+              <div className="flex items-center justify-between gap-2 mb-2 rounded-lg bg-orange-50 border border-orange-200 px-3 py-2">
+                <span className="text-xs text-orange-700 font-medium">
+                  {bulkProgress
+                    ? `Sending ${bulkProgress.done}/${bulkProgress.total}…`
+                    : `${selectedForEmail.size} selected`}
+                </span>
+                <button
+                  type="button"
+                  onClick={handleBulkSendEmail}
+                  disabled={bulkProgress !== null}
+                  className="text-xs px-3 py-1.5 rounded-lg bg-orange-500 hover:bg-orange-600 text-white font-medium disabled:opacity-50 transition"
+                >
+                  Send to selected ({selectedForEmail.size})
+                </button>
+              </div>
+            )}
+
             {/* Match cards */}
             {matches !== null && matches.length > 0 && (
               <div className="space-y-3">
@@ -574,25 +721,28 @@ export default function RequestSlideOver({
                                 </span>
                               )}
                             </div>
-                            {m.supplier_id ? (
-                              <a
-                                href={`/admin/suppliers/${m.supplier_id}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="font-semibold text-gray-900 text-sm hover:text-[#F47920] hover:underline transition-colors inline-flex items-center gap-1"
-                              >
-                                {m.company_name ?? "—"}
-                                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                  <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
-                                  <polyline points="15 3 21 3 21 9"/>
-                                  <line x1="10" y1="14" x2="21" y2="3"/>
-                                </svg>
-                              </a>
-                            ) : (
-                              <p className="font-semibold text-gray-900 text-sm">
-                                {m.company_name ?? "—"}
-                              </p>
-                            )}
+                            <div className="flex items-center gap-1.5">
+                              {m.supplier_id ? (
+                                <a
+                                  href={`/admin/suppliers/${m.supplier_id}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="font-semibold text-gray-900 text-sm hover:text-[#F47920] hover:underline transition-colors inline-flex items-center gap-1"
+                                >
+                                  {m.company_name ?? "—"}
+                                  <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+                                    <polyline points="15 3 21 3 21 9"/>
+                                    <line x1="10" y1="14" x2="21" y2="3"/>
+                                  </svg>
+                                </a>
+                              ) : (
+                                <p className="font-semibold text-gray-900 text-sm">
+                                  {m.company_name ?? "—"}
+                                </p>
+                              )}
+                              <TrustScoreBadge score={m.trust_score ?? null} />
+                            </div>
                             {m.country && (
                               <p className="text-xs text-gray-400">{m.country}</p>
                             )}
@@ -637,6 +787,15 @@ export default function RequestSlideOver({
 
                       {/* Actions */}
                       <div className="flex items-center gap-2 mt-3 flex-wrap">
+                        {isApproved && (
+                          <input
+                            type="checkbox"
+                            checked={selectedForEmail.has(m.id)}
+                            onChange={() => toggleSelectedForEmail(m.id)}
+                            title="Select for bulk email"
+                            className="w-3.5 h-3.5 rounded border-gray-300 text-orange-500 focus:ring-orange-400"
+                          />
+                        )}
                         {!isApproved && (
                           <button
                             type="button"
@@ -653,6 +812,28 @@ export default function RequestSlideOver({
                         >
                           ✗ Reject
                         </button>
+                        {isApproved &&
+                          (m.sent_via === "email" && m.sent_at ? (
+                            <span className="text-xs px-2.5 py-1.5 rounded-lg bg-green-50 text-green-700 font-medium">
+                              Sent ✓ {formatDate(m.sent_at)}
+                            </span>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => handleSendEmail(m.id)}
+                              disabled={emailSending.has(m.id)}
+                              className="text-xs px-2.5 py-1.5 rounded-lg border border-orange-200 text-orange-700 hover:bg-orange-50 font-medium disabled:opacity-50 transition flex items-center gap-1.5"
+                            >
+                              {emailSending.has(m.id) ? (
+                                <>
+                                  <span className="w-3 h-3 border-2 border-orange-300 border-t-orange-600 rounded-full animate-spin" />
+                                  Sending…
+                                </>
+                              ) : (
+                                "Email ✉"
+                              )}
+                            </button>
+                          ))}
                         {m.whatsapp_message && (
                           <a
                             href={`https://wa.me/?text=${encodeURIComponent(m.whatsapp_message)}`}
@@ -902,24 +1083,51 @@ export default function RequestSlideOver({
           )}
         </div>
 
+        {/* Toast */}
+        {toast && (
+          <div className="absolute bottom-20 left-1/2 -translate-x-1/2 rounded-full bg-slate-900 px-4 py-2 text-xs text-white shadow-lg z-10">
+            {toast}
+          </div>
+        )}
+
         {/* Footer */}
         <div className="shrink-0 border-t border-slate-100 p-4 flex gap-2">
-          {request.email && (
+          {request.email ? (
             <a
-              href={`mailto:${request.email}`}
+              href={`mailto:${request.email}?subject=${encodeURIComponent(
+                `Re: ${request.product_name ?? "your"} sourcing request`
+              )}`}
               className="flex-1 text-center bg-orange-500 hover:bg-orange-600 text-white rounded-lg px-3 py-2 text-xs font-semibold transition"
             >
               Email
             </a>
+          ) : (
+            <span
+              title="No email on file"
+              aria-disabled="true"
+              className="flex-1 text-center bg-orange-500 text-white rounded-lg px-3 py-2 text-xs font-semibold opacity-50 cursor-not-allowed pointer-events-none"
+            >
+              Email
+            </span>
           )}
-          <a
-            href={`https://wa.me/${WHATSAPP}?text=${waText}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex-1 text-center bg-green-500 hover:bg-green-600 text-white rounded-lg px-3 py-2 text-xs font-semibold transition"
-          >
-            WhatsApp
-          </a>
+          {waDigits ? (
+            <a
+              href={`https://wa.me/${waDigits}?text=${waText}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex-1 text-center bg-green-500 hover:bg-green-600 text-white rounded-lg px-3 py-2 text-xs font-semibold transition"
+            >
+              WhatsApp
+            </a>
+          ) : (
+            <span
+              title="No WhatsApp on file"
+              aria-disabled="true"
+              className="flex-1 text-center bg-green-500 text-white rounded-lg px-3 py-2 text-xs font-semibold opacity-50 cursor-not-allowed pointer-events-none"
+            >
+              WhatsApp
+            </span>
+          )}
           <button
             type="button"
             onClick={onClose}

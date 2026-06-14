@@ -7,6 +7,17 @@ import MultiImageUpload, { UploadedImage } from "@/components/ui/MultiImageUploa
 import ContactFields from "@/components/forms/ContactFields";
 import { isValidName } from "@/lib/validation/isValidName";
 import { isValidCompanyName } from "@/lib/validation/isValidCompanyName";
+import { CATEGORY_COLORS } from "@/lib/products/cleanProductName";
+
+const CATEGORY_OPTIONS = Object.keys(CATEGORY_COLORS);
+
+const VOLUME_UNIT_OPTIONS = [
+  { value: "tons", label: "tons / year" },
+  { value: "kg", label: "kg / year" },
+  { value: "units", label: "units / year" },
+  { value: "pallets", label: "pallets / year" },
+  { value: "containers", label: "containers / year" },
+];
 
 interface SourcingRequestFormProps {
   source?: string;
@@ -132,6 +143,16 @@ function inputClass(extra = "") {
   return `w-full rounded-xl border border-white/10 bg-[#0f172a] px-4 py-3 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-orange-500/30 focus:border-orange-500 transition ${extra}`;
 }
 
+function SectionHeader({ n, title, first }: { n: number; title: string; first?: boolean }) {
+  return (
+    <div className={`${first ? "" : "border-t border-white/10 pt-6"} mb-1`}>
+      <h3 className="text-xs font-semibold text-orange-500 uppercase tracking-wider">
+        {n}. {title}
+      </h3>
+    </div>
+  );
+}
+
 export default function SourcingRequestForm({
   source = "buyers-page",
   heading = "Tell us what you need to source",
@@ -152,8 +173,11 @@ export default function SourcingRequestForm({
   const [images, setImages] = useState<UploadedImage[]>([]);
   const [description, setDescription] = useState("");
   const [descHighlight, setDescHighlight] = useState(false);
+  const [category, setCategory] = useState("");
   const [kosher, setKosher] = useState<KosherOption>("chief-rabbinate");
   const [volume, setVolume] = useState("");
+  const [volumeUnit, setVolumeUnit] = useState("tons");
+  const [packaging, setPackaging] = useState("");
   const [privateLabel, setPrivateLabel] = useState(false);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -161,6 +185,7 @@ export default function SourcingRequestForm({
   const [company, setCompany] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [submittedSummary, setSubmittedSummary] = useState("");
   const [showAddAnother, setShowAddAnother] = useState(false);
   const [savedBanner, setSavedBanner] = useState(false);
   const [urls, setUrls] = useState<string[]>([""]);
@@ -177,8 +202,11 @@ export default function SourcingRequestForm({
       if (saved) {
         const parsed = JSON.parse(saved) as {
           description?: string;
+          category?: string;
           kosher?: KosherOption;
           volume?: string;
+          volumeUnit?: string;
+          packaging?: string;
           privateLabel?: boolean;
           name?: string;
           email?: string;
@@ -186,8 +214,11 @@ export default function SourcingRequestForm({
           company?: string;
         };
         if (parsed.description) setDescription(parsed.description);
+        if (parsed.category) setCategory(parsed.category);
         if (parsed.kosher) setKosher(parsed.kosher);
         if (parsed.volume) setVolume(parsed.volume);
+        if (parsed.volumeUnit) setVolumeUnit(parsed.volumeUnit);
+        if (parsed.packaging) setPackaging(parsed.packaging);
         if (parsed.privateLabel !== undefined) setPrivateLabel(parsed.privateLabel);
         if (parsed.name) setName(parsed.name);
         if (parsed.email) setEmail(parsed.email);
@@ -228,13 +259,25 @@ export default function SourcingRequestForm({
       try {
         localStorage.setItem(
           formKey,
-          JSON.stringify({ description, kosher, volume, privateLabel, name, email, whatsapp, company })
+          JSON.stringify({
+            description,
+            category,
+            kosher,
+            volume,
+            volumeUnit,
+            packaging,
+            privateLabel,
+            name,
+            email,
+            whatsapp,
+            company,
+          })
         );
       } catch {
         // ignore write errors
       }
     }, 400);
-  }, [formKey, description, kosher, volume, privateLabel, name, email, whatsapp, company]);
+  }, [formKey, description, category, kosher, volume, volumeUnit, packaging, privateLabel, name, email, whatsapp, company]);
 
   useEffect(() => {
     if (initialDescription && !description) {
@@ -253,8 +296,11 @@ export default function SourcingRequestForm({
 
   function clearForm() {
     setDescription("");
+    setCategory("");
     setKosher("chief-rabbinate");
     setVolume("");
+    setVolumeUnit("tons");
+    setPackaging("");
     setPrivateLabel(false);
     setImages([]);
     setUrls([""]);
@@ -271,6 +317,8 @@ export default function SourcingRequestForm({
     setImages([]);
     setUrls([""]);
     setVolume("");
+    setVolumeUnit("tons");
+    setPackaging("");
     setPrivateLabel(false);
     setSubmitted(false);
     setShowAddAnother(false);
@@ -279,9 +327,12 @@ export default function SourcingRequestForm({
 
   function handleDifferentProduct() {
     setDescription("");
+    setCategory("");
     setImages([]);
     setUrls([""]);
     setVolume("");
+    setVolumeUnit("tons");
+    setPackaging("");
     setKosher("chief-rabbinate");
     setPrivateLabel(false);
     setSubmitted(false);
@@ -324,6 +375,60 @@ export default function SourcingRequestForm({
     setTimeout(() => setDescHighlight(false), 1400);
   }
 
+  function validateField(field: "description" | "name" | "email" | "whatsapp" | "company") {
+    setFieldErrors((prev) => {
+      const next = { ...prev };
+      switch (field) {
+        case "description":
+          if (!description.trim() && images.length === 0) {
+            next.description = "Please describe the product you're looking for";
+          } else {
+            delete next.description;
+          }
+          break;
+        case "name":
+          if (!isValidName(name)) {
+            next.name = "Please enter your real name (first name is fine)";
+          } else {
+            delete next.name;
+          }
+          break;
+        case "email":
+          if (email.trim() && !EMAIL_REGEX.test(email.trim())) {
+            next.email = "Please enter a valid email address";
+          } else if (!email.trim() && !whatsapp.trim()) {
+            next.email = "Please provide an email or WhatsApp number so we can reach you";
+          } else {
+            delete next.email;
+            if (next.whatsapp === "Please provide an email or WhatsApp number so we can reach you") {
+              delete next.whatsapp;
+            }
+          }
+          break;
+        case "whatsapp":
+          if (whatsapp.trim() && !isValidPhoneNumber(whatsapp)) {
+            next.whatsapp = "Please enter a valid WhatsApp number including country code";
+          } else if (!whatsapp.trim() && !email.trim()) {
+            next.whatsapp = "Please provide an email or WhatsApp number so we can reach you";
+          } else {
+            delete next.whatsapp;
+            if (next.email === "Please provide an email or WhatsApp number so we can reach you") {
+              delete next.email;
+            }
+          }
+          break;
+        case "company":
+          if (company.trim() && !isValidCompanyName(company)) {
+            next.company = "Please enter your company name";
+          } else {
+            delete next.company;
+          }
+          break;
+      }
+      return next;
+    });
+  }
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
@@ -331,23 +436,26 @@ export default function SourcingRequestForm({
     if (!isValidName(name)) {
       errors.name = "Please enter your real name (first name is fine)";
     }
-    if (!EMAIL_REGEX.test(email.trim())) {
+    if (email.trim() && !EMAIL_REGEX.test(email.trim())) {
       errors.email = "Please enter a valid email address";
     }
-    if (whatsapp && !isValidPhoneNumber(whatsapp)) {
+    if (whatsapp.trim() && !isValidPhoneNumber(whatsapp)) {
       errors.whatsapp = "Please enter a valid WhatsApp number including country code";
+    }
+    if (!email.trim() && !whatsapp.trim()) {
+      const msg = "Please provide an email or WhatsApp number so we can reach you";
+      errors.email = msg;
+      errors.whatsapp = msg;
     }
     if (company.trim() && !isValidCompanyName(company)) {
       errors.company = "Please enter your company name";
     }
+    if (!description.trim() && images.length === 0) {
+      errors.description = "Please describe the product you're looking for";
+    }
 
     if (Object.keys(errors).length > 0) {
       setFieldErrors(errors);
-      return;
-    }
-
-    if (!description.trim() && images.length === 0) {
-      setError("Please describe the product or upload at least one image.");
       return;
     }
 
@@ -358,15 +466,20 @@ export default function SourcingRequestForm({
     const extraUrls = urls.filter((url) => url.trim().startsWith("http"));
     let fullDescription = description.trim();
     if (volume.trim()) {
-      fullDescription += `\n\nEstimated annual volume: ${volume} tons`;
+      const unitLabel = VOLUME_UNIT_OPTIONS.find((u) => u.value === volumeUnit)?.label ?? "tons / year";
+      fullDescription += `\n\nEstimated annual volume: ${volume} ${unitLabel}`;
+    }
+    if (packaging.trim()) {
+      fullDescription += `\n\nFormat/packaging preference: ${packaging.trim()}`;
     }
 
     const payload = {
       name: name.trim(),
-      email: email.trim(),
+      email: email.trim() || undefined,
       whatsapp: whatsapp || undefined,
       company: company.trim() || undefined,
       description: fullDescription || undefined,
+      category: category || undefined,
       certifications: KOSHER_CERTS[kosher],
       private_label: privateLabel || null,
       image_urls: [
@@ -405,6 +518,12 @@ export default function SourcingRequestForm({
         onSuccess();
         return;
       }
+      const shortDescription = description.trim().slice(0, 80);
+      setSubmittedSummary(
+        category
+          ? `${category}${shortDescription ? `: ${shortDescription}` : ""}`
+          : shortDescription
+      );
       setSubmitted(true);
       setTimeout(() => setShowAddAnother(true), 2000);
     } catch {
@@ -464,9 +583,23 @@ export default function SourcingRequestForm({
                 </svg>
               </div>
               <h3 className="text-xl font-semibold text-dark-text-primary mb-2">Request received</h3>
-              <p className="text-slate-400 text-sm mb-6">
-                We'll be in touch within 24 hours via WhatsApp.
+              <p className="text-slate-400 text-sm mb-2">
+                We&apos;ll review your request and send you matched suppliers within 24 hours.
               </p>
+              {submittedSummary && (
+                <p className="text-slate-300 text-sm mb-6 italic">
+                  Your request: &ldquo;{submittedSummary}
+                  {submittedSummary.length >= 80 ? "…" : ""}&rdquo;
+                </p>
+              )}
+
+              <button
+                type="button"
+                onClick={handleDifferentProduct}
+                className="btn-brand px-6 py-3 rounded-lg text-sm"
+              >
+                Submit another request
+              </button>
 
               <div
                 className={`transition-all duration-700 ${
@@ -475,21 +608,13 @@ export default function SourcingRequestForm({
                     : "opacity-0 translate-y-2 pointer-events-none"
                 }`}
               >
-                <p className="text-sm font-medium text-dark-text-primary mb-4">Want to add another request?</p>
-                <div className="flex gap-3 justify-center flex-wrap">
+                <div className="flex gap-3 justify-center flex-wrap mt-4">
                   <button
                     type="button"
                     onClick={handleSameCategory}
-                    className="btn-brand px-5 py-2.5 rounded-lg text-sm"
-                  >
-                    + Same category
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleDifferentProduct}
                     className="border border-white/20 text-slate-300 hover:bg-white/5 px-5 py-2.5 rounded-lg text-sm transition"
                   >
-                    + Different product
+                    + Same category
                   </button>
                 </div>
                 <a href="/" className="block mt-6 text-sm text-slate-500 hover:text-slate-300 transition">
@@ -513,8 +638,87 @@ export default function SourcingRequestForm({
                 </div>
               )}
 
+              <SectionHeader n={1} title="What are you looking for?" first />
+
               <FieldGroup>
-                <Label>Product images</Label>
+                <Label htmlFor="description">
+                  What do you need to source?
+                  <Tooltip text="The more detail you provide, the better our matching. Include: product type, packaging format, size/weight, certifications required, annual volume if known, target price range." />
+                </Label>
+                <textarea
+                  id="description"
+                  ref={descRef}
+                  rows={5}
+                  value={description}
+                  onChange={(event) => {
+                    setDescription(event.target.value);
+                    clearFieldError("description");
+                  }}
+                  onBlur={() => validateField("description")}
+                  maxLength={2000}
+                  placeholder="e.g. Extra virgin olive oil, 750ml glass bottle, Chief Rabbinate kosher certification, private label"
+                  className={`${inputClass("resize-none")} ${descHighlight ? "border-orange-500/60" : ""}`}
+                />
+                <FieldError message={fieldErrors.description} />
+                <Helper>Be as specific as possible — format, size, certifications, quantity.</Helper>
+              </FieldGroup>
+
+              <FieldGroup>
+                <Label htmlFor="category">Product category</Label>
+                <select
+                  id="category"
+                  value={category}
+                  onChange={(event) => setCategory(event.target.value)}
+                  className={inputClass()}
+                >
+                  <option value="">Select a category…</option>
+                  {CATEGORY_OPTIONS.map((option) => (
+                    <option key={option} value={option}>
+                      {option}
+                    </option>
+                  ))}
+                </select>
+                <Helper>Helps us route your request to the right suppliers.</Helper>
+              </FieldGroup>
+
+              <FieldGroup>
+                <Label htmlFor="volume">
+                  Estimated annual volume
+                  <Tooltip text="Suppliers have minimum order quantities. Knowing your volume helps us filter out suppliers who are too large or too small for your needs." />
+                </Label>
+                <div className="flex items-center gap-2">
+                  <input
+                    id="volume"
+                    type="number"
+                    min={1}
+                    max={99999}
+                    value={volume}
+                    onChange={(event) => setVolume(event.target.value)}
+                    placeholder="e.g. 20"
+                    className={inputClass()}
+                    style={{ maxWidth: "150px" }}
+                  />
+                  <select
+                    value={volumeUnit}
+                    onChange={(event) => setVolumeUnit(event.target.value)}
+                    className={inputClass()}
+                    style={{ maxWidth: "170px" }}
+                    aria-label="Volume unit"
+                  >
+                    {VOLUME_UNIT_OPTIONS.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <Helper>Approximate is fine — this helps us match you with suppliers of the right scale.</Helper>
+              </FieldGroup>
+
+              <FieldGroup>
+                <Label>
+                  Product images <span className="text-slate-500 font-normal">(optional)</span>
+                </Label>
                 <MultiImageUpload value={images} onChange={setImages} maxImages={5} bucket="requests" />
                 {images.length > 0 && (
                   <p className="mt-1 text-xs text-slate-500">{images.length} of 5 images added</p>
@@ -523,7 +727,9 @@ export default function SourcingRequestForm({
               </FieldGroup>
 
               <FieldGroup>
-                <Label>Or paste product / catalogue URL</Label>
+                <Label>
+                  Or paste product / catalogue URL <span className="text-slate-500 font-normal">(optional)</span>
+                </Label>
                 {urls.map((url, index) => (
                   <div key={index} className="flex items-center gap-2 mb-1">
                     <input
@@ -555,39 +761,26 @@ export default function SourcingRequestForm({
                 )}
               </FieldGroup>
 
-              <FieldGroup>
-                <Label htmlFor="description">
-                  What do you need to source?
-                  <Tooltip text="The more detail you provide, the better our matching. Include: product type, packaging format, size/weight, certifications required, annual volume if known, target price range." />
-                </Label>
-                <textarea
-                  id="description"
-                  ref={descRef}
-                  rows={4}
-                  value={description}
-                  onChange={(event) => setDescription(event.target.value)}
-                  maxLength={2000}
-                  placeholder="e.g. Extra virgin olive oil, 750ml glass bottle, Chief Rabbinate kosher certification, private label"
-                  className={`${inputClass("resize-none")} ${descHighlight ? "border-orange-500/60" : ""}`}
-                />
-                <Helper>Be as specific as possible — format, size, certifications, quantity.</Helper>
-              </FieldGroup>
+              <SectionHeader n={2} title="Requirements" />
 
               <FieldGroup>
                 <Label>
                   Kosher certification required?
                   <Tooltip text="Chief Rabbinate (Rabbanut) is accepted by all Israeli retailers. Badatz is a higher standard required by some buyers. Mehadrin is the strictest standard for premium kosher." />
                 </Label>
-                <div className="space-y-2 mt-1">
+                <div className="space-y-1 mt-1">
                   {KOSHER_OPTIONS.map((option) => (
-                    <label key={option.value} className="flex items-center gap-3 cursor-pointer group">
+                    <label
+                      key={option.value}
+                      className="flex items-center gap-3 cursor-pointer group rounded-lg px-3 py-2.5 hover:bg-white/5 transition-colors"
+                    >
                       <input
                         type="radio"
                         name="kosher"
                         value={option.value}
                         checked={kosher === option.value}
                         onChange={() => setKosher(option.value)}
-                        className="w-4 h-4 accent-orange-500 cursor-pointer"
+                        className="w-5 h-5 accent-orange-500 cursor-pointer"
                       />
                       <span className="text-sm text-slate-300 group-hover:text-dark-text-primary transition-colors">
                         {option.label}
@@ -599,28 +792,6 @@ export default function SourcingRequestForm({
               </FieldGroup>
 
               <FieldGroup>
-                <Label htmlFor="volume">
-                  Estimated annual volume
-                  <Tooltip text="Suppliers have minimum order quantities. Knowing your volume helps us filter out suppliers who are too large or too small for your needs." />
-                </Label>
-                <div className="flex items-center gap-2">
-                  <input
-                    id="volume"
-                    type="number"
-                    min={1}
-                    max={99999}
-                    value={volume}
-                    onChange={(event) => setVolume(event.target.value)}
-                    placeholder="e.g. 20"
-                    className={inputClass()}
-                    style={{ maxWidth: "150px" }}
-                  />
-                  <span className="text-sm text-slate-500">tons / year</span>
-                </div>
-                <Helper>Approximate is fine — this helps us match you with suppliers of the right scale.</Helper>
-              </FieldGroup>
-
-              <FieldGroup>
                 <div className="flex items-center justify-between">
                   <Label>Do you need private label?</Label>
                   <button
@@ -628,12 +799,12 @@ export default function SourcingRequestForm({
                     role="switch"
                     aria-checked={privateLabel}
                     onClick={() => setPrivateLabel(!privateLabel)}
-                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-orange-500/40 ${
+                    className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-orange-500/40 ${
                       privateLabel ? "bg-orange-500" : "bg-dark-500"
                     }`}
                   >
                     <span
-                      className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
+                      className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${
                         privateLabel ? "translate-x-6" : "translate-x-1"
                       }`}
                     />
@@ -642,27 +813,46 @@ export default function SourcingRequestForm({
                 <Helper>We will only show suppliers who offer private label production.</Helper>
               </FieldGroup>
 
+              <FieldGroup>
+                <Label htmlFor="packaging">Format / packaging preference</Label>
+                <input
+                  id="packaging"
+                  type="text"
+                  value={packaging}
+                  onChange={(event) => setPackaging(event.target.value)}
+                  placeholder="e.g. 500g jars, 12/case"
+                  className={inputClass()}
+                />
+                <Helper>Optional — let suppliers know your preferred pack size or format.</Helper>
+              </FieldGroup>
+
+              <SectionHeader n={3} title="Your details" />
+
               <ContactFields
                 name={name}
                 onNameChange={(value) => {
                   setName(value);
                   clearFieldError("name");
                 }}
+                onNameBlur={() => validateField("name")}
                 company={company}
                 onCompanyChange={(value) => {
                   setCompany(value);
                   clearFieldError("company");
                 }}
+                onCompanyBlur={() => validateField("company")}
                 whatsapp={whatsapp}
                 onWhatsappChange={(value) => {
                   setWhatsapp(value);
                   clearFieldError("whatsapp");
                 }}
+                onWhatsappBlur={() => validateField("whatsapp")}
                 email={email}
                 onEmailChange={(value) => {
                   setEmail(value);
                   clearFieldError("email");
                 }}
+                onEmailBlur={() => validateField("email")}
                 errors={fieldErrors}
                 defaultCountry="IL"
                 companyOptional
@@ -674,31 +864,33 @@ export default function SourcingRequestForm({
                 </p>
               )}
 
-              <button
-                type="submit"
-                disabled={submitting || anyUploading}
-                className="btn-brand w-full justify-center py-3.5 rounded-xl disabled:opacity-60 disabled:cursor-not-allowed"
-              >
-                {submitting ? (
-                  <>
-                    <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
-                    </svg>
-                    Sending...
-                  </>
-                ) : anyUploading ? (
-                  <>
-                    <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
-                    </svg>
-                    Uploading images...
-                  </>
-                ) : (
-                  "Submit sourcing request →"
-                )}
-              </button>
+              <div className="sticky bottom-0 z-20 -mx-6 sm:-mx-8 mt-2 border-t border-white/10 bg-dark-900/95 backdrop-blur px-6 sm:px-8 py-3">
+                <button
+                  type="submit"
+                  disabled={submitting || anyUploading}
+                  className="btn-brand w-full justify-center py-3.5 rounded-xl disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  {submitting ? (
+                    <>
+                      <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                      </svg>
+                      Sending...
+                    </>
+                  ) : anyUploading ? (
+                    <>
+                      <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                      </svg>
+                      Uploading images...
+                    </>
+                  ) : (
+                    "Submit sourcing request →"
+                  )}
+                </button>
+              </div>
 
               <button
                 type="button"

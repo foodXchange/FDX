@@ -89,3 +89,22 @@ export async function markSupplierDuplicate(
   revalidatePath("/admin/data-quality");
   return { ok: true };
 }
+
+export async function approveAllDuplicates(
+  pairs: { duplicate_id: string; keep_id: string }[]
+): Promise<{ ok: boolean; updated: number; error?: string }> {
+  const results = await Promise.all(
+    pairs.map((p) =>
+      supabaseAdmin
+        .from("supplier_offerings")
+        .update({ duplicate_of_supplier_id: p.keep_id })
+        .eq("id", p.duplicate_id)
+    )
+  );
+
+  const failed = results.find((r) => r.error);
+  if (failed?.error) return { ok: false, updated: 0, error: failed.error.message };
+
+  revalidatePath("/admin/data-quality");
+  return { ok: true, updated: pairs.length };
+}

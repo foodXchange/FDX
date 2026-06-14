@@ -2,72 +2,18 @@ import { NextRequest } from "next/server";
 import { cookies } from "next/headers";
 import { verifySession, COOKIE_NAME } from "@/lib/adminAuth";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
-import { buildPipV1 } from "@/lib/pip/buildPipV1";
 import type { PipV1 } from "@/lib/pip/buildPipV1";
-import type { PipV2DataJson, MergedAttr } from "@/lib/pip/pipTypes";
+import { getPipForRequest } from "@/lib/pip/getPipForRequest";
 import { generateOutreachMessage } from "@/lib/workflow/generateOutreachMessage";
+import { createNotification } from "@/lib/notifications/createNotification";
+import { getSupplierContactEmail } from "@/lib/email/supplierOutreach";
+import { notifySupplierDealClosed } from "@/lib/email/matchMessages";
+import { logEvent } from "@/lib/events/logEvent";
 
 async function checkAuth(): Promise<boolean> {
   const cookieStore = await cookies();
   const session = cookieStore.get(COOKIE_NAME)?.value;
   return Boolean(session && (await verifySession(session)));
-}
-
-// Converts v2 PipV2DataJson (MergedAttr-wrapped) to the PipV1 shape that
-// generateOutreachMessage expects. Array fields need .map(a => a.value),
-// not just field.value — each element is a MergedAttr object.
-function v2DataJsonToPipV1Shape(dj: PipV2DataJson): PipV1 {
-  const str = (attr: MergedAttr): string | null =>
-    typeof attr.value === "string" ? attr.value : null;
-
-  const bool = (attr: MergedAttr): boolean =>
-    attr.value === true;
-
-  const boolNullable = (attr: MergedAttr): boolean | null =>
-    attr.value === true ? true : attr.value === false ? false : null;
-
-  const strArr = (attrs: MergedAttr[]): string[] =>
-    attrs
-      .map((a) => (typeof a.value === "string" ? a.value : null))
-      .filter((v): v is string => v !== null);
-
-  return {
-    version: "1.0",
-    generated_at: dj.merged_at,
-    product: {
-      name: str(dj.product.name) ?? "",
-      raw_description: str(dj.product.raw_description) ?? "",
-    },
-    category: {
-      raw_text: str(dj.category.raw_text) ?? "",
-      category_id: str(dj.category.category_id),
-      category_name: str(dj.category.category_name),
-    },
-    specifications: {
-      formats: strArr(dj.specifications.formats),
-      packaging: str(dj.specifications.packaging),
-      sizes: strArr(dj.specifications.sizes),
-    },
-    compliance: {
-      kosher_required: bool(dj.compliance.kosher_required),
-      kosher_types: strArr(dj.compliance.kosher_types),
-      certifications: strArr(dj.compliance.certifications),
-      halal: bool(dj.compliance.halal),
-      organic: bool(dj.compliance.organic),
-    },
-    commercial: {
-      private_label: boolNullable(dj.commercial.private_label),
-      volume: str(dj.commercial.volume),
-      urgency: str(dj.commercial.urgency),
-      target_market: str(dj.commercial.target_market),
-      budget: str(dj.commercial.budget),
-    },
-    match_config: {
-      must_have: dj.match_config.must_have,
-      nice_to_have: dj.match_config.nice_to_have,
-      dealbreakers: dj.match_config.dealbreakers,
-    },
-  };
 }
 
 export async function PATCH(
@@ -129,54 +75,7 @@ export async function PATCH(
       request_id: string;
     };
 
-    // Prefer v2 PIP (image-merged data) for the outreach message.
-    // Fall back to sourcing_requests.intent_json for v1-only requests.
-    const { data: v2Pip } = await supabaseAdmin
-      .from("pips")
-      .select("data_json")
-      .eq("sourcing_request_id", matchRow.request_id)
-      .eq("pip_version", 2)
-      .eq("created_from", "image")
-      .maybeSingle();
-
-    let pip: PipV1;
-
-    if (v2Pip?.data_json && (v2Pip.data_json as { version?: string }).version === "2.0") {
-      pip = v2DataJsonToPipV1Shape(v2Pip.data_json as unknown as PipV2DataJson);
-    } else {
-      const { data: request } = await supabaseAdmin
-        .from("sourcing_requests")
-        .select(
-          "intent_json, product_name, message, category, certifications, target_market, private_label, ai_analysis"
-        )
-        .eq("id", matchRow.request_id)
-        .single();
-
-      if (!request) return Response.json({ ok: true });
-
-      const reqRow = request as {
-        intent_json: Record<string, unknown> | null;
-        product_name: string | null;
-        message: string | null;
-        category: string | null;
-        certifications: string[] | null;
-        target_market: string | null;
-        private_label: boolean | null;
-        ai_analysis: Record<string, unknown> | null;
-      };
-
-      pip = reqRow.intent_json
-        ? (reqRow.intent_json as unknown as PipV1)
-        : buildPipV1({
-            product_name: reqRow.product_name,
-            message: reqRow.message,
-            category: reqRow.category,
-            certifications: reqRow.certifications ?? [],
-            target_market: reqRow.target_market,
-            private_label: reqRow.private_label,
-            ai_analysis: reqRow.ai_analysis,
-          });
-    }
+    const pip: PipV1 = await getPipForRequest(matchRow.request_id);
 
     const generatedMessage = generateOutreachMessage(pip, {
       company_name: matchRow.company_name,
@@ -218,6 +117,54 @@ export async function PATCH(
 
   if (error) {
     return Response.json({ error: error.message }, { status: 500 });
+  }
+
+  if (action === "respond") {
+    const { data: match } = await supabaseAdmin
+      .from("sourcing_matches")
+      .select("supplier_id, request_id, product_name, company_name")
+      .eq("id", id)
+      .single();
+
+    if (match) {
+      void createNotification(
+        "response",
+        `${match.company_name} responded to your match`,
+        response_note,
+        { match_id: id, supplier_id: match.supplier_id, response_note: response_note ?? null }
+      );
+    }
+  }
+
+  if (action === "close") {
+    const { data: match } = await supabaseAdmin
+      .from("sourcing_matches")
+      .select("supplier_id, request_id, product_name, company_name, supplier_response")
+      .eq("id", id)
+      .single();
+
+    if (match?.supplier_response === "accepted") {
+      void createNotification(
+        "match_reply",
+        `Deal closed: ${match.product_name ?? "a product"} with ${match.company_name ?? "a supplier"}`,
+        undefined,
+        { match_id: id, supplier_id: match.supplier_id }
+      );
+
+      void logEvent(null, "admin", "deal_closed", "deal", id, {
+        product_name: match.product_name,
+        company_name: match.company_name,
+        supplier_id: match.supplier_id,
+        marked_won: true,
+      });
+
+      void (async () => {
+        const supplierEmail = await getSupplierContactEmail(match.supplier_id);
+        if (supplierEmail) {
+          await notifySupplierDealClosed({ supplierEmail, productName: match.product_name });
+        }
+      })();
+    }
   }
 
   return Response.json({ ok: true });

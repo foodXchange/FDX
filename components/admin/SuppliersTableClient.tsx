@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { bulkUpdateSupplierStatus } from "@/app/admin/suppliers/actions";
 import SupplierRowActions from "@/components/admin/SupplierRowActions";
+import TrustScoreBadge from "@/components/admin/TrustScoreBadge";
 import { getInitials, avatarColors } from "@/lib/admin/avatarPalette";
 
 type SortColumn = "company" | "country" | "categories" | "certs";
@@ -27,6 +28,7 @@ const HEADER_MIN_WIDTHS: Record<string, string> = {
   Qual: "min-w-[110px]",
   Status: "min-w-[110px]",
   Prio: "min-w-[80px]",
+  Score: "min-w-[90px]",
   Actions: "min-w-[120px]",
 };
 
@@ -43,6 +45,7 @@ type SupplierRow = {
   product_type: string | null;
   markets_served: string[] | null;
   qualification_status: string | null;
+  trust_score: number | null;
 };
 
 export function SuppliersTableClient({
@@ -206,6 +209,7 @@ export function SuppliersTableClient({
                 "Qual",
                 "Status",
                 "Prio",
+                "Score",
                 "Actions",
               ].map((header) => {
                 const sortKey = SORTABLE_COLUMNS[header];
@@ -354,6 +358,9 @@ export function SuppliersTableClient({
                   </td>
                   <td className="px-4 py-3 text-sm text-gray-500">
                     {supplier.priority ?? 0}
+                  </td>
+                  <td className="px-4 py-3">
+                    <TrustScoreBadge score={supplier.trust_score} />
                   </td>
                   <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
                     <div className="flex items-center gap-3">

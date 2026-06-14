@@ -1,6 +1,7 @@
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import CategoryMappingTable from "./CategoryMappingTable";
 import DuplicateTable from "./DuplicateTable";
+import CompletenessTable from "./CompletenessTable";
 
 type UnmappedRow = { category: string; count: number };
 type CategoryOption = { id: string; name: string };
@@ -30,6 +31,7 @@ export default async function DataQualityPage() {
     categoriesResult,
     duplicatesResult,
     completenessResult,
+    needCategoryResult,
   ] = await Promise.all([
     // Total supplier_products
     supabaseAdmin
@@ -68,11 +70,18 @@ export default async function DataQualityPage() {
       .eq("status", "approved")
       .is("duplicate_of_supplier_id", null)
       .limit(200),
+
+    // Suppliers needing a category assignment
+    supabaseAdmin
+      .from("supplier_offerings")
+      .select("id", { count: "exact", head: true })
+      .is("category_id", null),
   ]);
 
   const total = totalResult.count ?? 0;
   const mapped = mappedResult.count ?? 0;
   const unmapped = total - mapped;
+  const needCategoryCount = needCategoryResult.count ?? 0;
 
   // Build unmapped rows: group by category text, count occurrences
   const categoryCountMap = new Map<string, number>();
@@ -189,6 +198,9 @@ export default async function DataQualityPage() {
           <StatCard label="Unmapped" count={unmapped} color="orange" />
           <StatCard label="Duplicates found" count={duplicates.length} color="purple" />
         </div>
+        <p className="mt-2 text-xs text-gray-500">
+          {needCategoryCount} suppliers need categories · {duplicates.length} duplicates pending review
+        </p>
       </div>
 
       <div className="max-w-7xl mx-auto p-6 space-y-8">
@@ -222,42 +234,7 @@ export default async function DataQualityPage() {
               sorted by completeness score (lowest first)
             </span>
           </h2>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="text-left border-b border-gray-200">
-                  <th className="pb-2 pr-4 font-medium text-gray-500">Company</th>
-                  <th className="pb-2 pr-4 font-medium text-gray-500 text-center">Cat ID</th>
-                  <th className="pb-2 pr-4 font-medium text-gray-500 text-center">Formats</th>
-                  <th className="pb-2 pr-4 font-medium text-gray-500 text-center">Certs</th>
-                  <th className="pb-2 pr-4 font-medium text-gray-500 text-center">Products</th>
-                  <th className="pb-2 font-medium text-gray-500 text-center">Score</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {completenessRows.map((row) => (
-                  <tr key={row.supplier_id} className="group hover:bg-gray-50">
-                    <td className="py-2 pr-4 text-gray-800 font-medium">{row.company_name}</td>
-                    <td className="py-2 pr-4 text-center">
-                      <Check ok={row.has_category_id} />
-                    </td>
-                    <td className="py-2 pr-4 text-center">
-                      <Check ok={row.has_formats} />
-                    </td>
-                    <td className="py-2 pr-4 text-center">
-                      <Check ok={row.has_certs} />
-                    </td>
-                    <td className="py-2 pr-4 text-center text-gray-500 text-xs">
-                      {row.product_count}
-                    </td>
-                    <td className="py-2 text-center">
-                      <ScoreBar score={row.score} max={4} />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <CompletenessTable rows={completenessRows} />
         </section>
       </div>
     </main>
@@ -286,27 +263,5 @@ function StatCard({
     >
       {count} {label}
     </span>
-  );
-}
-
-function Check({ ok }: { ok: boolean }) {
-  return ok ? (
-    <span className="text-green-500 text-base">✓</span>
-  ) : (
-    <span className="text-gray-300 text-base">✗</span>
-  );
-}
-
-function ScoreBar({ score, max }: { score: number; max: number }) {
-  const pct = Math.round((score / max) * 100);
-  const color =
-    pct >= 75 ? "bg-green-400" : pct >= 50 ? "bg-orange-400" : "bg-red-400";
-  return (
-    <div className="flex items-center gap-1.5 justify-center">
-      <div className="w-16 h-1.5 bg-gray-100 rounded-full overflow-hidden">
-        <div className={`h-full rounded-full ${color}`} style={{ width: `${pct}%` }} />
-      </div>
-      <span className="text-xs text-gray-500">{score}/{max}</span>
-    </div>
   );
 }

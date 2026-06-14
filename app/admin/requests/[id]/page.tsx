@@ -41,6 +41,9 @@ export type SavedMatch = {
   closed_at: string | null;
   response_note: string | null;
   sent_via: string | null;
+  supplier_response: "accepted" | "countered" | "declined" | null;
+  supplier_message: string | null;
+  supplier_responded_at: string | null;
 };
 
 export default async function RequestDetailPage({ params }: PageProps) {
@@ -51,7 +54,7 @@ export default async function RequestDetailPage({ params }: PageProps) {
     supabaseAdmin
       .from("sourcing_matches")
       .select(
-        "id, supplier_id, match_score, product_name, company_name, country, match_summary, whatsapp_message, match_breakdown, status, approved_at, rejected_at, sent_at, responded_at, closed_at, response_note, sent_via"
+        "id, supplier_id, match_score, product_name, company_name, country, match_summary, whatsapp_message, match_breakdown, status, approved_at, rejected_at, sent_at, responded_at, closed_at, response_note, sent_via, supplier_response, supplier_message, supplier_responded_at"
       )
       .eq("request_id", id)
       .order("match_score", { ascending: false }),
@@ -71,6 +74,25 @@ export default async function RequestDetailPage({ params }: PageProps) {
   const isNameCleaned = cleanedName !== productName && cleanedName.length > 0;
 
   const matches = (rawMatches ?? []) as SavedMatch[];
+
+  // Supplier contact info (phone/email) for WhatsApp deep links and contact icons.
+  const supplierIds = Array.from(new Set(matches.map((m) => m.supplier_id)));
+  const { data: contactRows } = supplierIds.length
+    ? await supabaseAdmin
+        .from("supplier_contacts")
+        .select("supplier_id, phone, email, scraped_at")
+        .in("supplier_id", supplierIds)
+        .order("scraped_at", { ascending: false })
+    : { data: [] as { supplier_id: string; phone: string | null; email: string | null }[] };
+
+  const contactMap: Record<string, { phone: string | null; email: string | null }> = {};
+  for (const c of contactRows ?? []) {
+    const entry = contactMap[c.supplier_id] ?? { phone: null, email: null };
+    if (!entry.phone && c.phone) entry.phone = c.phone;
+    if (!entry.email && c.email) entry.email = c.email;
+    contactMap[c.supplier_id] = entry;
+  }
+
   const v2Pips = (rawV2Pips ?? []) as PipV2CardData[];
   const certs = (request.certifications as string[] | null) ?? [];
   const hasKosher = certs.some((c) => c.toLowerCase().includes("kosher"));
@@ -166,6 +188,7 @@ export default async function RequestDetailPage({ params }: PageProps) {
               initialMatches={matches}
               productName={productName}
               company={request.company as string | null}
+              contactMap={contactMap}
             />
           </div>
         </div>

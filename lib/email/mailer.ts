@@ -144,6 +144,7 @@ export interface BuyerConfirmationPayload {
   email: string;
   intentSummary: string;
   matchedItems: { title: string; slug: string }[];
+  portalLink?: string;
 }
 
 export async function sendBuyerConfirmation(
@@ -156,7 +157,7 @@ export async function sendBuyerConfirmation(
 
   const resend = new Resend(process.env.RESEND_API_KEY);
   const from = process.env.NOTIFY_EMAIL_FROM ?? "info@foodz-x.com";
-  const { name, email, intentSummary, matchedItems } = payload;
+  const { name, email, intentSummary, matchedItems, portalLink } = payload;
 
   const intentBlock =
     intentSummary !== "No specific intent detected"
@@ -183,6 +184,12 @@ export async function sendBuyerConfirmation(
   </div>`
       : "";
 
+  const portalBlock = portalLink
+    ? `<a href="${portalLink}" style="display:inline-block;margin:8px 0 24px;background:#ea580c;color:#ffffff;font-weight:600;font-size:14px;padding:12px 24px;border-radius:8px;text-decoration:none;">
+    Track your request →
+  </a>`
+    : "";
+
   const html = `<div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:32px 24px;">
 
   <div style="margin-bottom:24px;">
@@ -207,6 +214,8 @@ export async function sendBuyerConfirmation(
   ${intentBlock}
 
   ${matchedBlock}
+
+  ${portalBlock}
 
   <div style="border-top:1px solid #e2e8f0;padding-top:20px;margin-top:8px;">
     <p style="color:#475569;font-size:14px;margin:0 0 6px;">
@@ -347,6 +356,7 @@ export interface SupplierConfirmationPayload {
   contact_email: string;
   company_name: string;
   image_count: number;
+  portalLink?: string;
 }
 
 export async function sendSupplierConfirmation(
@@ -359,7 +369,13 @@ export async function sendSupplierConfirmation(
 
   const resend = new Resend(process.env.RESEND_API_KEY);
   const from = process.env.NOTIFY_EMAIL_FROM ?? "info@foodz-x.com";
-  const { contact_name, contact_email, company_name, image_count } = payload;
+  const { contact_name, contact_email, company_name, image_count, portalLink } = payload;
+
+  const portalBlock = portalLink
+    ? `<a href="${portalLink}" style="display:inline-block;margin:0 0 16px;background:#ea580c;color:#ffffff;font-weight:600;font-size:14px;padding:12px 24px;border-radius:8px;text-decoration:none;">
+    Track your application →
+  </a>`
+    : "";
 
   const html = `<div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:32px 24px;">
 
@@ -382,6 +398,8 @@ export async function sendSupplierConfirmation(
   <p style="color:#475569;font-size:14px;line-height:1.7;margin:0 0 24px;">
     In the meantime, feel free to reach us directly on WhatsApp if you have any questions.
   </p>
+
+  ${portalBlock}
 
   <a href="https://wa.me/972525222291"
     style="display:inline-flex;align-items:center;gap:8px;background:#22c55e;color:#ffffff;font-weight:600;font-size:14px;padding:12px 24px;border-radius:10px;text-decoration:none;margin-bottom:32px;">
@@ -412,5 +430,204 @@ export async function sendSupplierConfirmation(
     });
   } catch (err) {
     console.error("sendSupplierConfirmation email send failed:", err);
+  }
+}
+
+export interface SupplierResponseNotificationPayload {
+  company_name: string;
+  product_name: string | null;
+  request_id: string | null;
+  response_note: string | null;
+}
+
+export async function sendSupplierResponseNotification(
+  payload: SupplierResponseNotificationPayload
+): Promise<void> {
+  if (!process.env.RESEND_API_KEY) {
+    console.warn("RESEND_API_KEY not set — skipping supplier response notification");
+    return;
+  }
+
+  const resend = new Resend(process.env.RESEND_API_KEY);
+  const to = process.env.NOTIFY_EMAIL_TO ?? "info@foodz-x.com";
+  const from = process.env.NOTIFY_EMAIL_FROM ?? "info@foodz-x.com";
+  const { company_name, product_name, request_id, response_note } = payload;
+
+  const html = `<div style="font-family:sans-serif;max-width:600px;margin:0 auto;">
+  <div style="background:#0f172a;padding:24px;border-radius:12px 12px 0 0;">
+    <h2 style="color:#ffffff;margin:0;font-size:20px;">Supplier responded to a match</h2>
+    <p style="color:#94a3b8;margin:6px 0 0;font-size:13px;">via FoodXchange supplier portal</p>
+  </div>
+
+  <div style="border:1px solid #e2e8f0;border-top:none;border-radius:0 0 12px 12px;padding:24px;">
+    <table style="width:100%;font-size:14px;border-collapse:collapse;margin-bottom:20px;">
+      <tr>
+        <td style="color:#64748b;padding:5px 0;width:130px;">Supplier</td>
+        <td style="color:#1e293b;font-weight:600;">${company_name}</td>
+      </tr>
+      <tr>
+        <td style="color:#64748b;padding:5px 0;">Product</td>
+        <td style="color:#1e293b;">${product_name ?? "—"}</td>
+      </tr>
+    </table>
+
+    <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:16px;margin-bottom:20px;">
+      <p style="color:#64748b;font-size:12px;margin:0 0 6px;text-transform:uppercase;letter-spacing:0.05em;">Response note</p>
+      <p style="color:#334155;font-size:14px;line-height:1.6;margin:0;">${response_note ?? "No note provided"}</p>
+    </div>
+
+    ${request_id ? `<a href="https://fdx.trading/admin/requests/${request_id}"
+      style="display:inline-block;background:#ea580c;color:#ffffff;font-weight:600;font-size:14px;padding:12px 24px;border-radius:8px;text-decoration:none;">
+      Review request →
+    </a>` : ""}
+
+    <hr style="border:none;border-top:1px solid #e2e8f0;margin:24px 0 16px;"/>
+    <p style="color:#94a3b8;font-size:12px;margin:0;">FoodXchange · fdx.trading</p>
+  </div>
+</div>`;
+
+  try {
+    await resend.emails.send({
+      from,
+      to,
+      subject: `💬 Supplier responded — ${company_name}`,
+      html,
+    });
+  } catch (err) {
+    console.error("sendSupplierResponseNotification email send failed:", err);
+  }
+}
+
+export interface SupplierApprovalEmailPayload {
+  contact_name: string | null;
+  contact_email: string;
+  company_name: string;
+  portalLink?: string;
+}
+
+export async function sendSupplierApprovalEmail(payload: SupplierApprovalEmailPayload): Promise<void> {
+  if (!process.env.RESEND_API_KEY) {
+    console.warn("RESEND_API_KEY not set — skipping supplier approval email");
+    return;
+  }
+
+  const resend = new Resend(process.env.RESEND_API_KEY);
+  const from = process.env.NOTIFY_EMAIL_FROM ?? "info@foodz-x.com";
+  const { contact_name, contact_email, company_name, portalLink } = payload;
+  const link = portalLink ?? "https://fdx.trading/en/supplier-portal/login";
+
+  const html = `<div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:32px 24px;">
+
+  <div style="background:#ea580c;padding:4px 0;border-radius:4px;margin-bottom:28px;"></div>
+
+  <p style="color:#64748b;font-size:13px;margin:0 0 20px;">FoodXchange</p>
+
+  <h1 style="color:#1e293b;font-size:22px;font-weight:600;margin:0 0 16px;line-height:1.3;">
+    You're approved — welcome to FoodXchange!
+  </h1>
+
+  <p style="color:#475569;font-size:15px;line-height:1.7;margin:0 0 16px;">
+    Hi ${contact_name ?? "there"}, great news — <strong style="color:#1e293b;">${company_name}</strong> has been
+    approved and is now listed on FoodXchange.
+  </p>
+
+  <p style="color:#475569;font-size:15px;line-height:1.7;margin:0 0 24px;">
+    Next steps: log in to your supplier portal to add your products,
+    review your certifications, and complete your company profile so
+    buyers can find you.
+  </p>
+
+  <a href="${link}"
+    style="display:inline-block;margin:0 0 24px;background:#ea580c;color:#ffffff;font-weight:600;font-size:14px;padding:12px 24px;border-radius:8px;text-decoration:none;">
+    Go to your supplier portal →
+  </a>
+
+  <div style="border-top:1px solid #e2e8f0;padding-top:20px;">
+    <p style="color:#475569;font-size:14px;margin:0 0 6px;">
+      Questions? Reply to this email or write to:
+    </p>
+    <a href="mailto:info@foodz-x.com" style="color:#ea580c;font-size:14px;">info@foodz-x.com</a>
+  </div>
+
+  <div style="margin-top:32px;padding-top:16px;border-top:1px solid #f1f5f9;">
+    <p style="color:#94a3b8;font-size:12px;margin:0;">
+      FoodXchange · Strategic sourcing · fdx.trading
+    </p>
+  </div>
+
+</div>`;
+
+  try {
+    await resend.emails.send({
+      from,
+      to: contact_email,
+      subject: "You're approved — welcome to FoodXchange",
+      html,
+    });
+  } catch (err) {
+    console.error("sendSupplierApprovalEmail send failed:", err);
+  }
+}
+
+export interface SupplierRejectionEmailPayload {
+  contact_name: string | null;
+  contact_email: string;
+  company_name: string;
+  reason?: string | null;
+}
+
+export async function sendSupplierRejectionEmail(payload: SupplierRejectionEmailPayload): Promise<void> {
+  if (!process.env.RESEND_API_KEY) {
+    console.warn("RESEND_API_KEY not set — skipping supplier rejection email");
+    return;
+  }
+
+  const resend = new Resend(process.env.RESEND_API_KEY);
+  const from = process.env.NOTIFY_EMAIL_FROM ?? "info@foodz-x.com";
+  const { contact_name, contact_email, company_name, reason } = payload;
+
+  const html = `<div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:32px 24px;">
+
+  <div style="background:#ea580c;padding:4px 0;border-radius:4px;margin-bottom:28px;"></div>
+
+  <p style="color:#64748b;font-size:13px;margin:0 0 20px;">FoodXchange</p>
+
+  <h1 style="color:#1e293b;font-size:22px;font-weight:600;margin:0 0 16px;line-height:1.3;">
+    Update on your FoodXchange application
+  </h1>
+
+  <p style="color:#475569;font-size:15px;line-height:1.7;margin:0 0 16px;">
+    Hi ${contact_name ?? "there"}, thank you for submitting
+    <strong style="color:#1e293b;">${company_name}</strong> to FoodXchange.
+  </p>
+
+  <p style="color:#475569;font-size:15px;line-height:1.7;margin:0 0 24px;">
+    ${reason?.trim() || "After review, we've found that this doesn't match our current sourcing focus. We'll keep your details on file and may reach out if that changes."}
+  </p>
+
+  <div style="border-top:1px solid #e2e8f0;padding-top:20px;">
+    <p style="color:#475569;font-size:14px;margin:0 0 6px;">
+      Questions? Reply to this email or write to:
+    </p>
+    <a href="mailto:info@foodz-x.com" style="color:#ea580c;font-size:14px;">info@foodz-x.com</a>
+  </div>
+
+  <div style="margin-top:32px;padding-top:16px;border-top:1px solid #f1f5f9;">
+    <p style="color:#94a3b8;font-size:12px;margin:0;">
+      FoodXchange · Strategic sourcing · fdx.trading
+    </p>
+  </div>
+
+</div>`;
+
+  try {
+    await resend.emails.send({
+      from,
+      to: contact_email,
+      subject: "Update on your FoodXchange application",
+      html,
+    });
+  } catch (err) {
+    console.error("sendSupplierRejectionEmail send failed:", err);
   }
 }

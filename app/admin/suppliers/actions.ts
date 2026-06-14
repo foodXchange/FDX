@@ -3,6 +3,9 @@
 import { z } from "zod";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { revalidatePath } from "next/cache";
+import { getAdminEmail } from "@/lib/adminAuth";
+import { logAdminAction } from "@/lib/auditLog";
+import { sendSupplierApprovalEmail, sendSupplierRejectionEmail } from "@/lib/email/mailer";
 
 const SupplierSchema = z.object({
   company_name: z.string().min(1, "Company name is required").max(300),
@@ -26,7 +29,7 @@ const SupplierSchema = z.object({
   own_brand: z.boolean().default(false),
   priority: z.number().int().default(0),
   status: z
-    .enum(["pending", "approved", "active", "inactive"])
+    .enum(["pending", "approved", "active", "inactive", "rejected"])
     .default("pending"),
   verified: z.boolean().default(false),
   price_positioning: z
@@ -167,11 +170,132 @@ export async function bulkUpdateSupplierStatus(
   return { ok: true };
 }
 
+export async function approveSupplier(
+  id: string
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const { data: supplier, error: fetchError } = await supabaseAdmin
+    .from("supplier_offerings")
+    .select("company_name, contact_email")
+    .eq("id", id)
+    .single();
+
+  if (fetchError || !supplier) {
+    console.error("approveSupplier fetch error:", fetchError);
+    return { ok: false, error: "Supplier not found" };
+  }
+
+  const { error } = await supabaseAdmin
+    .from("supplier_offerings")
+    .update({
+      status: "approved",
+      approved_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", id);
+
+  if (error) {
+    console.error("approveSupplier error:", error);
+    return { ok: false, error: "Database error" };
+  }
+
+  const contact_email = supplier.contact_email as string | null;
+
+  if (contact_email) {
+    const { data: primaryContact } = await supabaseAdmin
+      .from("supplier_contacts")
+      .select("name")
+      .eq("supplier_id", id)
+      .eq("is_primary", true)
+      .limit(1)
+      .maybeSingle();
+
+    let portalLink: string | undefined;
+    try {
+      const site = process.env.NEXT_PUBLIC_SITE_URL ?? "https://fdx.trading";
+      const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
+        type: "magiclink",
+        email: contact_email,
+        options: { redirectTo: `${site}/en/supplier-portal/auth/callback` },
+      });
+      if (linkError) throw linkError;
+      portalLink = linkData.properties?.action_link ?? undefined;
+    } catch (err) {
+      console.error("approveSupplier portal link generation failed:", err);
+    }
+
+    void sendSupplierApprovalEmail({
+      contact_name: (primaryContact?.name as string | null) ?? null,
+      contact_email,
+      company_name: supplier.company_name as string,
+      portalLink,
+    });
+  }
+
+  revalidatePath("/admin/suppliers");
+  revalidatePath(`/admin/suppliers/${id}`);
+  return { ok: true };
+}
+
+export async function rejectSupplier(
+  id: string,
+  reason?: string
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const { data: supplier, error: fetchError } = await supabaseAdmin
+    .from("supplier_offerings")
+    .select("company_name, contact_email")
+    .eq("id", id)
+    .single();
+
+  if (fetchError || !supplier) {
+    console.error("rejectSupplier fetch error:", fetchError);
+    return { ok: false, error: "Supplier not found" };
+  }
+
+  const { error } = await supabaseAdmin
+    .from("supplier_offerings")
+    .update({
+      status: "rejected",
+      rejected_at: new Date().toISOString(),
+      rejection_reason: reason?.trim() || null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", id);
+
+  if (error) {
+    console.error("rejectSupplier error:", error);
+    return { ok: false, error: "Database error" };
+  }
+
+  const contact_email = supplier.contact_email as string | null;
+
+  if (contact_email) {
+    const { data: primaryContact } = await supabaseAdmin
+      .from("supplier_contacts")
+      .select("name")
+      .eq("supplier_id", id)
+      .eq("is_primary", true)
+      .limit(1)
+      .maybeSingle();
+
+    void sendSupplierRejectionEmail({
+      contact_name: (primaryContact?.name as string | null) ?? null,
+      contact_email,
+      company_name: supplier.company_name as string,
+      reason,
+    });
+  }
+
+  revalidatePath("/admin/suppliers");
+  revalidatePath(`/admin/suppliers/${id}`);
+  return { ok: true };
+}
+
 const ContactSchema = z.object({
   name: z.string().min(1),
   role: z.string().optional().nullable(),
   email: z.string().email().optional().nullable(),
   phone: z.string().optional().nullable(),
+  linkedin_url: z.string().url().optional().nullable(),
   is_primary: z.boolean().default(false),
 });
 export type ContactInput = z.infer<typeof ContactSchema>;
@@ -297,7 +421,7 @@ export async function getSupplierMatches(supplierId: string) {
     .from("sourcing_matches")
     .select(
       `id, match_score, match_breakdown, status, created_at,
-       sourcing_requests(id, product_name, category, message, status, created_at)`
+       sourcing_requests(id, product_name, category, message, status, created_at, company, name)`
     )
     .eq("supplier_id", supplierId)
     .order("match_score", { ascending: false })
@@ -316,6 +440,56 @@ export async function getSupplierMatches(supplierId: string) {
       message: string | null;
       status: string | null;
       created_at: string;
+      company: string | null;
+      name: string | null;
     } | null;
   }[];
+}
+
+export async function respondToMatchOnBehalf(
+  matchId: string,
+  supplierId: string,
+  interested: boolean
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const { data: match } = await supabaseAdmin
+    .from("sourcing_matches")
+    .select("id, supplier_id")
+    .eq("id", matchId)
+    .single();
+
+  if (!match || match.supplier_id !== supplierId) {
+    return { ok: false, error: "Match not found" };
+  }
+
+  const adminEmail = getAdminEmail();
+  const note = `${interested ? "Interested" : "Not interested"} (actioned by admin: ${adminEmail})`;
+
+  const { error } = await supabaseAdmin
+    .from("sourcing_matches")
+    .update({
+      status: "responded",
+      responded_at: new Date().toISOString(),
+      response_note: note,
+    })
+    .eq("id", matchId);
+
+  if (error) return { ok: false, error: error.message };
+
+  const { data: supplier } = await supabaseAdmin
+    .from("supplier_offerings")
+    .select("contact_email")
+    .eq("id", supplierId)
+    .single();
+
+  await logAdminAction({
+    adminEmail,
+    action: "acted_on_behalf",
+    targetType: "supplier",
+    targetId: supplierId,
+    targetEmail: (supplier?.contact_email as string | null) ?? null,
+    metadata: { match_id: matchId, interested },
+  });
+
+  revalidatePath(`/admin/suppliers/${supplierId}`);
+  return { ok: true };
 }

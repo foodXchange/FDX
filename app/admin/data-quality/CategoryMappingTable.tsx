@@ -2,9 +2,12 @@
 
 import { useState } from "react";
 import { mapProductsToCategoryDirect } from "./actions";
+import CategoryCombobox from "@/components/admin/CategoryCombobox";
 
 type UnmappedRow = { category: string; count: number };
 type CategoryOption = { id: string; name: string };
+
+const PAGE_SIZE = 50;
 
 export default function CategoryMappingTable({
   unmapped,
@@ -17,6 +20,8 @@ export default function CategoryMappingTable({
   const [states, setStates] = useState<Record<string, "idle" | "saving" | "done" | "error">>({});
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [hidden, setHidden] = useState<Set<string>>(new Set());
+  const [search, setSearch] = useState("");
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
 
   async function handleSave(categoryText: string) {
     const categoryId = selections[categoryText];
@@ -38,6 +43,14 @@ export default function CategoryMappingTable({
 
   const visible = unmapped.filter((r) => !hidden.has(r.category));
 
+  const filtered = search.trim()
+    ? visible.filter((r) =>
+        r.category.toLowerCase().includes(search.trim().toLowerCase())
+      )
+    : visible;
+
+  const shown = filtered.slice(0, visibleCount);
+
   if (visible.length === 0) {
     return (
       <p className="text-sm text-green-600 font-medium py-4">
@@ -47,7 +60,22 @@ export default function CategoryMappingTable({
   }
 
   return (
-    <div className="overflow-x-auto">
+    <div>
+      <input
+        type="text"
+        value={search}
+        onChange={(e) => {
+          setSearch(e.target.value);
+          setVisibleCount(PAGE_SIZE);
+        }}
+        placeholder="Search category text…"
+        className="mb-3 w-full max-w-xs text-xs border border-gray-200 rounded-lg px-3 py-1.5 bg-white text-gray-700 outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-100"
+      />
+
+      {filtered.length === 0 ? (
+        <p className="text-sm text-gray-400 py-4">No categories match this search.</p>
+      ) : (
+      <div className="overflow-x-auto">
       <table className="w-full text-sm">
         <thead>
           <tr className="text-left border-b border-gray-200">
@@ -58,7 +86,7 @@ export default function CategoryMappingTable({
           </tr>
         </thead>
         <tbody className="divide-y divide-gray-100">
-          {visible.map((row) => {
+          {shown.map((row) => {
             const state = states[row.category] ?? "idle";
             return (
               <tr key={row.category} className="group">
@@ -67,21 +95,14 @@ export default function CategoryMappingTable({
                 </td>
                 <td className="py-2 pr-4 text-gray-500">{row.count}</td>
                 <td className="py-2 pr-4">
-                  <select
-                    className="text-xs border border-gray-200 rounded-lg px-2 py-1.5 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-orange-400 w-full max-w-xs"
+                  <CategoryCombobox
                     value={selections[row.category] ?? ""}
-                    onChange={(e) =>
-                      setSelections((s) => ({ ...s, [row.category]: e.target.value }))
+                    categories={categories}
+                    onChange={(categoryId) =>
+                      setSelections((s) => ({ ...s, [row.category]: categoryId }))
                     }
                     disabled={state === "saving" || state === "done"}
-                  >
-                    <option value="">— select category —</option>
-                    {categories.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.name}
-                      </option>
-                    ))}
-                  </select>
+                  />
                 </td>
                 <td className="py-2">
                   {state === "done" ? (
@@ -105,6 +126,20 @@ export default function CategoryMappingTable({
           })}
         </tbody>
       </table>
+      </div>
+      )}
+
+      {filtered.length > shown.length && (
+        <div className="mt-3 text-center">
+          <button
+            type="button"
+            onClick={() => setVisibleCount((c) => c + PAGE_SIZE)}
+            className="px-4 py-1.5 text-xs font-medium rounded-lg border border-gray-200 text-gray-600 hover:border-orange-300 hover:text-orange-600 transition-colors"
+          >
+            Load more ({filtered.length - shown.length} remaining)
+          </button>
+        </div>
+      )}
     </div>
   );
 }

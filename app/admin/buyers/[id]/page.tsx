@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { updateBuyer } from "@/app/admin/buyers/actions";
 import BuyerDetailTabs from "@/components/admin/BuyerDetailTabs";
+import ImpersonateButton from "@/components/admin/ImpersonateButton";
 
 export default async function EditBuyerPage({
   params,
@@ -40,6 +41,17 @@ export default async function EditBuyerPage({
             Active
           </span>
         )}
+        <ImpersonateButton kind="buyer" id={id} label="View as buyer" />
+        <a
+          href={`/admin/requests/new?buyer_id=${id}&company=${encodeURIComponent(
+            String(buyerResult.data.company_name ?? "")
+          )}&name=${encodeURIComponent(
+            String(buyerResult.data.contact_name ?? "")
+          )}&email=${encodeURIComponent(String(buyerResult.data.contact_email ?? ""))}`}
+          className="text-sm text-orange-600 hover:text-orange-700 font-medium"
+        >
+          Submit request for buyer →
+        </a>
         <span className="text-xs text-gray-400 ml-auto">
           Updated{" "}
           {buyerResult.data.updated_at
