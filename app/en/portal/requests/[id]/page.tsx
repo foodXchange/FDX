@@ -36,7 +36,7 @@ export default async function PortalRequestDetailPage({ params }: { params: Para
     .from("sourcing_matches")
     .select(
       `id, supplier_id, company_name, country, product_name, match_score, match_summary, match_breakdown, status,
-       supplier_response, supplier_message, supplier_responded_at, sent_at, closed_at, created_at,
+       sent_at, closed_at, created_at,
        buyer_interest, buyer_interest_at,
        supplier:supplier_offerings(logo_url, certifications)`
     )

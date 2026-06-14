@@ -963,6 +963,64 @@ export async function sendBuyerInfoRequestNotification(
   }
 }
 
+export interface BuyerSupportMessagePayload {
+  buyerName: string | null;
+  buyerEmail: string | null;
+  companyName: string | null;
+  message: string;
+}
+
+export async function sendBuyerSupportMessage(payload: BuyerSupportMessagePayload): Promise<void> {
+  if (!process.env.RESEND_API_KEY) {
+    console.warn("RESEND_API_KEY not set — skipping buyer support message notification");
+    return;
+  }
+
+  const resend = new Resend(process.env.RESEND_API_KEY);
+  const to = process.env.NOTIFY_EMAIL_TO ?? "info@foodz-x.com";
+  const from = process.env.NOTIFY_EMAIL_FROM ?? "info@foodz-x.com";
+  const { buyerName, buyerEmail, companyName, message } = payload;
+
+  const html = `<div style="font-family:sans-serif;max-width:600px;margin:0 auto;">
+  <div style="background:#0f172a;padding:24px;border-radius:12px 12px 0 0;">
+    <h2 style="color:#ffffff;margin:0;font-size:20px;">Buyer support message</h2>
+    <p style="color:#94a3b8;margin:6px 0 0;font-size:13px;">via FoodXchange buyer portal</p>
+  </div>
+
+  <div style="border:1px solid #e2e8f0;border-top:none;border-radius:0 0 12px 12px;padding:24px;">
+    <table style="width:100%;font-size:14px;border-collapse:collapse;margin-bottom:20px;">
+      <tr>
+        <td style="color:#64748b;padding:5px 0;width:150px;">Buyer</td>
+        <td style="color:#1e293b;font-weight:600;">${buyerName ?? "—"} ${buyerEmail ? `(${buyerEmail})` : ""}</td>
+      </tr>
+      <tr>
+        <td style="color:#64748b;padding:5px 0;">Company</td>
+        <td style="color:#1e293b;">${companyName ?? "—"}</td>
+      </tr>
+    </table>
+
+    <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:16px;margin-bottom:20px;">
+      <p style="color:#64748b;font-size:12px;margin:0 0 6px;text-transform:uppercase;letter-spacing:0.05em;">Message</p>
+      <p style="color:#334155;font-size:14px;line-height:1.6;margin:0;white-space:pre-wrap;">${message}</p>
+    </div>
+
+    <hr style="border:none;border-top:1px solid #e2e8f0;margin:24px 0 16px;"/>
+    <p style="color:#94a3b8;font-size:12px;margin:0;">FoodXchange · fdx.trading</p>
+  </div>
+</div>`;
+
+  try {
+    await resend.emails.send({
+      from,
+      to,
+      subject: `Buyer support — ${companyName ?? buyerName ?? buyerEmail ?? "—"}`,
+      html,
+    });
+  } catch (err) {
+    console.error("sendBuyerSupportMessage email send failed:", err);
+  }
+}
+
 export interface SupplierActionResponseNotificationPayload {
   companyName: string;
   supplierId: string;

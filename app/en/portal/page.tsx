@@ -2,20 +2,8 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
-import { cleanRequestName } from "@/lib/matching/cleanRequestName";
-import StatusBadge from "@/components/portal/StatusBadge";
-
-type PortalRequest = {
-  id: string;
-  product_name: string | null;
-  category: string | null;
-  message: string | null;
-  status: string | null;
-  certifications: string[] | null;
-  private_label: boolean | null;
-  match_count: number | null;
-  created_at: string;
-};
+import RequestsList, { type PortalRequest } from "@/components/portal/RequestsList";
+import SupportForm from "@/components/portal/SupportForm";
 
 export default async function PortalDashboardPage() {
   const supabase = await createClient();
@@ -92,65 +80,10 @@ export default async function PortalDashboardPage() {
             </Link>
           </div>
         ) : (
-          <div className="space-y-3">
-            {requests.map((r) => {
-              const productName = r.product_name ?? "";
-              const cleanedName = productName ? cleanRequestName(productName) : "";
-              const certs = r.certifications ?? [];
-              const hasKosher = certs.some((c) => c.toLowerCase().includes("kosher"));
-              const title =
-                cleanedName || productName || r.message?.slice(0, 60) || "Sourcing request";
-
-              return (
-                <Link
-                  key={r.id}
-                  href={`/en/portal/requests/${r.id}`}
-                  className="dark-card p-5 flex flex-col gap-2 hover:border-orange-400/40 transition block"
-                >
-                  <div className="flex items-start justify-between gap-4 flex-wrap">
-                    <h3 className="font-semibold text-white">{title}</h3>
-                    <StatusBadge status={r.status} />
-                  </div>
-
-                  {(r.category || hasKosher || r.private_label) && (
-                    <div className="flex flex-wrap gap-2">
-                      {r.category && (
-                        <span className="text-xs px-2.5 py-1 rounded-full bg-orange-500/10 text-orange-300">
-                          {r.category}
-                        </span>
-                      )}
-                      {hasKosher && (
-                        <span className="text-xs px-2.5 py-1 rounded-full bg-blue-500/10 text-blue-300">
-                          ✡ Kosher
-                        </span>
-                      )}
-                      {r.private_label && (
-                        <span className="text-xs px-2.5 py-1 rounded-full bg-purple-500/10 text-purple-300">
-                          Private label
-                        </span>
-                      )}
-                    </div>
-                  )}
-
-                  <div className="flex items-center justify-between text-xs text-slate-400 mt-1">
-                    <span>
-                      {r.match_count
-                        ? `${r.match_count} match${r.match_count !== 1 ? "es" : ""}`
-                        : "No matches yet"}
-                    </span>
-                    <span>
-                      {new Date(r.created_at).toLocaleDateString("en-GB", {
-                        day: "numeric",
-                        month: "short",
-                        year: "numeric",
-                      })}
-                    </span>
-                  </div>
-                </Link>
-              );
-            })}
-          </div>
+          <RequestsList requests={requests} />
         )}
+
+        <SupportForm />
       </div>
     </section>
   );
