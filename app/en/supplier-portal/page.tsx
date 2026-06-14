@@ -16,7 +16,7 @@ export default async function SupplierPortalDashboardPage() {
 
   const supplierId = ctx.supplierId;
 
-  const [{ data: supplier }, productsTotal, productsPublished, matchesTotal, matchesOpen] =
+  const [{ data: supplier }, productsTotal, productsPublished, matchesTotal, matchesOpen, matchesNew] =
     await Promise.all([
       supabaseAdmin
         .from("supplier_offerings")
@@ -41,6 +41,11 @@ export default async function SupplierPortalDashboardPage() {
         .select("id", { count: "exact", head: true })
         .eq("supplier_id", supplierId)
         .in("status", SENT_STATUSES),
+      supabaseAdmin
+        .from("sourcing_matches")
+        .select("id", { count: "exact", head: true })
+        .eq("supplier_id", supplierId)
+        .in("status", ["suggested", "sent"]),
     ]);
 
   const companyName = supplier?.company_name ?? "your company";
@@ -48,6 +53,7 @@ export default async function SupplierPortalDashboardPage() {
   const publishedCount = productsPublished.count ?? 0;
   const matchCount = matchesTotal.count ?? 0;
   const openCount = matchesOpen.count ?? 0;
+  const newOpportunityCount = matchesNew.count ?? 0;
 
   const status = supplier?.status ?? null;
   const onboardingCompletedAt = supplier?.onboarding_completed_at ?? null;
@@ -84,13 +90,17 @@ export default async function SupplierPortalDashboardPage() {
           />
         )}
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-10">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-10">
           <Link href="/en/supplier-portal/products" className="dark-card p-5 hover:border-orange-400/40 transition block">
             <p className="text-xs text-slate-400 uppercase tracking-wider mb-1">Products listed</p>
             <p className="text-2xl font-bold text-white">
               {productCount}
               <span className="text-sm text-slate-400 font-normal"> / {publishedCount} published</span>
             </p>
+          </Link>
+          <Link href="/en/supplier-portal/opportunities" className="dark-card p-5 hover:border-orange-400/40 transition block">
+            <p className="text-xs text-slate-400 uppercase tracking-wider mb-1">New opportunities</p>
+            <p className="text-2xl font-bold text-white">{newOpportunityCount}</p>
           </Link>
           <Link href="/en/supplier-portal/matches" className="dark-card p-5 hover:border-orange-400/40 transition block">
             <p className="text-xs text-slate-400 uppercase tracking-wider mb-1">Open opportunities</p>
@@ -105,6 +115,9 @@ export default async function SupplierPortalDashboardPage() {
         <div className="flex flex-wrap gap-3">
           <Link href="/en/supplier-portal/products" className="bg-orange-500 hover:bg-orange-600 text-white px-5 py-2.5 rounded-md text-sm font-semibold transition">
             Manage products
+          </Link>
+          <Link href="/en/supplier-portal/opportunities" className="btn-ghost px-5 py-2.5 rounded-md text-sm font-medium">
+            View opportunities
           </Link>
           <Link href="/en/supplier-portal/matches" className="btn-ghost px-5 py-2.5 rounded-md text-sm font-medium">
             View matches

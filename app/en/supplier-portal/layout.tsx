@@ -28,6 +28,9 @@ export default async function SupplierPortalLayout({ children }: { children: Rea
               <Link href="/en/supplier-portal/products" className="text-slate-300 hover:text-white transition">
                 Products
               </Link>
+              <Link href="/en/supplier-portal/opportunities" className="text-slate-300 hover:text-white transition">
+                Opportunities
+              </Link>
               <Link href="/en/supplier-portal/matches" className="text-slate-300 hover:text-white transition">
                 Matches
               </Link>

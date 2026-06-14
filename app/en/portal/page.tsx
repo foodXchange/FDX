@@ -30,13 +30,31 @@ export default async function PortalDashboardPage() {
       .eq("email", user.email);
   }
 
+  const { data: buyerProfile } = await supabaseAdmin
+    .from("buyers")
+    .select("id, contact_name, company_name, contact_email")
+    .eq("contact_email", user.email ?? "")
+    .single();
+
+  const buyerId = buyerProfile?.id;
+
+  const requestsFilter = buyerId
+    ? `buyer_id.eq.${buyerId},email.eq.${user.email ?? ""}`
+    : `email.eq.${user.email ?? ""}`;
+
+  const newRequestUrl = `/en/buyers?name=${encodeURIComponent(
+    buyerProfile?.contact_name ?? ""
+  )}&email=${encodeURIComponent(user.email ?? "")}&company=${encodeURIComponent(
+    buyerProfile?.company_name ?? ""
+  )}`;
+
   const [{ data: rawRequests }, { data: profile }] = await Promise.all([
     supabaseAdmin
       .from("sourcing_requests")
       .select(
         "id, product_name, category, message, status, certifications, private_label, match_count, created_at"
       )
-      .eq("email", user.email ?? "")
+      .or(requestsFilter)
       .order("created_at", { ascending: false }),
     supabaseAdmin.from("buyer_profiles").select("name, company").eq("id", user.id).maybeSingle(),
   ]);
@@ -53,7 +71,7 @@ export default async function PortalDashboardPage() {
             <p className="text-sm text-slate-400 mt-1">Welcome back, {greetingName}</p>
           </div>
           <Link
-            href="/en/buyers"
+            href={newRequestUrl}
             className="bg-orange-500 hover:bg-orange-600 text-white px-5 py-2.5 rounded-md text-sm font-semibold transition"
           >
             + New request
@@ -67,7 +85,7 @@ export default async function PortalDashboardPage() {
               Submit a sourcing request and we&apos;ll match you with verified suppliers.
             </p>
             <Link
-              href="/en/buyers"
+              href={newRequestUrl}
               className="inline-block bg-orange-500 hover:bg-orange-600 text-white px-5 py-2.5 rounded-md text-sm font-semibold transition"
             >
               Submit a request →

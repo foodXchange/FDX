@@ -1,10 +1,8 @@
 "use server";
 
-import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { getSupplierContext } from "@/lib/supabase/getSupplierContext";
-import { getImpersonationContext, IMPERSONATION_COOKIE } from "@/lib/impersonation";
 
 export interface SupplierPortalProductData {
   product_name: string;
@@ -23,9 +21,6 @@ export async function createSupplierProduct(
   const ctx = await getSupplierContext();
   if (!ctx?.supplierId) return { ok: false, error: "Not authenticated" };
 
-  const cookieStore = await cookies();
-  const impersonation = await getImpersonationContext(cookieStore.get(IMPERSONATION_COOKIE)?.value);
-
   const { data: inserted, error } = await supabaseAdmin
     .from("supplier_products")
     .insert({
@@ -35,7 +30,6 @@ export async function createSupplierProduct(
       is_published: false,
       manually_verified: false,
       ...data,
-      impersonated_by: impersonation?.adminEmail ?? null,
     })
     .select("id")
     .single();
@@ -62,12 +56,9 @@ export async function updateSupplierProduct(
     return { ok: false, error: "Product not found" };
   }
 
-  const cookieStore = await cookies();
-  const impersonation = await getImpersonationContext(cookieStore.get(IMPERSONATION_COOKIE)?.value);
-
   const { error } = await supabaseAdmin
     .from("supplier_products")
-    .update({ ...data, impersonated_by: impersonation?.adminEmail ?? null })
+    .update({ ...data })
     .eq("id", productId);
   if (error) return { ok: false, error: error.message };
 

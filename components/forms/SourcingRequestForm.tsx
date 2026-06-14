@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import PhoneInput, { isValidPhoneNumber } from "react-phone-number-input";
 import "react-phone-number-input/style.css";
 import MultiImageUpload, { UploadedImage } from "@/components/ui/MultiImageUpload";
@@ -170,6 +171,7 @@ export default function SourcingRequestForm({
       : source
       ? `fdx_${source}_form`
       : "fdx_buyer_form";
+  const searchParams = useSearchParams();
   const [images, setImages] = useState<UploadedImage[]>([]);
   const [description, setDescription] = useState("");
   const [descHighlight, setDescHighlight] = useState(false);
@@ -179,10 +181,10 @@ export default function SourcingRequestForm({
   const [volumeUnit, setVolumeUnit] = useState("tons");
   const [packaging, setPackaging] = useState("");
   const [privateLabel, setPrivateLabel] = useState(false);
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
+  const [name, setName] = useState(searchParams.get("name") ?? "");
+  const [email, setEmail] = useState(searchParams.get("email") ?? "");
   const [whatsapp, setWhatsapp] = useState("");
-  const [company, setCompany] = useState("");
+  const [company, setCompany] = useState(searchParams.get("company") ?? "");
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [submittedSummary, setSubmittedSummary] = useState("");

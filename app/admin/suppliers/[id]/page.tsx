@@ -9,6 +9,8 @@ import ImpersonateButton from "@/components/admin/ImpersonateButton";
 import SupplierApprovalActions from "@/components/admin/SupplierApprovalActions";
 import SupplierPendingMatches from "@/components/admin/SupplierPendingMatches";
 import TrustScoreCard from "@/components/admin/TrustScoreCard";
+import RequestDocsButton from "@/components/admin/RequestDocsButton";
+import SupplierActionsList, { type SupplierActionRow } from "@/components/admin/SupplierActionsList";
 import { calculateTrustScore } from "@/lib/suppliers/trustScore";
 
 function SupplierStatusBadge({
@@ -54,7 +56,7 @@ export default async function EditSupplierPage({
 }) {
   const { id } = await params;
 
-  const [supplierResult, contactsResult, documentsResult, factoriesResult, productsResult, pendingMatchesResult, trustScoreBreakdown] =
+  const [supplierResult, contactsResult, documentsResult, factoriesResult, productsResult, pendingMatchesResult, supplierActionsResult, trustScoreBreakdown] =
     await Promise.all([
       supabaseAdmin
         .from("supplier_offerings")
@@ -86,6 +88,11 @@ export default async function EditSupplierPage({
         .select("id, match_score, status, created_at, sourcing_requests(id, product_name, category, company)")
         .eq("supplier_id", id)
         .eq("status", "sent")
+        .order("created_at", { ascending: false }),
+      supabaseAdmin
+        .from("supplier_actions")
+        .select("*")
+        .eq("supplier_id", id)
         .order("created_at", { ascending: false }),
       calculateTrustScore(id),
     ]);
@@ -119,6 +126,7 @@ export default async function EditSupplierPage({
           </span>
         )}
         <ImpersonateButton kind="supplier" id={id} label="View as supplier" />
+        <RequestDocsButton supplierId={id} />
         <TrustScoreCard supplierId={id} score={trustScoreBreakdown.total} breakdown={trustScoreBreakdown} />
         <span className="text-xs text-gray-400 ml-auto">
           Updated{" "}
@@ -187,6 +195,8 @@ export default async function EditSupplierPage({
         supplierId={id}
         matches={(pendingMatchesResult.data ?? []) as Parameters<typeof SupplierPendingMatches>[0]["matches"]}
       />
+
+      <SupplierActionsList actions={(supplierActionsResult.data ?? []) as unknown as SupplierActionRow[]} />
 
       <SupplierDetailTabs
         supplierId={id}
