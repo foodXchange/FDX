@@ -21,7 +21,9 @@ export async function middleware(req: NextRequest) {
   const isAdminRoute =
     pathname.startsWith("/admin") || pathname.startsWith("/en/admin");
   if (isAdminRoute) {
-    if (pathname === "/admin/login") return NextResponse.next();
+    if (pathname === "/admin/login" || pathname.startsWith("/admin/auth/callback")) {
+      return NextResponse.next();
+    }
     const cookie = req.cookies.get(COOKIE_NAME)?.value;
     if (!cookie || !(await verifySession(cookie))) {
       return NextResponse.redirect(new URL("/admin/login", req.url));

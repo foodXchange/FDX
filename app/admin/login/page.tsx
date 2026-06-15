@@ -1,6 +1,6 @@
 'use client';
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import Header from "@/components/Header";
 import Footer from "@/components/ui/Footer";
@@ -34,7 +34,10 @@ function Spinner() {
   );
 }
 
-export default function AdminLoginPage() {
+function AdminLoginContent() {
+  const searchParams = useSearchParams();
+  const linkError = searchParams.get("error") === "invalid_link";
+
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
@@ -48,6 +51,11 @@ export default function AdminLoginPage() {
   const [resetEmail, setResetEmail] = useState("");
   const [resetSending, setResetSending] = useState(false);
   const [resetSent, setResetSent] = useState(false);
+
+  const [magicEmail, setMagicEmail] = useState("");
+  const [magicSending, setMagicSending] = useState(false);
+  const [magicSent, setMagicSent] = useState(false);
+  const [magicError, setMagicError] = useState("");
 
   const router = useRouter();
 
@@ -121,6 +129,31 @@ export default function AdminLoginPage() {
     }
   }
 
+  async function handleMagicLink(e: React.FormEvent) {
+    e.preventDefault();
+    if (!magicEmail || magicSending) return;
+
+    setMagicSending(true);
+    setMagicError("");
+
+    try {
+      const res = await fetch("/api/admin/magic-link", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: magicEmail }),
+      });
+      if (!res.ok) {
+        setMagicError("Something went wrong. Please try again.");
+        return;
+      }
+      setMagicSent(true);
+    } catch {
+      setMagicError("Something went wrong. Please try again.");
+    } finally {
+      setMagicSending(false);
+    }
+  }
+
   return (
     <div className="min-h-screen flex flex-col bg-slate-950">
       <Header />
@@ -139,6 +172,12 @@ export default function AdminLoginPage() {
             <p className="text-sm text-slate-400 text-center mb-6">
               Enter the admin password to access the dashboard.
             </p>
+
+            {linkError && (
+              <p className="text-red-300 bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2 text-sm text-center mb-4">
+                This sign-in link is invalid or has expired. Please request a new one.
+              </p>
+            )}
 
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
@@ -226,11 +265,76 @@ export default function AdminLoginPage() {
                 )}
               </div>
             )}
+
+            <div className="my-6 flex items-center gap-3">
+              <div className="h-px flex-1 bg-white/10" />
+              <span className="text-xs text-slate-500">or</span>
+              <div className="h-px flex-1 bg-white/10" />
+            </div>
+
+            <div>
+              <h2 className="text-sm font-semibold text-white text-center mb-1">Admin magic link</h2>
+              <p className="text-xs text-slate-400 text-center mb-4">
+                Enter your admin email to receive a sign-in link.
+              </p>
+
+              {magicSent ? (
+                <div className="text-center">
+                  <p className="text-sm text-green-300 mb-1">Check your email ✓</p>
+                  <p className="text-xs text-slate-400">
+                    We sent a sign-in link to {magicEmail}. Click the link in the email to access the
+                    admin dashboard. The link expires in 1 hour.
+                  </p>
+                </div>
+              ) : (
+                <form onSubmit={handleMagicLink} className="space-y-3">
+                  <label htmlFor="admin-magic-email" className="sr-only">
+                    Admin email
+                  </label>
+                  <input
+                    id="admin-magic-email"
+                    type="email"
+                    value={magicEmail}
+                    onChange={(e) => setMagicEmail(e.target.value)}
+                    placeholder="you@fdx.trading"
+                    autoComplete="email"
+                    className="w-full border border-gray-200 bg-white px-4 py-2.5 rounded-xl text-sm outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-100"
+                  />
+
+                  {magicError && (
+                    <p className="text-red-300 bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2 text-xs text-center">
+                      {magicError}
+                    </p>
+                  )}
+
+                  <button
+                    type="submit"
+                    disabled={magicSending || !magicEmail}
+                    className="w-full bg-orange-500 hover:bg-orange-600 text-white py-3 rounded-xl font-semibold text-sm transition disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  >
+                    {magicSending && <Spinner />}
+                    {magicSending ? "Sending…" : "Send magic link →"}
+                  </button>
+                </form>
+              )}
+
+              <p className="text-xs text-slate-500 text-center mt-3">
+                Only authorized admin emails can sign in this way.
+              </p>
+            </div>
           </div>
         </div>
       </main>
 
       <Footer />
     </div>
+  );
+}
+
+export default function AdminLoginPage() {
+  return (
+    <Suspense fallback={null}>
+      <AdminLoginContent />
+    </Suspense>
   );
 }

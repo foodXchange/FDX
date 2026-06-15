@@ -1174,6 +1174,64 @@ export async function sendAdminPasswordReminder(payload: AdminPasswordResetPaylo
   }
 }
 
+export interface AdminMagicLinkPayload {
+  email: string;
+  link: string;
+}
+
+export async function sendAdminMagicLinkEmail(payload: AdminMagicLinkPayload): Promise<void> {
+  if (!process.env.RESEND_API_KEY) {
+    console.warn("RESEND_API_KEY not set — skipping admin magic link email");
+    return;
+  }
+
+  const resend = new Resend(process.env.RESEND_API_KEY);
+  const from = process.env.NOTIFY_EMAIL_FROM ?? "info@foodz-x.com";
+  const { email, link } = payload;
+
+  const html = `<div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:32px 24px;">
+
+  <div style="background:#ea580c;padding:4px 0;border-radius:4px;margin-bottom:28px;"></div>
+
+  <p style="color:#64748b;font-size:13px;margin:0 0 20px;">FoodXchange</p>
+
+  <h1 style="color:#1e293b;font-size:22px;font-weight:600;margin:0 0 16px;line-height:1.3;">
+    Your admin sign-in link
+  </h1>
+
+  <p style="color:#475569;font-size:15px;line-height:1.7;margin:0 0 24px;">
+    Click the button below to sign in to the FoodXchange admin dashboard. This link expires in 1 hour.
+  </p>
+
+  <a href="${link}"
+    style="display:inline-block;margin:0 0 24px;background:#ea580c;color:#ffffff;font-weight:600;font-size:14px;padding:12px 24px;border-radius:8px;text-decoration:none;">
+    Sign in to admin →
+  </a>
+
+  <p style="color:#94a3b8;font-size:13px;line-height:1.6;margin:0 0 24px;">
+    If you did not request this, you can safely ignore this email.
+  </p>
+
+  <div style="margin-top:32px;padding-top:16px;border-top:1px solid #f1f5f9;">
+    <p style="color:#94a3b8;font-size:12px;margin:0;">
+      FoodXchange · Strategic sourcing · fdx.trading
+    </p>
+  </div>
+
+</div>`;
+
+  try {
+    await resend.emails.send({
+      from,
+      to: email,
+      subject: "Your FoodXchange admin sign-in link",
+      html,
+    });
+  } catch (err) {
+    console.error("sendAdminMagicLinkEmail send failed:", err);
+  }
+}
+
 export interface SupplierActionResponseNotificationPayload {
   companyName: string;
   supplierId: string;
