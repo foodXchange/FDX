@@ -32,7 +32,8 @@ export type EventType =
   | "match_sent"
   | "deal_marked_won"
   | "bulk_email_sent"
-  | "bulk_whatsapp_sent";
+  | "bulk_whatsapp_sent"
+  | "rfq_sent";
 
 export type EventUserType = "buyer" | "supplier" | "admin";
 

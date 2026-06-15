@@ -67,6 +67,18 @@ export default function LoginPage() {
             </button>
           </form>
         )}
+
+        <p className="mt-6 text-xs text-slate-500 leading-relaxed">
+          By signing in you agree to our{" "}
+          <a href="/en/terms" target="_blank" className="text-orange-400 hover:text-orange-300 underline">
+            Terms of Service
+          </a>{" "}
+          and{" "}
+          <a href="/en/privacy" target="_blank" className="text-orange-400 hover:text-orange-300 underline">
+            Privacy Policy
+          </a>
+          .
+        </p>
       </div>
     </section>
   );

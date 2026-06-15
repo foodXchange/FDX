@@ -3,8 +3,10 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { cleanRequestName } from "@/lib/matching/cleanRequestName";
+import { getPipForRequest } from "@/lib/pip/getPipForRequest";
 import PipPanel, { type PipV2CardData } from "@/components/admin/PipPanel";
 import MatchCards from "./MatchCards";
+import type { RfqRequestVars, RfqTemplateRow } from "@/components/admin/RfqComposerModal";
 
 export const metadata: Metadata = { title: "Request Detail | Admin" };
 
@@ -49,7 +51,7 @@ export type SavedMatch = {
 export default async function RequestDetailPage({ params }: PageProps) {
   const { id } = await params;
 
-  const [{ data: request, error }, { data: rawMatches }, { data: rawV2Pips }] = await Promise.all([
+  const [{ data: request, error }, { data: rawMatches }, { data: rawV2Pips }, { data: rawRfqTemplates }] = await Promise.all([
     supabaseAdmin.from("sourcing_requests").select("*").eq("id", id).single(),
     supabaseAdmin
       .from("sourcing_matches")
@@ -65,6 +67,11 @@ export default async function RequestDetailPage({ params }: PageProps) {
       .eq("pip_version", 2)
       .eq("created_from", "image")
       .order("created_at", { ascending: true }),
+    supabaseAdmin
+      .from("supplier_email_templates")
+      .select("id, name, subject, body")
+      .eq("template_type", "rfq")
+      .order("name"),
   ]);
 
   if (error || !request) notFound();
@@ -97,6 +104,16 @@ export default async function RequestDetailPage({ params }: PageProps) {
   const certs = (request.certifications as string[] | null) ?? [];
   const hasKosher = certs.some((c) => c.toLowerCase().includes("kosher"));
   const intentJson = (request.intent_json as Record<string, unknown> | null) ?? null;
+
+  const rfqTemplates = (rawRfqTemplates ?? []) as RfqTemplateRow[];
+  const pip = await getPipForRequest(id);
+  const rfqRequestVars: RfqRequestVars = {
+    buyer_company: (request.company as string | null) ?? "",
+    product_name: cleanedName || productName,
+    volume: pip.commercial.volume ?? "",
+    certifications: [...pip.compliance.kosher_types, ...pip.compliance.certifications].join(", "),
+    request_description: (request.message as string | null) ?? pip.product.raw_description ?? "",
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -189,6 +206,8 @@ export default async function RequestDetailPage({ params }: PageProps) {
               productName={productName}
               company={request.company as string | null}
               contactMap={contactMap}
+              rfqTemplates={rfqTemplates}
+              rfqRequestVars={rfqRequestVars}
             />
           </div>
         </div>

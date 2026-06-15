@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic";
 export default async function EmailTemplatesPage() {
   const { data: rows } = await supabaseAdmin
     .from("supplier_email_templates")
-    .select("id, name, channel, subject, body")
+    .select("id, name, channel, subject, body, template_type")
     .order("name");
 
   return (

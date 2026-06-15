@@ -282,7 +282,16 @@ export default function BuyerMatchCard({ match }: { match: BuyerMatch }) {
                 A sourcing commission of 3% applies to any orders placed with suppliers matched via
                 FoodXchange within 24 months
               </li>
-              <li>FoodXchange terms of service apply</li>
+              <li>
+                <a
+                  href="/en/terms"
+                  target="_blank"
+                  className="text-orange-400 underline hover:text-orange-300"
+                >
+                  FoodXchange terms of service
+                </a>{" "}
+                apply
+              </li>
             </ul>
             <label className="flex items-center gap-2 text-sm text-slate-300 mb-3">
               <input

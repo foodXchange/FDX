@@ -6,6 +6,7 @@ import type { SavedMatch } from "./page";
 import MatchPipelineBadge from "@/components/matches/MatchPipelineBadge";
 import { getPipelineStatus } from "@/lib/matches/pipelineStatus";
 import { sleep, waLink } from "@/lib/outreach/waLink";
+import RfqComposerModal, { type RfqRequestVars, type RfqTemplateRow } from "@/components/admin/RfqComposerModal";
 
 interface Props {
   requestId: string;
@@ -13,6 +14,8 @@ interface Props {
   productName: string;
   company: string | null;
   contactMap: Record<string, { phone: string | null; email: string | null }>;
+  rfqTemplates: RfqTemplateRow[];
+  rfqRequestVars: RfqRequestVars;
 }
 
 type MatchStatus =
@@ -22,6 +25,7 @@ type MatchStatus =
   | "rejected"
   | "sent"
   | "responded"
+  | "rfq_sent"
   | "closed";
 
 interface LocalMatch extends SavedMatch {
@@ -58,6 +62,7 @@ function StatusBadge({ status }: { status: MatchStatus }) {
     rejected: { label: "Rejected", cls: "bg-gray-100 text-gray-500 border-gray-200" },
     sent: { label: "Sent", cls: "bg-orange-50 text-orange-700 border-orange-200" },
     responded: { label: "Responded", cls: "bg-green-50 text-green-700 border-green-200" },
+    rfq_sent: { label: "RFQ sent", cls: "bg-purple-50 text-purple-700 border-purple-200" },
     closed: { label: "Closed", cls: "bg-gray-100 text-gray-500 border-gray-200" },
   };
   const { label, cls } = map[status] ?? map.pending;
@@ -80,7 +85,7 @@ function fmtDate(iso: string | null): string {
 
 const SENT_VIA_ICON: Record<string, string> = { email: "📧", whatsapp: "💬" };
 
-export default function MatchCards({ requestId, initialMatches, productName, company, contactMap }: Props) {
+export default function MatchCards({ requestId, initialMatches, productName, company, contactMap, rfqTemplates, rfqRequestVars }: Props) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [matches, setMatches] = useState<LocalMatch[]>(
@@ -100,6 +105,44 @@ export default function MatchCards({ requestId, initialMatches, productName, com
     company: string;
     countdown: number;
   } | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [rfqOpen, setRfqOpen] = useState(false);
+
+  function toggleSelected(matchId: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(matchId)) next.delete(matchId);
+      else next.add(matchId);
+      return next;
+    });
+  }
+
+  function exportSelected() {
+    const selected = matches.filter((m) => selectedIds.has(m.id));
+    const rows = [
+      ["Supplier", "Product", "Country", "Email"],
+      ...selected.map((m) => [
+        m.company_name ?? "",
+        m.product_name ?? "",
+        m.country ?? "",
+        contactMap[m.supplier_id]?.email ?? "",
+      ]),
+    ];
+    const csv = rows.map((r) => r.map((v) => `"${v.replace(/"/g, '""')}"`).join(",")).join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `suppliers-${requestId}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function handleRfqDone() {
+    setRfqOpen(false);
+    setSelectedIds(new Set());
+    startTransition(() => router.refresh());
+  }
 
   async function patchMatch(
     matchId: string,
@@ -262,6 +305,32 @@ export default function MatchCards({ requestId, initialMatches, productName, com
         </div>
       </div>
 
+      {selectedIds.size > 0 && (
+        <div className="sticky top-2 z-10 flex items-center justify-between gap-3 bg-blue-600 text-white rounded-2xl px-4 py-3 shadow-lg">
+          <p className="text-sm font-medium">{selectedIds.size} supplier{selectedIds.size !== 1 ? "s" : ""} selected</p>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setRfqOpen(true)}
+              className="text-xs font-semibold bg-white text-blue-700 hover:bg-blue-50 px-3 py-1.5 rounded-lg transition-colors"
+            >
+              Send RFQ →
+            </button>
+            <button
+              onClick={exportSelected}
+              className="text-xs font-medium text-white border border-white/40 hover:bg-white/10 px-3 py-1.5 rounded-lg transition-colors"
+            >
+              Export list
+            </button>
+            <button
+              onClick={() => setSelectedIds(new Set())}
+              className="text-xs font-medium text-white/80 hover:text-white px-3 py-1.5 rounded-lg transition-colors"
+            >
+              Clear
+            </button>
+          </div>
+        </div>
+      )}
+
       {bulkState && (
         <p className="text-xs text-green-700 bg-green-50 border border-green-200 rounded-lg px-3 py-2">
           Opening WhatsApp for {bulkState.company} in {bulkState.countdown}s… ({bulkState.index}/{bulkState.total})
@@ -305,6 +374,13 @@ export default function MatchCards({ requestId, initialMatches, productName, com
             {/* Header row */}
             <div className="flex items-start justify-between gap-3 flex-wrap">
               <div className="flex items-center gap-2 flex-wrap">
+                <input
+                  type="checkbox"
+                  checked={selectedIds.has(match.id)}
+                  onChange={() => toggleSelected(match.id)}
+                  className="rounded border-gray-300 mr-1"
+                  aria-label={`Select ${match.company_name ?? "supplier"}`}
+                />
                 <span className="text-xs font-semibold text-gray-400">#{idx + 1}</span>
                 <span
                   className={`text-xs font-bold px-2.5 py-0.5 rounded-full ${scoreBadgeClass(
@@ -596,6 +672,19 @@ export default function MatchCards({ requestId, initialMatches, productName, com
           </div>
         );
       })}
+
+      {rfqOpen && (
+        <RfqComposerModal
+          requestId={requestId}
+          matches={matches
+            .filter((m) => selectedIds.has(m.id))
+            .map((m) => ({ id: m.id, company_name: m.company_name, product_name: m.product_name }))}
+          templates={rfqTemplates}
+          requestVars={rfqRequestVars}
+          onClose={() => setRfqOpen(false)}
+          onDone={handleRfqDone}
+        />
+      )}
     </div>
   );
 }

@@ -9,6 +9,7 @@ export type EmailTemplateRow = {
   channel: "email" | "whatsapp" | "both";
   subject: string | null;
   body: string;
+  template_type: "outreach" | "rfq";
 };
 
 const CHANNEL_LABEL: Record<string, string> = {
@@ -23,7 +24,17 @@ const CHANNEL_BADGE: Record<string, string> = {
   both: "bg-purple-50 text-purple-700",
 };
 
-const EMPTY_FORM: TemplateInput = { name: "", channel: "email", subject: "", body: "" };
+const EMPTY_FORM: TemplateInput = { name: "", channel: "email", subject: "", body: "", template_type: "outreach" };
+
+const TEMPLATE_TYPE_LABEL: Record<string, string> = {
+  outreach: "Outreach",
+  rfq: "RFQ",
+};
+
+const TEMPLATE_TYPE_BADGE: Record<string, string> = {
+  outreach: "bg-slate-100 text-slate-600",
+  rfq: "bg-orange-50 text-orange-700",
+};
 
 const PLACEHOLDER_HINT = "Available placeholders: {{company_name}}, {{product_name}}, {{country}}, {{match_score}}";
 
@@ -42,7 +53,7 @@ export default function EmailTemplatesClient({ templates }: { templates: EmailTe
   }
 
   function startEdit(t: EmailTemplateRow) {
-    setForm({ name: t.name, channel: t.channel, subject: t.subject ?? "", body: t.body });
+    setForm({ name: t.name, channel: t.channel, subject: t.subject ?? "", body: t.body, template_type: t.template_type });
     setEditingId(t.id);
     setCreating(false);
     setError(null);
@@ -104,17 +115,31 @@ export default function EmailTemplatesClient({ templates }: { templates: EmailTe
             />
           </div>
 
-          <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">Channel</label>
-            <select
-              value={form.channel}
-              onChange={(e) => setForm((f) => ({ ...f, channel: e.target.value as TemplateInput["channel"] }))}
-              className="w-full text-sm border border-gray-200 rounded-lg px-3 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-orange-200"
-            >
-              <option value="email">Email</option>
-              <option value="whatsapp">WhatsApp</option>
-              <option value="both">Email + WhatsApp</option>
-            </select>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1">Channel</label>
+              <select
+                value={form.channel}
+                onChange={(e) => setForm((f) => ({ ...f, channel: e.target.value as TemplateInput["channel"] }))}
+                className="w-full text-sm border border-gray-200 rounded-lg px-3 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-orange-200"
+              >
+                <option value="email">Email</option>
+                <option value="whatsapp">WhatsApp</option>
+                <option value="both">Email + WhatsApp</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1">Template type</label>
+              <select
+                value={form.template_type}
+                onChange={(e) => setForm((f) => ({ ...f, template_type: e.target.value as TemplateInput["template_type"] }))}
+                className="w-full text-sm border border-gray-200 rounded-lg px-3 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-orange-200"
+              >
+                <option value="outreach">Outreach</option>
+                <option value="rfq">RFQ</option>
+              </select>
+            </div>
           </div>
 
           {(form.channel === "email" || form.channel === "both") && (
@@ -174,6 +199,9 @@ export default function EmailTemplatesClient({ templates }: { templates: EmailTe
                   <span className="text-sm font-medium text-gray-800">{t.name}</span>
                   <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${CHANNEL_BADGE[t.channel]}`}>
                     {CHANNEL_LABEL[t.channel]}
+                  </span>
+                  <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${TEMPLATE_TYPE_BADGE[t.template_type]}`}>
+                    {TEMPLATE_TYPE_LABEL[t.template_type]}
                   </span>
                 </div>
                 {t.subject && <p className="text-xs text-gray-400 truncate mt-0.5">{t.subject}</p>}

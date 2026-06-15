@@ -9,6 +9,7 @@ const TemplateSchema = z.object({
   channel: z.enum(["email", "whatsapp", "both"]),
   subject: z.string().optional().nullable(),
   body: z.string().min(1, "Body is required"),
+  template_type: z.enum(["outreach", "rfq"]),
 });
 
 export type TemplateInput = z.infer<typeof TemplateSchema>;

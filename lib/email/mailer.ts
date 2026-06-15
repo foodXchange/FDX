@@ -1,5 +1,41 @@
 import { Resend } from "resend";
 
+const EMAIL_FOOTER = `
+  <hr style="border:none;border-top:1px solid #333;margin-top:32px;" />
+  <p style="color:#888;font-size:12px;line-height:1.6;">
+    FoodXchange &middot; fdx.trading<br />
+    Foodz.X Ltd &middot; Tel Aviv, Israel<br />
+    <a href="https://fdx.trading/en/terms" style="color:#888;">Terms</a>
+    &middot;
+    <a href="https://fdx.trading/en/privacy" style="color:#888;">Privacy</a>
+    &middot;
+    <a href="mailto:info@foodz-x.com?subject=unsubscribe" style="color:#888;">Unsubscribe</a>
+  </p>`;
+
+interface SendEmailParams {
+  to: string | string[];
+  subject: string;
+  html: string;
+  replyTo?: string;
+}
+
+/** Shared Resend send wrapper — ensures every outgoing email has a Reply-To,
+ * an unsubscribe header/footer, and a consistent From address. */
+async function sendEmail({ to, subject, html, replyTo = "info@foodz-x.com" }: SendEmailParams) {
+  const resend = new Resend(process.env.RESEND_API_KEY);
+  const from = process.env.RESEND_FROM_EMAIL ?? "FoodXchange <info@foodz-x.com>";
+  return resend.emails.send({
+    from,
+    to,
+    subject,
+    html: `${html}${EMAIL_FOOTER}`,
+    replyTo,
+    headers: {
+      "List-Unsubscribe": "<mailto:info@foodz-x.com?subject=unsubscribe>",
+    },
+  });
+}
+
 export interface LeadEmailPayload {
   name: string;
   email: string;
@@ -30,9 +66,7 @@ export async function sendLeadNotification(payload: LeadEmailPayload): Promise<v
     return;
   }
 
-  const resend = new Resend(process.env.RESEND_API_KEY);
   const to = process.env.NOTIFY_EMAIL_TO ?? "info@foodz-x.com";
-  const from = process.env.NOTIFY_EMAIL_FROM ?? "info@foodz-x.com";
   const { name, email, company, message, intentSummary, matchedItems, submittedAt, matchedSuppliers, supplierMatches } = payload;
 
   const matchedSection =
@@ -128,8 +162,7 @@ ${matchedSuppliers
 </div>`;
 
   try {
-    await resend.emails.send({
-      from,
+    await sendEmail({
       to,
       subject: `New sourcing request — ${name} (${company || "no company"})`,
       html,
@@ -155,8 +188,6 @@ export async function sendBuyerConfirmation(
     return;
   }
 
-  const resend = new Resend(process.env.RESEND_API_KEY);
-  const from = process.env.NOTIFY_EMAIL_FROM ?? "info@foodz-x.com";
   const { name, email, intentSummary, matchedItems, portalLink } = payload;
 
   const intentBlock =
@@ -235,8 +266,7 @@ export async function sendBuyerConfirmation(
 </div>`;
 
   try {
-    await resend.emails.send({
-      from,
+    await sendEmail({
       to: email,
       subject: "We received your sourcing request — FoodXchange",
       html,
@@ -269,9 +299,7 @@ export async function sendSupplierNotification(
     return;
   }
 
-  const resend = new Resend(process.env.RESEND_API_KEY);
   const to = process.env.NOTIFY_EMAIL_TO ?? "info@foodz-x.com";
-  const from = process.env.NOTIFY_EMAIL_FROM ?? "info@foodz-x.com";
   const {
     company_name, country, website, contact_name, contact_email,
     contact_whatsapp, categories, certifications, image_count,
@@ -340,8 +368,7 @@ export async function sendSupplierNotification(
 </div>`;
 
   try {
-    await resend.emails.send({
-      from,
+    await sendEmail({
       to,
       subject: `🏭 New manufacturer — ${company_name}${country ? ` (${country})` : ""}`,
       html,
@@ -367,8 +394,6 @@ export async function sendSupplierConfirmation(
     return;
   }
 
-  const resend = new Resend(process.env.RESEND_API_KEY);
-  const from = process.env.NOTIFY_EMAIL_FROM ?? "info@foodz-x.com";
   const { contact_name, contact_email, company_name, image_count, portalLink } = payload;
 
   const portalBlock = portalLink
@@ -422,8 +447,7 @@ export async function sendSupplierConfirmation(
 </div>`;
 
   try {
-    await resend.emails.send({
-      from,
+    await sendEmail({
       to: contact_email,
       subject: "We received your submission — FoodXchange",
       html,
@@ -448,9 +472,7 @@ export async function sendSupplierResponseNotification(
     return;
   }
 
-  const resend = new Resend(process.env.RESEND_API_KEY);
   const to = process.env.NOTIFY_EMAIL_TO ?? "info@foodz-x.com";
-  const from = process.env.NOTIFY_EMAIL_FROM ?? "info@foodz-x.com";
   const { company_name, product_name, request_id, response_note } = payload;
 
   const html = `<div style="font-family:sans-serif;max-width:600px;margin:0 auto;">
@@ -487,8 +509,7 @@ export async function sendSupplierResponseNotification(
 </div>`;
 
   try {
-    await resend.emails.send({
-      from,
+    await sendEmail({
       to,
       subject: `💬 Supplier responded — ${company_name}`,
       html,
@@ -511,8 +532,6 @@ export async function sendSupplierApprovalEmail(payload: SupplierApprovalEmailPa
     return;
   }
 
-  const resend = new Resend(process.env.RESEND_API_KEY);
-  const from = process.env.NOTIFY_EMAIL_FROM ?? "info@foodz-x.com";
   const { contact_name, contact_email, company_name, portalLink } = payload;
   const link = portalLink ?? "https://fdx.trading/en/supplier-portal/login";
 
@@ -558,8 +577,7 @@ export async function sendSupplierApprovalEmail(payload: SupplierApprovalEmailPa
 </div>`;
 
   try {
-    await resend.emails.send({
-      from,
+    await sendEmail({
       to: contact_email,
       subject: "You're approved — welcome to FoodXchange",
       html,
@@ -582,8 +600,6 @@ export async function sendSupplierRejectionEmail(payload: SupplierRejectionEmail
     return;
   }
 
-  const resend = new Resend(process.env.RESEND_API_KEY);
-  const from = process.env.NOTIFY_EMAIL_FROM ?? "info@foodz-x.com";
   const { contact_name, contact_email, company_name, reason } = payload;
 
   const html = `<div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:32px 24px;">
@@ -621,8 +637,7 @@ export async function sendSupplierRejectionEmail(payload: SupplierRejectionEmail
 </div>`;
 
   try {
-    await resend.emails.send({
-      from,
+    await sendEmail({
       to: contact_email,
       subject: "Update on your FoodXchange application",
       html,
@@ -648,9 +663,7 @@ export async function sendSupplierInterestNotification(
     return;
   }
 
-  const resend = new Resend(process.env.RESEND_API_KEY);
   const to = process.env.NOTIFY_EMAIL_TO ?? "info@foodz-x.com";
-  const from = process.env.NOTIFY_EMAIL_FROM ?? "info@foodz-x.com";
   const { supplierName, requestProductName, buyerMessage, matchedProductName, matchId } = payload;
 
   const html = `<div style="font-family:sans-serif;max-width:600px;margin:0 auto;">
@@ -699,8 +712,7 @@ export async function sendSupplierInterestNotification(
 </div>`;
 
   try {
-    await resend.emails.send({
-      from,
+    await sendEmail({
       to,
       subject: `Supplier interested — ${supplierName} × ${requestProductName ?? "sourcing request"}`,
       html,
@@ -725,8 +737,6 @@ export async function sendSupplierDocRequestEmail(payload: SupplierDocRequestEma
     return;
   }
 
-  const resend = new Resend(process.env.RESEND_API_KEY);
-  const from = process.env.NOTIFY_EMAIL_FROM ?? "info@foodz-x.com";
   const { contact_name, contact_email, company_name, requestMessage, requestedDocs, token } = payload;
   const link = `https://fdx.trading/supplier-action/${token}`;
 
@@ -789,8 +799,7 @@ export async function sendSupplierDocRequestEmail(payload: SupplierDocRequestEma
 </div>`;
 
   try {
-    await resend.emails.send({
-      from,
+    await sendEmail({
       to: contact_email,
       subject: "FoodXchange — quick request from the team",
       html,
@@ -818,9 +827,7 @@ export async function sendBuyerInterestNotification(
     return;
   }
 
-  const resend = new Resend(process.env.RESEND_API_KEY);
   const to = process.env.NOTIFY_EMAIL_TO ?? "info@foodz-x.com";
-  const from = process.env.NOTIFY_EMAIL_FROM ?? "info@foodz-x.com";
   const { buyerName, buyerEmail, supplierName, requestProductName, matchedProductName, matchId, termsAcceptedAt } = payload;
 
   const html = `<div style="font-family:sans-serif;max-width:600px;margin:0 auto;">
@@ -876,8 +883,7 @@ export async function sendBuyerInterestNotification(
 </div>`;
 
   try {
-    await resend.emails.send({
-      from,
+    await sendEmail({
       to,
       subject: `Buyer ${buyerName ?? "—"} interested in supplier ${supplierName ?? "—"} for request ${requestProductName ?? "—"}`,
       html,
@@ -905,9 +911,7 @@ export async function sendBuyerInfoRequestNotification(
     return;
   }
 
-  const resend = new Resend(process.env.RESEND_API_KEY);
   const to = process.env.NOTIFY_EMAIL_TO ?? "info@foodz-x.com";
-  const from = process.env.NOTIFY_EMAIL_FROM ?? "info@foodz-x.com";
   const { buyerName, buyerEmail, supplierName, matchedProductName, requestedInfo, message, matchId } = payload;
 
   const infoList =
@@ -965,8 +969,7 @@ export async function sendBuyerInfoRequestNotification(
 </div>`;
 
   try {
-    await resend.emails.send({
-      from,
+    await sendEmail({
       to,
       subject: `Buyer requesting more info on match ${matchId}`,
       html,
@@ -989,9 +992,7 @@ export async function sendBuyerSupportMessage(payload: BuyerSupportMessagePayloa
     return;
   }
 
-  const resend = new Resend(process.env.RESEND_API_KEY);
   const to = process.env.NOTIFY_EMAIL_TO ?? "info@foodz-x.com";
-  const from = process.env.NOTIFY_EMAIL_FROM ?? "info@foodz-x.com";
   const { buyerName, buyerEmail, companyName, message } = payload;
 
   const html = `<div style="font-family:sans-serif;max-width:600px;margin:0 auto;">
@@ -1023,8 +1024,7 @@ export async function sendBuyerSupportMessage(payload: BuyerSupportMessagePayloa
 </div>`;
 
   try {
-    await resend.emails.send({
-      from,
+    await sendEmail({
       to,
       subject: `Buyer support — ${companyName ?? buyerName ?? buyerEmail ?? "—"}`,
       html,
@@ -1052,9 +1052,7 @@ export async function sendBuyerQuestionNotification(
     return;
   }
 
-  const resend = new Resend(process.env.RESEND_API_KEY);
   const to = process.env.NOTIFY_EMAIL_TO ?? "info@foodz-x.com";
-  const from = process.env.NOTIFY_EMAIL_FROM ?? "info@foodz-x.com";
   const { buyerName, buyerEmail, supplierName, matchedProductName, questions, message, matchId } = payload;
 
   const questionsList =
@@ -1112,8 +1110,7 @@ export async function sendBuyerQuestionNotification(
 </div>`;
 
   try {
-    await resend.emails.send({
-      from,
+    await sendEmail({
       to,
       subject: `Buyer question on match — ${supplierName ?? "supplier"} for ${matchedProductName ?? "match"}`,
       html,
@@ -1133,8 +1130,6 @@ export async function sendAdminPasswordReminder(payload: AdminPasswordResetPaylo
     return;
   }
 
-  const resend = new Resend(process.env.RESEND_API_KEY);
-  const from = process.env.NOTIFY_EMAIL_FROM ?? "info@foodz-x.com";
   const to = "udi@fdx.trading";
   const { requestedFromEmail } = payload;
   const currentPassword = process.env.ADMIN_PASSWORD ?? "(not set)";
@@ -1176,8 +1171,7 @@ export async function sendAdminPasswordReminder(payload: AdminPasswordResetPaylo
 </div>`;
 
   try {
-    await resend.emails.send({
-      from,
+    await sendEmail({
       to,
       subject: "FoodXchange Admin — password reset requested",
       html,
@@ -1198,8 +1192,6 @@ export async function sendAdminMagicLinkEmail(payload: AdminMagicLinkPayload): P
     return;
   }
 
-  const resend = new Resend(process.env.RESEND_API_KEY);
-  const from = process.env.NOTIFY_EMAIL_FROM ?? "info@foodz-x.com";
   const { email, link } = payload;
 
   const html = `<div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:32px 24px;">
@@ -1234,8 +1226,7 @@ export async function sendAdminMagicLinkEmail(payload: AdminMagicLinkPayload): P
 </div>`;
 
   try {
-    await resend.emails.send({
-      from,
+    await sendEmail({
       to: email,
       subject: "Your FoodXchange admin sign-in link",
       html,
@@ -1260,9 +1251,7 @@ export async function sendSupplierActionResponseNotification(
     return;
   }
 
-  const resend = new Resend(process.env.RESEND_API_KEY);
   const to = process.env.NOTIFY_EMAIL_TO ?? "info@foodz-x.com";
-  const from = process.env.NOTIFY_EMAIL_FROM ?? "info@foodz-x.com";
   const { companyName, supplierId, responseText, fileCount } = payload;
 
   const html = `<div style="font-family:sans-serif;max-width:600px;margin:0 auto;">
@@ -1297,8 +1286,7 @@ export async function sendSupplierActionResponseNotification(
 </div>`;
 
   try {
-    await resend.emails.send({
-      from,
+    await sendEmail({
       to,
       subject: `Supplier ${companyName} responded — view at /admin/suppliers/${supplierId}`,
       html,
@@ -1324,8 +1312,6 @@ export async function sendAdminMatchReplyToBuyer(
     return;
   }
 
-  const resend = new Resend(process.env.RESEND_API_KEY);
-  const from = process.env.NOTIFY_EMAIL_FROM ?? "info@foodz-x.com";
   const { buyerEmail, productName, supplierName, message, requestId } = payload;
 
   const html = `<div style="font-family:sans-serif;max-width:600px;margin:0 auto;">
@@ -1349,8 +1335,7 @@ export async function sendAdminMatchReplyToBuyer(
 </div>`;
 
   try {
-    await resend.emails.send({
-      from,
+    await sendEmail({
       to: buyerEmail,
       subject: `Update on your sourcing request — ${productName ?? "your request"}`,
       html,
@@ -1374,8 +1359,6 @@ export async function sendAdminMatchReplyToSupplier(
     return;
   }
 
-  const resend = new Resend(process.env.RESEND_API_KEY);
-  const from = process.env.NOTIFY_EMAIL_FROM ?? "info@foodz-x.com";
   const { supplierEmail, productName, message } = payload;
 
   const html = `<div style="font-family:sans-serif;max-width:600px;margin:0 auto;">
@@ -1397,13 +1380,73 @@ export async function sendAdminMatchReplyToSupplier(
 </div>`;
 
   try {
-    await resend.emails.send({
-      from,
+    await sendEmail({
       to: supplierEmail,
       subject: `Message from FoodXchange${productName ? ` — ${productName}` : ""}`,
       html,
     });
   } catch (err) {
     console.error("sendAdminMatchReplyToSupplier email send failed:", err);
+  }
+}
+
+export interface RfqEmailPayload {
+  supplierEmail: string;
+  subject: string;
+  body: string;
+}
+
+export async function sendRfqEmail(payload: RfqEmailPayload): Promise<{ success: boolean; error?: string }> {
+  if (!process.env.RESEND_API_KEY) {
+    console.warn("RESEND_API_KEY not set — skipping RFQ email");
+    return { success: false, error: "RESEND_API_KEY not set" };
+  }
+
+  const { supplierEmail, subject, body } = payload;
+
+  const html = `<div style="font-family:sans-serif;max-width:600px;margin:0 auto;">
+  <div style="background:#0f172a;padding:24px;border-radius:12px 12px 0 0;">
+    <h2 style="color:#ffffff;margin:0;font-size:20px;">Request for Quotation</h2>
+    <p style="color:#94a3b8;margin:6px 0 0;font-size:13px;">FoodXchange Sourcing</p>
+  </div>
+  <div style="border:1px solid #e2e8f0;border-top:none;border-radius:0 0 12px 12px;padding:24px;">
+    <p style="color:#334155;font-size:14px;line-height:1.7;margin:0;white-space:pre-wrap;">${body}</p>
+    <hr style="border:none;border-top:1px solid #e2e8f0;margin:24px 0 16px;"/>
+    <p style="color:#94a3b8;font-size:12px;margin:0;">FoodXchange · fdx.trading</p>
+  </div>
+</div>`;
+
+  try {
+    const { error } = await sendEmail({ to: supplierEmail, subject, html });
+    if (error) {
+      console.error("sendRfqEmail send failed:", error);
+      return { success: false, error: error.message };
+    }
+    return { success: true };
+  } catch (err) {
+    console.error("sendRfqEmail send failed:", err);
+    return { success: false, error: err instanceof Error ? err.message : "Unknown error" };
+  }
+}
+
+export async function sendTestEmail(to: string): Promise<{ success: boolean; messageId?: string; error?: string }> {
+  if (!process.env.RESEND_API_KEY) {
+    return { success: false, error: "RESEND_API_KEY not set" };
+  }
+
+  const html = `<div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:32px 24px;">
+  <p style="color:#64748b;font-size:13px;margin:0 0 20px;">FoodXchange</p>
+  <h1 style="color:#1e293b;font-size:22px;font-weight:600;margin:0 0 16px;">Deliverability test</h1>
+  <p style="color:#475569;font-size:15px;line-height:1.7;margin:0;">
+    This is a deliverability test from FoodXchange.
+  </p>
+</div>`;
+
+  try {
+    const { data, error } = await sendEmail({ to, subject: "FoodXchange deliverability test", html });
+    if (error) return { success: false, error: error.message };
+    return { success: true, messageId: data?.id };
+  } catch (err) {
+    return { success: false, error: err instanceof Error ? err.message : "Unknown error" };
   }
 }
