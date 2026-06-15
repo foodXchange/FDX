@@ -807,6 +807,7 @@ export interface BuyerInterestNotificationPayload {
   requestProductName: string | null;
   matchedProductName: string | null;
   matchId: string;
+  termsAcceptedAt?: string | null;
 }
 
 export async function sendBuyerInterestNotification(
@@ -820,7 +821,7 @@ export async function sendBuyerInterestNotification(
   const resend = new Resend(process.env.RESEND_API_KEY);
   const to = process.env.NOTIFY_EMAIL_TO ?? "info@foodz-x.com";
   const from = process.env.NOTIFY_EMAIL_FROM ?? "info@foodz-x.com";
-  const { buyerName, buyerEmail, supplierName, requestProductName, matchedProductName, matchId } = payload;
+  const { buyerName, buyerEmail, supplierName, requestProductName, matchedProductName, matchId, termsAcceptedAt } = payload;
 
   const html = `<div style="font-family:sans-serif;max-width:600px;margin:0 auto;">
   <div style="background:#0f172a;padding:24px;border-radius:12px 12px 0 0;">
@@ -849,6 +850,18 @@ export async function sendBuyerInterestNotification(
       <tr>
         <td style="color:#64748b;padding:5px 0;">Match ID</td>
         <td style="color:#1e293b;font-family:monospace;font-size:12px;">${matchId}</td>
+      </tr>
+      <tr>
+        <td style="color:#64748b;padding:5px 0;">Terms accepted</td>
+        <td style="color:#1e293b;">${
+          termsAcceptedAt
+            ? `Yes (${new Date(termsAcceptedAt).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" })})`
+            : "No"
+        }</td>
+      </tr>
+      <tr>
+        <td style="color:#64748b;padding:5px 0;">Commission clause</td>
+        <td style="color:#1e293b;">${termsAcceptedAt ? "Acknowledged" : "—"}</td>
       </tr>
     </table>
 
@@ -1292,5 +1305,105 @@ export async function sendSupplierActionResponseNotification(
     });
   } catch (err) {
     console.error("sendSupplierActionResponseNotification email send failed:", err);
+  }
+}
+
+export interface AdminMatchReplyToBuyerPayload {
+  buyerEmail: string;
+  productName: string | null;
+  supplierName: string | null;
+  message: string;
+  requestId: string;
+}
+
+export async function sendAdminMatchReplyToBuyer(
+  payload: AdminMatchReplyToBuyerPayload
+): Promise<void> {
+  if (!process.env.RESEND_API_KEY) {
+    console.warn("RESEND_API_KEY not set — skipping admin match reply email to buyer");
+    return;
+  }
+
+  const resend = new Resend(process.env.RESEND_API_KEY);
+  const from = process.env.NOTIFY_EMAIL_FROM ?? "info@foodz-x.com";
+  const { buyerEmail, productName, supplierName, message, requestId } = payload;
+
+  const html = `<div style="font-family:sans-serif;max-width:600px;margin:0 auto;">
+  <div style="background:#0f172a;padding:24px;border-radius:12px 12px 0 0;">
+    <h2 style="color:#ffffff;margin:0;font-size:20px;">Update on your sourcing request</h2>
+    <p style="color:#94a3b8;margin:6px 0 0;font-size:13px;">${
+      [productName, supplierName].filter(Boolean).join(" · ") || "FoodXchange"
+    }</p>
+  </div>
+  <div style="border:1px solid #e2e8f0;border-top:none;border-radius:0 0 12px 12px;padding:24px;">
+    <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:16px;margin-bottom:20px;">
+      <p style="color:#334155;font-size:14px;line-height:1.6;margin:0;white-space:pre-wrap;">${message}</p>
+    </div>
+    <a href="https://fdx.trading/en/portal/requests/${requestId}"
+      style="display:inline-block;background:#ea580c;color:#ffffff;font-weight:600;font-size:14px;padding:12px 24px;border-radius:8px;text-decoration:none;">
+      View in portal →
+    </a>
+    <hr style="border:none;border-top:1px solid #e2e8f0;margin:24px 0 16px;"/>
+    <p style="color:#94a3b8;font-size:12px;margin:0;">FoodXchange · fdx.trading</p>
+  </div>
+</div>`;
+
+  try {
+    await resend.emails.send({
+      from,
+      to: buyerEmail,
+      subject: `Update on your sourcing request — ${productName ?? "your request"}`,
+      html,
+    });
+  } catch (err) {
+    console.error("sendAdminMatchReplyToBuyer email send failed:", err);
+  }
+}
+
+export interface AdminMatchReplyToSupplierPayload {
+  supplierEmail: string;
+  productName: string | null;
+  message: string;
+}
+
+export async function sendAdminMatchReplyToSupplier(
+  payload: AdminMatchReplyToSupplierPayload
+): Promise<void> {
+  if (!process.env.RESEND_API_KEY) {
+    console.warn("RESEND_API_KEY not set — skipping admin match reply email to supplier");
+    return;
+  }
+
+  const resend = new Resend(process.env.RESEND_API_KEY);
+  const from = process.env.NOTIFY_EMAIL_FROM ?? "info@foodz-x.com";
+  const { supplierEmail, productName, message } = payload;
+
+  const html = `<div style="font-family:sans-serif;max-width:600px;margin:0 auto;">
+  <div style="background:#0f172a;padding:24px;border-radius:12px 12px 0 0;">
+    <h2 style="color:#ffffff;margin:0;font-size:20px;">Message from FoodXchange</h2>
+    <p style="color:#94a3b8;margin:6px 0 0;font-size:13px;">${productName ? `Re: ${productName}` : "FoodXchange"}</p>
+  </div>
+  <div style="border:1px solid #e2e8f0;border-top:none;border-radius:0 0 12px 12px;padding:24px;">
+    <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:16px;margin-bottom:20px;">
+      <p style="color:#334155;font-size:14px;line-height:1.6;margin:0;white-space:pre-wrap;">${message}</p>
+    </div>
+    <a href="https://fdx.trading/en/supplier-portal/matches"
+      style="display:inline-block;background:#ea580c;color:#ffffff;font-weight:600;font-size:14px;padding:12px 24px;border-radius:8px;text-decoration:none;">
+      View in supplier portal →
+    </a>
+    <hr style="border:none;border-top:1px solid #e2e8f0;margin:24px 0 16px;"/>
+    <p style="color:#94a3b8;font-size:12px;margin:0;">FoodXchange · fdx.trading</p>
+  </div>
+</div>`;
+
+  try {
+    await resend.emails.send({
+      from,
+      to: supplierEmail,
+      subject: `Message from FoodXchange${productName ? ` — ${productName}` : ""}`,
+      html,
+    });
+  } catch (err) {
+    console.error("sendAdminMatchReplyToSupplier email send failed:", err);
   }
 }

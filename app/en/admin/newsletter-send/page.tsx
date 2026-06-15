@@ -7,8 +7,6 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
-const ADMIN_PASSWORD = "3007";
-
 type Issue = {
   slug: string;
   title: string;
@@ -24,10 +22,6 @@ type SendResult = {
 };
 
 export default function NewsletterSendPage() {
-  const [unlocked, setUnlocked] = useState(false);
-  const [password, setPassword] = useState("");
-  const [passwordError, setPasswordError] = useState("");
-
   const [issues, setIssues] = useState<Issue[]>([]);
   const [selectedSlug, setSelectedSlug] = useState("");
   const [previewEmail, setPreviewEmail] = useState("");
@@ -39,8 +33,6 @@ export default function NewsletterSendPage() {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    if (!unlocked) return;
-
     supabase
       .from("newsletter_issues")
       .select("slug, title, created_at")
@@ -56,16 +48,7 @@ export default function NewsletterSendPage() {
       .then((r) => r.json())
       .then((d: { count?: number }) => setSubscriberCount(d.count ?? 0))
       .catch(() => setSubscriberCount(0));
-  }, [unlocked]);
-
-  function handleUnlock(e: React.FormEvent) {
-    e.preventDefault();
-    if (password === ADMIN_PASSWORD) {
-      setUnlocked(true);
-    } else {
-      setPasswordError("Incorrect password");
-    }
-  }
+  }, []);
 
   async function handleSendPreview(e: React.FormEvent) {
     e.preventDefault();
@@ -116,41 +99,6 @@ export default function NewsletterSendPage() {
     }
   }
 
-  if (!unlocked) {
-    return (
-      <main className="min-h-screen bg-slate-50 flex items-center justify-center p-6">
-        <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-8 w-full max-w-sm">
-          <h1 className="text-lg font-semibold text-slate-900 mb-1">
-            Newsletter Sender
-          </h1>
-          <p className="text-sm text-slate-500 mb-6">Admin access required</p>
-          <form onSubmit={handleUnlock} className="space-y-4">
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => {
-                setPassword(e.target.value);
-                setPasswordError("");
-              }}
-              placeholder="Password"
-              autoFocus
-              className="w-full border border-slate-200 rounded-lg px-4 py-2.5 text-sm outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-100"
-            />
-            {passwordError && (
-              <p className="text-sm text-red-600">{passwordError}</p>
-            )}
-            <button
-              type="submit"
-              className="w-full bg-orange-500 hover:bg-orange-600 text-white rounded-lg py-2.5 text-sm font-semibold transition"
-            >
-              Unlock
-            </button>
-          </form>
-        </div>
-      </main>
-    );
-  }
-
   const inputCls =
     "w-full text-sm border border-gray-200 rounded-lg px-3 py-2 outline-none focus:border-orange-300 focus:ring-2 focus:ring-orange-100";
   const cardCls = "bg-white border border-gray-200 rounded-2xl p-6 shadow-sm";
@@ -162,7 +110,7 @@ export default function NewsletterSendPage() {
           Send Newsletter
         </span>
         <a
-          href="/en/admin"
+          href="/admin"
           className="text-xs text-slate-400 hover:text-slate-600 transition"
         >
           ← Admin

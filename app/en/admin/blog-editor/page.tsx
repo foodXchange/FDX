@@ -100,20 +100,6 @@ const STATUS_COLORS: Record<string, string> = {
 
 export default function BlogEditorPage() {
 
-  // Auth — check sessionStorage (refresh) or localStorage (remember me)
-  const [authorized, setAuthorized] = useState(() => {
-    if (typeof window === "undefined") return false;
-    return (
-      sessionStorage.getItem("blog_editor_auth") === "ok" ||
-      localStorage.getItem("blog_editor_auth") === "ok"
-    );
-  });
-  const [password, setPassword] = useState("");
-  const [rememberMe, setRememberMe] = useState(() => {
-    if (typeof window === "undefined") return false;
-    return localStorage.getItem("blog_editor_remember") === "1";
-  });
-
   // Posts
   const [posts, setPosts] = useState<PostListItem[]>([]);
   const [selectedSlug, setSelectedSlug] = useState("");
@@ -344,7 +330,6 @@ export default function BlogEditorPage() {
   // re-registering the interval on every keystroke.
 
   useEffect(() => {
-    if (!authorized) return;
     autosaveTimerRef.current = setInterval(async () => {
       const p = postRef.current;
       const currentContent = editorRef.current?.innerHTML || p.content || "";
@@ -364,8 +349,7 @@ export default function BlogEditorPage() {
       }
     }, 30_000);
     return () => { if (autosaveTimerRef.current) clearInterval(autosaveTimerRef.current); };
-  // Only re-register when authorized changes — postRef always has latest data
-  }, [authorized]);
+  }, []);
 
   // ─── Delete (soft) ────────────────────────────────────────────────────────
 
@@ -397,31 +381,6 @@ export default function BlogEditorPage() {
     setTimeout(() => {
       if (editorRef.current) { editorRef.current.innerHTML = template; editorRef.current.focus(); }
     }, 50);
-  }
-
-  // ─── Auth ─────────────────────────────────────────────────────────────────
-
-  function tryAuthorize() {
-    if (password === "3007") {
-      setAuthorized(true);
-      setStatusMsg("");
-      setPassword("");
-      sessionStorage.setItem("blog_editor_auth", "ok");
-      if (rememberMe) {
-        localStorage.setItem("blog_editor_auth", "ok");
-        localStorage.setItem("blog_editor_remember", "1");
-      }
-    } else {
-      setStatusMsg("Wrong password");
-    }
-  }
-
-  function logout() {
-    setAuthorized(false);
-    sessionStorage.removeItem("blog_editor_auth");
-    localStorage.removeItem("blog_editor_auth");
-    localStorage.removeItem("blog_editor_remember");
-    setRememberMe(false);
   }
 
   // ─── WYSIWYG ──────────────────────────────────────────────────────────────
@@ -1024,7 +983,6 @@ Be concise, practical, and specific. When generating field values, clearly label
   // ─── Effects ──────────────────────────────────────────────────────────────
 
   useEffect(() => {
-    if (!authorized) return;
     console.info(
       "📋 FoodXchange Blog Editor — run this SQL in Supabase if you haven't already:\n\n" +
       "alter table blog_posts\n" +
@@ -1034,12 +992,12 @@ Be concise, practical, and specific. When generating field values, clearly label
       "  add column if not exists hero_position text;"
     );
     loadList();
-  }, [authorized]);
+  }, []);
 
   useEffect(() => {
-    if (!authorized || !selectedSlug) return;
+    if (!selectedSlug) return;
     loadPost(selectedSlug);
-  }, [authorized, selectedSlug]);
+  }, [selectedSlug]);
 
   useEffect(() => {
     if (tab !== "visual" || !editorRef.current) return;
@@ -1315,8 +1273,7 @@ Be concise, practical, and specific. When generating field values, clearly label
       {/* TOP NAV */}
       <div className="border-b border-gray-200 bg-white px-6 py-3 flex items-center justify-between sticky top-0 z-30 shadow-sm">
         <div className="flex items-center gap-4">
-          <Link href="/en/admin" className="text-sm text-orange-600 hover:text-orange-700 font-medium">← Admin</Link>
-          <button onClick={logout} className="text-xs text-gray-400 hover:text-gray-600" title="Log out of blog editor">Log out</button>
+          <Link href="/admin" className="text-sm text-orange-600 hover:text-orange-700 font-medium">← Admin</Link>
           <span className="text-gray-300">|</span>
           <span className="text-sm font-semibold text-gray-800">Blog Editor</span>
           {statusMsg && (
@@ -2696,41 +2653,6 @@ Be concise, practical, and specific. When generating field values, clearly label
         </div>
       )}
 
-      {/* ── PASSWORD OVERLAY ── */}
-      {!authorized && (
-        <div className="fixed inset-0 z-[9999] bg-black/60 backdrop-blur-sm flex items-center justify-center p-6">
-          <div className="bg-white p-8 rounded-2xl shadow-2xl w-full max-w-sm">
-            <div className="text-center mb-6">
-              <div className="w-12 h-12 rounded-2xl bg-orange-100 flex items-center justify-center mx-auto mb-3 text-2xl">✏️</div>
-              <h2 className="text-lg font-bold text-gray-900">Blog Editor</h2>
-              <p className="text-sm text-gray-500 mt-1">Enter password to continue</p>
-            </div>
-            <input
-              type="password" value={password} autoFocus
-              onChange={e => setPassword(e.target.value)}
-              onKeyDown={e => { if (e.key === "Enter") tryAuthorize(); }}
-              className="w-full border border-gray-200 px-4 py-3 mb-3 rounded-xl text-sm outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-100"
-              placeholder="Password"
-            />
-            <label className="flex items-center gap-2.5 mb-3 cursor-pointer select-none">
-              <input
-                type="checkbox"
-                checked={rememberMe}
-                onChange={e => setRememberMe(e.target.checked)}
-                className="w-4 h-4 rounded accent-orange-500"
-              />
-              <span className="text-sm text-gray-600">Keep me logged in on this device</span>
-            </label>
-            {statusMsg && <p className="text-xs text-red-600 mb-3 text-center">{statusMsg}</p>}
-            <button
-              onClick={tryAuthorize}
-              className="w-full bg-orange-500 text-white py-3 rounded-xl hover:bg-orange-600 font-semibold text-sm transition-colors"
-            >
-              Enter →
-            </button>
-          </div>
-        </div>
-      )}
     </main>
   );
 }

@@ -147,7 +147,7 @@ export default async function AnalyticsPage() {
         {/* Header */}
         <div className="mb-8">
           <div className="flex items-center gap-3 mb-1">
-            <Link href="/en/admin" className="text-sm text-slate-400 hover:text-slate-600 transition">
+            <Link href="/admin" className="text-sm text-slate-400 hover:text-slate-600 transition">
               ← Internal tools
             </Link>
           </div>

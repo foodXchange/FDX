@@ -196,7 +196,7 @@ export default function BlogCoverAdminPage() {
             </p>
           </div>
 
-          <Link href="/en/admin" className="text-sm text-orange-600 hover:underline">
+          <Link href="/admin" className="text-sm text-orange-600 hover:underline">
             ← Back to Internal Tools
           </Link>
         </div>

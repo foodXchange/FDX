@@ -21,8 +21,17 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </div>
         <AdminNav />
         <div className="mt-auto px-3 py-4 border-t border-slate-800 space-y-1">
+          <form action="/api/admin/logout" method="POST">
+            <button
+              type="submit"
+              className="w-full text-left block px-3 py-2 text-xs text-slate-400 hover:text-red-400 transition-colors rounded-lg hover:bg-slate-800"
+            >
+              ⏻ Sign out
+            </button>
+          </form>
+          <div className="border-t border-slate-800 my-1" />
           <Link
-            href="/en/admin"
+            href="/admin"
             className="block px-3 py-2 text-xs text-slate-400 hover:text-slate-200 transition-colors rounded-lg hover:bg-slate-800"
           >
             ⬡ Internal tools

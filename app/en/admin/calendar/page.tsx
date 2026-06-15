@@ -73,7 +73,7 @@ export default async function CalendarPage() {
         {/* Header */}
         <div className="mb-8">
           <div className="mb-1">
-            <Link href="/en/admin" className="text-sm text-slate-400 hover:text-slate-600 transition">
+            <Link href="/admin" className="text-sm text-slate-400 hover:text-slate-600 transition">
               ← Internal tools
             </Link>
           </div>

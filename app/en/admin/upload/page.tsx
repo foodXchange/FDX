@@ -172,7 +172,7 @@ export default function UploadPage() {
     <main className="bg-slate-50 min-h-screen p-6">
       <div className="max-w-4xl mx-auto space-y-8">
 
-        <Link href="/en/admin" className="text-sm text-orange-600 hover:underline">
+        <Link href="/admin" className="text-sm text-orange-600 hover:underline">
           ← Back
         </Link>
 

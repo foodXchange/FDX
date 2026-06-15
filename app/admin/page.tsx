@@ -1,0 +1,290 @@
+import Link from "next/link";
+import DigestButton from "@/components/admin/DigestButton";
+
+export default function AdminHome() {
+  return (
+    <main className="bg-slate-50 min-h-screen py-16 px-6">
+      <div className="max-w-4xl mx-auto">
+
+        {/* Morning digest */}
+        <div className="mb-8 flex items-center justify-between bg-white border border-slate-200 rounded-2xl px-6 py-4 shadow-sm">
+          <div>
+            <p className="text-sm font-semibold text-slate-800">Morning digest</p>
+            <p className="text-xs text-slate-500 mt-0.5">Send today&apos;s activity summary by email</p>
+          </div>
+          <DigestButton />
+        </div>
+
+        {/* Header */}
+        <div className="text-center mb-10">
+          <h1 className="text-2xl md:text-3xl font-semibold text-slate-900">
+            Internal Tools
+          </h1>
+          <p className="text-slate-600 mt-2 text-sm">
+            Manage content, media, and newsletters.
+          </p>
+        </div>
+
+        {/* Grid */}
+        <div className="grid md:grid-cols-2 gap-6">
+
+          {/* VIDEO SCRIPTS */}
+          <Link
+            href="/admin/scripts"
+            className="group bg-white border border-slate-200 rounded-2xl p-6 shadow-sm hover:shadow-md transition"
+          >
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <div className="text-sm text-slate-500">Content</div>
+                <div className="text-lg font-semibold text-slate-900 mt-1">
+                  Video Scripts
+                </div>
+                <div className="text-sm text-slate-600 mt-2">
+                  Generate talking-head video scripts for buyers and manufacturers
+                </div>
+              </div>
+              <div className="text-red-600 font-semibold text-lg group-hover:translate-x-0.5 transition">
+                🎬
+              </div>
+            </div>
+          </Link>
+
+          {/* BLOG EDITOR */}
+          <Link
+            href="/en/admin/blog-editor"
+            className="group bg-white border border-slate-200 rounded-2xl p-6 shadow-sm hover:shadow-md transition"
+          >
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <div className="text-sm text-slate-500">Content</div>
+                <div className="text-lg font-semibold text-slate-900 mt-1">
+                  Blog editor
+                </div>
+                <div className="text-sm text-slate-600 mt-2">
+                  Write → preview → publish articles
+                </div>
+              </div>
+
+              <div className="text-orange-600 font-semibold text-lg group-hover:translate-x-0.5 transition">
+                →
+              </div>
+            </div>
+          </Link>
+
+          {/* BLOG IMAGES */}
+          <Link
+            href="/en/admin/blog-cover"
+            className="group bg-white border border-slate-200 rounded-2xl p-6 shadow-sm hover:shadow-md transition"
+          >
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <div className="text-sm text-slate-500">Media</div>
+                <div className="text-lg font-semibold text-slate-900 mt-1">
+                  Blog images
+                </div>
+                <div className="text-sm text-slate-600 mt-2">
+                  Manage cover + hero images
+                </div>
+              </div>
+
+              <div className="text-orange-600 font-semibold text-lg">→</div>
+            </div>
+          </Link>
+
+          {/* NEWSLETTER COVER */}
+          <Link
+            href="/en/admin/upload"
+            className="group bg-white border border-slate-200 rounded-2xl p-6 shadow-sm hover:shadow-md transition"
+          >
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <div className="text-sm text-slate-500">Newsletter</div>
+                <div className="text-lg font-semibold text-slate-900 mt-1">
+                  Newsletter covers
+                </div>
+                <div className="text-sm text-slate-600 mt-2">
+                  Upload → assign → live
+                </div>
+              </div>
+
+              <div className="text-orange-600 font-semibold text-lg">→</div>
+            </div>
+          </Link>
+
+          {/* NEWSLETTER GENERATOR */}
+          <Link
+            href="/en/admin/newsletter-builder"
+            className="group bg-green-50/40 border border-green-200 rounded-2xl p-6 shadow-sm hover:shadow-md transition"
+          >
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <div className="text-sm text-green-700">Automation</div>
+                <div className="text-lg font-semibold text-slate-900 mt-1">
+                  Newsletter generator
+                </div>
+                <div className="text-sm text-slate-600 mt-2">
+                  Select posts → generate email content
+                </div>
+              </div>
+
+              <div className="text-green-600 font-semibold text-lg">⚡</div>
+            </div>
+          </Link>
+
+          {/* NEWSLETTER SENDER */}
+          <Link
+            href="/en/admin/newsletter-send"
+            className="group bg-white border border-slate-200 rounded-2xl p-6 shadow-sm hover:shadow-md transition"
+          >
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <div className="text-sm text-slate-500">Newsletter</div>
+                <div className="text-lg font-semibold text-slate-900 mt-1">
+                  Send newsletter
+                </div>
+                <div className="text-sm text-slate-600 mt-2">
+                  Select → preview → send to subscribers
+                </div>
+              </div>
+
+              <div className="text-orange-600 font-semibold text-lg group-hover:translate-x-0.5 transition">
+                →
+              </div>
+            </div>
+          </Link>
+
+          {/* PORTFOLIO CMS */}
+          <Link
+            href="/admin/portfolio"
+            className="group bg-white border border-slate-200 rounded-2xl p-6 shadow-sm hover:shadow-md transition"
+          >
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <div className="text-sm text-slate-500">Portfolio</div>
+                <div className="text-lg font-semibold text-slate-900 mt-1">
+                  Portfolio CMS
+                </div>
+                <div className="text-sm text-slate-600 mt-2">
+                  Add → edit → publish sourcing scenarios
+                </div>
+              </div>
+
+              <div className="text-orange-600 font-semibold text-lg group-hover:translate-x-0.5 transition">
+                →
+              </div>
+            </div>
+          </Link>
+
+          {/* IMPORT GUIDE CMS */}
+          <Link
+            href="/admin/import-guide"
+            className="group bg-white border border-slate-200 rounded-2xl p-6 shadow-sm hover:shadow-md transition"
+          >
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <div className="text-sm text-slate-500">Content</div>
+                <div className="text-lg font-semibold text-slate-900 mt-1">
+                  Import Guide CMS
+                </div>
+                <div className="text-sm text-slate-600 mt-2">
+                  Generate → edit → publish import regulation articles
+                </div>
+              </div>
+
+              <div className="text-orange-600 font-semibold text-lg group-hover:translate-x-0.5 transition">
+                →
+              </div>
+            </div>
+          </Link>
+
+          {/* SOURCING REQUESTS */}
+          <Link
+            href="/admin/requests"
+            className="group bg-white border border-slate-200 rounded-2xl p-6 shadow-sm hover:shadow-md transition"
+          >
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <div className="text-sm text-slate-500">CRM</div>
+                <div className="text-lg font-semibold text-slate-900 mt-1">
+                  Sourcing requests
+                </div>
+                <div className="text-sm text-slate-600 mt-2">
+                  Review buyer leads and matched scenarios
+                </div>
+              </div>
+
+              <div className="text-orange-600 font-semibold text-lg group-hover:translate-x-0.5 transition">
+                →
+              </div>
+            </div>
+          </Link>
+
+          {/* PRODUCT CATALOGUE */}
+          <Link
+            href="/admin/catalogue"
+            className="group bg-blue-50/20 border border-blue-200 rounded-2xl p-6 shadow-sm hover:shadow-md transition"
+          >
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <div className="text-sm text-blue-700">Sales</div>
+                <div className="text-lg font-semibold text-slate-900 mt-1">
+                  Product Catalogue
+                </div>
+                <div className="text-sm text-slate-600 mt-2">
+                  Build and generate buyer presentations as PDF
+                </div>
+              </div>
+              <div className="text-blue-600 font-semibold text-lg">📋</div>
+            </div>
+          </Link>
+
+          {/* SUPPLIER DATABASE */}
+          <Link
+            href="/admin/suppliers"
+            className="group bg-white border border-slate-200 rounded-2xl p-6 shadow-sm hover:shadow-md transition"
+          >
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <div className="text-sm text-slate-500">Database</div>
+                <div className="text-lg font-semibold text-slate-900 mt-1">
+                  Supplier Database
+                </div>
+                <div className="text-sm text-slate-600 mt-2">
+                  Manage approved suppliers and their offerings
+                </div>
+              </div>
+
+              <div className="text-orange-600 font-semibold text-lg group-hover:translate-x-0.5 transition">
+                →
+              </div>
+            </div>
+          </Link>
+
+          {/* SUPPLIER SCRAPER */}
+          <Link
+            href="/admin/scraper"
+            className="group bg-white border border-slate-200 rounded-2xl p-6 shadow-sm hover:shadow-md transition"
+          >
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <div className="text-sm text-slate-500">Data</div>
+                <div className="text-lg font-semibold text-slate-900 mt-1">
+                  Supplier Scraper
+                </div>
+                <div className="text-sm text-slate-600 mt-2">
+                  Crawl supplier websites and extract product data automatically
+                </div>
+              </div>
+
+              <div className="text-orange-600 font-semibold text-lg group-hover:translate-x-0.5 transition">
+                →
+              </div>
+            </div>
+          </Link>
+
+        </div>
+
+      </div>
+    </main>
+  );
+}

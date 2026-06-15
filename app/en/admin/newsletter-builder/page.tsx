@@ -66,17 +66,6 @@ const STATUS_COLORS: Record<string, string> = {
 
 export default function NewsletterBuilderPage() {
 
-  // Auth
-  const [authorized, setAuthorized] = useState(() => {
-    if (typeof window === "undefined") return false;
-    return sessionStorage.getItem("blog_editor_auth") === "ok" || localStorage.getItem("blog_editor_auth") === "ok";
-  });
-  const [password, setPassword] = useState("");
-  const [rememberMe, setRememberMe] = useState(() => {
-    if (typeof window === "undefined") return false;
-    return localStorage.getItem("blog_editor_remember") === "1";
-  });
-
   // Issues list
   const [issues, setIssues] = useState<IssueSummary[]>([]);
   const [selectedSlug, setSelectedSlug] = useState("");
@@ -521,27 +510,11 @@ export default function NewsletterBuilderPage() {
     ];
   }
 
-  // ─── Auth ────────────────────────────────────────────────────────────────────
-
-  function tryAuthorize() {
-    if (password === "3007") {
-      setAuthorized(true); setPassword(""); setStatusMsg("");
-      sessionStorage.setItem("blog_editor_auth", "ok");
-      if (rememberMe) { localStorage.setItem("blog_editor_auth", "ok"); localStorage.setItem("blog_editor_remember", "1"); }
-    } else { setStatusMsg("Wrong password"); }
-  }
-
-  function logout() {
-    setAuthorized(false);
-    sessionStorage.removeItem("blog_editor_auth"); localStorage.removeItem("blog_editor_auth"); localStorage.removeItem("blog_editor_remember");
-    setRememberMe(false);
-  }
-
   // ─── Effects ─────────────────────────────────────────────────────────────────
 
-  useEffect(() => { if (authorized) { loadIssues(); loadPosts(); loadSubscriberCount(); } }, [authorized]);
+  useEffect(() => { loadIssues(); loadPosts(); loadSubscriberCount(); }, []);
 
-  useEffect(() => { if (!authorized || !selectedSlug) return; loadIssue(selectedSlug); loadHistory(selectedSlug); }, [authorized, selectedSlug]);
+  useEffect(() => { if (!selectedSlug) return; loadIssue(selectedSlug); loadHistory(selectedSlug); }, [selectedSlug]);
 
   useEffect(() => {
     if (contentTab !== "visual" || !editorRef.current) return;
@@ -549,7 +522,6 @@ export default function NewsletterBuilderPage() {
   }, [issue.content, contentTab]);
 
   useEffect(() => {
-    if (!authorized) return;
     autosaveTimerRef.current = setInterval(async () => {
       const p = issueRef.current;
       const currentContent = editorRef.current?.innerHTML || p.content || "";
@@ -559,37 +531,7 @@ export default function NewsletterBuilderPage() {
       if (res.ok && json.ok) { lastSavedRef.current = currentContent; const now = new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" }); setAutosaveMsg("Autosaved " + now); }
     }, 30_000);
     return () => { if (autosaveTimerRef.current) clearInterval(autosaveTimerRef.current); };
-  }, [authorized]);
-
-  // ─── Auth gate ───────────────────────────────────────────────────────────────
-
-  if (!authorized) {
-    return (
-      <main className="min-h-screen bg-gray-50 flex items-center justify-center p-6">
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8 w-full max-w-sm">
-          <div className="text-center mb-6">
-            <div className="text-2xl font-black text-gray-900 mb-1">Newsletter CMS</div>
-            <div className="text-sm text-gray-500">Enter your admin password</div>
-          </div>
-          <input type="password" value={password} onChange={e => setPassword(e.target.value)}
-            onKeyDown={e => e.key === "Enter" && tryAuthorize()}
-            placeholder="Password" autoFocus
-            className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-100 mb-3" />
-          <label className="flex items-center gap-2 text-sm text-gray-500 mb-4 cursor-pointer">
-            <input type="checkbox" checked={rememberMe} onChange={e => setRememberMe(e.target.checked)} className="rounded" />
-            Remember me for 30 days
-          </label>
-          {statusMsg && <p className="text-red-600 text-sm mb-3 text-center">{statusMsg}</p>}
-          <button onClick={tryAuthorize} className="w-full py-3 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-semibold text-sm transition">
-            Enter
-          </button>
-          <div className="text-center mt-4">
-            <Link href="/en/admin" className="text-xs text-gray-400 hover:text-gray-600">← Back to admin</Link>
-          </div>
-        </div>
-      </main>
-    );
-  }
+  }, []);
 
   // ─── Render ──────────────────────────────────────────────────────────────────
 
@@ -640,8 +582,7 @@ export default function NewsletterBuilderPage() {
       {/* ── TOP NAV ── */}
       <div className="border-b border-gray-200 bg-white px-6 py-3 flex items-center justify-between sticky top-0 z-30 shadow-sm flex-shrink-0">
         <div className="flex items-center gap-4">
-          <Link href="/en/admin" className="text-sm text-orange-600 hover:text-orange-700 font-medium">← Admin</Link>
-          <button onClick={logout} className="text-xs text-gray-400 hover:text-gray-600">Log out</button>
+          <Link href="/admin" className="text-sm text-orange-600 hover:text-orange-700 font-medium">← Admin</Link>
           <span className="text-gray-300">|</span>
           <span className="text-sm font-semibold text-gray-800">Newsletter CMS</span>
           {statusMsg && (
