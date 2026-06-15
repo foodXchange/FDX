@@ -1,4 +1,10 @@
 export function getOriginFromHeaders(headers: Headers): string {
+  // On production, always use the canonical domain — Supabase magic links
+  // are origin-locked, so generation and verification must agree exactly.
+  if (process.env.NODE_ENV === "production") {
+    return "https://fdx.trading";
+  }
+
   const origin = headers.get("origin");
   if (origin) return origin;
 
