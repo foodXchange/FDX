@@ -16,6 +16,7 @@ export type EventType =
   | "match_interest" // wired: app/api/buyer/interested
   | "info_requested" // wired: app/api/buyer/request-info
   | "support_message_sent" // wired: app/api/buyer/support
+  | "question_asked" // wired: app/api/buyer/ask-question
   | "supplier_profile_viewed"
   | "message_sent" // wired: app/api/matches/[id]/messages
   | "deal_accepted" // wired: app/en/supplier-portal/matches/actions.ts

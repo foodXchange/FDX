@@ -92,7 +92,12 @@ export default function MatchDetailsPanel({
             />
           )}
           {tab === "messages" && (
-            <MatchMessageThread matchId={match.id} disabled={messagingDisabled} viewerRole={viewerRole} />
+            <MatchMessageThread
+              matchId={match.id}
+              disabled={messagingDisabled}
+              viewerRole={viewerRole}
+              sendEndpoint={viewerRole === "buyer" ? "/api/buyer/ask-question" : undefined}
+            />
           )}
           {tab === "documents" && (
             <MatchDocumentList matchId={match.id} disabled={messagingDisabled} viewerRole={viewerRole} />

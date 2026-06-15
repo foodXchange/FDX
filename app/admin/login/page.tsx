@@ -1,6 +1,12 @@
 'use client';
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
+import Header from "@/components/Header";
+import Footer from "@/components/ui/Footer";
+
+const MAX_ATTEMPTS = 3;
+const COOLDOWN_SECONDS = 30;
 
 function EyeIcon() {
   return (
@@ -34,11 +40,40 @@ export default function AdminLoginPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [failedAttempts, setFailedAttempts] = useState(0);
+  const [cooldownUntil, setCooldownUntil] = useState<number | null>(null);
+  const [cooldownRemaining, setCooldownRemaining] = useState(0);
+
+  const [forgotOpen, setForgotOpen] = useState(false);
+  const [resetEmail, setResetEmail] = useState("");
+  const [resetSending, setResetSending] = useState(false);
+  const [resetSent, setResetSent] = useState(false);
+
   const router = useRouter();
+
+  useEffect(() => {
+    if (!cooldownUntil) return;
+
+    const tick = () => {
+      const remaining = Math.max(0, Math.ceil((cooldownUntil - Date.now()) / 1000));
+      setCooldownRemaining(remaining);
+      if (remaining <= 0) {
+        setCooldownUntil(null);
+        setFailedAttempts(0);
+        setError("");
+      }
+    };
+
+    tick();
+    const interval = setInterval(tick, 1000);
+    return () => clearInterval(interval);
+  }, [cooldownUntil]);
+
+  const inCooldown = cooldownUntil !== null && cooldownRemaining > 0;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!password || loading || success) return;
+    if (!password || loading || success || inCooldown) return;
 
     setLoading(true);
     setError("");
@@ -55,57 +90,147 @@ export default function AdminLoginPage() {
       return;
     }
 
-    setError("Incorrect password");
+    const nextAttempts = failedAttempts + 1;
+    setFailedAttempts(nextAttempts);
+
+    if (nextAttempts >= MAX_ATTEMPTS) {
+      setCooldownUntil(Date.now() + COOLDOWN_SECONDS * 1000);
+      setCooldownRemaining(COOLDOWN_SECONDS);
+      setError(`Too many incorrect attempts. Please wait ${COOLDOWN_SECONDS} seconds before trying again.`);
+    } else {
+      const remaining = MAX_ATTEMPTS - nextAttempts;
+      setError(`Incorrect password. ${remaining} attempt${remaining === 1 ? "" : "s"} remaining before a temporary lockout.`);
+    }
+
     setLoading(false);
   }
 
+  async function handleForgotPassword() {
+    setResetSending(true);
+    try {
+      await fetch("/api/admin/forgot-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: resetEmail }),
+      });
+    } catch {
+      // best-effort — always show confirmation to avoid leaking auth state
+    } finally {
+      setResetSending(false);
+      setResetSent(true);
+    }
+  }
+
   return (
-    <main className="min-h-screen bg-slate-950 flex items-center justify-center p-6">
-      <div className="bg-slate-900 border border-white/10 rounded-2xl p-8 w-full max-w-sm shadow-2xl">
-        <h1 className="text-lg font-semibold text-white text-center mb-6">Admin</h1>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label htmlFor="admin-password" className="sr-only">
-              Password
-            </label>
-            <div className="relative">
-              <input
-                id="admin-password"
-                type={showPassword ? "text" : "password"}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Password"
-                autoFocus
-                autoComplete="current-password"
-                className="w-full border border-gray-200 bg-white px-4 py-3.5 pr-11 rounded-xl text-base outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-100"
-              />
+    <div className="min-h-screen flex flex-col bg-slate-950">
+      <Header />
+
+      <main className="flex-1 flex items-center justify-center p-6">
+        <div className="w-full max-w-sm">
+          <Link
+            href="/"
+            className="inline-flex items-center gap-1.5 text-sm text-slate-400 hover:text-white transition mb-4"
+          >
+            ← Back to home
+          </Link>
+
+          <div className="bg-slate-900 border border-white/10 rounded-2xl p-8 shadow-2xl">
+            <h1 className="text-lg font-semibold text-white text-center mb-1">Admin sign in</h1>
+            <p className="text-sm text-slate-400 text-center mb-6">
+              Enter the admin password to access the dashboard.
+            </p>
+
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div>
+                <label htmlFor="admin-password" className="sr-only">
+                  Password
+                </label>
+                <div className="relative">
+                  <input
+                    id="admin-password"
+                    type={showPassword ? "text" : "password"}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="Password"
+                    autoFocus
+                    autoComplete="current-password"
+                    disabled={inCooldown}
+                    className="w-full border border-gray-200 bg-white px-4 py-3.5 pr-11 rounded-xl text-base outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-100 disabled:opacity-60"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((v) => !v)}
+                    aria-label={showPassword ? "Hide password" : "Show password"}
+                    className="absolute inset-y-0 right-0 flex items-center px-3 text-slate-400 hover:text-slate-600"
+                  >
+                    {showPassword ? <EyeOffIcon /> : <EyeIcon />}
+                  </button>
+                </div>
+              </div>
+
+              {error && (
+                <p className="text-red-300 bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2 text-sm text-center">
+                  {error}
+                  {inCooldown && ` (${cooldownRemaining}s)`}
+                </p>
+              )}
+
+              <button
+                type="submit"
+                disabled={loading || success || !password || inCooldown}
+                className="w-full bg-orange-500 hover:bg-orange-600 text-white py-3 rounded-xl font-semibold text-sm transition disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                {(loading || success) && <Spinner />}
+                {success ? "Redirecting…" : loading ? "Checking…" : inCooldown ? `Locked (${cooldownRemaining}s)` : "Enter →"}
+              </button>
+            </form>
+
+            <div className="mt-4 text-center">
               <button
                 type="button"
-                onClick={() => setShowPassword((v) => !v)}
-                aria-label={showPassword ? "Hide password" : "Show password"}
-                className="absolute inset-y-0 right-0 flex items-center px-3 text-slate-400 hover:text-slate-600"
+                onClick={() => setForgotOpen((v) => !v)}
+                className="text-xs text-slate-400 hover:text-orange-400 transition"
               >
-                {showPassword ? <EyeOffIcon /> : <EyeIcon />}
+                Forgot password?
               </button>
             </div>
+
+            {forgotOpen && (
+              <div className="mt-4 pt-4 border-t border-white/10">
+                {resetSent ? (
+                  <p className="text-sm text-green-300 text-center">
+                    If an admin account exists, a password reminder has been sent.
+                  </p>
+                ) : (
+                  <>
+                    <label htmlFor="reset-email" className="block text-xs font-medium text-slate-300 mb-1.5">
+                      Your email
+                    </label>
+                    <input
+                      id="reset-email"
+                      type="email"
+                      value={resetEmail}
+                      onChange={(e) => setResetEmail(e.target.value)}
+                      placeholder="you@example.com"
+                      className="w-full border border-gray-200 bg-white px-4 py-2.5 rounded-xl text-sm outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-100 mb-3"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleForgotPassword}
+                      disabled={resetSending}
+                      className="w-full bg-white/5 hover:bg-white/10 text-slate-200 py-2.5 rounded-xl font-medium text-sm transition disabled:opacity-60"
+                    >
+                      {resetSending ? "Sending…" : "Send password reminder"}
+                    </button>
+                  </>
+                )}
+              </div>
+            )}
           </div>
+        </div>
+      </main>
 
-          {error && (
-            <p className="text-red-300 bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2 text-sm text-center">
-              {error}
-            </p>
-          )}
-
-          <button
-            type="submit"
-            disabled={loading || success || !password}
-            className="w-full bg-orange-500 hover:bg-orange-600 text-white py-3 rounded-xl font-semibold text-sm transition disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-          >
-            {(loading || success) && <Spinner />}
-            {success ? "Redirecting…" : loading ? "Checking…" : "Enter →"}
-          </button>
-        </form>
-      </div>
-    </main>
+      <Footer />
+    </div>
   );
 }

@@ -15,10 +15,12 @@ export default function MatchMessageThread({
   matchId,
   disabled,
   viewerRole,
+  sendEndpoint,
 }: {
   matchId: string;
   disabled: boolean;
   viewerRole: "supplier" | "buyer";
+  sendEndpoint?: string;
 }) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
@@ -72,10 +74,10 @@ export default function MatchMessageThread({
     setSending(true);
     setError(null);
     try {
-      const res = await fetch(`/api/matches/${matchId}/messages`, {
+      const res = await fetch(sendEndpoint ?? `/api/matches/${matchId}/messages`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: trimmed }),
+        body: JSON.stringify({ matchId, message: trimmed }),
       });
       const json = await res.json();
       if (!res.ok) {

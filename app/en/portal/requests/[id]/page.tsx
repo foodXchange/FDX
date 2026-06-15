@@ -6,7 +6,7 @@ import { cleanRequestName } from "@/lib/matching/cleanRequestName";
 import { logEvent } from "@/lib/events/logEvent";
 import { buyerOwnsRequest } from "@/lib/matches/buyerAuth";
 import StatusBadge from "@/components/portal/StatusBadge";
-import BuyerMatchCard, { type BuyerMatch } from "@/components/matches/BuyerMatchCard";
+import BuyerMatchCard, { type BuyerMatch, type BuyerMatchProduct } from "@/components/matches/BuyerMatchCard";
 
 type Params = Promise<{ id: string }>;
 
@@ -38,13 +38,46 @@ export default async function PortalRequestDetailPage({ params }: { params: Para
       `id, supplier_id, company_name, country, product_name, match_score, match_summary, match_breakdown, status,
        sent_at, closed_at, created_at,
        buyer_interest, buyer_interest_at,
-       supplier:supplier_offerings(logo_url, certifications)`
+       supplier:supplier_offerings(logo_url, hero_image, certifications, kosher_types, moq_units, moq_description, lead_time_days, private_label)`
     )
     .eq("request_id", id)
     .in("status", VISIBLE_MATCH_STATUSES)
     .order("match_score", { ascending: false });
 
   const matches = (rawMatches ?? []) as unknown as BuyerMatch[];
+
+  // Best-effort attach of matched product details — no FK from sourcing_matches
+  // to supplier_products, so match by product_name within the supplier's catalog.
+  const supplierIds = Array.from(new Set(matches.map((m) => m.supplier_id).filter(Boolean)));
+  if (supplierIds.length > 0) {
+    const { data: products } = await supabaseAdmin
+      .from("supplier_products")
+      .select(
+        "supplier_id, product_name, category, description, image_url, certifications, kosher_types, private_label, formats"
+      )
+      .in("supplier_id", supplierIds);
+
+    const productsBySupplier = new Map<string, BuyerMatchProduct[]>();
+    for (const p of (products ?? []) as unknown as (BuyerMatchProduct & { supplier_id: string })[]) {
+      const list = productsBySupplier.get(p.supplier_id) ?? [];
+      list.push(p);
+      productsBySupplier.set(p.supplier_id, list);
+    }
+
+    for (const m of matches) {
+      const list = productsBySupplier.get(m.supplier_id) ?? [];
+      const target = (m.product_name ?? "").trim().toLowerCase();
+      const exact = list.find((p) => (p.product_name ?? "").trim().toLowerCase() === target);
+      const partial =
+        !exact && target
+          ? list.find((p) => {
+              const pn = (p.product_name ?? "").trim().toLowerCase();
+              return pn.length > 0 && (pn.includes(target) || target.includes(pn));
+            })
+          : undefined;
+      m.product = exact ?? partial ?? list[0] ?? null;
+    }
+  }
 
   void logEvent(user.id, "buyer", "request_viewed", "request", id);
   if (matches.length > 0) {

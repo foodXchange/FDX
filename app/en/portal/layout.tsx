@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import SignOutButton from "@/components/portal/SignOutButton";
 import ImpersonationBanner from "@/components/portal/ImpersonationBanner";
+import SupportFloatingButton from "@/components/portal/SupportFloatingButton";
 import { verifyImpersonation, IMPERSONATION_COOKIE } from "@/lib/impersonation";
 
 export default async function PortalLayout({ children }: { children: React.ReactNode }) {
@@ -37,6 +38,7 @@ export default async function PortalLayout({ children }: { children: React.React
         </header>
       )}
       {children}
+      {user && <SupportFloatingButton />}
     </main>
   );
 }
