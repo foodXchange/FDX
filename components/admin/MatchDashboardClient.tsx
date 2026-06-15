@@ -620,6 +620,12 @@ export default function MatchDashboardClient({ matches, templates }: Props) {
                         >
                           Proposal ↗
                         </a>
+                        <Link
+                          href={`/admin/matches/${m.id}`}
+                          className="text-xs px-2 py-1 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 transition"
+                        >
+                          View thread →
+                        </Link>
                       </div>
                     </td>
                   </tr>

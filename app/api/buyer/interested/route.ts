@@ -17,9 +17,10 @@ export async function POST(req: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const body = (await req.json().catch(() => ({}))) as { matchId?: string };
+  const body = (await req.json().catch(() => ({}))) as { matchId?: string; terms_accepted?: boolean };
   const matchId = body.matchId;
   if (!matchId) return NextResponse.json({ error: "matchId is required" }, { status: 400 });
+  if (!body.terms_accepted) return NextResponse.json({ error: "Terms must be accepted" }, { status: 400 });
 
   const { data: rawMatch } = await supabaseAdmin
     .from("sourcing_matches")
@@ -35,9 +36,11 @@ export async function POST(req: NextRequest) {
   const authorized = await buyerOwnsRequest(match.sourcing_requests, user.email);
   if (!authorized) return NextResponse.json({ error: "Match not found" }, { status: 404 });
 
+  const now = new Date().toISOString();
+
   await supabaseAdmin
     .from("sourcing_matches")
-    .update({ buyer_interest: true, buyer_interest_at: new Date().toISOString() })
+    .update({ buyer_interest: true, buyer_interest_at: now, terms_accepted_at: now })
     .eq("id", matchId);
 
   const { data: buyerProfile } = await supabaseAdmin
@@ -53,6 +56,7 @@ export async function POST(req: NextRequest) {
     requestProductName: match.sourcing_requests.product_name ?? null,
     matchedProductName: match.product_name ?? null,
     matchId: match.id,
+    termsAcceptedAt: now,
   });
 
   void logEvent(user.id, "buyer", "match_interest", "match", matchId, {

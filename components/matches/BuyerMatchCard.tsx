@@ -64,6 +64,8 @@ export default function BuyerMatchCard({ match }: { match: BuyerMatch }) {
   const [interested, setInterested] = useState(!!match.buyer_interest);
   const [sendingInterest, setSendingInterest] = useState(false);
   const [interestError, setInterestError] = useState<string | null>(null);
+  const [confirmInterest, setConfirmInterest] = useState(false);
+  const [agreedToTerms, setAgreedToTerms] = useState(false);
 
   const [askOpen, setAskOpen] = useState(false);
   const [selectedQuestions, setSelectedQuestions] = useState<string[]>([]);
@@ -104,11 +106,12 @@ export default function BuyerMatchCard({ match }: { match: BuyerMatch }) {
       const res = await fetch("/api/buyer/interested", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ matchId: match.id }),
+        body: JSON.stringify({ matchId: match.id, terms_accepted: true }),
       });
       const json = (await res.json().catch(() => ({}))) as { error?: string };
       if (!res.ok) throw new Error(json.error ?? "Failed to send");
       setInterested(true);
+      setConfirmInterest(false);
     } catch (err) {
       setInterestError(err instanceof Error ? err.message : "Failed to send");
     } finally {
@@ -227,15 +230,15 @@ export default function BuyerMatchCard({ match }: { match: BuyerMatch }) {
         <div className="mt-4 pt-3 border-t border-white/10 flex items-center gap-2 flex-wrap">
           <button
             type="button"
-            onClick={handleInterested}
-            disabled={interested || sendingInterest}
+            onClick={() => setConfirmInterest((v) => !v)}
+            disabled={interested}
             className={`text-sm font-medium px-4 py-2 rounded-lg transition disabled:opacity-70 ${
               interested
                 ? "bg-green-500/10 text-green-300 cursor-default"
                 : "bg-orange-500 hover:bg-orange-600 text-white"
             }`}
           >
-            {interested ? "Interest sent ✓" : sendingInterest ? "Sending…" : "I'm interested in this supplier →"}
+            {interested ? "Interest sent ✓ We'll be in touch within 24 hours." : "I'm interested in this supplier →"}
           </button>
 
           {!messagingDisabled && (
@@ -264,6 +267,55 @@ export default function BuyerMatchCard({ match }: { match: BuyerMatch }) {
             View details →
           </button>
         </div>
+
+        {confirmInterest && !interested && (
+          <div className="mt-3 pt-3 border-t border-white/10">
+            <p className="text-sm font-medium text-slate-200 mb-2">
+              Confirm your interest in {companyName}
+            </p>
+            <p className="text-sm text-slate-400 mb-2">
+              By expressing interest, you acknowledge that:
+            </p>
+            <ul className="text-sm text-slate-400 list-disc list-inside space-y-1 mb-3">
+              <li>FoodXchange will facilitate introductions</li>
+              <li>
+                A sourcing commission of 3% applies to any orders placed with suppliers matched via
+                FoodXchange within 24 months
+              </li>
+              <li>FoodXchange terms of service apply</li>
+            </ul>
+            <label className="flex items-center gap-2 text-sm text-slate-300 mb-3">
+              <input
+                type="checkbox"
+                checked={agreedToTerms}
+                onChange={(e) => setAgreedToTerms(e.target.checked)}
+                className="rounded border-white/20 bg-white/5 text-orange-500 focus:ring-orange-500"
+              />
+              I understand and agree to these terms
+            </label>
+
+            {interestError && <p className="text-xs text-red-400 mb-3">{interestError}</p>}
+
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={handleInterested}
+                disabled={!agreedToTerms || sendingInterest}
+                className="text-sm bg-orange-500 hover:bg-orange-600 text-white font-medium px-4 py-2 rounded-lg disabled:opacity-50"
+              >
+                {sendingInterest ? "Sending…" : "Confirm interest →"}
+              </button>
+              <button
+                type="button"
+                onClick={() => setConfirmInterest(false)}
+                disabled={sendingInterest}
+                className="text-sm text-slate-400 hover:text-slate-200 font-medium disabled:opacity-50"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
 
         {askOpen && (
           <div className="mt-3 pt-3 border-t border-white/10">

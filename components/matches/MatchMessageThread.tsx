@@ -5,10 +5,30 @@ import { createClient } from "@/lib/supabase/client";
 
 interface Message {
   id: string;
-  sender_id: string;
+  sender_id: string | null;
   sender_type: "buyer" | "supplier" | "admin";
   message: string;
   created_at: string;
+}
+
+function bubbleClasses(senderType: Message["sender_type"], viewerRole: "supplier" | "buyer"): string {
+  if (senderType === viewerRole) {
+    return "ml-auto bg-orange-500/15 text-orange-100";
+  }
+  if (senderType === "admin") {
+    return "bg-white/5 text-slate-300";
+  }
+  if (senderType === "supplier") {
+    return "bg-blue-500/10 text-blue-200";
+  }
+  return "bg-white/5 text-slate-200";
+}
+
+function senderLabel(senderType: Message["sender_type"], viewerRole: "supplier" | "buyer"): string | null {
+  if (senderType === viewerRole) return null;
+  if (senderType === "admin") return "FoodXchange team";
+  if (senderType === "supplier") return "Supplier";
+  return "Buyer";
 }
 
 export default function MatchMessageThread({
@@ -31,17 +51,21 @@ export default function MatchMessageThread({
 
   useEffect(() => {
     let active = true;
-    (async () => {
+    async function load(showLoading: boolean) {
+      if (showLoading) setLoading(true);
       const res = await fetch(`/api/matches/${matchId}/messages`);
       if (!active) return;
       if (res.ok) {
         const json = await res.json();
         setMessages((json.messages ?? []) as Message[]);
       }
-      setLoading(false);
-    })();
+      if (showLoading) setLoading(false);
+    }
+    load(true);
+    const interval = setInterval(() => load(false), 30000);
     return () => {
       active = false;
+      clearInterval(interval);
     };
   }, [matchId]);
 
@@ -100,24 +124,26 @@ export default function MatchMessageThread({
         ) : messages.length === 0 ? (
           <p className="text-sm text-slate-400">No messages yet.</p>
         ) : (
-          messages.map((m) => (
-            <div
-              key={m.id}
-              className={`max-w-[85%] rounded-lg px-3 py-2 text-sm ${
-                m.sender_type === viewerRole ? "ml-auto bg-orange-500/15 text-orange-100" : "bg-white/5 text-slate-200"
-              }`}
-            >
-              <p className="whitespace-pre-wrap">{m.message}</p>
-              <p className="text-[10px] text-slate-500 mt-1">
-                {new Date(m.created_at).toLocaleString("en-GB", {
-                  day: "2-digit",
-                  month: "short",
-                  hour: "2-digit",
-                  minute: "2-digit",
-                })}
-              </p>
-            </div>
-          ))
+          messages.map((m) => {
+            const label = senderLabel(m.sender_type, viewerRole);
+            return (
+              <div
+                key={m.id}
+                className={`max-w-[85%] rounded-lg px-3 py-2 text-sm ${bubbleClasses(m.sender_type, viewerRole)}`}
+              >
+                {label && <p className="text-xs font-semibold mb-1 opacity-80">{label}</p>}
+                <p className="whitespace-pre-wrap">{m.message}</p>
+                <p className="text-[10px] text-slate-500 mt-1">
+                  {new Date(m.created_at).toLocaleString("en-GB", {
+                    day: "2-digit",
+                    month: "short",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })}
+                </p>
+              </div>
+            );
+          })
         )}
         <div ref={bottomRef} />
       </div>
