@@ -9,6 +9,12 @@
 [[plugins]]
   package = "@netlify/plugin-nextjs"
 
+# Scheduled cron jobs — POST with Authorization: Bearer CRON_SECRET
+# These are triggered by cron-job.org (or similar) since Next.js API routes
+# are not native Netlify scheduled functions.
+# Schedule: daily at 09:00 UTC → POST https://fdx.trading/api/cron/send-reminders
+# Schedule: daily at 08:00 UTC → GET  https://fdx.trading/api/cron/qa-metrics-snapshot
+
 # Optional: redirect udi.fdx.trading → /c/udi (only works if udi.fdx.trading points to this Netlify site)
 [[redirects]]
   from = "https://udi.fdx.trading/*"

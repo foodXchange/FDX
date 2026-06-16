@@ -1429,6 +1429,41 @@ export async function sendRfqEmail(payload: RfqEmailPayload): Promise<{ success:
   }
 }
 
+export async function sendSupplierActionReminder(
+  supplier: { company_name: string; email: string },
+  action: { action_type?: string; request_message: string | null },
+  daysOverdue: number
+): Promise<void> {
+  const subject =
+    daysOverdue === 3
+      ? "Reminder: Action needed on FoodXchange request"
+      : "Follow-up: Please respond to FoodXchange request";
+
+  const html = `<div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:32px 24px;">
+  <div style="background:#ea580c;padding:4px 0;border-radius:4px;margin-bottom:28px;"></div>
+  <p style="color:#64748b;font-size:13px;margin:0 0 20px;">FoodXchange</p>
+  <h1 style="color:#1e293b;font-size:22px;font-weight:600;margin:0 0 16px;">
+    ${daysOverdue === 3 ? "Quick reminder" : "Following up"}
+  </h1>
+  <p style="color:#475569;font-size:15px;line-height:1.7;margin:0 0 16px;">
+    Hi ${supplier.company_name}, we sent you a request ${daysOverdue} days ago that's still pending:
+  </p>
+  ${action.request_message ? `<p style="color:#1e293b;font-size:15px;font-weight:600;line-height:1.7;margin:0 0 16px;">${action.request_message}</p>` : ""}
+  <p style="color:#475569;font-size:15px;line-height:1.7;margin:0 0 24px;">
+    If you have any questions, just reply to this email — we're happy to help.
+  </p>
+  <div style="border-top:1px solid #e2e8f0;padding-top:20px;">
+    <a href="mailto:info@foodz-x.com" style="color:#ea580c;font-size:14px;">info@foodz-x.com</a>
+  </div>
+</div>`;
+
+  try {
+    await sendEmail({ to: supplier.email, subject, html });
+  } catch (err) {
+    console.error("sendSupplierActionReminder send failed:", err);
+  }
+}
+
 export async function sendTestEmail(to: string): Promise<{ success: boolean; messageId?: string; error?: string }> {
   if (!process.env.RESEND_API_KEY) {
     return { success: false, error: "RESEND_API_KEY not set" };

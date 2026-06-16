@@ -5,6 +5,7 @@ import SignOutButton from "@/components/portal/SignOutButton";
 import ImpersonationBanner from "@/components/portal/ImpersonationBanner";
 import SupportFloatingButton from "@/components/portal/SupportFloatingButton";
 import { verifyImpersonation, IMPERSONATION_COOKIE } from "@/lib/impersonation";
+import PortalNotificationBell from "@/components/PortalNotificationBell";
 
 export default async function PortalLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient();
@@ -32,6 +33,7 @@ export default async function PortalLayout({ children }: { children: React.React
               <Link href="/en/help" className="text-slate-300 hover:text-white transition">
                 Help &rarr;
               </Link>
+              <PortalNotificationBell apiPath="/api/buyer/notifications" />
               <SignOutButton />
             </nav>
           </div>

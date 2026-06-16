@@ -33,7 +33,10 @@ export type EventType =
   | "deal_marked_won"
   | "bulk_email_sent"
   | "bulk_whatsapp_sent"
-  | "rfq_sent";
+  | "rfq_sent"
+  // Cron reminders
+  | "supplier_action_reminder_3d"
+  | "supplier_action_reminder_7d";
 
 export type EventUserType = "buyer" | "supplier" | "admin";
 

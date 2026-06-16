@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import SignOutButton from "@/components/supplier-portal/SignOutButton";
 import ImpersonationBanner from "@/components/supplier-portal/ImpersonationBanner";
 import { verifyImpersonation, IMPERSONATION_COOKIE } from "@/lib/impersonation";
+import PortalNotificationBell from "@/components/PortalNotificationBell";
 
 export default async function SupplierPortalLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient();
@@ -43,6 +44,7 @@ export default async function SupplierPortalLayout({ children }: { children: Rea
               <Link href="/en/help" className="text-slate-300 hover:text-white transition">
                 Help &rarr;
               </Link>
+              <PortalNotificationBell apiPath="/api/supplier-portal/notifications" />
               <SignOutButton />
             </nav>
           </div>
