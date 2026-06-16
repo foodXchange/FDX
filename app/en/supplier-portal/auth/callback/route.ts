@@ -8,29 +8,18 @@ export async function GET(request: Request) {
   const code = searchParams.get("code");
   const tokenHash = searchParams.get("token_hash");
   const type = searchParams.get("type") ?? "recovery";
-  const next = searchParams.get("next") ?? "/en/portal";
-
-  console.log("Callback hit. Code:", code ? "present" : "MISSING");
-  console.log("Token hash:", tokenHash ? "present" : "MISSING");
-  console.log("Impersonation:", searchParams.get("impersonation"));
-  console.log("Search params:", Object.fromEntries(searchParams));
+  const next = searchParams.get("next") ?? "/en/supplier-portal";
 
   let success = false;
 
   if (tokenHash) {
     const supabase = await createClient();
     const { error } = await supabase.auth.verifyOtp({ token_hash: tokenHash, type });
-
-    console.log("verifyOtp result. Error:", error?.message || "none");
     success = !error;
   } else if (code) {
     const supabase = await createClient();
     const { error } = await supabase.auth.exchangeCodeForSession(code);
-
-    console.log("Exchange result. Error:", error?.message || "none");
     success = !error;
-  } else {
-    console.log("No code or token_hash param, redirecting to login");
   }
 
   if (success) {
@@ -51,8 +40,6 @@ export async function GET(request: Request) {
         maxAge: IMPERSONATION_MAX_AGE_MS / 1000,
       });
     }
-    console.log("Impersonation cookie:", (await cookies()).get(IMPERSONATION_COOKIE));
-    console.log("Redirecting to:", `${origin}${next}`);
     return NextResponse.redirect(`${origin}${next}`);
   }
 

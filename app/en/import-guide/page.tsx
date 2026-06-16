@@ -47,8 +47,6 @@ export default async function ImportGuideHubPage() {
 
   const articles = (recentArticles ?? []) as ImportGuideListItem[];
   const totalCount = allArticles?.length ?? 0;
-  console.log("Articles fetched:", articles?.length);
-
   const countByCategory = (slug: string) =>
     (allArticles ?? []).filter((a) => a.category === slug).length;
 

@@ -9,31 +9,22 @@ export async function GET(request: Request) {
   const type = searchParams.get("type") ?? "email";
   const origin = getOriginFromHeaders(request.headers);
 
-  console.log('=== AUTH CALLBACK ===');
-  console.log('tokenHash:', tokenHash?.substring(0, 20) + '...');
-  console.log('code:', code?.substring(0, 20) + '...');
-  console.log('origin:', origin);
-
   try {
     const supabase = await createClient();
 
     if (tokenHash) {
-      console.log('Verifying token_hash...');
       const { error } = await supabase.auth.verifyOtp({
         token_hash: tokenHash,
         type: type as "magiclink" | "email",
       });
       if (error) {
-        console.log('verifyOtp error:', error.message);
+        console.error("verifyOtp error:", error.message);
         throw error;
       }
-      console.log('verifyOtp success');
     } else if (code) {
-      console.log('Exchanging code for session...');
       const { error } = await supabase.auth.exchangeCodeForSession(code);
       if (error) throw error;
     } else {
-      console.log('No token_hash or code, redirecting to login');
       return NextResponse.redirect(`${origin}/en/login?error=invalid_link`);
     }
 
@@ -42,10 +33,7 @@ export async function GET(request: Request) {
       error: userError,
     } = await supabase.auth.getUser();
 
-    console.log('User email:', user?.email);
-
     if (userError || !user?.email) {
-      console.log('No user, redirecting to login');
       return NextResponse.redirect(`${origin}/en/login?error=auth_failed`);
     }
 
@@ -55,9 +43,7 @@ export async function GET(request: Request) {
       .eq("contact_email", user.email)
       .single();
 
-    console.log('Buyer lookup:', buyer ? 'found' : 'not found');
     if (buyer) {
-      console.log('Redirecting to /en/portal');
       return NextResponse.redirect(`${origin}/en/portal`);
     }
 
@@ -67,13 +53,10 @@ export async function GET(request: Request) {
       .eq("email", user.email)
       .single();
 
-    console.log('Supplier lookup:', supplier ? 'found' : 'not found');
     if (supplier) {
-      console.log('Redirecting to /en/supplier-portal');
       return NextResponse.redirect(`${origin}/en/supplier-portal`);
     }
 
-    console.log('No account found, redirecting to login');
     return NextResponse.redirect(`${origin}/en/login?error=no_account`);
   } catch (error) {
     console.error("Auth callback error:", error);

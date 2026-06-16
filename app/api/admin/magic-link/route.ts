@@ -33,7 +33,6 @@ export async function POST(req: Request) {
   }
 
   const origin = getOriginFromHeaders(req.headers);
-  console.log('Magic link origin:', origin);
 
   const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
     type: "magiclink",
@@ -49,7 +48,6 @@ export async function POST(req: Request) {
   }
 
   const link = `${origin}/admin/auth/callback?token_hash=${linkData.properties.hashed_token}&type=magiclink`;
-  console.log('Magic link URL:', link);
 
   void sendAdminMagicLinkEmail({ email, link });
 

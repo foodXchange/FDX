@@ -45,8 +45,6 @@ export async function POST(req: Request) {
       `,
     });
 
-    console.log("Resend result:", result);
-
     return new Response(JSON.stringify({ ok: true }), { status: 200 });
   } catch (err: any) {
     console.error("API error:", err);
