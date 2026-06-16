@@ -79,12 +79,20 @@ export function AuthNavDesktop() {
   }
 
   return (
-    <Link
-      href="/en/login"
-      className="ml-2 border border-orange-500 text-orange-400 hover:bg-orange-500 hover:text-white px-4 py-2 rounded-md text-sm font-semibold transition"
-    >
-      Sign In
-    </Link>
+    <div className="ml-2 flex items-center gap-3">
+      <Link
+        href="/en/signup"
+        className="text-sm font-medium text-slate-300 hover:text-white transition"
+      >
+        Sign Up
+      </Link>
+      <Link
+        href="/en/login"
+        className="border border-orange-500 text-orange-400 hover:bg-orange-500 hover:text-white px-4 py-2 rounded-md text-sm font-semibold transition"
+      >
+        Sign In
+      </Link>
+    </div>
   );
 }
 
@@ -116,12 +124,21 @@ export function AuthNavMobile({ onNavigate }: { onNavigate: () => void }) {
   }
 
   return (
-    <Link
-      href="/en/login"
-      onClick={onNavigate}
-      className="block px-4 py-2 rounded text-sm font-medium text-slate-300 hover:bg-slate-800 transition"
-    >
-      Sign In
-    </Link>
+    <>
+      <Link
+        href="/en/signup"
+        onClick={onNavigate}
+        className="block px-4 py-2 rounded text-sm font-medium text-slate-300 hover:bg-slate-800 transition"
+      >
+        Sign Up
+      </Link>
+      <Link
+        href="/en/login"
+        onClick={onNavigate}
+        className="block px-4 py-2 rounded text-sm font-medium text-slate-300 hover:bg-slate-800 transition"
+      >
+        Sign In
+      </Link>
+    </>
   );
 }
