@@ -6,14 +6,19 @@ export async function POST(req: Request) {
   if (password !== process.env.ADMIN_PASSWORD) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
-  const token = await signSession();
-  const cookieStore = await cookies();
-  cookieStore.set(COOKIE_NAME, token, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
-    maxAge: 60 * 60 * 24 * 7,
-    path: "/",
-  });
-  return Response.json({ ok: true });
+  try {
+    const token = await signSession();
+    const cookieStore = await cookies();
+    cookieStore.set(COOKIE_NAME, token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: 60 * 60 * 24 * 7,
+      path: "/",
+    });
+    return Response.json({ ok: true });
+  } catch (err) {
+    console.error("Admin login crashed:", err);
+    return Response.json({ error: "Server error" }, { status: 500 });
+  }
 }
