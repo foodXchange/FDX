@@ -1567,6 +1567,36 @@ export async function sendNewSupplierSignupAdmin({ email, company_name }: { emai
   }
 }
 
+export async function sendLoginLink({ email, link }: { email: string; link: string }): Promise<void> {
+  if (!process.env.RESEND_API_KEY) return;
+  const html = `<div style="font-family:sans-serif;max-width:560px;margin:0 auto;padding:32px 24px;">
+  <p style="color:#64748b;font-size:13px;margin:0 0 20px;">FoodXchange</p>
+  <h1 style="color:#1e293b;font-size:22px;font-weight:600;margin:0 0 16px;line-height:1.3;">
+    Your sign-in link
+  </h1>
+  <p style="color:#475569;font-size:15px;line-height:1.7;margin:0 0 24px;">
+    Click the button below to sign in to FoodXchange. No password needed — this link works once and expires in 1 hour.
+  </p>
+  <a href="${link}"
+     style="display:inline-block;background:#ea580c;color:#fff;font-weight:600;font-size:15px;padding:14px 32px;border-radius:10px;text-decoration:none;margin-bottom:28px;">
+    Sign in to FoodXchange →
+  </a>
+  <p style="color:#94a3b8;font-size:13px;line-height:1.6;margin:0 0 24px;">
+    If you didn't request this, you can safely ignore this email.
+  </p>
+  <div style="border-top:1px solid #e2e8f0;padding-top:20px;">
+    <p style="color:#475569;font-size:13px;margin:0;">
+      Need help? Write to <a href="mailto:info@foodz-x.com" style="color:#ea580c;">info@foodz-x.com</a>
+    </p>
+  </div>
+</div>`;
+  try {
+    await sendEmail({ to: email, subject: "Sign in to FoodXchange", html });
+  } catch (err) {
+    console.error("sendLoginLink failed:", err);
+  }
+}
+
 export async function sendTestEmail(to: string): Promise<{ success: boolean; messageId?: string; error?: string }> {
   if (!process.env.RESEND_API_KEY) {
     return { success: false, error: "RESEND_API_KEY not set" };
