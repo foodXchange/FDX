@@ -63,11 +63,20 @@ export async function GET(request: Request) {
       return NextResponse.redirect(`${origin}/en/login?error=auth_failed`);
     }
 
-    // Route by account type
+    // Admin users bypass portal routing
+    const adminEmails = (process.env.ADMIN_EMAILS ?? "udi@fdx.trading")
+      .split(",")
+      .map((e) => e.trim().toLowerCase());
+
+    if (adminEmails.includes(user.email.toLowerCase()) || user.user_metadata?.role === "admin") {
+      return NextResponse.redirect(`${origin}/admin`);
+    }
+
+    // Route by account type — check both contact_email and email columns
     const { data: buyer } = await supabase
       .from("buyers")
       .select("id")
-      .eq("contact_email", user.email)
+      .or(`contact_email.eq.${user.email},email.eq.${user.email}`)
       .maybeSingle();
 
     if (buyer) {
