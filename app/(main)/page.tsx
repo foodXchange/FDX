@@ -31,13 +31,13 @@ export default function HomePage() {
       <section className="flex flex-col items-center justify-center text-center px-6 py-28 bg-gradient-to-b from-slate-900 to-slate-800">
         <Reveal>
           <h1 className="text-4xl md:text-5xl font-bold text-white leading-tight max-w-3xl mx-auto">
-            Find the Right Food Supplier for the{" "}
-            <span className="text-orange-500">Israeli Market</span>
+            Find food suppliers that are{" "}
+            <span className="text-orange-500">actually ready to export.</span>
           </h1>
 
           <p className="max-w-2xl mx-auto text-lg text-slate-300 mt-6 leading-relaxed">
-            We connect Israeli retailers and international food manufacturers — not just introductions,
-            but real partnerships built on making sure you're the right match before anyone wastes time.
+            Tell us what you&apos;re sourcing. We find the match — pre-qualified for the Israeli market,
+            no cold outreach required.
           </p>
 
           {/* Trust bar */}
@@ -67,15 +67,18 @@ export default function HomePage() {
               href="/en/signup/buyer"
               className="inline-flex items-center justify-center bg-orange-500 hover:bg-orange-600 text-white px-7 py-3.5 rounded-md font-semibold shadow transition"
             >
-              I&apos;m a Buyer →
+              I need to source products →
             </Link>
             <Link
               href="/en/signup/supplier"
               className="inline-flex items-center justify-center border border-white/40 text-white px-7 py-3.5 rounded-md font-semibold hover:bg-white/10 transition"
             >
-              I&apos;m a Manufacturer →
+              I manufacture food →
             </Link>
           </div>
+          <p className="text-xs text-slate-500 mt-4">
+            No account needed to start. Takes 90 seconds.
+          </p>
         </Reveal>
       </section>
 

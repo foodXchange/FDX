@@ -81,16 +81,16 @@ export function AuthNavDesktop() {
   return (
     <div className="ml-2 flex items-center gap-3">
       <Link
-        href="/en/signup"
-        className="text-sm font-medium text-slate-300 hover:text-white transition"
+        href="/en/login"
+        className="text-sm text-slate-400 hover:text-white transition"
       >
-        Sign Up
+        Sign in
       </Link>
       <Link
-        href="/en/login"
-        className="border border-orange-500 text-orange-400 hover:bg-orange-500 hover:text-white px-4 py-2 rounded-md text-sm font-semibold transition"
+        href="/en/start"
+        className="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-md text-sm font-semibold transition"
       >
-        Sign In
+        Get Matched →
       </Link>
     </div>
   );
@@ -126,18 +126,18 @@ export function AuthNavMobile({ onNavigate }: { onNavigate: () => void }) {
   return (
     <>
       <Link
-        href="/en/signup"
+        href="/en/start"
         onClick={onNavigate}
-        className="block px-4 py-2 rounded text-sm font-medium text-slate-300 hover:bg-slate-800 transition"
+        className="block text-center bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-md text-sm font-semibold transition"
       >
-        Sign Up
+        Get Matched →
       </Link>
       <Link
         href="/en/login"
         onClick={onNavigate}
-        className="block px-4 py-2 rounded text-sm font-medium text-slate-300 hover:bg-slate-800 transition"
+        className="block px-4 py-2 rounded text-sm text-slate-400 hover:bg-slate-800 transition"
       >
-        Sign In
+        Sign in
       </Link>
     </>
   );

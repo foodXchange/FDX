@@ -1464,6 +1464,42 @@ export async function sendSupplierActionReminder(
   }
 }
 
+export async function sendSignupLink({
+  email,
+  magicLink,
+  user_type,
+  company_name,
+}: {
+  email: string;
+  magicLink: string;
+  user_type: "buyer" | "supplier";
+  company_name: string;
+}): Promise<void> {
+  if (!process.env.RESEND_API_KEY) return;
+  const isSupplier = user_type === "supplier";
+  const subject = isSupplier
+    ? "You're in — access your FoodXchange supplier portal"
+    : "You're in — access your FoodXchange sourcing dashboard";
+  const ctaLabel = isSupplier ? "Access my portal →" : "Access my dashboard →";
+  const bodyLine = isSupplier
+    ? "Your supplier profile is in review. You can complete it while we look for matches."
+    : "Your sourcing request is queued. We'll start finding matches today.";
+  const html = `<div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:32px 24px;">
+  <p style="color:#64748b;font-size:13px;margin:0 0 20px;">FoodXchange</p>
+  <h1 style="color:#1e293b;font-size:22px;font-weight:600;margin:0 0 12px;">Welcome, ${company_name}</h1>
+  <p style="color:#475569;font-size:15px;line-height:1.7;margin:0 0 28px;">${bodyLine}</p>
+  <a href="${magicLink}" style="display:inline-block;background:#ea580c;color:#fff;font-size:14px;font-weight:600;padding:14px 28px;border-radius:8px;text-decoration:none;margin-bottom:28px;">${ctaLabel}</a>
+  <p style="color:#94a3b8;font-size:12px;line-height:1.6;margin:0;">
+    This link works for 24 hours. If you didn't create an account on FoodXchange, you can ignore this email.
+  </p>
+</div>`;
+  try {
+    await sendEmail({ to: email, subject, html });
+  } catch (err) {
+    console.error("sendSignupLink failed:", err);
+  }
+}
+
 export async function sendBuyerWelcomeEmail({ email, company_name }: { email: string; company_name: string }): Promise<void> {
   if (!process.env.RESEND_API_KEY) return;
   const html = `<div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:32px 24px;">

@@ -7,11 +7,30 @@ import SupplierPanel from "@/components/sourcing/SupplierPanel";
 
 export default function FloatingSourcingButton() {
   const [fabOpen, setFabOpen] = useState(false);
+  const [visible, setVisible] = useState(false);
   const [activePanel, setActivePanel] = useState<"buyer" | "supplier" | null>(
     null
   );
   const fabRef = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
+
+  // Show after 5 seconds or 40% scroll — whichever comes first
+  useEffect(() => {
+    const timer = setTimeout(() => setVisible(true), 5000);
+
+    function handleScroll() {
+      const scrollable = document.body.scrollHeight - window.innerHeight;
+      if (scrollable > 0 && window.scrollY / scrollable > 0.4) {
+        setVisible(true);
+      }
+    }
+
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener("scroll", handleScroll);
+    };
+  }, []);
 
   useEffect(() => {
     if (!fabOpen) return;
@@ -53,7 +72,9 @@ export default function FloatingSourcingButton() {
     <>
       <div
         ref={fabRef}
-        className="fixed bottom-6 left-6 z-40 flex flex-col items-start"
+        className={`fixed bottom-6 left-6 z-40 flex flex-col items-start transition-all duration-500 ${
+          visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4 pointer-events-none"
+        }`}
       >
         {/* Option cards — fan up above the FAB */}
         <div className="flex flex-col-reverse gap-3 mb-3">
@@ -130,7 +151,7 @@ export default function FloatingSourcingButton() {
               whiteSpace: "nowrap",
             }}
           >
-            Find a product
+            Get matched
           </span>
         </button>
       </div>
