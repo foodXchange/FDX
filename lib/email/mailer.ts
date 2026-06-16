@@ -1464,6 +1464,73 @@ export async function sendSupplierActionReminder(
   }
 }
 
+export async function sendBuyerWelcomeEmail({ email, company_name }: { email: string; company_name: string }): Promise<void> {
+  if (!process.env.RESEND_API_KEY) return;
+  const html = `<div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:32px 24px;">
+  <p style="color:#64748b;font-size:13px;margin:0 0 20px;">FoodXchange</p>
+  <h1 style="color:#1e293b;font-size:22px;font-weight:600;margin:0 0 16px;">Welcome to FoodXchange, ${company_name}!</h1>
+  <p style="color:#475569;font-size:15px;line-height:1.7;margin:0 0 16px;">
+    Your buyer account is ready. You can now log in to submit sourcing requests and track your matches.
+  </p>
+  <a href="https://fdx.trading/en/login" style="display:inline-block;background:#ea580c;color:#fff;font-size:14px;font-weight:600;padding:12px 24px;border-radius:6px;text-decoration:none;margin-bottom:24px;">
+    Sign in to your portal →
+  </a>
+  <p style="color:#94a3b8;font-size:13px;line-height:1.6;">
+    Questions? Reply to this email or contact us at
+    <a href="mailto:info@foodz-x.com" style="color:#ea580c;">info@foodz-x.com</a>
+  </p>
+</div>`;
+  try {
+    await sendEmail({ to: email, subject: "Welcome to FoodXchange — your buyer account is ready", html });
+  } catch (err) {
+    console.error("sendBuyerWelcomeEmail failed:", err);
+  }
+}
+
+export async function sendSupplierWelcomeEmail({ email, company_name }: { email: string; company_name: string }): Promise<void> {
+  if (!process.env.RESEND_API_KEY) return;
+  const html = `<div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:32px 24px;">
+  <p style="color:#64748b;font-size:13px;margin:0 0 20px;">FoodXchange</p>
+  <h1 style="color:#1e293b;font-size:22px;font-weight:600;margin:0 0 16px;">Welcome to FoodXchange, ${company_name}!</h1>
+  <p style="color:#475569;font-size:15px;line-height:1.7;margin:0 0 16px;">
+    Your supplier account has been created and is pending review by our team. We'll be in touch within 24 hours.
+  </p>
+  <p style="color:#475569;font-size:15px;line-height:1.7;margin:0 0 24px;">
+    In the meantime, you can log in to complete your profile and add your product catalogue.
+  </p>
+  <a href="https://fdx.trading/en/login" style="display:inline-block;background:#ea580c;color:#fff;font-size:14px;font-weight:600;padding:12px 24px;border-radius:6px;text-decoration:none;margin-bottom:24px;">
+    Sign in to your supplier portal →
+  </a>
+  <p style="color:#94a3b8;font-size:13px;line-height:1.6;">
+    Questions? Reply to this email or contact us at
+    <a href="mailto:info@foodz-x.com" style="color:#ea580c;">info@foodz-x.com</a>
+  </p>
+</div>`;
+  try {
+    await sendEmail({ to: email, subject: "Welcome to FoodXchange — your account is pending approval", html });
+  } catch (err) {
+    console.error("sendSupplierWelcomeEmail failed:", err);
+  }
+}
+
+export async function sendNewSupplierSignupAdmin({ email, company_name }: { email: string; company_name: string }): Promise<void> {
+  if (!process.env.RESEND_API_KEY) return;
+  const to = process.env.NOTIFY_EMAIL_TO ?? "info@foodz-x.com";
+  const html = `<div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:32px 24px;">
+  <h2 style="color:#1e293b;font-size:18px;margin:0 0 16px;">New supplier self-signup</h2>
+  <p style="color:#475569;font-size:14px;margin:0 0 8px;"><strong>Company:</strong> ${company_name}</p>
+  <p style="color:#475569;font-size:14px;margin:0 0 20px;"><strong>Email:</strong> ${email}</p>
+  <a href="https://fdx.trading/admin" style="display:inline-block;background:#ea580c;color:#fff;font-size:14px;font-weight:600;padding:10px 20px;border-radius:6px;text-decoration:none;">
+    Review in admin →
+  </a>
+</div>`;
+  try {
+    await sendEmail({ to, subject: `New supplier signup: ${company_name}`, html });
+  } catch (err) {
+    console.error("sendNewSupplierSignupAdmin failed:", err);
+  }
+}
+
 export async function sendTestEmail(to: string): Promise<{ success: boolean; messageId?: string; error?: string }> {
   if (!process.env.RESEND_API_KEY) {
     return { success: false, error: "RESEND_API_KEY not set" };

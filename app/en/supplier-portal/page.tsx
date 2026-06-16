@@ -82,6 +82,16 @@ export default async function SupplierPortalDashboardPage() {
           <StatusBadge status={supplier?.status ?? null} />
         </div>
 
+        {status === "pending" && (
+          <div className="mb-6 bg-yellow-500/10 border border-yellow-500/30 rounded-xl px-5 py-4">
+            <p className="text-sm font-semibold text-yellow-300 mb-1">Account pending review</p>
+            <p className="text-xs text-yellow-200/70 leading-relaxed">
+              Our team will review your account within 24 hours. Once approved, you&apos;ll start receiving
+              matched sourcing requests. You can complete your profile and add products in the meantime.
+            </p>
+          </div>
+        )}
+
         {showOnboarding && (
           <OnboardingChecklist
             productCount={productCount}

@@ -64,13 +64,13 @@ export default function HomePage() {
 
           <div className="flex gap-4 flex-wrap justify-center mt-10">
             <Link
-              href="/en/buyers"
+              href="/en/signup/buyer"
               className="inline-flex items-center justify-center bg-orange-500 hover:bg-orange-600 text-white px-7 py-3.5 rounded-md font-semibold shadow transition"
             >
               I&apos;m a Buyer →
             </Link>
             <Link
-              href="/en/manufacturers"
+              href="/en/signup/supplier"
               className="inline-flex items-center justify-center border border-white/40 text-white px-7 py-3.5 rounded-md font-semibold hover:bg-white/10 transition"
             >
               I&apos;m a Manufacturer →
