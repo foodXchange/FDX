@@ -322,7 +322,8 @@ export async function POST(req: Request) {
   // Batch insert in chunks of 100 for speed and reliability
   const payloadRows = uniqueRowsToInsert.map((r) => ({
     ...r,
-    status: "pending",
+    status: "approved",
+    verified: true,
     scrape_status: "pending",
     csv_import_batch: batchId,
     source: "csv-upload",

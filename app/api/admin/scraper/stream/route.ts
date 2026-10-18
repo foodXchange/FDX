@@ -71,12 +71,23 @@ class LogBuffer {
   }
 }
 
+import {
+  extractImagesFromCrawledContent,
+  matchProductToCrawledImage,
+  rehostProductImageToStorage,
+  rehostSupplierLogoToStorage,
+  toAbsoluteUrl,
+  getDomainFaviconUrl,
+} from "@/lib/scraper/mediaHelper";
+
 async function insertProducts(
   supplierId: string,
   products: ExtractedProduct[],
-  scrapeSource: string
-): Promise<number> {
-  if (products.length === 0) return 0;
+  scrapeSource: string,
+  crawledContent = "",
+  supplierWebsite: string | null = null
+): Promise<{ count: number; imagesSaved: number }> {
+  if (products.length === 0) return { count: 0, imagesSaved: 0 };
 
   async function recomputeSupplierQualification(supplierId: string) {
     const { count, error } = await supabaseAdmin
@@ -89,7 +100,7 @@ async function insertProducts(
       product_count >= 3 ? "strong" : product_count >= 1 ? "thin" : "empty";
     await supabaseAdmin
       .from("supplier_offerings")
-      .update({ product_count, qualification_status })
+      .update({ product_count, qualification_status, status: "approved", verified: true })
       .eq("id", supplierId);
   }
 
@@ -98,6 +109,26 @@ async function insertProducts(
     .delete()
     .eq("supplier_id", supplierId)
     .eq("manually_verified", false);
+
+  const { productImages } = extractImagesFromCrawledContent(
+    crawledContent,
+    supplierWebsite
+  );
+
+  // Match and re-host product images in parallel
+  const resolvedImages = await Promise.all(
+    products.map(async (p, idx) => {
+      const candidateUrl = matchProductToCrawledImage(
+        p,
+        productImages,
+        supplierWebsite
+      );
+      if (!candidateUrl) return null;
+      return rehostProductImageToStorage(supplierId, candidateUrl, idx);
+    })
+  );
+
+  const imagesSaved = resolvedImages.filter(Boolean).length;
 
   // Generate vector embeddings via Voyage AI for immediate semantic matching
   let vectors: (number[] | null)[] = [];
@@ -140,13 +171,15 @@ async function insertProducts(
     manually_verified: false,
     needs_review: p.needs_review ?? false,
     is_published: true,
+    image_url: resolvedImages[i] ?? null,
+    image_source: resolvedImages[i] ? "scraper" : null,
     embedding: vectors[i] ? JSON.stringify(vectors[i]) : null,
   }));
 
   const { error } = await supabaseAdmin.from("supplier_products").insert(rows);
-  if (error) return 0;
+  if (error) return { count: 0, imagesSaved: 0 };
   await recomputeSupplierQualification(supplierId);
-  return rows.length;
+  return { count: rows.length, imagesSaved };
 }
 
 type SupplierRow = {
@@ -526,20 +559,42 @@ export async function GET(req: NextRequest) {
                 });
               }
 
-              // ── SAVE PRODUCTS ─────────────────────────────────────────────
+              // ── SAVE PRODUCTS & IMAGES ────────────────────────────────────
               const scrapeSource = isGroundedSearch
                 ? `google_search:${supplier.website}`
                 : supplier.website!;
-              const inserted = await insertProducts(supplier.id, products, scrapeSource);
+              const { count: inserted, imagesSaved } = await insertProducts(
+                supplier.id,
+                products,
+                scrapeSource,
+                content,
+                supplier.website
+              );
               productsSavedCount = inserted;
+
+              // Resolve supplier logo from profile or crawled content or domain favicon
+              const { logoCandidates } = extractImagesFromCrawledContent(
+                content,
+                supplier.website
+              );
+              const rawLogo =
+                toAbsoluteUrl(profile.logo_url, supplier.website) ??
+                logoCandidates[0] ??
+                getDomainFaviconUrl(supplier.website);
+              const hostedLogo = rawLogo
+                ? await rehostSupplierLogoToStorage(supplier.id, rawLogo)
+                : null;
 
               await supabaseAdmin
                 .from("supplier_offerings")
                 .update({
                   scrape_status: "scraped",
+                  status: "approved",
+                  verified: true,
                   last_scraped_at: new Date().toISOString(),
                   products_found: inserted,
                   internal_notes: null,
+                  ...(hostedLogo ? { logo_url: hostedLogo } : {}),
                   ...(profile.company_description
                     ? { product_description: profile.company_description }
                     : {}),
@@ -591,7 +646,7 @@ export async function GET(req: NextRequest) {
               if (!isTimedOut) {
                 send({
                   type: "success",
-                  message: `  ✓ ${inserted} products saved`,
+                  message: `  ✓ ${inserted} products saved${imagesSaved > 0 ? ` (${imagesSaved} with images)` : ""}`,
                   data: { products: inserted, supplier: supplier.company_name },
                 });
               }

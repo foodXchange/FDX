@@ -67,10 +67,11 @@ export async function crawlSupplier(
 
     const pages = (crawlJob?.data as Document[]) || [];
     const combinedText = pages
-      .map(
-        (page) =>
-          `URL: ${page.metadata?.sourceURL ?? page.metadata?.url ?? ""}\n\n${page.markdown ?? ""}`
-      )
+      .map((page) => {
+        const pageUrl = page.metadata?.sourceURL ?? page.metadata?.url ?? "";
+        const ogImg = page.metadata?.ogImage ? `\nOG_IMAGE: ${page.metadata.ogImage}` : "";
+        return `URL: ${pageUrl}${ogImg}\n\n${page.markdown ?? ""}`;
+      })
       .join("\n\n---PAGE BREAK---\n\n")
       .slice(0, 50000);
 
@@ -96,13 +97,15 @@ export async function crawlSupplier(
       const page = await Promise.race([
         firecrawl.scrape(website, {
           formats: ["markdown"],
-          onlyMainContent: true,
+          onlyMainContent: false,
         }),
         new Promise<never>((_, reject) =>
           setTimeout(() => reject(new Error("Scrape timeout")), 10000)
         ),
       ]);
-      const homepageContent = (page as Document)?.markdown ?? "";
+      const doc = page as Document;
+      const ogImg = doc?.metadata?.ogImage ? `OG_IMAGE: ${doc.metadata.ogImage}\n` : "";
+      const homepageContent = `${ogImg}${doc?.markdown ?? ""}`;
       if (homepageContent.length > 400) {
         return homepageContent;
       }

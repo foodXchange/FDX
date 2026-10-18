@@ -1,23 +1,9 @@
 import Link from "next/link";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { SupplierFiltersBar } from "@/components/admin/SupplierFiltersBar";
-import { SuppliersTableClient } from "@/components/admin/SuppliersTableClient";
+import { SuppliersTableClient, type SupplierRow } from "@/components/admin/SuppliersTableClient";
 
 export const dynamic = "force-dynamic";
-
-const COUNTRY_FLAGS: Record<string, string> = {
-  Italy: "🇮🇹",
-  Spain: "🇪🇸",
-  France: "🇫🇷",
-  Germany: "🇩🇪",
-  Netherlands: "🇳🇱",
-  Belgium: "🇧🇪",
-  Portugal: "🇵🇹",
-  Greece: "🇬🇷",
-  Poland: "🇵🇱",
-  Turkey: "🇹🇷",
-  Israel: "🇮🇱",
-};
 
 const CATEGORY_OPTIONS = [
   { value: "", label: "All categories" },
@@ -128,7 +114,18 @@ function normalizeCountry(raw?: string | null): string | null {
     s = matchedName ?? code;
   }
 
-  if (["EUROPE", "GLOBAL", "VARIOUS", "UNKNOWN", "N/A", "OTHER", "INTERNATIONAL", "EMPTY"].includes(s.toUpperCase())) {
+  if (
+    [
+      "EUROPE",
+      "GLOBAL",
+      "VARIOUS",
+      "UNKNOWN",
+      "N/A",
+      "OTHER",
+      "INTERNATIONAL",
+      "EMPTY",
+    ].includes(s.toUpperCase())
+  ) {
     return null;
   }
 
@@ -138,12 +135,7 @@ function normalizeCountry(raw?: string | null): string | null {
     .join(" ");
 }
 
-function getCountryCode(normalized: string): string | undefined {
-  if (/^[A-Z]{2}$/.test(normalized)) return normalized;
-  return COUNTRY_CODE_MAP[normalized];
-}
-
-const SUPPLIER_QUALIFICATION_TABS = ["review", "strong", "empty", "all"] as const;
+const SUPPLIER_QUALIFICATION_TABS = ["strong", "review", "all", "empty"] as const;
 type QualificationTab = (typeof SUPPLIER_QUALIFICATION_TABS)[number];
 
 type SearchParams = {
@@ -157,87 +149,6 @@ type SearchParams = {
   per_page?: string;
 };
 
-type SupplierRow = {
-  id: string;
-  company_name: string;
-  logo_url: string | null;
-  country_of_origin: string | null;
-  categories: string[] | null;
-  certifications: string[] | null;
-  status: string | null;
-  priority: number | null;
-  verified: boolean | null;
-  product_type: string | null;
-  private_label: boolean | null;
-  markets_served: string[] | null;
-  price_positioning: string | null;
-  supplier_contacts: { id: string }[];
-  supplier_documents: { id: string }[];
-  qualification_status: string | null;
-  trust_score: number | null;
-};
-
-function StatusBadge({ status }: { status: string | null }) {
-  const s = status ?? "pending";
-  const cls =
-    s === "approved" || s === "active"
-      ? "bg-green-100 text-green-700"
-      : s === "pending"
-      ? "bg-yellow-100 text-yellow-700"
-      : s === "rejected"
-      ? "bg-red-100 text-red-700"
-      : "bg-gray-100 text-gray-500";
-  return (
-    <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${cls}`}>{s}</span>
-  );
-}
-
-function ProductTypeBadge({ type }: { type: string | null }) {
-  if (!type) return <span className="text-xs text-gray-300">—</span>;
-  const label =
-    type === "pure_ingredient"
-      ? "Pure ingredient"
-      : type === "processed_food"
-      ? "Processed"
-      : type === "semi_processed"
-      ? "Semi-processed"
-      : "Mixed";
-  const cls =
-    type === "pure_ingredient"
-      ? "bg-blue-50 text-blue-700"
-      : "bg-slate-100 text-slate-600";
-  return (
-    <span className={`text-xs px-2 py-0.5 rounded-full ${cls}`}>{label}</span>
-  );
-}
-
-function QualificationBadge({ qualification }: { qualification: string | null }) {
-  const status = qualification ?? "empty";
-  const label =
-    status === "strong"
-      ? "Strong"
-      : status === "thin"
-      ? "Review"
-      : status === "empty"
-      ? "Empty"
-      : status === "rejected"
-      ? "Rejected"
-      : status;
-  const cls =
-    status === "strong"
-      ? "bg-green-100 text-green-700"
-      : status === "thin"
-      ? "bg-yellow-100 text-yellow-700"
-      : status === "rejected"
-      ? "bg-red-100 text-red-700"
-      : "bg-gray-100 text-gray-500";
-  return (
-    <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${cls}`}>
-      {label}
-    </span>
-  );
-}
-
 export default async function AdminSuppliersPage({
   searchParams,
 }: {
@@ -247,62 +158,81 @@ export default async function AdminSuppliersPage({
   const q = params.q?.trim() ?? "";
   const country = params.country?.trim() ?? "";
   const category = params.category?.trim() ?? "";
-  const status = params.status === "pending" ? "pending" : params.status === "approved" ? "approved" : "";
+  const status =
+    params.status === "pending"
+      ? "pending"
+      : params.status === "approved"
+      ? "approved"
+      : "";
   const priorityValue = params.priority?.trim() ?? "";
-  const priorityFilter = priorityValue !== "" && Number.isInteger(Number(priorityValue)) ? Number(priorityValue) : undefined;
+  const priorityFilter =
+    priorityValue !== "" && Number.isInteger(Number(priorityValue))
+      ? Number(priorityValue)
+      : undefined;
   const qualificationParam = params.qualification?.trim() ?? "";
   const qualification: QualificationTab = SUPPLIER_QUALIFICATION_TABS.includes(
     qualificationParam as QualificationTab
   )
     ? (qualificationParam as QualificationTab)
-    : "review";
+    : "strong";
   const requestedPage = parseInt(params.page ?? "1", 10);
   const requestedPerPage = parseInt(params.per_page ?? "50", 10);
-  const page = Number.isFinite(requestedPage) && requestedPage > 0 ? requestedPage : 1;
-  const pageSize = [25, 50, 100].includes(requestedPerPage) ? requestedPerPage : 50;
+  const page =
+    Number.isFinite(requestedPage) && requestedPage > 0 ? requestedPage : 1;
+  const pageSize = [25, 50, 100].includes(requestedPerPage)
+    ? requestedPerPage
+    : 50;
   const safeSearchValue = q.replace(/[%_]/g, (match) => `\\${match}`);
-  const [countriesResult, prioritiesResult, totalsResult, approvedResult, pendingResult,
-    reviewResult, strongResult, emptyResult] =
-    await Promise.all([
-      supabaseAdmin
-        .from("supplier_offerings")
-        .select("country_of_origin")
-        .not("country_of_origin", "is", null)
-        .order("country_of_origin", { ascending: true })
-        .limit(99999),
-      supabaseAdmin
-        .from("supplier_offerings")
-        .select("priority")
-        .not("priority", "is", null)
-        .order("priority", { ascending: true })
-        .limit(500),
-      supabaseAdmin
-        .from("supplier_offerings")
-        .select("id", { count: "exact", head: true }),
-      supabaseAdmin
-        .from("supplier_offerings")
-        .select("id", { count: "exact", head: true })
-        .in("status", ["approved", "active"]),
-      supabaseAdmin
-        .from("supplier_offerings")
-        .select("id", { count: "exact", head: true })
-        .eq("status", "pending"),
-      supabaseAdmin
-        .from("supplier_offerings")
-        .select("id", { count: "exact", head: true })
-        .eq("qualification_status", "thin"),
-      supabaseAdmin
-        .from("supplier_offerings")
-        .select("id", { count: "exact", head: true })
-        .eq("qualification_status", "strong"),
-      supabaseAdmin
-        .from("supplier_offerings")
-        .select("id", { count: "exact", head: true })
-        .eq("qualification_status", "empty"),
-    ]);
+
+  const [
+    countriesResult,
+    prioritiesResult,
+    totalsResult,
+    approvedResult,
+    withLogosResult,
+    reviewResult,
+    strongResult,
+    emptyResult,
+  ] = await Promise.all([
+    supabaseAdmin
+      .from("supplier_offerings")
+      .select("country_of_origin")
+      .not("country_of_origin", "is", null)
+      .order("country_of_origin", { ascending: true })
+      .limit(99999),
+    supabaseAdmin
+      .from("supplier_offerings")
+      .select("priority")
+      .not("priority", "is", null)
+      .order("priority", { ascending: true })
+      .limit(500),
+    supabaseAdmin
+      .from("supplier_offerings")
+      .select("id", { count: "exact", head: true }),
+    supabaseAdmin
+      .from("supplier_offerings")
+      .select("id", { count: "exact", head: true })
+      .in("status", ["approved", "active"]),
+    supabaseAdmin
+      .from("supplier_offerings")
+      .select("id", { count: "exact", head: true })
+      .not("logo_url", "is", null),
+    supabaseAdmin
+      .from("supplier_offerings")
+      .select("id", { count: "exact", head: true })
+      .eq("qualification_status", "thin"),
+    supabaseAdmin
+      .from("supplier_offerings")
+      .select("id", { count: "exact", head: true })
+      .eq("qualification_status", "strong"),
+    supabaseAdmin
+      .from("supplier_offerings")
+      .select("id", { count: "exact", head: true })
+      .eq("qualification_status", "empty"),
+  ]);
 
   const reverseCountryMap = new Map<string, string[]>();
-  for (const row of (countriesResult.data ?? [])) {
+  for (const row of countriesResult.data ?? []) {
     const raw = row.country_of_origin;
     if (!raw) continue;
     const normalized = normalizeCountry(raw);
@@ -314,15 +244,17 @@ export default async function AdminSuppliersPage({
     }
   }
 
-  const priorities = [...new Set(
-    (prioritiesResult.data ?? [])
-      .map((row) => row.priority)
-      .filter((value): value is number => typeof value === "number")
-  )].sort((a, b) => a - b);
+  const priorities = [
+    ...new Set(
+      (prioritiesResult.data ?? [])
+        .map((row) => row.priority)
+        .filter((value): value is number => typeof value === "number")
+    ),
+  ].sort((a, b) => a - b);
 
   const totalSupplierCount = totalsResult.count ?? 0;
   const approvedSupplierCount = approvedResult.count ?? 0;
-  const pendingSupplierCount = pendingResult.count ?? 0;
+  const withLogosCount = withLogosResult.count ?? 0;
   const reviewSupplierCount = reviewResult.count ?? 0;
   const strongSupplierCount = strongResult.count ?? 0;
   const emptySupplierCount = emptyResult.count ?? 0;
@@ -330,17 +262,21 @@ export default async function AdminSuppliersPage({
   let query: any = supabaseAdmin
     .from("supplier_offerings")
     .select(
-      `id, company_name, logo_url, country_of_origin, categories, certifications,
-       status, priority, verified, product_type, private_label,
+      `id, company_name, website, logo_url, country_of_origin, categories, certifications,
+       kosher_status, status, priority, verified, product_type, private_label,
        product_count, qualification_status, trust_score,
+       contact_email, contact_phone, linkedin_url, scrape_status,
        markets_served, price_positioning,
        supplier_contacts(id), supplier_documents(id)`,
       { count: "exact" }
     )
-    .order("priority", { ascending: false });
+    .order("product_count", { ascending: false, nullsFirst: false })
+    .order("trust_score", { ascending: false, nullsFirst: false });
 
   if (safeSearchValue) {
-    query = query.or(`company_name.ilike.%${safeSearchValue}%,website.ilike.%${safeSearchValue}%`);
+    query = query.or(
+      `company_name.ilike.%${safeSearchValue}%,website.ilike.%${safeSearchValue}%`
+    );
   }
 
   if (country) {
@@ -388,7 +324,7 @@ export default async function AdminSuppliersPage({
     if (category) sp.set("category", category);
     if (status) sp.set("status", status);
     if (priorityValue !== "") sp.set("priority", priorityValue);
-    if (qualification && qualification !== "review") sp.set("qualification", qualification);
+    if (qualification) sp.set("qualification", qualification);
     if (pageSize !== 50) sp.set("per_page", String(pageSize));
     if (page > 1) sp.set("page", String(page));
 
@@ -400,9 +336,8 @@ export default async function AdminSuppliersPage({
       }
     }
 
-    if (sp.get("qualification") === "review") sp.delete("qualification");
     if (sp.get("per_page") === "50") sp.delete("per_page");
-    if (sp.get("page") === "0") sp.delete("page");
+    if (sp.get("page") === "1" || sp.get("page") === "0") sp.delete("page");
 
     const queryString = sp.toString();
     return `/admin/suppliers${queryString ? `?${queryString}` : ""}`;
@@ -410,61 +345,90 @@ export default async function AdminSuppliersPage({
 
   return (
     <main className="min-h-screen bg-gray-50">
-      <div className="border-b border-gray-200 bg-white px-6 py-3 flex items-center justify-between sticky top-0 z-10 shadow-sm">
-        <div className="flex items-center gap-4">
-          <span className="text-sm font-semibold text-gray-800">Supplier Database</span>
+      <div className="border-b border-gray-200 bg-white px-6 py-3.5 flex flex-wrap items-center justify-between gap-3 sticky top-0 z-20 shadow-xs">
+        <div className="flex flex-wrap items-center gap-3">
+          <h1 className="text-base font-bold text-gray-900">
+            Supplier Directory
+          </h1>
+          <span className="text-xs bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full px-2.5 py-0.5 font-semibold">
+            ✓ {approvedSupplierCount.toLocaleString()} Auto-Approved
+          </span>
+          <span className="text-xs bg-blue-50 text-blue-700 border border-blue-200 rounded-full px-2.5 py-0.5 font-semibold">
+            🖼 {withLogosCount.toLocaleString()} Logos Ready
+          </span>
           <span className="text-xs text-gray-400">
-            <span className="bg-green-100 text-green-700 rounded-full px-2 py-0.5 font-semibold mr-1">
-              {approvedSupplierCount} approved
-            </span>
-            {pendingSupplierCount > 0 && (
-              <span className="bg-yellow-100 text-yellow-700 rounded-full px-2 py-0.5 font-semibold mr-1">
-                {pendingSupplierCount} pending
-              </span>
-            )}
-            {totalSupplierCount} total
+            {totalSupplierCount.toLocaleString()} total suppliers
           </span>
         </div>
-        <Link
-          href="/admin/suppliers/new"
-          className="px-4 py-2 rounded-lg bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold transition"
-        >
-          + Add supplier
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link
+            href="/admin/products"
+            className="px-3 py-1.5 rounded-lg border border-gray-200 text-gray-700 hover:bg-gray-50 text-xs font-semibold transition"
+          >
+            📦 Product Catalog ({strongSupplierCount.toLocaleString()} strong)
+          </Link>
+          <Link
+            href="/admin/scraper"
+            className="px-3 py-1.5 rounded-lg border border-gray-200 text-gray-700 hover:bg-gray-50 text-xs font-semibold transition"
+          >
+            🕷 Scraper & CSV
+          </Link>
+          <Link
+            href="/admin/suppliers/new"
+            className="px-3.5 py-1.5 rounded-lg bg-orange-500 hover:bg-orange-600 text-white text-xs font-semibold transition"
+          >
+            + Add Supplier
+          </Link>
+        </div>
       </div>
 
       <div className="p-6 max-w-7xl mx-auto">
-        <div className="flex gap-1 mb-6 border-b border-gray-200">
-          {SUPPLIER_QUALIFICATION_TABS.map((tab) => {
-            const count =
-              tab === "all"
-                ? totalSupplierCount
-                : tab === "review"
-                ? reviewSupplierCount
-                : tab === "strong"
-                ? strongSupplierCount
-                : emptySupplierCount;
-            return (
-              <Link
-                key={tab}
-                href={buildUrl({ qualification: tab, page: "0" })}
-                className={`px-4 py-2 text-xs font-medium rounded-t-lg transition-colors ${
-                  qualification === tab
-                    ? "bg-white border border-b-white border-gray-200 text-gray-900 -mb-px"
-                    : "text-gray-500 hover:text-gray-700"
-                }`}
-              >
-                {tab === "review"
-                  ? "Review"
+        <div className="flex flex-wrap items-center justify-between gap-2 mb-5 border-b border-gray-200">
+          <div className="flex gap-1">
+            {SUPPLIER_QUALIFICATION_TABS.map((tab) => {
+              const countVal =
+                tab === "all"
+                  ? totalSupplierCount
+                  : tab === "review"
+                  ? reviewSupplierCount
                   : tab === "strong"
-                  ? "Strong"
+                  ? strongSupplierCount
+                  : emptySupplierCount;
+              const label =
+                tab === "strong"
+                  ? "★ Strong Manufacturers"
+                  : tab === "review"
+                  ? "Needs Review"
                   : tab === "empty"
-                  ? "Empty"
-                  : "All"}
-                <span className="ml-1.5 text-gray-400">{count}</span>
-              </Link>
-            );
-          })}
+                  ? "Unscraped / Empty"
+                  : "All Suppliers";
+              return (
+                <Link
+                  key={tab}
+                  href={buildUrl({ qualification: tab, page: "1" })}
+                  className={`px-4 py-2.5 text-xs font-semibold rounded-t-xl transition-colors ${
+                    qualification === tab
+                      ? "bg-white border border-b-white border-gray-200 text-orange-600 -mb-px shadow-2xs"
+                      : "text-gray-500 hover:text-gray-800"
+                  }`}
+                >
+                  {label}
+                  <span
+                    className={`ml-1.5 px-1.5 py-0.5 rounded-full text-[11px] ${
+                      qualification === tab
+                        ? "bg-orange-50 text-orange-700"
+                        : "bg-gray-100 text-gray-500"
+                    }`}
+                  >
+                    {countVal.toLocaleString()}
+                  </span>
+                </Link>
+              );
+            })}
+          </div>
+          <p className="text-xs text-gray-400 pb-2">
+            All imported & scraped manufacturers are automatically approved in the system.
+          </p>
         </div>
 
         <SupplierFiltersBar
@@ -481,7 +445,7 @@ export default async function AdminSuppliersPage({
         />
 
         {suppliers.length === 0 ? (
-          <div className="text-center py-16 text-gray-400 text-sm">
+          <div className="bg-white border border-gray-200 rounded-2xl text-center py-16 text-gray-400 text-sm">
             No suppliers match these filters.
           </div>
         ) : (
@@ -491,21 +455,23 @@ export default async function AdminSuppliersPage({
             {totalPages > 1 && (
               <div className="flex flex-col gap-3 mt-4 sm:flex-row sm:items-center sm:justify-between">
                 <p className="text-xs text-gray-500">
-                  Showing {showingStart}–{showingEnd} of {totalCount.toLocaleString()} suppliers
+                  Showing {showingStart}–{showingEnd} of{" "}
+                  {totalCount.toLocaleString()} suppliers (Page {page} of{" "}
+                  {totalPages})
                 </p>
                 <div className="flex flex-wrap gap-2">
-                  {page > 0 && (
+                  {page > 1 && (
                     <Link
                       href={buildUrl({ page: String(page - 1) })}
-                      className="px-3 py-1.5 text-sm border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-50"
+                      className="px-3 py-1.5 text-xs font-semibold border border-gray-200 bg-white rounded-lg text-gray-700 hover:bg-gray-50"
                     >
                       ← Previous
                     </Link>
                   )}
-                  {page < totalPages - 1 && (
+                  {page < totalPages && (
                     <Link
                       href={buildUrl({ page: String(page + 1) })}
-                      className="px-3 py-1.5 text-sm border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-50"
+                      className="px-3 py-1.5 text-xs font-semibold border border-gray-200 bg-white rounded-lg text-gray-700 hover:bg-gray-50"
                     >
                       Next →
                     </Link>

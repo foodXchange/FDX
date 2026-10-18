@@ -25,6 +25,7 @@ export interface SupplierProfile {
   contact_phone: string | null;
   contact_name: string | null;
   linkedin_url: string | null;
+  logo_url?: string | null;
   factories: ExtractedFactory[];
 }
 
@@ -49,6 +50,7 @@ export interface ExtractedProduct {
   confidence: number;
   detected_language?: string;
   needs_review?: boolean;
+  image_url?: string | null;
 }
 
 export interface ManufacturerDetectionResult {
@@ -297,7 +299,8 @@ export async function extractProducts(
     `    "tags": ["tag1", "tag2"],\n` +
     `    "markets_suitable": ["Retail", "Foodservice", "Industry"],\n` +
     `    "confidence": 0.7,\n` +
-    `    "detected_language": "english" or "italian" or "spanish" or "french" or "german" or "polish" or "other"\n` +
+    `    "detected_language": "english" or "italian" or "spanish" or "french" or "german" or "polish" or "other",\n` +
+    `    "image_url": "direct product photo URL from markdown ![alt](url) if clearly corresponding to this product (NOT a logo, icon, or flag), or null"\n` +
     `  }\n` +
     `]\n\n` +
     `Extract a MAXIMUM of 25 most representative products. ` +
@@ -375,6 +378,7 @@ const EMPTY_PROFILE: SupplierProfile = {
   contact_phone: null,
   contact_name: null,
   linkedin_url: null,
+  logo_url: null,
   factories: [],
 };
 
@@ -406,6 +410,7 @@ export async function extractSupplierProfile(
     `  "contact_phone": "+39 xxx xxx xxxx" or null,\n` +
     `  "contact_name": "First Last" or null,\n` +
     `  "linkedin_url": "https://linkedin.com/..." or null,\n` +
+    `  "logo_url": "direct image URL of the company brand logo if found in markdown or OG_IMAGE, or null",\n` +
     `  "factories": [\n` +
     `    {\n` +
     `      "factory_name": "Main Plant" or factory name if stated,\n` +
@@ -526,6 +531,8 @@ export async function extractSupplierProfile(
         typeof parsed.contact_name === "string" ? parsed.contact_name : null,
       linkedin_url:
         typeof parsed.linkedin_url === "string" ? parsed.linkedin_url : null,
+      logo_url:
+        typeof parsed.logo_url === "string" ? parsed.logo_url : null,
       factories,
     };
   } catch (err) {

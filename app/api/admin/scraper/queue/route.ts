@@ -55,13 +55,41 @@ function sleep(ms: number): Promise<void> {
   return new Promise((r) => setTimeout(r, ms));
 }
 
+import {
+  extractImagesFromCrawledContent,
+  matchProductToCrawledImage,
+  rehostProductImageToStorage,
+  rehostSupplierLogoToStorage,
+  toAbsoluteUrl,
+  getDomainFaviconUrl,
+} from "@/lib/scraper/mediaHelper";
+
 async function insertProducts(
   supplierId: string,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   products: any[],
-  scrapeSource: string
+  scrapeSource: string,
+  crawledContent = "",
+  supplierWebsite: string | null = null
 ): Promise<number> {
   if (products.length === 0) return 0;
+
+  const { productImages } = extractImagesFromCrawledContent(
+    crawledContent,
+    supplierWebsite
+  );
+
+  const resolvedImages = await Promise.all(
+    products.map(async (p, idx) => {
+      const candidateUrl = matchProductToCrawledImage(
+        p,
+        productImages,
+        supplierWebsite
+      );
+      if (!candidateUrl) return null;
+      return rehostProductImageToStorage(supplierId, candidateUrl, idx);
+    })
+  );
 
   let vectors: (number[] | null)[] = [];
   try {
@@ -103,6 +131,8 @@ async function insertProducts(
     manually_verified: false,
     needs_review: p.needs_review ?? false,
     is_published: true,
+    image_url: resolvedImages[i] ?? null,
+    image_source: resolvedImages[i] ? "scraper" : null,
     embedding: vectors[i] ? JSON.stringify(vectors[i]) : null,
   }));
 
@@ -119,7 +149,7 @@ async function insertProducts(
 
   await supabaseAdmin
     .from("supplier_offerings")
-    .update({ product_count, qualification_status })
+    .update({ product_count, qualification_status, status: "approved", verified: true })
     .eq("id", supplierId);
 
   return rows.length;
@@ -327,16 +357,37 @@ async function runBackgroundQueue() {
               }
 
               const scrapeSource = isGroundedSearch ? `google_search:${supplier.website}` : supplier.website!;
-              const inserted = await insertProducts(supplier.id, products, scrapeSource);
+              const inserted = await insertProducts(
+                supplier.id,
+                products,
+                scrapeSource,
+                content,
+                supplier.website
+              );
               productsSavedCount = inserted;
+
+              const { logoCandidates } = extractImagesFromCrawledContent(
+                content,
+                supplier.website
+              );
+              const rawLogo =
+                toAbsoluteUrl(profile.logo_url, supplier.website) ??
+                logoCandidates[0] ??
+                getDomainFaviconUrl(supplier.website);
+              const hostedLogo = rawLogo
+                ? await rehostSupplierLogoToStorage(supplier.id, rawLogo)
+                : null;
 
               await supabaseAdmin
                 .from("supplier_offerings")
                 .update({
                   scrape_status: "scraped",
+                  status: "approved",
+                  verified: true,
                   last_scraped_at: new Date().toISOString(),
                   products_found: inserted,
                   internal_notes: null,
+                  ...(hostedLogo ? { logo_url: hostedLogo } : {}),
                   ...(profile.company_description ? { product_description: profile.company_description } : {}),
                   ...(profile.contact_email ? { contact_email: profile.contact_email } : {}),
                   ...(profile.contact_phone ? { contact_phone: profile.contact_phone } : {}),
