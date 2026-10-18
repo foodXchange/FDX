@@ -14,6 +14,9 @@ const TYPE_LABELS: Record<NotificationType, string> = {
   match_reply: "Match reply",
   match_message: "Match message",
   supplier_signup: "New supplier signup",
+  reminder: "Reminder",
+  follow_up: "Follow-up",
+  qa_alert: "QA Alert",
 };
 
 const TYPE_BADGE_CLASSES: Record<NotificationType, string> = {
@@ -25,6 +28,9 @@ const TYPE_BADGE_CLASSES: Record<NotificationType, string> = {
   match_reply: "bg-teal-100 text-teal-700",
   match_message: "bg-indigo-100 text-indigo-700",
   supplier_signup: "bg-amber-100 text-amber-700",
+  reminder: "bg-rose-100 text-rose-700",
+  follow_up: "bg-amber-100 text-amber-800",
+  qa_alert: "bg-red-100 text-red-700",
 };
 
 type ReadFilter = "" | "unread" | "read";
