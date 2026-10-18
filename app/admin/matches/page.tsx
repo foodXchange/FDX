@@ -2,6 +2,7 @@ import Link from "next/link";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import MatchDashboardClient from "@/components/admin/MatchDashboardClient";
 import type { EmailTemplateRow } from "@/components/admin/EmailTemplatesClient";
+import { getGmailCredentials } from "@/lib/email/gmailEngine";
 
 export const dynamic = "force-dynamic";
 
@@ -21,6 +22,7 @@ export type MatchRow = {
   sent_at: string | null;
   sent_via: string | null;
   supplier_responded_at: string | null;
+  supplier_message?: string | null;
   product_image_url?: string | null;
   product_formats?: string[] | null;
   product_category?: string | null;
@@ -31,6 +33,11 @@ export type MatchRow = {
     source?: string;
     product_id?: string;
     image_url?: string | null;
+    gmail_message_id?: string;
+    gmail_subject?: string;
+    followup_count?: number;
+    last_reply_snippet?: string;
+    last_reply_from?: string;
   } | null;
   request: {
     id: string;
@@ -60,29 +67,33 @@ export type MatchRow = {
 };
 
 export default async function MatchesPage() {
-  const [{ data, error }, { data: templateData }] = await Promise.all([
-    supabaseAdmin
-      .from("sourcing_matches")
-      .select(
-        `id, request_id, supplier_id, match_score, product_name, company_name,
-         country, match_summary, whatsapp_message, status, approved_at, rejected_at,
-         sent_at, sent_via, supplier_responded_at,
-         match_breakdown,
-         request:sourcing_requests(id, product_name, company, email, category, kosher, certifications, quantity, unit, notes, reference_image_urls),
-         supplier:supplier_offerings(id, company_name, country_of_origin, logo_url, website, contact_email, contact_phone, certifications, kosher_types, trust_score)`
-      )
-      .order("match_score", { ascending: false })
-      .limit(500),
-    supabaseAdmin
-      .from("supplier_email_templates")
-      .select("id, name, channel, subject, body")
-      .order("name"),
-  ]);
+  const [{ data, error }, { data: templateData }, gmailCreds] =
+    await Promise.all([
+      supabaseAdmin
+        .from("sourcing_matches")
+        .select(
+          `id, request_id, supplier_id, match_score, product_name, company_name,
+           country, match_summary, whatsapp_message, status, approved_at, rejected_at,
+           sent_at, sent_via, supplier_responded_at, supplier_message,
+           match_breakdown,
+           request:sourcing_requests(id, product_name, company, email, category, kosher, certifications, quantity, unit, notes, reference_image_urls),
+           supplier:supplier_offerings(id, company_name, country_of_origin, logo_url, website, contact_email, contact_phone, certifications, kosher_types, trust_score)`
+        )
+        .order("match_score", { ascending: false })
+        .limit(500),
+      supabaseAdmin
+        .from("supplier_email_templates")
+        .select("id, name, channel, subject, body")
+        .order("name"),
+      getGmailCredentials(),
+    ]);
 
   if (error) {
     return (
       <main className="min-h-screen bg-gray-50 p-6">
-        <p className="text-red-600 text-sm">Error loading matches: {error.message}</p>
+        <p className="text-red-600 text-sm">
+          Error loading matches: {error.message}
+        </p>
       </main>
     );
   }
@@ -129,7 +140,9 @@ export default async function MatchesPage() {
 
     if (!bestProduct && targetName) {
       bestProduct =
-        candidates.find((c) => c.product_name.toLowerCase().trim() === targetName) ??
+        candidates.find(
+          (c) => c.product_name.toLowerCase().trim() === targetName
+        ) ??
         candidates.find(
           (c) =>
             c.product_name.toLowerCase().includes(targetName) ||
@@ -153,11 +166,13 @@ export default async function MatchesPage() {
 
   return (
     <main className="min-h-screen bg-gray-50">
-      <div className="border-b border-gray-200 bg-white px-6 py-3.5 sticky top-0 z-10 shadow-sm flex items-center justify-between">
+      <div className="border-b border-gray-200 bg-white px-6 py-3.5 sticky top-0 z-10 shadow-sm flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
-          <h1 className="text-base font-bold text-gray-900">Match Dashboard</h1>
+          <h1 className="text-base font-bold text-gray-900">
+            Match &amp; Gmail Outreach Hub
+          </h1>
           <span className="text-xs bg-orange-50 text-orange-700 border border-orange-200 rounded-full px-2.5 py-0.5 font-semibold">
-            {matches.length} total matches
+            {matches.length} matches (Ranked 100→10)
           </span>
         </div>
         <div className="flex items-center gap-2">
@@ -177,7 +192,12 @@ export default async function MatchesPage() {
       </div>
 
       <div className="p-6 max-w-7xl mx-auto">
-        <MatchDashboardClient matches={matches} templates={templates} />
+        <MatchDashboardClient
+          matches={matches}
+          templates={templates}
+          initialGmailConnected={!!gmailCreds}
+          initialGmailUser={gmailCreds?.user ?? null}
+        />
       </div>
     </main>
   );
