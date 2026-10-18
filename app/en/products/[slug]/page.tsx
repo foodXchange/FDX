@@ -12,18 +12,46 @@ export const revalidate = 3600;
 type Params = Promise<{ slug: string }>;
 
 const COUNTRY_FLAG: Record<string, string> = {
-  Spain: "🇪🇸", Italy: "🇮🇹", France: "🇫🇷", Portugal: "🇵🇹", Greece: "🇬🇷",
-  Turkey: "🇹🇷", Morocco: "🇲🇦", Israel: "🇮🇱", Germany: "🇩🇪", Netherlands: "🇳🇱",
-  Poland: "🇵🇱", Belgium: "🇧🇪", Ukraine: "🇺🇦", Romania: "🇷🇴", Bulgaria: "🇧🇬",
+  Spain: "🇪🇸",
+  Italy: "🇮🇹",
+  France: "🇫🇷",
+  Portugal: "🇵🇹",
+  Greece: "🇬🇷",
+  Turkey: "🇹🇷",
+  Morocco: "🇲🇦",
+  Israel: "🇮🇱",
+  Germany: "🇩🇪",
+  Netherlands: "🇳🇱",
+  Poland: "🇵🇱",
+  Belgium: "🇧🇪",
+  Ukraine: "🇺🇦",
+  Romania: "🇷🇴",
+  Bulgaria: "🇧🇬",
 };
 
 export function generateStaticParams() {
   return Object.keys(SLUG_TO_CATEGORY).map((slug) => ({ slug }));
 }
 
-export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
+async function resolveCategoryFromSlug(slug: string): Promise<string | null> {
+  const staticMatch = slugToCategory(slug);
+  if (staticMatch) return staticMatch;
+
+  const { data: catRows } = await supabaseAdmin
+    .from("category_images")
+    .select("category");
+
+  const dynamicCats = (catRows ?? []).map((r) => r.category);
+  return slugToCategory(slug, dynamicCats);
+}
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Params;
+}): Promise<Metadata> {
   const { slug } = await params;
-  const category = slugToCategory(slug);
+  const category = await resolveCategoryFromSlug(slug);
   if (!category) return { title: "Products | FoodXchange" };
 
   const canonical = `https://fdx.trading/en/products/${slug}`;
@@ -34,13 +62,15 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
     .eq("category", category);
 
   const title = `Kosher ${category} Suppliers for Israel — FoodXchange`;
-  const description = `${count ?? ""} kosher-certified ${category} products from verified European manufacturers. Chief Rabbinate certification. Private label available. Request sourcing today.`.trim();
+  const description = `${
+    count ?? ""
+  } kosher-certified ${category} products from verified European manufacturers. Chief Rabbinate certification. Private label available. Request sourcing today.`.trim();
 
   const { data: catImg } = await supabaseAdmin
     .from("category_images")
     .select("image_url, image_alt")
     .eq("category", category)
-    .single();
+    .maybeSingle();
 
   return {
     title,
@@ -52,40 +82,57 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
       url: canonical,
       type: "website",
       siteName: "FoodXchange",
-      images: catImg?.image_url ? [{ url: catImg.image_url, alt: catImg.image_alt ?? title }] : [],
+      images: catImg?.image_url
+        ? [{ url: catImg.image_url, alt: catImg.image_alt ?? title }]
+        : [],
     },
   };
 }
 
-export default async function CategoryProductsPage({ params }: { params: Params }) {
+export default async function CategoryProductsPage({
+  params,
+}: {
+  params: Params;
+}) {
   const { slug } = await params;
-  const category = slugToCategory(slug);
+  const category = await resolveCategoryFromSlug(slug);
   if (!category) redirect("/en/products");
 
   const [{ data: rawProducts }, { data: catImageRaw }] = await Promise.all([
     supabaseAdmin
       .from("supplier_products")
       .select(
-        `id, product_name, category, kosher_types, certifications, formats,
+        `id, product_name, category, image_url, kosher_types, certifications, formats,
          description, private_label, scrape_confidence,
          supplier:supplier_offerings!inner(id, company_name, country_of_origin, status)`
       )
       .or("is_published.eq.true,is_published.is.null")
       .eq("category", category)
-      .order("scrape_confidence", { ascending: false }),
+      .order("image_url", { ascending: false, nullsFirst: false })
+      .order("scrape_confidence", { ascending: false })
+      .limit(1000),
     supabaseAdmin
       .from("category_images")
       .select("image_url, gradient_from, gradient_to, image_alt")
       .eq("category", category)
-      .single(),
+      .maybeSingle(),
   ]);
 
   const products = (rawProducts ?? []) as unknown as PublicCatalogueProduct[];
+  const fallbackHeroImg =
+    products.find((p) => p.image_url)?.image_url ?? null;
+
   const catImage: CategoryImageData | null = catImageRaw
     ? {
-        image_url: catImageRaw.image_url,
+        image_url: catImageRaw.image_url ?? fallbackHeroImg,
         gradient_from: catImageRaw.gradient_from,
         gradient_to: catImageRaw.gradient_to,
+      }
+    : fallbackHeroImg
+    ? {
+        image_url: fallbackHeroImg,
+        gradient_from: "#475569",
+        gradient_to: "#1E293B",
       }
     : null;
 
@@ -115,7 +162,10 @@ export default async function CategoryProductsPage({ params }: { params: Params 
       </div>
 
       {/* Category hero */}
-      <div className="relative overflow-hidden mx-6 rounded-2xl mb-0" style={{ height: 180 }}>
+      <div
+        className="relative overflow-hidden mx-6 rounded-2xl mb-0"
+        style={{ height: 180 }}
+      >
         {/* Gradient base */}
         <div
           className="absolute inset-0 flex items-center justify-center"
@@ -134,15 +184,20 @@ export default async function CategoryProductsPage({ params }: { params: Params 
 
         {/* Dark overlay + text */}
         <div className="absolute inset-0 bg-black/50 flex flex-col items-start justify-end px-8 pb-6">
-          <h1 className="text-3xl md:text-4xl font-bold text-white mb-1">{category}</h1>
+          <h1 className="text-3xl md:text-4xl font-bold text-white mb-1">
+            {category}
+          </h1>
           <div className="flex items-center gap-3 text-white/80 text-sm">
             <span>
-              {products.length} product{products.length !== 1 ? "s" : ""}
+              {products.length.toLocaleString()} product
+              {products.length !== 1 ? "s" : ""}
             </span>
             {countries.size > 0 && (
               <>
                 <span>·</span>
-                <span>{countries.size} countr{countries.size !== 1 ? "ies" : "y"}</span>
+                <span>
+                  {countries.size} countr{countries.size !== 1 ? "ies" : "y"}
+                </span>
               </>
             )}
             {topCountries.length > 0 && (
@@ -169,9 +224,11 @@ export default async function CategoryProductsPage({ params }: { params: Params 
         <p className="text-orange-400 text-xs font-semibold uppercase tracking-wider mb-2">
           NEED SOMETHING ELSE?
         </p>
-        <h2 className="text-xl font-bold text-white mb-2">Browse all categories</h2>
+        <h2 className="text-xl font-bold text-white mb-2">
+          Browse all categories
+        </h2>
         <p className="text-slate-400 text-sm mb-6 max-w-md mx-auto">
-          Hundreds of verified kosher food products from European manufacturers.
+          Thousands of verified kosher food products from European manufacturers.
         </p>
         <Link
           href="/en/products"

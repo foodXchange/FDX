@@ -8,6 +8,7 @@ export type PublicCatalogueProduct = {
   id: string;
   product_name: string;
   category: string;
+  image_url?: string | null;
   kosher_types: string[];
   certifications: string[];
   formats: string[];
@@ -31,14 +32,16 @@ export type CategoryImageData = {
 export const revalidate = 3600;
 
 export const metadata: Metadata = {
-  title: "Kosher Food Products for Israel — European Manufacturers | FoodXchange",
+  title:
+    "Kosher Food Products for Israel — European Manufacturers | FoodXchange",
   description:
-    "Browse 600+ kosher-certified food products from verified European manufacturers. Olive oil, tomato products, snacks, frozen foods, and more. Chief Rabbinate certified. Request sourcing today.",
+    "Browse 20,000+ kosher-certified food products from verified European manufacturers. Olive oil, tomato products, snacks, frozen foods, and more. Chief Rabbinate certified. Request sourcing today.",
   alternates: { canonical: "https://fdx.trading/en/products" },
   openGraph: {
-    title: "Kosher Food Products for Israel — European Manufacturers | FoodXchange",
+    title:
+      "Kosher Food Products for Israel — European Manufacturers | FoodXchange",
     description:
-      "Browse 600+ kosher-certified food products from verified European manufacturers. Chief Rabbinate certified. Request sourcing today.",
+      "Browse 20,000+ kosher-certified food products from verified European manufacturers. Chief Rabbinate certified. Request sourcing today.",
     url: "https://fdx.trading/en/products",
     type: "website",
     siteName: "FoodXchange",
@@ -46,7 +49,9 @@ export const metadata: Metadata = {
 };
 
 type RawStatRow = {
+  id: string;
   category: string;
+  image_url: string | null;
   kosher_types: string[] | null;
   supplier: { country_of_origin: string | null } | null;
 };
@@ -58,28 +63,75 @@ export type ComputedCatStat = {
   top_countries: string[];
 };
 
+async function fetchAllPublishedStats(): Promise<RawStatRow[]> {
+  const { count } = await supabaseAdmin
+    .from("supplier_products")
+    .select("*", { count: "exact", head: true })
+    .or("is_published.eq.true,is_published.is.null");
+
+  const total = count ?? 0;
+  const pageSize = 1000;
+  const pages = Math.ceil(total / pageSize);
+  const ranges = Array.from({ length: Math.max(pages, 1) }, (_, i) => [
+    i * pageSize,
+    (i + 1) * pageSize - 1,
+  ]);
+
+  const results = await Promise.all(
+    ranges.map(([from, to]) =>
+      supabaseAdmin
+        .from("supplier_products")
+        .select(
+          "id, category, image_url, kosher_types, supplier:supplier_offerings!inner(country_of_origin)"
+        )
+        .or("is_published.eq.true,is_published.is.null")
+        .order("id", { ascending: true })
+        .range(from, to)
+    )
+  );
+
+  const all: RawStatRow[] = [];
+  for (const r of results) {
+    if (r.data) all.push(...(r.data as unknown as RawStatRow[]));
+  }
+  return all;
+}
+
 export default async function ProductsPage() {
-  const [{ data: statsData }, { data: catImageData }] = await Promise.all([
-    supabaseAdmin
-      .from("supplier_products")
-      .select(
-        "category, kosher_types, supplier:supplier_offerings!inner(country_of_origin)"
-      )
-      .or("is_published.eq.true,is_published.is.null"),
+  const [statsData, { data: catImageData }] = await Promise.all([
+    fetchAllPublishedStats(),
     supabaseAdmin
       .from("category_images")
       .select("category, image_url, gradient_from, gradient_to"),
   ]);
 
-  // Compute per-category stats
-  const raw: Record<string, { count: number; kosherCount: number; countries: Set<string> }> = {};
+  // Compute per-category stats + sample fallback image
+  const raw: Record<
+    string,
+    {
+      count: number;
+      kosherCount: number;
+      countries: Set<string>;
+      sampleImage: string | null;
+    }
+  > = {};
 
-  for (const p of (statsData ?? []) as unknown as RawStatRow[]) {
-    const cat = p.category;
+  for (const p of statsData) {
+    const cat = (p.category ?? "").trim();
     if (!cat) continue;
-    if (!raw[cat]) raw[cat] = { count: 0, kosherCount: 0, countries: new Set() };
+    if (!raw[cat]) {
+      raw[cat] = {
+        count: 0,
+        kosherCount: 0,
+        countries: new Set(),
+        sampleImage: null,
+      };
+    }
     raw[cat].count++;
     if ((p.kosher_types ?? []).length > 0) raw[cat].kosherCount++;
+    if (!raw[cat].sampleImage && p.image_url) {
+      raw[cat].sampleImage = p.image_url;
+    }
     const country = p.supplier?.country_of_origin;
     if (country) raw[cat].countries.add(country);
   }
@@ -89,7 +141,8 @@ export default async function ProductsPage() {
       cat,
       {
         count: s.count,
-        kosher_pct: s.count > 0 ? Math.round((s.kosherCount / s.count) * 100) : 0,
+        kosher_pct:
+          s.count > 0 ? Math.round((s.kosherCount / s.count) * 100) : 0,
         country_count: s.countries.size,
         top_countries: Array.from(s.countries).slice(0, 3),
       },
@@ -98,15 +151,40 @@ export default async function ProductsPage() {
 
   const totalCount = Object.values(raw).reduce((sum, s) => sum + s.count, 0);
 
-  const catImages: Record<string, { image_url: string | null; gradient_from: string; gradient_to: string }> =
-    Object.fromEntries(
-      (catImageData ?? []).map((r) => [
-        r.category,
-        { image_url: r.image_url, gradient_from: r.gradient_from, gradient_to: r.gradient_to },
-      ])
-    );
+  const catImages: Record<
+    string,
+    { image_url: string | null; gradient_from: string; gradient_to: string }
+  > = Object.fromEntries(
+    (catImageData ?? []).map((r) => [
+      r.category,
+      {
+        image_url: r.image_url ?? raw[r.category]?.sampleImage ?? null,
+        gradient_from: r.gradient_from,
+        gradient_to: r.gradient_to,
+      },
+    ])
+  );
 
-  const allCategories = Object.keys(CATEGORY_SLUGS);
+  // Dynamically include all categories from category_images, CATEGORY_SLUGS, and scraped products
+  const categorySet = new Set<string>([
+    ...Object.keys(CATEGORY_SLUGS),
+    ...(catImageData ?? []).map((r) => r.category),
+    ...Object.keys(raw),
+  ]);
+
+  const allCategories = Array.from(categorySet)
+    .filter((cat) => (stats[cat]?.count ?? 0) > 0 || !!catImages[cat])
+    .sort((a, b) => (stats[b]?.count ?? 0) - (stats[a]?.count ?? 0));
+
+  for (const cat of allCategories) {
+    if (!catImages[cat]) {
+      catImages[cat] = {
+        image_url: raw[cat]?.sampleImage ?? null,
+        gradient_from: "#475569",
+        gradient_to: "#1E293B",
+      };
+    }
+  }
 
   return (
     <main>
@@ -123,7 +201,8 @@ export default async function ProductsPage() {
             Products we source for Israel
           </h1>
           <p className="text-slate-300 text-base mt-4 max-w-2xl mx-auto leading-relaxed">
-            {totalCount}+ kosher-certified products · 17 categories · European manufacturers
+            {totalCount.toLocaleString()}+ kosher-certified products ·{" "}
+            {allCategories.length} categories · European manufacturers
           </p>
 
           <div className="flex flex-wrap items-center justify-center gap-3 mt-8">

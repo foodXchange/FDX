@@ -99,13 +99,16 @@ export default function ProductListRow({
         )}
       </button>
 
-      {/* Optional category image thumbnail (40px) */}
-      {showImages && categoryImage?.image_url && (
+      {/* Product photo thumbnail (or optional category image thumbnail) */}
+      {(product.image_url || (showImages && categoryImage?.image_url)) && (
         // eslint-disable-next-line @next/next/no-img-element
         <img
-          src={categoryImage.image_url}
+          src={product.image_url ?? categoryImage?.image_url ?? ""}
           alt=""
-          className="hidden md:block w-10 h-10 rounded-lg object-cover shrink-0"
+          onError={(e) => {
+            e.currentTarget.style.display = "none";
+          }}
+          className="hidden md:block w-11 h-11 rounded-lg object-contain bg-white p-0.5 shrink-0 border border-white/10"
         />
       )}
 

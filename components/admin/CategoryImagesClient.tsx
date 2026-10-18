@@ -1,9 +1,11 @@
 "use client";
 
 import { useState, useRef, useCallback, useEffect } from "react";
+import Link from "next/link";
 import PasteAssignPanel from "@/components/admin/PasteAssignPanel";
 import IdeogramDrawer from "@/components/admin/IdeogramDrawer";
 import { getCategoryFilename } from "@/lib/images/imageUtils";
+import { toCategorySlug } from "@/lib/products/categorySlug";
 
 export interface CategoryImageRow {
   id: string;
@@ -14,9 +16,17 @@ export interface CategoryImageRow {
   gradient_to: string;
 }
 
+export interface CategoryProductStats {
+  total: number;
+  published: number;
+  withPhoto: number;
+  samplePhotos: Array<{ url: string; name: string }>;
+}
+
 interface Props {
   rows: CategoryImageRow[];
   productCounts: Record<string, number>;
+  categoryStats?: Record<string, CategoryProductStats>;
 }
 
 type CardState = "idle" | "uploading" | "success" | "error";
@@ -27,6 +37,8 @@ const FALLBACK_GRADIENTS: Record<string, { from: string; to: string }> = {
   "Tomato Products": { from: "#C0392B", to: "#7B241C" },
   "Canned Foods": { from: "#5D6D7E", to: "#2C3E50" },
   Snacks: { from: "#E67E22", to: "#A04000" },
+  "Sweet Biscuits & Bars": { from: "#D35400", to: "#78281F" },
+  "Breakfast Cereals": { from: "#F39C12", to: "#9A7D0A" },
   "Frozen Foods": { from: "#2E86AB", to: "#1A5276" },
   Bakery: { from: "#F0B429", to: "#B7950B" },
   "Pasta & Grains": { from: "#D4A76A", to: "#8E6B3E" },
@@ -42,9 +54,14 @@ const FALLBACK_GRADIENTS: Record<string, { from: string; to: string }> = {
   Other: { from: "#888780", to: "#5D5D5A" },
 };
 
-export default function CategoryImagesClient({ rows, productCounts }: Props) {
-  const rowMap = Object.fromEntries(rows.map((r) => [r.category, r]));
-  const categories = rows.map((r) => r.category);
+export default function CategoryImagesClient({
+  rows,
+  productCounts,
+  categoryStats = {},
+}: Props) {
+  const [localRows, setLocalRows] = useState<CategoryImageRow[]>(rows);
+  const rowMap = Object.fromEntries(localRows.map((r) => [r.category, r]));
+  const categories = localRows.map((r) => r.category);
 
   // Core image state
   const [images, setImages] = useState<Record<string, string | null>>(
@@ -60,7 +77,9 @@ export default function CategoryImagesClient({ rows, productCounts }: Props) {
   const [altTexts, setAltTexts] = useState<Record<string, string>>(
     Object.fromEntries(rows.map((r) => [r.category, r.image_alt ?? ""]))
   );
-  const [altGenerating, setAltGenerating] = useState<Record<string, boolean>>({});
+  const [altGenerating, setAltGenerating] = useState<Record<string, boolean>>(
+    {}
+  );
   const [altEditing, setAltEditing] = useState<Record<string, boolean>>({});
   const [altDraft, setAltDraft] = useState<Record<string, string>>({});
 
@@ -72,18 +91,17 @@ export default function CategoryImagesClient({ rows, productCounts }: Props) {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [batchGenerating, setBatchGenerating] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [newCatName, setNewCatName] = useState("");
+  const [addingCat, setAddingCat] = useState(false);
 
   const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
-  // Init quickAssign from localStorage
   useEffect(() => {
     setQuickAssign(localStorage.getItem("fdx-quick-assign") === "true");
   }, []);
 
-  // Global paste listener
   useEffect(() => {
     const handlePaste = (e: ClipboardEvent) => {
-      // Don't intercept paste inside inputs/textareas
       const target = e.target as HTMLElement;
       if (
         target.tagName === "INPUT" ||
@@ -118,6 +136,19 @@ export default function CategoryImagesClient({ rows, productCounts }: Props) {
   const withoutImage = categories.filter((cat) => !images[cat]);
   const completeCount = withImage.filter((cat) => !!altTexts[cat]).length;
 
+  const totalScrapedProducts = Object.values(categoryStats).reduce(
+    (sum, s) => sum + s.total,
+    0
+  );
+  const totalPublishedProducts = Object.values(categoryStats).reduce(
+    (sum, s) => sum + s.published,
+    0
+  );
+  const totalProductsWithPhotos = Object.values(categoryStats).reduce(
+    (sum, s) => sum + s.withPhoto,
+    0
+  );
+
   const displayedCategories =
     statusFilter === "all"
       ? categories
@@ -145,7 +176,7 @@ export default function CategoryImagesClient({ rows, productCounts }: Props) {
         setAltTexts((p) => ({ ...p, [category]: json.alt! }));
       }
     } catch {
-      // silent — alt text is non-critical
+      // silent
     } finally {
       setAltGenerating((p) => ({ ...p, [category]: false }));
     }
@@ -166,7 +197,6 @@ export default function CategoryImagesClient({ rows, productCounts }: Props) {
     }
   }
 
-  // Core URL save — shared by inline input and paste panel
   async function saveImageUrl(category: string, url: string) {
     setCardState(category, "uploading");
     const res = await fetch("/api/admin/category-images/url", {
@@ -180,6 +210,40 @@ export default function CategoryImagesClient({ rows, productCounts }: Props) {
     setCardState(category, "success");
     setTimeout(() => setCardState(category, "idle"), 2000);
     generateAlt(category, url);
+  }
+
+  async function handleCreateCategory() {
+    const name = newCatName.trim();
+    if (!name || categories.includes(name)) return;
+    setAddingCat(true);
+    try {
+      await fetch("/api/admin/category-images/url", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          category: name,
+          alt: `${name} — Kosher European Food Manufacturers`,
+        }),
+      });
+      setLocalRows((prev) => [
+        {
+          id: name,
+          category: name,
+          image_url: null,
+          image_alt: `${name} — Kosher European Food Manufacturers`,
+          gradient_from: "#475569",
+          gradient_to: "#1E293B",
+        },
+        ...prev,
+      ]);
+      setAltTexts((p) => ({
+        ...p,
+        [name]: `${name} — Kosher European Food Manufacturers`,
+      }));
+      setNewCatName("");
+    } finally {
+      setAddingCat(false);
+    }
   }
 
   const handleFileUpload = useCallback(async (category: string, file: File) => {
@@ -280,7 +344,7 @@ export default function CategoryImagesClient({ rows, productCounts }: Props) {
     }
     const fb = FALLBACK_GRADIENTS[category];
     if (fb) return `linear-gradient(135deg, ${fb.from}, ${fb.to})`;
-    return "linear-gradient(135deg, #888780, #5D5D5A)";
+    return "linear-gradient(135deg, #475569, #1E293B)";
   }
 
   function toggleFilter(f: StatusFilter) {
@@ -298,19 +362,55 @@ export default function CategoryImagesClient({ rows, productCounts }: Props) {
     <>
       {/* ── Page header ── */}
       <div className="px-8 py-6 border-b border-slate-200 bg-white">
-        <div className="flex items-start justify-between mb-5">
+        <div className="flex flex-wrap items-start justify-between gap-4 mb-5">
           <div>
-            <h1 className="text-xl font-bold text-slate-900">Category Images</h1>
+            <div className="flex items-center gap-2.5 flex-wrap">
+              <h1 className="text-xl font-bold text-slate-900">
+                Categories & Public Catalog Hub
+              </h1>
+              <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+                ⚡ Auto-growing with Scraper ({categories.length} categories)
+              </span>
+            </div>
             <p className="text-sm text-slate-500 mt-1">
-              These images appear on the public products page. Click any
-              category to upload. Press{" "}
+              Any new category extracted by the scraper is automatically added
+              here and published to{" "}
+              <Link
+                href="/en/products"
+                target="_blank"
+                className="text-orange-600 hover:underline font-medium"
+              >
+                /en/products ↗
+              </Link>
+              . Click any card to upload a hero image, pick a real scraped
+              product photo below the card, or press{" "}
               <kbd className="bg-slate-100 border border-slate-200 text-slate-600 text-[10px] px-1 py-0.5 rounded font-mono">
                 Ctrl+V
               </kbd>{" "}
-              anywhere to paste a URL.
+              to paste a URL.
             </p>
           </div>
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex items-center gap-2 flex-wrap shrink-0">
+            <div className="flex items-center gap-1.5">
+              <input
+                type="text"
+                value={newCatName}
+                onChange={(e) => setNewCatName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") handleCreateCategory();
+                }}
+                placeholder="New category name…"
+                className="text-xs border border-slate-200 rounded-xl px-3 py-2 focus:outline-none focus:border-orange-400"
+              />
+              <button
+                type="button"
+                disabled={!newCatName.trim() || addingCat}
+                onClick={handleCreateCategory}
+                className="text-xs font-semibold px-3 py-2 rounded-xl bg-slate-900 text-white hover:bg-slate-800 disabled:opacity-40 transition"
+              >
+                + Add Category
+              </button>
+            </div>
             <button
               type="button"
               onClick={() => {
@@ -318,7 +418,7 @@ export default function CategoryImagesClient({ rows, productCounts }: Props) {
                 setQuickAssign(next);
                 localStorage.setItem("fdx-quick-assign", String(next));
               }}
-              className={`text-sm px-3 py-2 rounded-xl border transition ${
+              className={`text-xs font-semibold px-3 py-2 rounded-xl border transition ${
                 quickAssign
                   ? "bg-orange-50 border-orange-300 text-orange-700"
                   : "border-slate-200 text-slate-600 hover:border-slate-300"
@@ -329,26 +429,66 @@ export default function CategoryImagesClient({ rows, productCounts }: Props) {
             <button
               type="button"
               onClick={() => setDrawerOpen(true)}
-              className="text-sm border border-slate-200 text-slate-700 hover:border-orange-400 hover:text-orange-600 px-4 py-2 rounded-xl transition"
+              className="text-xs font-semibold border border-slate-200 text-slate-700 hover:border-orange-400 hover:text-orange-600 px-3.5 py-2 rounded-xl transition"
             >
-              Open Ideogram workflow →
+              Ideogram workflow →
             </button>
+          </div>
+        </div>
+
+        {/* Live Catalog KPI summary */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
+          <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5">
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+              Active Categories
+            </p>
+            <p className="text-lg font-extrabold text-slate-900">
+              {categories.length}
+            </p>
+          </div>
+          <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5">
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+              Total Scraped Products
+            </p>
+            <p className="text-lg font-extrabold text-slate-900">
+              {totalScrapedProducts.toLocaleString()}
+            </p>
+          </div>
+          <div className="rounded-xl border border-emerald-200 bg-emerald-50/50 px-4 py-2.5">
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-emerald-700">
+              Published on Public Site
+            </p>
+            <p className="text-lg font-extrabold text-emerald-800">
+              {totalPublishedProducts.toLocaleString()}
+            </p>
+          </div>
+          <div className="rounded-xl border border-blue-200 bg-blue-50/50 px-4 py-2.5">
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-blue-700">
+              Products with Real Photos
+            </p>
+            <p className="text-lg font-extrabold text-blue-800">
+              {totalProductsWithPhotos.toLocaleString()}
+            </p>
           </div>
         </div>
 
         {/* Progress section */}
         <div>
           <div className="flex items-center justify-between text-xs text-slate-500 mb-1.5">
-            <span className="font-medium">Image coverage</span>
+            <span className="font-medium">Category Hero Image Coverage</span>
             <span>
-              {withImage.length}/{categories.length}
+              {withImage.length}/{categories.length} categories have hero images
             </span>
           </div>
           <div className="h-2 bg-slate-100 rounded-full overflow-hidden mb-3">
             <div
               className="h-full bg-orange-500 rounded-full transition-all duration-500"
               style={{
-                width: `${(withImage.length / categories.length) * 100}%`,
+                width: `${
+                  categories.length > 0
+                    ? (withImage.length / categories.length) * 100
+                    : 0
+                }%`,
               }}
             />
           </div>
@@ -401,7 +541,9 @@ export default function CategoryImagesClient({ rows, productCounts }: Props) {
               >
                 {batchGenerating
                   ? "Generating…"
-                  : `Generate ${withImageNoAlt.length} missing alt text${withImageNoAlt.length !== 1 ? "s" : ""}`}
+                  : `Generate ${withImageNoAlt.length} missing alt text${
+                      withImageNoAlt.length !== 1 ? "s" : ""
+                    }`}
               </button>
             )}
           </div>
@@ -426,11 +568,17 @@ export default function CategoryImagesClient({ rows, productCounts }: Props) {
             const isAltGenerating = altGenerating[cat] ?? false;
             const isAltEditing = altEditing[cat] ?? false;
             const needsImage = !imageUrl && quickAssign;
+            const st = categoryStats[cat];
+            const totalCount = st?.total ?? productCounts[cat] ?? 0;
+            const pubCount = st?.published ?? totalCount;
+            const photoCount = st?.withPhoto ?? 0;
+            const samples = st?.samplePhotos ?? [];
+            const slug = toCategorySlug(cat);
 
             return (
               <div
                 key={cat}
-                className={`rounded-xl overflow-visible border flex flex-col transition-all ${
+                className={`rounded-2xl overflow-visible border bg-white flex flex-col transition-all shadow-2xs ${
                   cardState === "error"
                     ? "border-red-400 shadow-md shadow-red-100"
                     : isDragging
@@ -442,7 +590,7 @@ export default function CategoryImagesClient({ rows, productCounts }: Props) {
               >
                 {/* Image area */}
                 <div
-                  className="relative cursor-pointer group overflow-hidden rounded-t-xl"
+                  className="relative cursor-pointer group overflow-hidden rounded-t-2xl"
                   style={{ height: 160 }}
                   onClick={() => {
                     setLastClickedCat(cat);
@@ -487,6 +635,18 @@ export default function CategoryImagesClient({ rows, productCounts }: Props) {
                     />
                   )}
 
+                  {/* Top-left count pill */}
+                  <div className="absolute top-2.5 left-2.5 flex items-center gap-1.5">
+                    <span className="bg-black/65 backdrop-blur-xs text-white text-[11px] font-bold px-2.5 py-0.5 rounded-full">
+                      {totalCount.toLocaleString()} products
+                    </span>
+                    {photoCount > 0 && (
+                      <span className="bg-blue-600/85 backdrop-blur-xs text-white text-[10px] font-semibold px-2 py-0.5 rounded-full">
+                        🖼 {photoCount} photos
+                      </span>
+                    )}
+                  </div>
+
                   {/* Quick assign badge */}
                   {needsImage && (
                     <div className="absolute bottom-2 left-0 right-0 flex justify-center">
@@ -497,13 +657,15 @@ export default function CategoryImagesClient({ rows, productCounts }: Props) {
                   )}
 
                   <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity duration-200">
-                    <span className="text-white text-xs font-medium bg-black/30 px-3 py-1.5 rounded-lg">
-                      {quickAssign && !imageUrl ? "Click to paste URL" : "Click to upload"}
+                    <span className="text-white text-xs font-medium bg-black/40 px-3 py-1.5 rounded-lg">
+                      {quickAssign && !imageUrl
+                        ? "Click to paste URL"
+                        : "Click to upload hero image"}
                     </span>
                   </div>
 
                   {isDragging && (
-                    <div className="absolute inset-0 bg-orange-500/20 border-2 border-dashed border-orange-500 rounded-t-xl flex items-center justify-center">
+                    <div className="absolute inset-0 bg-orange-500/20 border-2 border-dashed border-orange-500 rounded-t-2xl flex items-center justify-center">
                       <span className="text-orange-700 text-xs font-semibold">
                         Drop to upload
                       </span>
@@ -520,7 +682,7 @@ export default function CategoryImagesClient({ rows, productCounts }: Props) {
                   )}
 
                   {cardState === "success" && (
-                    <div className="absolute inset-0 bg-green-500/80 flex items-center justify-center rounded-t-xl">
+                    <div className="absolute inset-0 bg-green-500/80 flex items-center justify-center rounded-t-2xl">
                       <span className="text-white text-sm font-semibold">
                         ✓ Saved
                       </span>
@@ -543,21 +705,38 @@ export default function CategoryImagesClient({ rows, productCounts }: Props) {
                 </div>
 
                 {/* Action bar */}
-                <div className="h-10 px-3 flex items-center gap-2 bg-white border-t border-slate-100">
+                <div className="px-3.5 py-2.5 flex items-center gap-2 bg-white border-t border-slate-100">
                   <div className="flex-1 min-w-0">
-                    <span className="text-[13px] font-semibold text-slate-800 truncate block leading-tight">
+                    <span className="text-sm font-bold text-slate-900 truncate block leading-tight">
                       {cat}
                     </span>
-                    <span className="text-[11px] text-slate-400 leading-tight">
-                      {productCounts[cat] ?? 0} products
-                    </span>
+                    <div className="flex items-center gap-2 mt-0.5 text-[11px] text-slate-500">
+                      <span>{pubCount.toLocaleString()} public</span>
+                      <span>·</span>
+                      <Link
+                        href={`/admin/products?category=${encodeURIComponent(
+                          cat
+                        )}`}
+                        className="text-orange-600 hover:underline font-medium"
+                      >
+                        Admin ↗
+                      </Link>
+                      <span>·</span>
+                      <Link
+                        href={`/en/products/${slug}`}
+                        target="_blank"
+                        className="text-blue-600 hover:underline font-medium"
+                      >
+                        Live ↗
+                      </Link>
+                    </div>
                   </div>
                   <button
                     type="button"
                     onClick={() =>
                       setUrlInputOpen((p) => ({ ...p, [cat]: !p[cat] }))
                     }
-                    className="text-[11px] text-slate-500 hover:text-orange-600 transition px-1.5 py-1 rounded"
+                    className="text-[11px] font-medium text-slate-600 hover:text-orange-600 border border-slate-200 transition px-2 py-1 rounded-lg"
                   >
                     {isUrlOpen ? "Cancel" : "URL"}
                   </button>
@@ -572,13 +751,42 @@ export default function CategoryImagesClient({ rows, productCounts }: Props) {
                   )}
                 </div>
 
+                {/* Sample scraped product photos strip (1-click use as category hero) */}
+                {samples.length > 0 && (
+                  <div className="px-3.5 py-2 bg-slate-50/70 border-t border-slate-100 flex items-center justify-between gap-2">
+                    <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider shrink-0">
+                      Scraped samples:
+                    </span>
+                    <div className="flex items-center gap-1.5 overflow-x-auto">
+                      {samples.slice(0, 5).map((sp, i) => (
+                        <button
+                          key={i}
+                          type="button"
+                          title={`Use photo from "${sp.name}" as category hero`}
+                          onClick={() => saveImageUrl(cat, sp.url)}
+                          className="w-7 h-7 rounded-md overflow-hidden border border-slate-200 hover:border-orange-500 shrink-0 transition hover:scale-105 bg-white"
+                        >
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={sp.url}
+                            alt={sp.name}
+                            className="w-full h-full object-cover"
+                          />
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 {/* Alt text display */}
                 {(altText || isAltGenerating) && !isAltEditing && (
-                  <div className="px-3 pb-2 pt-1 bg-white border-t border-slate-50 flex items-start justify-between gap-2">
+                  <div className="px-3.5 pb-2.5 pt-1.5 bg-white border-t border-slate-50 flex items-start justify-between gap-2 rounded-b-2xl">
                     <p className="text-[11px] text-slate-400 leading-tight">
                       {isAltGenerating
                         ? "Generating alt text…"
-                        : `Alt: ${altText.slice(0, 60)}${altText.length > 60 ? "…" : ""}`}
+                        : `Alt: ${altText.slice(0, 60)}${
+                            altText.length > 60 ? "…" : ""
+                          }`}
                     </p>
                     {!isAltGenerating && (
                       <button
@@ -597,7 +805,7 @@ export default function CategoryImagesClient({ rows, productCounts }: Props) {
 
                 {/* Alt text edit */}
                 {isAltEditing && (
-                  <div className="px-3 pb-3 pt-1 bg-white border-t border-slate-50 flex flex-col gap-2">
+                  <div className="px-3.5 pb-3 pt-1.5 bg-white border-t border-slate-50 flex flex-col gap-2 rounded-b-2xl">
                     <textarea
                       rows={2}
                       value={altDraft[cat] ?? ""}
@@ -630,7 +838,7 @@ export default function CategoryImagesClient({ rows, productCounts }: Props) {
 
                 {/* URL paste row */}
                 {isUrlOpen && (
-                  <div className="px-3 pb-3 pt-1 bg-white border-t border-slate-50 rounded-b-xl flex gap-2">
+                  <div className="px-3.5 pb-3 pt-1.5 bg-white border-t border-slate-50 rounded-b-2xl flex gap-2">
                     <input
                       type="url"
                       value={urlValues[cat] ?? ""}
@@ -657,7 +865,7 @@ export default function CategoryImagesClient({ rows, productCounts }: Props) {
 
                 {/* Error */}
                 {cardState === "error" && errorMsg && (
-                  <div className="px-3 pb-2 bg-white">
+                  <div className="px-3.5 pb-2 bg-white rounded-b-2xl">
                     <p className="text-[11px] text-red-500">{errorMsg}</p>
                   </div>
                 )}
@@ -670,23 +878,29 @@ export default function CategoryImagesClient({ rows, productCounts }: Props) {
       {/* ── SEO Status Table ── */}
       <div className="px-8 pb-12">
         <h2 className="text-sm font-semibold text-slate-700 mb-3">
-          Image SEO Status
+          Category & SEO Status Overview
         </h2>
-        <div className="border border-slate-100 rounded-xl overflow-hidden">
+        <div className="border border-slate-200 bg-white rounded-2xl overflow-hidden shadow-2xs">
           <table className="w-full text-xs text-slate-600">
-            <thead className="bg-slate-50 text-left">
+            <thead className="bg-slate-50 text-left border-b border-slate-200">
               <tr>
                 <th className="px-4 py-2.5 font-semibold text-slate-500">
                   Category
                 </th>
+                <th className="px-4 py-2.5 font-semibold text-slate-500 text-right">
+                  Total Products
+                </th>
+                <th className="px-4 py-2.5 font-semibold text-slate-500 text-right">
+                  With Photos
+                </th>
                 <th className="px-4 py-2.5 font-semibold text-slate-500">
-                  SEO filename
+                  Public URL Slug
                 </th>
                 <th className="px-4 py-2.5 font-semibold text-slate-500">
                   Alt text
                 </th>
                 <th className="px-4 py-2.5 font-semibold text-slate-500">
-                  Status
+                  Hero Status
                 </th>
               </tr>
             </thead>
@@ -704,12 +918,21 @@ export default function CategoryImagesClient({ rows, productCounts }: Props) {
                   : !hasAlt
                   ? "text-amber-600"
                   : "text-green-600";
+                const st = categoryStats[cat];
 
                 return (
                   <tr key={cat} className="border-t border-slate-100">
-                    <td className="px-4 py-2.5">{cat}</td>
+                    <td className="px-4 py-2.5 font-semibold text-slate-800">
+                      {cat}
+                    </td>
+                    <td className="px-4 py-2.5 text-right font-semibold text-slate-900">
+                      {(st?.total ?? productCounts[cat] ?? 0).toLocaleString()}
+                    </td>
+                    <td className="px-4 py-2.5 text-right text-blue-700 font-medium">
+                      {(st?.withPhoto ?? 0).toLocaleString()}
+                    </td>
                     <td className="px-4 py-2.5 font-mono text-[10px] text-slate-400">
-                      {getCategoryFilename(cat)}
+                      /en/products/{toCategorySlug(cat)}
                     </td>
                     <td className="px-4 py-2.5 truncate max-w-45 text-slate-500">
                       {altTexts[cat] || "—"}

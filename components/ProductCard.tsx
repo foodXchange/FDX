@@ -62,6 +62,21 @@ export default function ProductCard({
       {/* Category color top bar */}
       <div style={{ height: 6, backgroundColor: color }} />
 
+      {product.image_url && (
+        <div className="relative h-36 bg-white/95 flex items-center justify-center p-2 overflow-hidden">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={product.image_url}
+            alt={displayName}
+            onError={(e) => {
+              const parent = e.currentTarget.parentElement;
+              if (parent) parent.style.display = "none";
+            }}
+            className="max-h-full max-w-full object-contain group-hover:scale-105 transition-transform duration-300"
+          />
+        </div>
+      )}
+
       {/* PRODUCT INFO */}
       <div className="p-4 flex flex-col gap-1 flex-1 relative">
         {/* Kosher badge */}
