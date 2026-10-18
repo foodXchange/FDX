@@ -1,3 +1,4 @@
+import { GoogleGenAI } from "@google/genai";
 import Anthropic from "@anthropic-ai/sdk";
 
 export interface ExtractedFactory {
@@ -73,69 +74,96 @@ const EXTRACT_SYSTEM_PROMPT =
   "  0.4 = product implied, little detail\n" +
   "- Output ONLY valid JSON — no explanation";
 
+function getGeminiClient() {
+  const key = process.env.GEMINI_API_KEY;
+  if (!key) return null;
+  return new GoogleGenAI({ apiKey: key });
+}
+
+function getAnthropicClient() {
+  const key = process.env.ANTHROPIC_API_KEY;
+  if (!key) return null;
+  return new Anthropic({ apiKey: key });
+}
+
 export async function detectManufacturerType(
   websiteContent: string,
   companyName: string
 ): Promise<ManufacturerDetectionResult> {
-  const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! });
+  const gemini = getGeminiClient();
+  const anthropic = getAnthropicClient();
+
+  const userPrompt =
+    `Classify this food company based on their website content.\n\n` +
+    `Company: ${companyName}\n` +
+    `Website content (first 3000 chars):\n${websiteContent.slice(0, 3000)}\n\n` +
+    `Return ONLY this JSON:\n` +
+    `{\n` +
+    `  "is_manufacturer": true or false,\n` +
+    `  "company_type": "manufacturer" | "trading_company" | "agency" | "wholesaler" | "retailer" | "importer" | "mixed" | "unknown" | "non_food",\n` +
+    `  "reason": "one sentence explanation",\n` +
+    `  "confidence": 0.0 to 1.0\n` +
+    `}\n\n` +
+    `manufacturer = company that MAKES the product in their own or contracted factory.\n` +
+    `Signs of manufacturer: "our factory", "we produce", "manufacturing", "production facility",\n` +
+    `"our plant", "we make", ingredient lists, production capacity, BRC/IFS certs, "private label",\n` +
+    `"contract manufacturing".\n\n` +
+    `NOT a manufacturer: "we distribute", "we import", "our portfolio of brands",\n` +
+    `"exclusive agent", "authorized distributor", "we source from", no production mentioned,\n` +
+    `only brand names listed.\n\n` +
+    `Signs of manufacturer in other languages:\n` +
+    `  Italian: "il nostro stabilimento", "produciamo", "la nostra produzione", "impianto produttivo", "trasformazione", "lavorazione"\n` +
+    `  Spanish: "nuestra fábrica", "producimos", "nuestra planta", "fabricación", "elaboración", "procesamiento"\n` +
+    `  French: "notre usine", "nous produisons", "notre unité de production", "fabrication", "transformation"\n` +
+    `  German: "unsere Fabrik", "wir produzieren", "Produktionsanlage", "Herstellung", "Verarbeitung"\n` +
+    `  Polish: "nasza fabryka", "produkujemy", "zakład produkcyjny", "przetwórstwo"\n\n` +
+    `Signs of NON-manufacturer in other languages:\n` +
+    `  Italian: "distribuiamo", "importiamo", "rappresentiamo", "agenzia"\n` +
+    `  Spanish: "distribuimos", "importamos", "representamos", "agencia"\n` +
+    `  French: "nous distribuons", "nous importons", "agence", "représentant"\n` +
+    `  German: "wir vertreiben", "Importeur", "Handelsvertreter", "Agentur"\n\n` +
+    `IMPORTANT — If the website is completely unrelated to food manufacturing, set company_type = "non_food" and is_manufacturer = false:\n` +
+    `  - Certification / testing / inspection agency (e.g. SGS, Bureau Veritas, kosher certifying body)\n` +
+    `  - Domain for sale, parked page, "Under construction", or placeholder site\n` +
+    `  - Casino, gambling, sports betting, or gaming site\n` +
+    `  - Logistics, shipping, freight forwarding, or customs broker\n` +
+    `  - Packaging manufacturer (cardboard, plastic bags, bottles, labels) — NOT food itself\n` +
+    `  - Software, SaaS, ERP, or technology company\n` +
+    `  - Marketing, PR, branding, or advertising agency\n` +
+    `  - Law firm, legal services, or compliance consultancy\n` +
+    `  - Financial services, banking, insurance, or investment firm\n` +
+    `Use "non_food" for any site where food manufacturing is clearly not the business.`;
 
   try {
-    const response = await anthropic.messages.create({
-      model: "claude-sonnet-4-5",
-      max_tokens: 200,
-      system:
-        "You classify food companies based on their website content. Return JSON only.",
-      messages: [
-        {
-          role: "user",
-          content:
-            `Classify this food company based on their website content.\n\n` +
-            `Company: ${companyName}\n` +
-            `Website content (first 3000 chars):\n${websiteContent.slice(0, 3000)}\n\n` +
-            `Return ONLY this JSON:\n` +
-            `{\n` +
-            `  "is_manufacturer": true or false,\n` +
-            `  "company_type": "manufacturer" | "trading_company" | "agency" | "wholesaler" | "retailer" | "importer" | "mixed" | "unknown" | "non_food",\n` +
-            `  "reason": "one sentence explanation",\n` +
-            `  "confidence": 0.0 to 1.0\n` +
-            `}\n\n` +
-            `manufacturer = company that MAKES the product in their own or contracted factory.\n` +
-            `Signs of manufacturer: "our factory", "we produce", "manufacturing", "production facility",\n` +
-            `"our plant", "we make", ingredient lists, production capacity, BRC/IFS certs, "private label",\n` +
-            `"contract manufacturing".\n\n` +
-            `NOT a manufacturer: "we distribute", "we import", "our portfolio of brands",\n` +
-            `"exclusive agent", "authorized distributor", "we source from", no production mentioned,\n` +
-            `only brand names listed.\n\n` +
-            `Signs of manufacturer in other languages:\n` +
-            `  Italian: "il nostro stabilimento", "produciamo", "la nostra produzione", "impianto produttivo", "trasformazione", "lavorazione"\n` +
-            `  Spanish: "nuestra fábrica", "producimos", "nuestra planta", "fabricación", "elaboración", "procesamiento"\n` +
-            `  French: "notre usine", "nous produisons", "notre unité de production", "fabrication", "transformation"\n` +
-            `  German: "unsere Fabrik", "wir produzieren", "Produktionsanlage", "Herstellung", "Verarbeitung"\n` +
-            `  Polish: "nasza fabryka", "produkujemy", "zakład produkcyjny", "przetwórstwo"\n\n` +
-            `Signs of NON-manufacturer in other languages:\n` +
-            `  Italian: "distribuiamo", "importiamo", "rappresentiamo", "agenzia"\n` +
-            `  Spanish: "distribuimos", "importamos", "representamos", "agencia"\n` +
-            `  French: "nous distribuons", "nous importons", "agence", "représentant"\n` +
-            `  German: "wir vertreiben", "Importeur", "Handelsvertreter", "Agentur"\n\n` +
-            `IMPORTANT — If the website is completely unrelated to food manufacturing, set company_type = "non_food" and is_manufacturer = false:\n` +
-            `  - Certification / testing / inspection agency (e.g. SGS, Bureau Veritas, kosher certifying body)\n` +
-            `  - Domain for sale, parked page, "Under construction", or placeholder site\n` +
-            `  - Casino, gambling, sports betting, or gaming site\n` +
-            `  - Logistics, shipping, freight forwarding, or customs broker\n` +
-            `  - Packaging manufacturer (cardboard, plastic bags, bottles, labels) — NOT food itself\n` +
-            `  - Software, SaaS, ERP, or technology company\n` +
-            `  - Marketing, PR, branding, or advertising agency\n` +
-            `  - Law firm, legal services, or compliance consultancy\n` +
-            `  - Financial services, banking, insurance, or investment firm\n` +
-            `Use "non_food" for any site where food manufacturing is clearly not the business.`,
-        },
-      ],
-    });
+    let raw = "";
 
-    const raw =
-      response.content[0].type === "text"
-        ? response.content[0].text.trim()
-        : "";
+    if (gemini) {
+      const response = await gemini.models.generateContent({
+        model: "gemini-3.5-flash",
+        contents: userPrompt,
+        config: {
+          systemInstruction:
+            "You classify food companies based on their website content. Return JSON only.",
+          responseMimeType: "application/json",
+        },
+      });
+      raw = response.text?.trim() ?? "";
+    } else if (anthropic) {
+      const response = await anthropic.messages.create({
+        model: "claude-sonnet-4-5",
+        max_tokens: 200,
+        system:
+          "You classify food companies based on their website content. Return JSON only.",
+        messages: [{ role: "user", content: userPrompt }],
+      });
+      raw =
+        response.content[0].type === "text"
+          ? response.content[0].text.trim()
+          : "";
+    } else {
+      throw new Error("Neither GEMINI_API_KEY nor ANTHROPIC_API_KEY is configured");
+    }
+
     const match = raw.match(/\{[\s\S]*\}/);
     if (!match) throw new Error("No JSON in response");
 
@@ -165,8 +193,7 @@ export async function detectManufacturerType(
 
 let extractionDebugLogged = false;
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function safeParseProducts(raw: string): any[] {
+function safeParseProducts(raw: string): unknown[] {
   const trimmed = raw.trim();
 
   // Try direct parse first, even if there is surrounding text.
@@ -216,9 +243,8 @@ export async function extractProducts(
     certifications: string[];
   }
 ): Promise<ExtractedProduct[]> {
-  const anthropic = new Anthropic({
-    apiKey: process.env.ANTHROPIC_API_KEY!,
-  });
+  const gemini = getGeminiClient();
+  const anthropic = getAnthropicClient();
 
   if (!websiteContent || websiteContent.length < 100) {
     return [];
@@ -249,7 +275,7 @@ export async function extractProducts(
     `Supplier: ${supplier.company_name}\n` +
     `Country: ${supplier.country_of_origin ?? "Unknown"}\n` +
     `Known certifications: ${supplier.certifications.join(", ") || "None stated"}\n\n` +
-    `Website content:\n${websiteContent.slice(0, 40000)}\n\n` +
+    `Website content:\n${websiteContent.slice(0, 100000)}\n\n` +
     `Return ONLY this JSON array — no other text:\n` +
     `[\n` +
     `  {\n` +
@@ -286,18 +312,33 @@ export async function extractProducts(
   const REVIEW_THRESHOLD = 0.6;
 
   try {
-    const response = await anthropic.messages.create({
-      model: "claude-sonnet-4-5",
-      max_tokens: 3000,
-      system: EXTRACT_SYSTEM_PROMPT,
-      messages: [{ role: "user", content: userPrompt }],
-    });
+    let raw = "";
 
-    const raw = response.content
-      .filter((item) => item.type === "text")
-      .map((item) => "text" in item ? item.text : "")
-      .join("")
-      .trim();
+    if (gemini) {
+      const response = await gemini.models.generateContent({
+        model: "gemini-3.5-flash",
+        contents: userPrompt,
+        config: {
+          systemInstruction: EXTRACT_SYSTEM_PROMPT,
+          responseMimeType: "application/json",
+        },
+      });
+      raw = response.text?.trim() ?? "";
+    } else if (anthropic) {
+      const response = await anthropic.messages.create({
+        model: "claude-sonnet-4-5",
+        max_tokens: 3000,
+        system: EXTRACT_SYSTEM_PROMPT,
+        messages: [{ role: "user", content: userPrompt }],
+      });
+      raw = response.content
+        .filter((item) => item.type === "text")
+        .map((item) => ("text" in item ? item.text : ""))
+        .join("")
+        .trim();
+    } else {
+      throw new Error("Neither GEMINI_API_KEY nor ANTHROPIC_API_KEY is configured");
+    }
 
     const parsed = safeParseProducts(raw);
     if (!Array.isArray(parsed) || parsed.length === 0) {
@@ -342,7 +383,8 @@ export async function extractSupplierProfile(
   companyName: string,
   existingData: { country?: string | null; categories?: string[] }
 ): Promise<SupplierProfile> {
-  const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! });
+  const gemini = getGeminiClient();
+  const anthropic = getAnthropicClient();
 
   if (!websiteContent || websiteContent.length < 100) {
     return EMPTY_PROFILE;
@@ -352,7 +394,7 @@ export async function extractSupplierProfile(
     `Extract company profile information from this food supplier website.\n\n` +
     `Company: ${companyName}\n` +
     `Country hint: ${existingData.country ?? "Unknown"}\n` +
-    `Website content:\n${websiteContent.slice(0, 30000)}\n\n` +
+    `Website content:\n${websiteContent.slice(0, 50000)}\n\n` +
     `Return ONLY this JSON (no other text):\n` +
     `{\n` +
     `  "company_description": "max 300 word description of what they make and their market position",\n` +
@@ -390,18 +432,34 @@ export async function extractSupplierProfile(
     `  Always check footer, about page, certifications page for kosher logos and badges.`;
 
   try {
-    const response = await anthropic.messages.create({
-      model: "claude-sonnet-4-5",
-      max_tokens: 1500,
-      system:
-        "You are a food industry research analyst. Extract structured company information from food supplier websites. Return JSON only. Never invent data — only extract what is explicitly stated on the website.",
-      messages: [{ role: "user", content: userPrompt }],
-    });
+    let raw = "";
 
-    const raw =
-      response.content[0].type === "text"
-        ? response.content[0].text.trim()
-        : "";
+    if (gemini) {
+      const response = await gemini.models.generateContent({
+        model: "gemini-3.5-flash",
+        contents: userPrompt,
+        config: {
+          systemInstruction:
+            "You are a food industry research analyst. Extract structured company information from food supplier websites. Return JSON only. Never invent data — only extract what is explicitly stated on the website.",
+          responseMimeType: "application/json",
+        },
+      });
+      raw = response.text?.trim() ?? "";
+    } else if (anthropic) {
+      const response = await anthropic.messages.create({
+        model: "claude-sonnet-4-5",
+        max_tokens: 1500,
+        system:
+          "You are a food industry research analyst. Extract structured company information from food supplier websites. Return JSON only. Never invent data — only extract what is explicitly stated on the website.",
+        messages: [{ role: "user", content: userPrompt }],
+      });
+      raw =
+        response.content[0].type === "text"
+          ? response.content[0].text.trim()
+          : "";
+    } else {
+      throw new Error("Neither GEMINI_API_KEY nor ANTHROPIC_API_KEY is configured");
+    }
 
     const match = raw.match(/\{[\s\S]*\}/);
     if (!match) return EMPTY_PROFILE;

@@ -1,3 +1,4 @@
+import { GoogleGenAI } from "@google/genai";
 import Anthropic from "@anthropic-ai/sdk";
 import type { ContactPage } from "./firecrawlPipeline";
 
@@ -12,13 +13,24 @@ export interface ExtractedContact {
   contact_type?: "export_manager" | "sales" | "technical" | "commercial" | "general" | null;
 }
 
+function getGeminiClient() {
+  const key = process.env.GEMINI_API_KEY;
+  if (!key) return null;
+  return new GoogleGenAI({ apiKey: key });
+}
+
+function getAnthropicClient() {
+  const key = process.env.ANTHROPIC_API_KEY;
+  if (!key) return null;
+  return new Anthropic({ apiKey: key });
+}
+
 async function extractFromPage(
   websiteContent: string,
   sourceUrl: string
 ): Promise<ExtractedContact[]> {
-  const anthropic = new Anthropic({
-    apiKey: process.env.ANTHROPIC_API_KEY!,
-  });
+  const gemini = getGeminiClient();
+  const anthropic = getAnthropicClient();
 
   const userPrompt =
     `Extract all real business contacts from this supplier contact/about/team page.\n\n` +
@@ -31,7 +43,7 @@ async function extractFromPage(
     `- Output role/title in English where possible; keep names as written\n` +
     `- Include raw_context: a 1-2 sentence snippet showing where this contact info came from\n` +
     `- If a field is not present on the page, return null for that field\n\n` +
-    `Page content (from ${sourceUrl}):\n${websiteContent.slice(0, 20000)}\n\n` +
+    `Page content (from ${sourceUrl}):\n${websiteContent.slice(0, 50000)}\n\n` +
     `Return ONLY this JSON array — no other text. If no contacts found, return []:\n` +
     `[\n` +
     `  {\n` +
@@ -46,24 +58,40 @@ async function extractFromPage(
     `]\n`;
 
   try {
-    const response = await anthropic.messages.create({
-      model: "claude-sonnet-4-5",
-      max_tokens: 2000,
-      system:
-        "You are a business contact extraction expert. Extract real contacts from supplier website content. " +
-        "Output JSON only. Never fabricate contact information. Only include contacts and details explicitly stated on the page.",
-      messages: [
-        {
-          role: "user",
-          content: userPrompt,
-        },
-      ],
-    });
+    let raw = "";
 
-    const raw =
-      response.content[0].type === "text"
-        ? response.content[0].text.trim()
-        : "";
+    if (gemini) {
+      const response = await gemini.models.generateContent({
+        model: "gemini-3.5-flash",
+        contents: userPrompt,
+        config: {
+          systemInstruction:
+            "You are a business contact extraction expert. Extract real contacts from supplier website content. Output JSON only. Never fabricate contact information. Only include contacts and details explicitly stated on the page.",
+          responseMimeType: "application/json",
+        },
+      });
+      raw = response.text?.trim() ?? "";
+    } else if (anthropic) {
+      const response = await anthropic.messages.create({
+        model: "claude-sonnet-4-5",
+        max_tokens: 2000,
+        system:
+          "You are a business contact extraction expert. Extract real contacts from supplier website content. " +
+          "Output JSON only. Never fabricate contact information. Only include contacts and details explicitly stated on the page.",
+        messages: [
+          {
+            role: "user",
+            content: userPrompt,
+          },
+        ],
+      });
+      raw =
+        response.content[0].type === "text"
+          ? response.content[0].text.trim()
+          : "";
+    } else {
+      throw new Error("Neither GEMINI_API_KEY nor ANTHROPIC_API_KEY is configured");
+    }
 
     // Try to extract JSON array
     const match = raw.match(/\[[\s\S]*\]/);
