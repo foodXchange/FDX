@@ -1,11 +1,11 @@
 'use client';
 import { Suspense, useEffect, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Header from "@/components/Header";
 import Footer from "@/components/ui/Footer";
 
-const MAX_ATTEMPTS = 3;
+const MAX_ATTEMPTS = 5;
 const COOLDOWN_SECONDS = 30;
 
 function EyeIcon() {
@@ -35,9 +35,6 @@ function Spinner() {
 }
 
 function AdminLoginContent() {
-  const searchParams = useSearchParams();
-  const linkError = searchParams.get("error") === "invalid_link";
-
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
@@ -46,16 +43,6 @@ function AdminLoginContent() {
   const [failedAttempts, setFailedAttempts] = useState(0);
   const [cooldownUntil, setCooldownUntil] = useState<number | null>(null);
   const [cooldownRemaining, setCooldownRemaining] = useState(0);
-
-  const [forgotOpen, setForgotOpen] = useState(false);
-  const [resetEmail, setResetEmail] = useState("");
-  const [resetSending, setResetSending] = useState(false);
-  const [resetSent, setResetSent] = useState(false);
-
-  const [magicEmail, setMagicEmail] = useState("");
-  const [magicSending, setMagicSending] = useState(false);
-  const [magicSent, setMagicSent] = useState(false);
-  const [magicError, setMagicError] = useState("");
 
   const router = useRouter();
 
@@ -86,71 +73,34 @@ function AdminLoginContent() {
     setLoading(true);
     setError("");
 
-    const res = await fetch("/api/admin/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ password }),
-    });
-
-    if (res.ok) {
-      setSuccess(true);
-      router.push("/admin/portfolio");
-      return;
-    }
-
-    const nextAttempts = failedAttempts + 1;
-    setFailedAttempts(nextAttempts);
-
-    if (nextAttempts >= MAX_ATTEMPTS) {
-      setCooldownUntil(Date.now() + COOLDOWN_SECONDS * 1000);
-      setCooldownRemaining(COOLDOWN_SECONDS);
-      setError(`Too many incorrect attempts. Please wait ${COOLDOWN_SECONDS} seconds before trying again.`);
-    } else {
-      const remaining = MAX_ATTEMPTS - nextAttempts;
-      setError(`Incorrect password. ${remaining} attempt${remaining === 1 ? "" : "s"} remaining before a temporary lockout.`);
-    }
-
-    setLoading(false);
-  }
-
-  async function handleForgotPassword() {
-    setResetSending(true);
     try {
-      await fetch("/api/admin/forgot-password", {
+      const res = await fetch("/api/admin/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: resetEmail }),
+        body: JSON.stringify({ password }),
       });
-    } catch {
-      // best-effort — always show confirmation to avoid leaking auth state
-    } finally {
-      setResetSending(false);
-      setResetSent(true);
-    }
-  }
 
-  async function handleMagicLink(e: React.FormEvent) {
-    e.preventDefault();
-    if (!magicEmail || magicSending) return;
-
-    setMagicSending(true);
-    setMagicError("");
-
-    try {
-      const res = await fetch("/api/admin/magic-link", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: magicEmail }),
-      });
-      if (!res.ok) {
-        setMagicError("Something went wrong. Please try again.");
+      if (res.ok) {
+        setSuccess(true);
+        router.push("/admin/portfolio");
         return;
       }
-      setMagicSent(true);
+
+      const nextAttempts = failedAttempts + 1;
+      setFailedAttempts(nextAttempts);
+
+      if (nextAttempts >= MAX_ATTEMPTS) {
+        setCooldownUntil(Date.now() + COOLDOWN_SECONDS * 1000);
+        setCooldownRemaining(COOLDOWN_SECONDS);
+        setError(`Too many incorrect attempts. Please wait ${COOLDOWN_SECONDS} seconds before trying again.`);
+      } else {
+        const remaining = MAX_ATTEMPTS - nextAttempts;
+        setError(`Incorrect password. ${remaining} attempt${remaining === 1 ? "" : "s"} remaining before temporary lockout.`);
+      }
     } catch {
-      setMagicError("Something went wrong. Please try again.");
+      setError("An unexpected network error occurred. Please try again.");
     } finally {
-      setMagicSending(false);
+      setLoading(false);
     }
   }
 
@@ -168,16 +118,18 @@ function AdminLoginContent() {
           </Link>
 
           <div className="bg-slate-900 border border-white/10 rounded-2xl p-8 shadow-2xl">
-            <h1 className="text-lg font-semibold text-white text-center mb-1">Admin sign in</h1>
-            <p className="text-sm text-slate-400 text-center mb-6">
-              Enter the admin password to access the dashboard.
-            </p>
+            <div className="flex justify-center mb-4">
+              <div className="w-12 h-12 rounded-xl bg-orange-500/10 border border-orange-500/20 flex items-center justify-center text-orange-400">
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                </svg>
+              </div>
+            </div>
 
-            {linkError && (
-              <p className="text-red-300 bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2 text-sm text-center mb-4">
-                This sign-in link is invalid or has expired. Please request a new one.
-              </p>
-            )}
+            <h1 className="text-xl font-bold text-white text-center mb-1">Admin Portal</h1>
+            <p className="text-xs text-slate-400 text-center mb-6">
+              Restricted access. Enter your admin password to continue.
+            </p>
 
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
@@ -190,17 +142,17 @@ function AdminLoginContent() {
                     type={showPassword ? "text" : "password"}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    placeholder="Password"
+                    placeholder="Enter admin password"
                     autoFocus
                     autoComplete="current-password"
                     disabled={inCooldown}
-                    className="w-full border border-gray-200 bg-white px-4 py-3.5 pr-11 rounded-xl text-base outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-100 disabled:opacity-60"
+                    className="w-full border border-slate-700 bg-slate-800/80 text-white placeholder-slate-400 px-4 py-3.5 pr-11 rounded-xl text-base outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 disabled:opacity-60"
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword((v) => !v)}
                     aria-label={showPassword ? "Hide password" : "Show password"}
-                    className="absolute inset-y-0 right-0 flex items-center px-3 text-slate-400 hover:text-slate-600"
+                    className="absolute inset-y-0 right-0 flex items-center px-3 text-slate-400 hover:text-white"
                   >
                     {showPassword ? <EyeOffIcon /> : <EyeIcon />}
                   </button>
@@ -208,7 +160,7 @@ function AdminLoginContent() {
               </div>
 
               {error && (
-                <p className="text-red-300 bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2 text-sm text-center">
+                <p className="text-red-300 bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2 text-xs text-center">
                   {error}
                   {inCooldown && ` (${cooldownRemaining}s)`}
                 </p>
@@ -217,111 +169,12 @@ function AdminLoginContent() {
               <button
                 type="submit"
                 disabled={loading || success || !password || inCooldown}
-                className="w-full bg-orange-500 hover:bg-orange-600 text-white py-3 rounded-xl font-semibold text-sm transition disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                className="w-full bg-orange-500 hover:bg-orange-600 text-white py-3 rounded-xl font-semibold text-sm transition disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg shadow-orange-500/20"
               >
                 {(loading || success) && <Spinner />}
-                {success ? "Redirecting…" : loading ? "Checking…" : inCooldown ? `Locked (${cooldownRemaining}s)` : "Enter →"}
+                {success ? "Entering dashboard…" : loading ? "Verifying…" : inCooldown ? `Locked (${cooldownRemaining}s)` : "Sign In →"}
               </button>
             </form>
-
-            <div className="mt-4 text-center">
-              <button
-                type="button"
-                onClick={() => setForgotOpen((v) => !v)}
-                className="text-xs text-slate-400 hover:text-orange-400 transition"
-              >
-                Forgot password?
-              </button>
-            </div>
-
-            {forgotOpen && (
-              <div className="mt-4 pt-4 border-t border-white/10">
-                {resetSent ? (
-                  <p className="text-sm text-green-300 text-center">
-                    If an admin account exists, a password reminder has been sent.
-                  </p>
-                ) : (
-                  <>
-                    <label htmlFor="reset-email" className="block text-xs font-medium text-slate-300 mb-1.5">
-                      Your email
-                    </label>
-                    <input
-                      id="reset-email"
-                      type="email"
-                      value={resetEmail}
-                      onChange={(e) => setResetEmail(e.target.value)}
-                      placeholder="you@example.com"
-                      className="w-full border border-gray-200 bg-white px-4 py-2.5 rounded-xl text-sm outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-100 mb-3"
-                    />
-                    <button
-                      type="button"
-                      onClick={handleForgotPassword}
-                      disabled={resetSending}
-                      className="w-full bg-white/5 hover:bg-white/10 text-slate-200 py-2.5 rounded-xl font-medium text-sm transition disabled:opacity-60"
-                    >
-                      {resetSending ? "Sending…" : "Send password reminder"}
-                    </button>
-                  </>
-                )}
-              </div>
-            )}
-
-            <div className="my-6 flex items-center gap-3">
-              <div className="h-px flex-1 bg-white/10" />
-              <span className="text-xs text-slate-500">or</span>
-              <div className="h-px flex-1 bg-white/10" />
-            </div>
-
-            <div>
-              <h2 className="text-sm font-semibold text-white text-center mb-1">Admin magic link</h2>
-              <p className="text-xs text-slate-400 text-center mb-4">
-                Enter your admin email to receive a sign-in link.
-              </p>
-
-              {magicSent ? (
-                <div className="text-center">
-                  <p className="text-sm text-green-300 mb-1">Check your email ✓</p>
-                  <p className="text-xs text-slate-400">
-                    We sent a sign-in link to {magicEmail}. Click the link in the email to access the
-                    admin dashboard. The link expires in 1 hour.
-                  </p>
-                </div>
-              ) : (
-                <form onSubmit={handleMagicLink} className="space-y-3">
-                  <label htmlFor="admin-magic-email" className="sr-only">
-                    Admin email
-                  </label>
-                  <input
-                    id="admin-magic-email"
-                    type="email"
-                    value={magicEmail}
-                    onChange={(e) => setMagicEmail(e.target.value)}
-                    placeholder="you@fdx.trading"
-                    autoComplete="email"
-                    className="w-full border border-gray-200 bg-white px-4 py-2.5 rounded-xl text-sm outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-100"
-                  />
-
-                  {magicError && (
-                    <p className="text-red-300 bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2 text-xs text-center">
-                      {magicError}
-                    </p>
-                  )}
-
-                  <button
-                    type="submit"
-                    disabled={magicSending || !magicEmail}
-                    className="w-full bg-orange-500 hover:bg-orange-600 text-white py-3 rounded-xl font-semibold text-sm transition disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                  >
-                    {magicSending && <Spinner />}
-                    {magicSending ? "Sending…" : "Send magic link →"}
-                  </button>
-                </form>
-              )}
-
-              <p className="text-xs text-slate-500 text-center mt-3">
-                Only authorized admin emails can sign in this way.
-              </p>
-            </div>
           </div>
         </div>
       </main>
@@ -338,3 +191,4 @@ export default function AdminLoginPage() {
     </Suspense>
   );
 }
+

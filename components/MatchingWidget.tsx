@@ -130,18 +130,18 @@ export default function MatchingWidget({ placeholder }: MatchingWidgetProps) {
         onChange={(e) => setQuery(e.target.value)}
         rows={3}
         placeholder={placeholder ?? "Describe what you are sourcing…"}
-        className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-800 placeholder:text-slate-400 outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-100 resize-none"
+        className="w-full border border-slate-700 bg-slate-800 text-white placeholder:text-slate-500 rounded-xl px-4 py-3 text-sm outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 resize-none transition"
       />
 
-      {loading && <p className="text-xs text-slate-400 mt-2">Searching…</p>}
+      {loading && <p className="text-xs text-slate-400 mt-2">Searching scenarios…</p>}
 
-      {!loading && error && <p className="text-xs text-red-500 mt-2">{error}</p>}
+      {!loading && error && <p className="text-xs text-red-400 mt-2">{error}</p>}
 
       {!loading && !error && summaryText && (
-        <p className="text-xs text-slate-500 italic mt-2">
-          Detected: {summaryText}
+        <p className="text-xs text-slate-400 italic mt-2">
+          Detected: <span className="text-slate-200">{summaryText}</span>
           {showAiBadge && (
-            <span className="text-[10px] bg-blue-50 text-blue-600 border border-blue-200 rounded-full px-2 py-0.5 ml-2 not-italic">
+            <span className="text-[10px] bg-blue-500/10 text-blue-400 border border-blue-500/20 rounded-full px-2 py-0.5 ml-2 not-italic font-semibold">
               AI
             </span>
           )}
@@ -149,22 +149,22 @@ export default function MatchingWidget({ placeholder }: MatchingWidgetProps) {
       )}
 
       {!loading && !error && query.trim() && results.length === 0 && intent && (
-        <p className="text-sm text-slate-500 mt-4">
+        <p className="text-sm text-slate-400 mt-4">
           No matching scenarios found — describe what you need and we will follow up.
         </p>
       )}
 
       {results.length > 0 && (
         <>
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 mt-4">
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5 mt-4">
             {results.map((item) => (
               <article
                 key={item.slug}
                 onClick={() => trackClick(item.slug)}
-                className="group border border-slate-200 rounded-xl overflow-hidden bg-white hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300 cursor-pointer"
+                className="group border border-white/10 rounded-2xl overflow-hidden bg-slate-900/90 hover:border-orange-500/40 hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300 cursor-pointer flex flex-col"
               >
                 <Link href={`/en/portfolio/${item.slug}`} className="block">
-                  <div className="relative w-full h-40 overflow-hidden">
+                  <div className="relative w-full h-40 overflow-hidden bg-slate-950">
                     {item.hero_image ? (
                       <>
                         <Image
@@ -175,7 +175,7 @@ export default function MatchingWidget({ placeholder }: MatchingWidgetProps) {
                           className="object-cover transition-transform duration-700 ease-out group-hover:scale-105"
                           quality={70}
                         />
-                        <div className="absolute inset-0 bg-linear-to-t from-black/70 via-black/20 to-transparent opacity-85 group-hover:opacity-95 transition" />
+                        <div className="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-slate-950/30 to-transparent opacity-90 group-hover:opacity-100 transition" />
                         <div className="absolute bottom-3 left-3 right-3">
                           <h3 className="text-white text-sm font-semibold leading-tight drop-shadow line-clamp-2">
                             {item.title}
@@ -191,20 +191,22 @@ export default function MatchingWidget({ placeholder }: MatchingWidgetProps) {
                     )}
                   </div>
                 </Link>
-                <div className="p-4">
-                  {item.category && (
-                    <span className="inline-block bg-orange-100 text-orange-700 rounded-full px-3 py-1 text-xs font-medium mb-2">
-                      {item.category}
-                    </span>
-                  )}
-                  {item.summary && (
-                    <p className="text-slate-600 text-xs leading-relaxed mb-3 line-clamp-2">
-                      {item.summary}
-                    </p>
-                  )}
+                <div className="p-4 flex-1 flex flex-col justify-between">
+                  <div>
+                    {item.category && (
+                      <span className="inline-block bg-orange-500/10 border border-orange-500/20 text-orange-400 rounded-full px-2.5 py-0.5 text-[11px] font-medium mb-2">
+                        {item.category}
+                      </span>
+                    )}
+                    {item.summary && (
+                      <p className="text-slate-400 text-xs leading-relaxed mb-3 line-clamp-2">
+                        {item.summary}
+                      </p>
+                    )}
+                  </div>
                   <Link
                     href={`/en/portfolio/${item.slug}`}
-                    className="inline-flex items-center text-orange-600 font-medium text-xs hover:text-orange-700 hover:underline"
+                    className="inline-flex items-center text-orange-400 font-medium text-xs hover:text-orange-300 mt-2"
                   >
                     View scenario →
                   </Link>

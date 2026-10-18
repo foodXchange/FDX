@@ -99,6 +99,9 @@ export default function ProductsHubClient({ allCategories, stats, catImages }: P
                         <img
                           src={img.image_url}
                           alt={cat}
+                          onError={(e) => {
+                            (e.currentTarget as HTMLImageElement).style.display = "none";
+                          }}
                           className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                         />
                       )}
