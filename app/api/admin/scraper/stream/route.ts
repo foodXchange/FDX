@@ -304,6 +304,80 @@ export async function GET(req: NextRequest) {
           continue;
         }
 
+        // Domain Deduplication Guard: if already scraped in another batch, sync and skip crawl
+        let normalizedHost = "";
+        try {
+          const u = new URL(siteUrl.startsWith("http") ? siteUrl : "http://" + siteUrl);
+          normalizedHost = u.hostname.replace(/^www\./, "").toLowerCase().trim();
+        } catch {}
+
+        if (normalizedHost && normalizedHost.length > 3) {
+          const { data: existingScraped } = await supabaseAdmin
+            .from("supplier_offerings")
+            .select("id, product_count, qualification_status, product_description, contact_email, contact_phone, contact_name, linkedin_url, export_markets, founded_year, employees_range")
+            .ilike("website", `%${normalizedHost}%`)
+            .eq("scrape_status", "scraped")
+            .neq("id", supplier.id)
+            .limit(1);
+
+          if (existingScraped && existingScraped.length > 0) {
+            const src = existingScraped[0];
+            send({
+              type: "log",
+              message: `  ⚡ Duplicate domain (${normalizedHost}) — syncing from already scraped supplier...`,
+            });
+
+            await supabaseAdmin
+              .from("supplier_offerings")
+              .update({
+                scrape_status: "scraped",
+                qualification_status: src.qualification_status ?? "strong",
+                product_count: src.product_count ?? 0,
+                product_description: src.product_description,
+                contact_email: src.contact_email,
+                contact_phone: src.contact_phone,
+                contact_name: src.contact_name,
+                linkedin_url: src.linkedin_url,
+                export_markets: src.export_markets,
+                founded_year: src.founded_year,
+                employees_range: src.employees_range,
+                internal_notes: `Synced duplicate domain from supplier (${src.id})`,
+                last_scraped_at: new Date().toISOString(),
+              })
+              .eq("id", supplier.id);
+
+            const { data: srcProducts } = await supabaseAdmin
+              .from("supplier_products")
+              .select("product_name, category, subcategory, description, formats, sizes, brix_level, shelf_life_months, certifications, kosher_types, product_type, primary_ingredients, private_label, tags, markets_suitable, scrape_source, scrape_confidence, embedding")
+              .eq("supplier_id", src.id);
+
+            let copiedCount = 0;
+            if (srcProducts && srcProducts.length > 0) {
+              const newProducts = srcProducts.map((p) => ({
+                ...p,
+                supplier_id: supplier.id,
+                manually_verified: false,
+                needs_review: false,
+                is_published: true,
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+              }));
+              await supabaseAdmin.from("supplier_products").insert(newProducts);
+              copiedCount = newProducts.length;
+            }
+
+            send({
+              type: "success",
+              message: `  ✓ Synced ${copiedCount} products without re-crawling (0 credits used)`,
+              data: { products: copiedCount, supplier: supplier.company_name },
+            });
+
+            succeeded.push({ name: supplier.company_name, products: copiedCount });
+            await logEvent("duplicate_sync", supplier.id, `Synced from ${src.id}`, copiedCount, "dedup");
+            continue;
+          }
+        }
+
         let timerHandle: NodeJS.Timeout | undefined;
         const supplierTimeout = new Promise<never>((_, reject) => {
           timerHandle = setTimeout(() => reject(new Error("Supplier timeout")), 75000);
