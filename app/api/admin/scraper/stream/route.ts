@@ -304,10 +304,10 @@ export async function GET(req: NextRequest) {
           continue;
         }
 
-        // Optimized for Firecrawl Standard Plan (50 concurrent limit): fast 35s timeout
-        const supplierTimeout = new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error("Supplier timeout")), 35000)
-        );
+        let timerHandle: NodeJS.Timeout | undefined;
+        const supplierTimeout = new Promise<never>((_, reject) => {
+          timerHandle = setTimeout(() => reject(new Error("Supplier timeout")), 75000);
+        });
 
         try {
           await supabaseAdmin
@@ -503,6 +503,7 @@ export async function GET(req: NextRequest) {
               });
 
               succeeded.push({ name: supplier.company_name, products: inserted });
+              if (timerHandle) clearTimeout(timerHandle);
               await logEvent(
                 "success",
                 supplier.id,
@@ -514,18 +515,19 @@ export async function GET(req: NextRequest) {
             supplierTimeout,
           ]);
         } catch (err) {
+          if (timerHandle) clearTimeout(timerHandle);
           const msg = err instanceof Error ? err.message : String(err);
           if (err instanceof Error && err.message === "Supplier timeout") {
-            send({ type: "warning", message: "  ⏱ Timeout after 90s — skipping" });
+            send({ type: "warning", message: "  ⏱ Timeout — moving to next supplier" });
             await supabaseAdmin
               .from("supplier_offerings")
               .update({
                 scrape_status: "failed",
-                internal_notes: "Timeout: exceeded 90s limit",
+                internal_notes: "Timeout: exceeded time limit",
               })
               .eq("id", supplier.id);
-            failed.push({ name: supplier.company_name, reason: "Timeout after 90s" });
-            await logEvent("failed", supplier.id, "Timeout after 90s");
+            failed.push({ name: supplier.company_name, reason: "Timeout" });
+            await logEvent("failed", supplier.id, "Timeout");
           } else {
             send({ type: "error", message: `  ✗ Error: ${msg}` });
             await supabaseAdmin
