@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
+import { GoogleGenAI } from "@google/genai";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
 interface ExtractedIntent {
@@ -35,7 +36,7 @@ type ProductRow = {
   } | null;
 };
 
-const SYSTEM_PROMPT = `You extract structured search intent from food sourcing queries for the Israeli kosher food market. Return only JSON.`;
+const SYSTEM_PROMPT = `You extract structured search intent from food sourcing queries (in English, Hebrew, or any language — translate extracted keywords to English) for the Israeli kosher food market. Return only JSON.`;
 
 const VALID_CATEGORIES = [
   "Oils & Fats",
@@ -103,7 +104,7 @@ export async function POST(req: NextRequest) {
     private_label: null,
   };
 
-  // Step 1a — If image analysis provided, build intent directly (skip Claude)
+  // Step 1a — If image analysis provided, build intent directly (skip LLM)
   if (imageAnalysis) {
     intent = {
       categories:
@@ -124,18 +125,9 @@ export async function POST(req: NextRequest) {
     };
   }
 
-  // Step 1b — Claude intent extraction (only when no imageAnalysis)
-  if (!imageAnalysis && process.env.ANTHROPIC_API_KEY) {
-    try {
-      const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-      const msg = await client.messages.create({
-        model: "claude-sonnet-4-5",
-        max_tokens: 300,
-        system: SYSTEM_PROMPT,
-        messages: [
-          {
-            role: "user",
-            content: `Extract intent from this sourcing query: '${query}'
+  // Step 1b — Gemini / Claude intent extraction (only when no imageAnalysis)
+  if (!imageAnalysis && (process.env.GEMINI_API_KEY || process.env.ANTHROPIC_API_KEY)) {
+    const promptText = `Extract intent from this sourcing query: '${query}'
 
 Return JSON only:
 {
@@ -147,12 +139,38 @@ Return JSON only:
   "private_label": boolean | null
 }
 
-categories must be from: ${VALID_CATEGORIES.join(", ")}`,
-          },
-        ],
-      });
-      const raw = msg.content[0].type === "text" ? msg.content[0].text.trim() : "";
-      const parsed = JSON.parse(raw) as Partial<ExtractedIntent>;
+categories must be from: ${VALID_CATEGORIES.join(", ")}`;
+
+    try {
+      let raw = "";
+      if (process.env.GEMINI_API_KEY) {
+        try {
+          const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+          const res = await ai.models.generateContent({
+            model: "gemini-3.5-flash",
+            contents: `${SYSTEM_PROMPT}\n\n${promptText}`,
+            config: {
+              temperature: 0.1,
+              responseMimeType: "application/json",
+            },
+          });
+          raw = (res.text ?? "").trim();
+        } catch {
+          raw = "";
+        }
+      }
+      if (!raw && process.env.ANTHROPIC_API_KEY) {
+        const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+        const msg = await client.messages.create({
+          model: "claude-sonnet-4-5",
+          max_tokens: 300,
+          system: SYSTEM_PROMPT,
+          messages: [{ role: "user", content: promptText }],
+        });
+        raw = msg.content[0].type === "text" ? msg.content[0].text.trim() : "";
+      }
+      const jsonMatch = raw.match(/\{[\s\S]*\}/);
+      const parsed = JSON.parse(jsonMatch ? jsonMatch[0] : raw) as Partial<ExtractedIntent>;
       intent = {
         categories: category
           ? [category]

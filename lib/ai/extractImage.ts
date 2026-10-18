@@ -1,4 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
+import { GoogleGenAI } from "@google/genai";
 import { z } from "zod";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import buildImageExtractionPrompt from "@/lib/ai/imageExtractionPrompt";
@@ -67,15 +68,30 @@ const Schema = z.object({
   raw_text_ocr: z.string().nullable().optional(),
 });
 
+async function fetchImageAsBase64(url: string): Promise<{ data: string; mimeType: string } | null> {
+  try {
+    const res = await fetch(url, { signal: AbortSignal.timeout(15000) });
+    if (!res.ok) return null;
+    const contentType = res.headers.get("content-type") || "image/jpeg";
+    const mimeType = contentType.split(";")[0].trim() || "image/jpeg";
+    const arrayBuffer = await res.arrayBuffer();
+    const data = Buffer.from(arrayBuffer).toString("base64");
+    return { data, mimeType };
+  } catch (err) {
+    console.warn("fetchImageAsBase64 failed for", url, err);
+    return null;
+  }
+}
+
 export async function extractImage(opts: {
   imageUrl: string;
   imageId?: string | null;
   description?: string | null;
   dryRun?: boolean;
 }): Promise<ImageExtraction | null> {
-  if (!process.env.ANTHROPIC_API_KEY) return null;
-
-  const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+  const geminiKey = process.env.GEMINI_API_KEY;
+  const anthropicKey = process.env.ANTHROPIC_API_KEY;
+  if (!geminiKey && !anthropicKey) return null;
 
   const { data: categories } = await supabaseAdmin
     .from("categories")
@@ -88,25 +104,65 @@ export async function extractImage(opts: {
   }`;
 
   try {
-    const response = await client.messages.create({
-      model: "claude-sonnet-4-5",
-      max_tokens: 2400,
-      system: SYSTEM_PROMPT,
-      messages: [
-        {
-          role: "user",
-          content: [
-            {
-              type: "image",
-              source: { type: "url", url: opts.imageUrl },
-            },
-            { type: "text", text: userPrompt },
-          ],
-        },
-      ],
-    });
+    let raw = "";
 
-    const raw = response.content?.[0]?.type === "text" ? response.content[0].text.trim() : "";
+    if (geminiKey) {
+      const imgData = await fetchImageAsBase64(opts.imageUrl);
+      if (imgData) {
+        try {
+          const ai = new GoogleGenAI({ apiKey: geminiKey });
+          const response = await ai.models.generateContent({
+            model: "gemini-3.5-flash",
+            contents: [
+              {
+                role: "user",
+                parts: [
+                  {
+                    inlineData: {
+                      data: imgData.data,
+                      mimeType: imgData.mimeType,
+                    },
+                  },
+                  { text: `${SYSTEM_PROMPT}\n\n${userPrompt}` },
+                ],
+              },
+            ],
+            config: {
+              temperature: 0.1,
+              responseMimeType: "application/json",
+            },
+          });
+          raw = (response.text ?? "").trim();
+        } catch (gemErr) {
+          console.warn("Gemini extractImage failed, falling back:", gemErr);
+        }
+      }
+    }
+
+    if (!raw && anthropicKey) {
+      const client = new Anthropic({ apiKey: anthropicKey });
+      const response = await client.messages.create({
+        model: "claude-sonnet-4-5",
+        max_tokens: 2400,
+        system: SYSTEM_PROMPT,
+        messages: [
+          {
+            role: "user",
+            content: [
+              {
+                type: "image",
+                source: { type: "url", url: opts.imageUrl },
+              },
+              { type: "text", text: userPrompt },
+            ],
+          },
+        ],
+      });
+      raw = response.content?.[0]?.type === "text" ? response.content[0].text.trim() : "";
+    }
+
+    if (!raw) return null;
+
     const jsonMatch = raw.match(/\{[\s\S]*\}/);
     const jsonStr = jsonMatch ? jsonMatch[0] : raw;
     const parsed = JSON.parse(jsonStr);

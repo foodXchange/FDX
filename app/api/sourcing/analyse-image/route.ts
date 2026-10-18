@@ -8,7 +8,7 @@ const InputSchema = z.object({
 });
 
 export async function POST(req: Request) {
-  if (!process.env.ANTHROPIC_API_KEY) {
+  if (!process.env.GEMINI_API_KEY && !process.env.ANTHROPIC_API_KEY) {
     return Response.json(
       { ok: true, analysis: null, message: "AI analysis not available" },
       { status: 200 }

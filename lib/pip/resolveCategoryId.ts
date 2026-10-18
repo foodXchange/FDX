@@ -1,4 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
+import { GoogleGenAI } from "@google/genai";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
 // Canonical 21-leaf taxonomy — the ONLY ids the classifier may return.
@@ -44,7 +45,7 @@ Conflict rules (apply exactly):
 - Savory crackers, pretzels, chips -> Savory Snacks & Cereals
 - Honey, syrups, sugar, sweetener solutions -> Sugars & Sweeteners
 - Canned/preserved tomato (chopped, diced, paste, peeled) -> Tomato Products
-- Tomato sauce / ketchup / pasta sauce -> Specialty Sauces & Condiments
+- Tomato sauce / ketchup / pasta sauce / mayonnaise / dressings / mustard -> Specialty Sauces & Condiments
 - Edible oils (sunflower, olive, blends) -> Fats, Oils & Spreads
 - Frozen vegetables / frozen ready items -> Prepared Meals (Frozen & Shelf-Stable)
 - Protein isolates / TVP / pea / soy protein / meat alternatives -> Plant-Based Proteins
@@ -56,8 +57,6 @@ Ignore negotiation notes, emails, Hebrew marketing boilerplate — extract produ
 
 Output STRICT JSON only:
 {"category_id":"<id or 'unclassified'>","confidence":"high|medium|low","reason":"<short>"}`;
-
-const anthropic = new Anthropic();
 
 async function classifyWithLLM(rawText: string): Promise<{
   category_id: string | null;
@@ -76,17 +75,38 @@ Output STRICT JSON only:
 {"category_id":"<id or 'unclassified'>","confidence":"high|medium|low","reason":"<short>"}`;
 
   let raw = "";
-  try {
-    const response = await anthropic.messages.create({
-      model: "claude-haiku-4-5-20251001",
-      max_tokens: 150,
-      system: SYSTEM_PROMPT,
-      messages: [{ role: "user", content: userPrompt }],
-    });
-    const block = response.content[0];
-    raw = block?.type === "text" ? block.text : "";
-  } catch {
-    return { category_id: null, category_name: null };
+  const geminiKey = process.env.GEMINI_API_KEY;
+  if (geminiKey) {
+    try {
+      const ai = new GoogleGenAI({ apiKey: geminiKey });
+      const response = await ai.models.generateContent({
+        model: "gemini-3.5-flash",
+        contents: `${SYSTEM_PROMPT}\n\n${userPrompt}`,
+        config: {
+          temperature: 0,
+          responseMimeType: "application/json",
+        },
+      });
+      raw = (response.text ?? "").trim();
+    } catch {
+      raw = "";
+    }
+  }
+
+  if (!raw && process.env.ANTHROPIC_API_KEY) {
+    try {
+      const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+      const response = await anthropic.messages.create({
+        model: "claude-haiku-4-5-20251001",
+        max_tokens: 150,
+        system: SYSTEM_PROMPT,
+        messages: [{ role: "user", content: userPrompt }],
+      });
+      const block = response.content[0];
+      raw = block?.type === "text" ? block.text : "";
+    } catch {
+      return { category_id: null, category_name: null };
+    }
   }
 
   const jsonMatch = raw.match(/\{[\s\S]*\}/);
@@ -128,6 +148,56 @@ export async function resolveCategoryId(rawText: string): Promise<{
 // Exported for use in reclassification scripts.
 export { CANONICAL_LEAVES, CANONICAL_IDS, ID_TO_NAME };
 
+const SCRAPER_CATEGORY_MAP: Record<string, string> = {
+  "Sauces & Condiments": CANONICAL_LEAVES["Specialty Sauces & Condiments"],
+  "Specialty Sauces & Condiments": CANONICAL_LEAVES["Specialty Sauces & Condiments"],
+  "Snacks": CANONICAL_LEAVES["Savory Snacks & Cereals"],
+  "Savory Snacks & Cereals": CANONICAL_LEAVES["Savory Snacks & Cereals"],
+  "Nuts & Dried Fruit": CANONICAL_LEAVES["Savory Snacks & Cereals"],
+  "Biscuits & Confectionery": CANONICAL_LEAVES["Sweet Biscuits & Bars"],
+  "Sweet Biscuits & Bars": CANONICAL_LEAVES["Sweet Biscuits & Bars"],
+  "Confectionery & Chocolate": CANONICAL_LEAVES["Confectionery & Chocolate"],
+  "Oils & Fats": CANONICAL_LEAVES["Fats, Oils & Spreads"],
+  "Fats, Oils & Spreads": CANONICAL_LEAVES["Fats, Oils & Spreads"],
+  "Spreads & Nut Butters": CANONICAL_LEAVES["Fats, Oils & Spreads"],
+  "Canned Goods": CANONICAL_LEAVES["Canned & Preserved Goods"],
+  "Canned & Preserved Goods": CANONICAL_LEAVES["Canned & Preserved Goods"],
+  "Canned Vegetables & Pulses": CANONICAL_LEAVES["Canned Vegetables & Pulses"],
+  "Pickles & Olives": CANONICAL_LEAVES["Canned Vegetables & Pulses"],
+  "Tomato Products": CANONICAL_LEAVES["Tomato Products"],
+  "Beverages": CANONICAL_LEAVES["Beverages (Non-Alcoholic)"],
+  "Beverages (Non-Alcoholic)": CANONICAL_LEAVES["Beverages (Non-Alcoholic)"],
+  "Dairy & Alternatives": CANONICAL_LEAVES["Dairy Products & Analogues"],
+  "Dairy Products & Analogues": CANONICAL_LEAVES["Dairy Products & Analogues"],
+  "Dairy-Free Desserts": CANONICAL_LEAVES["Dairy-Free Desserts"],
+  "Frozen Foods": CANONICAL_LEAVES["Prepared Meals (Frozen & Shelf-Stable)"],
+  "Prepared Meals (Frozen & Shelf-Stable)": CANONICAL_LEAVES["Prepared Meals (Frozen & Shelf-Stable)"],
+  "Grains, Rice & Pulses": CANONICAL_LEAVES["Breakfast Cereals"],
+  "Breakfast Cereals": CANONICAL_LEAVES["Breakfast Cereals"],
+  "Pasta & Noodles": CANONICAL_LEAVES["Pasta/Noodles"],
+  "Pasta/Noodles": CANONICAL_LEAVES["Pasta/Noodles"],
+  "Bakery & Bread": CANONICAL_LEAVES["Bakery & Bread Products"],
+  "Bakery & Bread Products": CANONICAL_LEAVES["Bakery & Bread Products"],
+  "Spices & Seasonings": CANONICAL_LEAVES["Herbs"],
+  "Herbs": CANONICAL_LEAVES["Herbs"],
+  "Honey & Sweeteners": CANONICAL_LEAVES["Sugars & Sweeteners"],
+  "Sugars & Sweeteners": CANONICAL_LEAVES["Sugars & Sweeteners"],
+  "Meat & Poultry": CANONICAL_LEAVES["Raw Meat & Poultry"],
+  "Raw Meat & Poultry": CANONICAL_LEAVES["Raw Meat & Poultry"],
+  "Seafood": CANONICAL_LEAVES["Fresh & Frozen Fish"],
+  "Fresh & Frozen Fish": CANONICAL_LEAVES["Fresh & Frozen Fish"],
+  "Baking Ingredients": CANONICAL_LEAVES["Ingredients & Additives"],
+  "Ingredients & Additives": CANONICAL_LEAVES["Ingredients & Additives"],
+  "Baby Food": CANONICAL_LEAVES["Prepared Meals (Frozen & Shelf-Stable)"],
+  "Health & Functional Foods": CANONICAL_LEAVES["Plant-Based Proteins"],
+  "Plant-Based Proteins": CANONICAL_LEAVES["Plant-Based Proteins"],
+};
+
+export function mapScraperCategoryToCanonicalId(category?: string | null): string | null {
+  if (!category) return null;
+  return SCRAPER_CATEGORY_MAP[category.trim()] ?? null;
+}
+
 // Looks up the Unclassified category id from the DB (used in reclass scripts).
 export async function getUnclassifiedId(): Promise<string | null> {
   const { data } = await supabaseAdmin
@@ -137,3 +207,4 @@ export async function getUnclassifiedId(): Promise<string | null> {
     .maybeSingle();
   return (data as { id: string } | null)?.id ?? null;
 }
+

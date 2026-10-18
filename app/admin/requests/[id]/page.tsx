@@ -104,6 +104,9 @@ export default async function RequestDetailPage({ params }: PageProps) {
   const certs = (request.certifications as string[] | null) ?? [];
   const hasKosher = certs.some((c) => c.toLowerCase().includes("kosher"));
   const intentJson = (request.intent_json as Record<string, unknown> | null) ?? null;
+  const aiAnalysis = (request.ai_analysis as Record<string, unknown> | null) ?? null;
+  const sellerBrief = typeof aiAnalysis?.seller_brief === "string" ? aiAnalysis.seller_brief : null;
+  const benchmarkBrand = typeof aiAnalysis?.benchmark_brand === "string" ? aiAnalysis.benchmark_brand : null;
 
   const rfqTemplates = (rawRfqTemplates ?? []) as RfqTemplateRow[];
   const pip = await getPipForRequest(id);
@@ -112,7 +115,8 @@ export default async function RequestDetailPage({ params }: PageProps) {
     product_name: cleanedName || productName,
     volume: pip.commercial.volume ?? "",
     certifications: [...pip.compliance.kosher_types, ...pip.compliance.certifications].join(", "),
-    request_description: (request.message as string | null) ?? pip.product.raw_description ?? "",
+    request_description:
+      sellerBrief ?? (request.message as string | null) ?? pip.product.raw_description ?? "",
   };
 
   return (
@@ -158,6 +162,11 @@ export default async function RequestDetailPage({ params }: PageProps) {
                     {request.company as string}
                   </span>
                 )}
+                {benchmarkBrand && (
+                  <span className="text-xs bg-amber-50 text-amber-800 border border-amber-200 rounded-full px-3 py-1 font-medium">
+                    🎯 Benchmark: {benchmarkBrand}
+                  </span>
+                )}
                 {request.category && (
                   <span className="text-xs bg-blue-50 text-blue-700 rounded-full px-3 py-1 font-medium">
                     {request.category as string}
@@ -175,8 +184,19 @@ export default async function RequestDetailPage({ params }: PageProps) {
                 )}
               </div>
 
+              {sellerBrief && (
+                <div className="mt-4 rounded-xl border border-orange-200 bg-orange-50/60 p-4">
+                  <p className="mb-1.5 text-xs font-bold uppercase tracking-wider text-orange-700">
+                    🤝 Warm Seller / Agent Sourcing Brief
+                  </p>
+                  <pre className="whitespace-pre-wrap font-sans text-sm text-gray-800 leading-relaxed">
+                    {sellerBrief}
+                  </pre>
+                </div>
+              )}
+
               {(request.message as string | null) && (
-                <p className="mt-4 text-sm text-gray-600 leading-relaxed border-t border-gray-100 pt-4">
+                <p className="mt-4 text-sm text-gray-600 leading-relaxed border-t border-gray-100 pt-4 whitespace-pre-wrap">
                   {request.message as string}
                 </p>
               )}

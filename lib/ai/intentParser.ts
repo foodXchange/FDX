@@ -1,4 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
+import { GoogleGenAI } from "@google/genai";
 import { IntentSchema, EMPTY_INTENT } from "@/lib/ai/intentSchema";
 import type { IntentResult } from "@/lib/ai/intentSchema";
 import { parseIntent as parseIntentV1 } from "@/lib/matching/heuristicIntentParser";
@@ -7,7 +8,8 @@ const TIMEOUT_MS = 8000;
 
 const SYSTEM_PROMPT =
   "You are a food industry sourcing analyst. Extract structured sourcing intent " +
-  "from buyer requests. Output ONLY valid JSON matching the schema provided. " +
+  "from buyer requests (including Hebrew, English, or other languages — always translate extracted values to English). " +
+  "Output ONLY valid JSON matching the schema provided. " +
   "Do not include any explanation, markdown, or code blocks. " +
   "Use null for unknown fields. Use empty arrays [] for unknown arrays. " +
   "Normalize strings to lowercase and trim whitespace. " +
@@ -44,6 +46,26 @@ Schema:
 }
 
 Buyer request: ${text}`;
+}
+
+async function geminiParser(text: string): Promise<IntentResult> {
+  const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+  const response = await ai.models.generateContent({
+    model: "gemini-3.5-flash",
+    contents: `${SYSTEM_PROMPT}\n\n${buildUserMessage(text)}`,
+    config: {
+      temperature: 0.1,
+      responseMimeType: "application/json",
+    },
+  });
+  const raw = (response.text ?? "").trim();
+  const jsonMatch = raw.match(/\{[\s\S]*\}/);
+  const parsed = JSON.parse(jsonMatch ? jsonMatch[0] : raw);
+  const validated = IntentSchema.safeParse(parsed);
+  if (!validated.success) {
+    throw new Error(`Validation failed: ${validated.error.issues[0].message}`);
+  }
+  return validated.data;
 }
 
 async function anthropicParser(text: string): Promise<IntentResult> {
@@ -125,6 +147,19 @@ function heuristicFallback(text: string): IntentResult {
 }
 
 export async function parseIntent(text: string): Promise<IntentResult> {
+  if (process.env.GEMINI_API_KEY) {
+    try {
+      return await Promise.race([
+        geminiParser(text),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error("Gemini AI timeout")), TIMEOUT_MS)
+        ),
+      ]);
+    } catch (err) {
+      console.warn("Gemini intent parser failed, falling back:", err);
+    }
+  }
+
   const provider = process.env.AI_PROVIDER ?? "none";
 
   if (provider === "none") {

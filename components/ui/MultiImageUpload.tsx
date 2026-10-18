@@ -25,10 +25,9 @@ const MAX_DIMENSION = 1920;
 const COMPRESS_QUALITY = 0.82;
 
 const DEFAULT_EXAMPLES = [
-  { label: "Product shot", color: "bg-emerald-100" },
-  { label: "Barcode/label", color: "bg-blue-100" },
-  { label: "Supermarket shelf", color: "bg-amber-100" },
-  { label: "Packaging detail", color: "bg-rose-100" },
+  { label: "① Front Label / Benchmark Brand", color: "bg-orange-500/20 border border-orange-500/40" },
+  { label: "② Packaging Format / Pump / Box", color: "bg-blue-500/20 border border-blue-500/40" },
+  { label: "③ Back Label / Weight & Kosher", color: "bg-emerald-500/20 border border-emerald-500/40" },
 ];
 
 async function compressImage(file: File): Promise<Blob> {
@@ -187,6 +186,8 @@ export default function MultiImageUpload({
     setImages(imagesRef.current.filter((m) => m.id !== id));
   }
 
+  const slotBadges = ["① Brand / Front", "② Packaging / Pump", "③ Specs / Kosher"];
+
   return (
     <div className="space-y-3">
       {images.length === 0 ? (
@@ -195,28 +196,35 @@ export default function MultiImageUpload({
           onDragLeave={() => setDragging(false)}
           onDrop={handleDrop}
           onClick={() => inputRef.current?.click()}
-          className={`border-2 border-dashed rounded-xl p-10 flex flex-col items-center justify-center cursor-pointer transition-colors ${
+          className={`border-2 border-dashed rounded-xl p-7 flex flex-col items-center justify-center cursor-pointer transition-all ${
             dragging
-              ? "border-orange-400 bg-orange-50"
-              : "border-slate-200 hover:border-orange-300 hover:bg-slate-50"
+              ? "border-orange-500 bg-orange-500/10"
+              : "border-white/15 bg-[#0f172a]/80 hover:border-orange-500/50 hover:bg-[#0f172a]"
           }`}
         >
-          <svg className="w-10 h-10 text-slate-300 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
-          </svg>
-          <p className="text-sm font-medium text-slate-700">Drop images here</p>
-          <p className="text-xs text-slate-400 mt-1">or click to browse</p>
+          <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-orange-500/15 text-orange-400">
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
+            </svg>
+          </div>
+          <p className="text-sm font-semibold text-slate-100">
+            Drop up to 3 Benchmark Product Photos here
+          </p>
+          <p className="text-xs text-slate-400 mt-1 text-center">
+            e.g. Hellmann&apos;s or Heinz front label, packaging/pump format, and ingredients/kosher mark
+          </p>
         </div>
       ) : (
-        <div className="grid grid-cols-3 gap-2">
+        <div className="grid grid-cols-3 gap-3">
           {images.map((img, idx) => (
-            <div key={img.id} className="relative aspect-square rounded-lg overflow-hidden border border-slate-200 bg-slate-50">
+            <div key={img.id} className="relative aspect-square rounded-xl overflow-hidden border border-white/15 bg-[#0f172a]">
               {img.uploading ? (
-                <div className="w-full h-full flex items-center justify-center">
+                <div className="w-full h-full flex flex-col items-center justify-center gap-2">
                   <svg className="w-6 h-6 text-orange-400 animate-spin" fill="none" viewBox="0 0 24 24">
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
                   </svg>
+                  <span className="text-[11px] text-slate-400">Uploading...</span>
                 </div>
               ) : img.error ? (
                 <div className="w-full h-full flex flex-col items-center justify-center p-2">
@@ -234,18 +242,18 @@ export default function MultiImageUpload({
                   onError={(e) => { (e.currentTarget as HTMLImageElement).style.opacity = "0.3"; }}
                 />
               )}
-              {idx === 0 && !img.uploading && !img.error && (
-                <span className="absolute top-1 left-1 bg-orange-500 text-white text-[10px] font-semibold px-1.5 py-0.5 rounded">
-                  Main
+              {!img.uploading && !img.error && (
+                <span className="absolute bottom-1.5 left-1.5 bg-slate-950/85 border border-white/15 text-slate-100 text-[10px] font-medium px-2 py-0.5 rounded-md">
+                  {slotBadges[idx] ?? `Photo #${idx + 1}`}
                 </span>
               )}
               <button
                 type="button"
                 onClick={() => remove(img.id)}
-                className="absolute top-1 right-1 w-5 h-5 bg-white/90 hover:bg-white rounded-full flex items-center justify-center shadow text-slate-500 hover:text-red-500 transition-colors"
+                className="absolute top-1.5 right-1.5 w-6 h-6 bg-slate-900/90 hover:bg-red-500 rounded-full flex items-center justify-center shadow text-slate-200 hover:text-white transition-colors"
                 aria-label="Remove image"
               >
-                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </button>
@@ -259,14 +267,16 @@ export default function MultiImageUpload({
               onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
               onDragLeave={() => setDragging(false)}
               onDrop={handleDrop}
-              className={`aspect-square rounded-lg border-2 border-dashed flex flex-col items-center justify-center text-slate-400 hover:text-orange-500 hover:border-orange-300 transition-colors ${
-                dragging ? "border-orange-400 bg-orange-50" : "border-slate-200"
+              className={`aspect-square rounded-xl border-2 border-dashed flex flex-col items-center justify-center text-slate-400 hover:text-orange-400 hover:border-orange-500/50 transition-colors ${
+                dragging ? "border-orange-500 bg-orange-500/10" : "border-white/15 bg-[#0f172a]/60"
               }`}
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
               </svg>
-              <span className="text-xs mt-1">Add</span>
+              <span className="text-xs mt-1 font-medium">
+                {slotBadges[images.length] ?? "+ Add Photo"}
+              </span>
             </button>
           )}
         </div>
@@ -282,26 +292,26 @@ export default function MultiImageUpload({
           value={urlInput}
           onChange={(e) => setUrlInput(e.target.value)}
           onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addUrl(); } }}
-          placeholder="Or paste an image URL..."
-          className="flex-1 text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-orange-200 placeholder-slate-300"
+          placeholder="Or paste a Google Image / Benchmark Product URL..."
+          className="flex-1 text-sm border border-white/10 bg-[#0f172a] text-slate-100 rounded-xl px-3.5 py-2.5 focus:outline-none focus:border-orange-500 placeholder-slate-500"
           disabled={!canAdd}
         />
         <button
           type="button"
           onClick={addUrl}
           disabled={!urlInput.trim() || !canAdd}
-          className="px-3 py-2 text-sm bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-lg disabled:opacity-40 transition"
+          className="px-4 py-2 text-sm font-medium bg-white/10 hover:bg-white/15 text-slate-200 rounded-xl disabled:opacity-40 transition"
         >
-          Add
+          Add URL
         </button>
       </div>
-      {urlError && <p className="text-xs text-red-500">{urlError}</p>}
+      {urlError && <p className="text-xs text-red-400">{urlError}</p>}
 
       {exampleTypes.length > 0 && (
-        <div className="flex gap-3 flex-wrap">
+        <div className="flex gap-3 flex-wrap pt-1">
           {exampleTypes.map((ex) => (
             <div key={ex.label} className="flex items-center gap-1.5">
-              <div className={`w-5 h-5 rounded ${ex.color} shrink-0`} />
+              <div className={`w-3.5 h-3.5 rounded ${ex.color} shrink-0`} />
               <span className="text-xs text-slate-400">{ex.label}</span>
             </div>
           ))}

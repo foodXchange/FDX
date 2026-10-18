@@ -7,6 +7,7 @@ import {
   detectManufacturerType,
 } from "@/lib/scraper/extract";
 import { embedBatch } from "@/lib/ai/embed";
+import { mapScraperCategoryToCanonicalId } from "@/lib/pip/resolveCategoryId";
 
 export const dynamic = "force-dynamic";
 
@@ -82,6 +83,7 @@ async function insertProducts(
     supplier_id: supplierId,
     product_name: p.product_name,
     category: p.category,
+    category_id: mapScraperCategoryToCanonicalId(p.category),
     subcategory: p.subcategory ?? null,
     description: p.description ?? null,
     formats: p.formats ?? [],

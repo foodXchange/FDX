@@ -8,8 +8,7 @@
 //   ANTHROPIC_API_KEY=sk-ant-...
 
 import { NextRequest } from "next/server";
-
-export const runtime = "edge"; // faster cold starts, streaming works natively
+import { GoogleGenAI } from "@google/genai";
 
 export async function POST(req: NextRequest) {
   const { system, user } = await req.json();
@@ -21,10 +20,43 @@ export async function POST(req: NextRequest) {
     });
   }
 
+  const encoder = new TextEncoder();
+
+  if (process.env.GEMINI_API_KEY) {
+    try {
+      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+      const prompt = system ? `${system}\n\n${user}` : user;
+      const response = await ai.models.generateContent({
+        model: "gemini-3.5-flash",
+        contents: prompt,
+        config: { temperature: 0.4 },
+      });
+      const text = (response.text ?? "").trim();
+      const stream = new ReadableStream({
+        start(controller) {
+          for (const line of text.split("\n")) {
+            controller.enqueue(encoder.encode(`data: ${line}\n\n`));
+          }
+          controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+          controller.close();
+        },
+      });
+      return new Response(stream, {
+        headers: {
+          "Content-Type": "text/event-stream",
+          "Cache-Control": "no-cache",
+          Connection: "keep-alive",
+        },
+      });
+    } catch (gemErr) {
+      console.warn("Gemini draft error, falling back:", gemErr);
+    }
+  }
+
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
     return new Response(
-      JSON.stringify({ error: "ANTHROPIC_API_KEY not set in environment" }),
+      JSON.stringify({ error: "Neither GEMINI_API_KEY nor ANTHROPIC_API_KEY set in environment" }),
       { status: 500, headers: { "Content-Type": "application/json" } }
     );
   }
@@ -53,13 +85,6 @@ export async function POST(req: NextRequest) {
       { status: anthropicRes.status, headers: { "Content-Type": "application/json" } }
     );
   }
-
-  // Transform Anthropic's SSE stream → our own simpler SSE stream
-  // Anthropic sends:  data: {"type":"content_block_delta","delta":{"text":"hello"}}
-  // We send:          data: hello\n
-  // This keeps the frontend simple — it just appends whatever comes after "data: "
-
-  const encoder = new TextEncoder();
 
   const stream = new ReadableStream({
     async start(controller) {

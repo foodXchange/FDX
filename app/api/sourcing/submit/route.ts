@@ -9,7 +9,7 @@ import { sendLeadNotification, sendBuyerConfirmation } from "@/lib/email/mailer"
 import { matchSupplierProducts, formatWhatsAppMatch } from "@/lib/matching/matchSuppliers";
 import { buildPipV1 } from "@/lib/pip/buildPipV1";
 import { resolveCategoryId } from "@/lib/pip/resolveCategoryId";
-import { runMatchV1 } from "@/lib/matching/runMatchV1";
+import { runMatchV3 } from "@/lib/matching/runMatchV3";
 import { groupImages } from "@/lib/pip/groupImages";
 import { getOriginFromHeaders } from "@/lib/getOrigin";
 
@@ -30,12 +30,17 @@ const SubmitSchema = z
       .optional()
       .refine((v) => !v || validPhone(v), "Invalid phone number"),
     company: z.string().max(200).optional(),
-    description: z.string().max(2000).optional(),
+    description: z.string().max(5000).optional(),
     product_name: z.string().max(300).optional(),
     category: z.string().optional(),
     certifications: z.array(z.string()).default([]),
     target_market: z.string().optional(),
     private_label: z.boolean().optional().nullable(),
+    packaging_preference: z.string().max(500).optional(),
+    volume_per_year: z.string().max(200).optional(),
+    benchmark_brand: z.string().max(300).optional(),
+    seller_brief: z.string().max(8000).optional(),
+    dietary_claims: z.array(z.string()).optional(),
     image_urls: z.array(z.string()).max(5).default([]),
     ai_analysis: z.record(z.string(), z.unknown()).optional(),
     source: z.string().optional(),
@@ -74,14 +79,27 @@ export async function POST(req: Request) {
   }
 
   const data = parsed.data;
+  const allCerts = Array.from(
+    new Set([...(data.certifications ?? []), ...(data.dietary_claims ?? [])])
+  );
+
+  const enrichedAiAnalysis: Record<string, unknown> = {
+    ...(data.ai_analysis ?? {}),
+    ...(data.benchmark_brand ? { benchmark_brand: data.benchmark_brand } : {}),
+    ...(data.seller_brief ? { seller_brief: data.seller_brief } : {}),
+    ...(data.dietary_claims ? { dietary_claims: data.dietary_claims } : {}),
+    ...(data.packaging_preference ? { packaging_format: data.packaging_preference } : {}),
+  };
 
   const intentSummary =
     [
       data.product_name,
+      data.benchmark_brand ? `Benchmark: ${data.benchmark_brand}` : null,
       data.category,
+      data.packaging_preference,
       data.target_market,
-      data.private_label === true ? "private label" : null,
-      ...(data.certifications ?? []),
+      data.private_label === true ? "private label" : data.private_label === false ? "supplier brand" : null,
+      ...allCerts,
     ]
       .filter(Boolean)
       .join(" · ") ||
@@ -128,14 +146,17 @@ export async function POST(req: Request) {
         buyer_id: buyerId,
         name: data.name,
         email: data.email ?? null,
+        whatsapp: data.whatsapp ?? null,
         company: data.company ?? null,
         message: data.description ?? null,
         product_name: data.product_name ?? null,
         category: data.category ?? null,
-        certifications: data.certifications,
+        certifications: allCerts,
         target_market: data.target_market ?? null,
         private_label: data.private_label ?? null,
-        ai_analysis: data.ai_analysis ?? null,
+        packaging_preference: data.packaging_preference ?? null,
+        volume_per_year: data.volume_per_year ?? null,
+        ai_analysis: Object.keys(enrichedAiAnalysis).length > 0 ? enrichedAiAnalysis : null,
         source: data.source ?? "buyers_page",
         status: "new",
       })
@@ -177,28 +198,31 @@ export async function POST(req: Request) {
       const productLabel = data.product_name ?? data.description?.slice(0, 60) ?? "—";
       const rows: [string, string][] = [
         ["Product", productLabel],
+        ["Benchmark Brand", data.benchmark_brand ?? "—"],
         ["Category", data.category ?? "—"],
-        ["Kosher", data.certifications.length > 0 ? data.certifications.join(", ") : "—"],
+        ["Packaging", data.packaging_preference ?? "—"],
+        ["Kosher & Dietary", allCerts.length > 0 ? allCerts.join(", ") : "—"],
         ["Company", data.company ?? "—"],
         ["Name", data.name],
         ["WhatsApp", data.whatsapp ?? "—"],
         ["Email", data.email ?? "—"],
-        ["Private label", data.private_label ? "Yes" : "No"],
+        ["Branding", data.private_label === true ? "Private Label" : data.private_label === false ? "Supplier Brand" : "Open"],
       ];
       const tableRows = rows
         .map(
           ([label, value]) =>
-            `<tr><td style="color:#64748b;padding:4px 0;width:120px;font-size:14px;">${label}</td><td style="color:#1e293b;font-weight:500;font-size:14px;">${value}</td></tr>`
+            `<tr><td style="color:#64748b;padding:4px 0;width:130px;font-size:14px;">${label}</td><td style="color:#1e293b;font-weight:500;font-size:14px;">${value}</td></tr>`
         )
         .join("");
       const html = `<div style="font-family:sans-serif;max-width:600px;margin:0 auto;">
   <div style="background:#0f172a;padding:20px 24px;border-radius:12px 12px 0 0;">
-    <h2 style="color:#fff;margin:0;font-size:18px;">🛒 New Sourcing Request</h2>
+    <h2 style="color:#fff;margin:0;font-size:18px;">🛒 New Sourcing Request & Seller Brief</h2>
     <p style="color:#94a3b8;margin:4px 0 0;font-size:13px;">via FoodXchange buyers page</p>
   </div>
   <div style="border:1px solid #e2e8f0;border-top:none;border-radius:0 0 12px 12px;padding:24px;">
     <table style="width:100%;border-collapse:collapse;">${tableRows}</table>
-    ${data.description ? `<div style="margin-top:16px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:14px;"><p style="color:#64748b;font-size:12px;margin:0 0 6px;text-transform:uppercase;letter-spacing:0.05em;">Description</p><p style="color:#334155;font-size:14px;line-height:1.6;margin:0;">${data.description}</p></div>` : ""}
+    ${data.seller_brief ? `<div style="margin-top:16px;background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:14px;"><p style="color:#c2410c;font-size:12px;font-weight:700;margin:0 0 6px;text-transform:uppercase;letter-spacing:0.05em;">🤝 Warm Seller / Agent Brief</p><pre style="white-space:pre-wrap;font-family:sans-serif;color:#334155;font-size:14px;line-height:1.6;margin:0;">${data.seller_brief}</pre></div>` : ""}
+    ${data.description ? `<div style="margin-top:16px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:14px;"><p style="color:#64748b;font-size:12px;margin:0 0 6px;text-transform:uppercase;letter-spacing:0.05em;">Buyer Raw Notes</p><p style="color:#334155;font-size:14px;line-height:1.6;margin:0;">${data.description}</p></div>` : ""}
     <hr style="border:none;border-top:1px solid #e2e8f0;margin:20px 0 14px;"/>
     <p style="color:#94a3b8;font-size:12px;margin:0;">FoodXchange · fdx.trading</p>
   </div>
@@ -213,156 +237,154 @@ export async function POST(req: Request) {
         .catch(console.error);
     }
 
-    // v2 pipeline: insert images then extract → group → merge.
-    // Sequential within this block — groupImages reads from request_images.
-    if (data.image_urls.length > 0) {
-      (async () => {
-        try {
-          await supabaseAdmin
-            .from("request_images")
-            .insert(data.image_urls.map((url) => ({ request_id: newRequest.id, url })));
-          await groupImages(newRequest.id);
-        } catch (err) {
-          console.error("[v2-pipeline] groupImages failed", newRequest.id, err);
-        }
-      })();
-    }
-
+    // Sequenced AI PIP + Image Extraction + Hybrid Vector Matching (match_v3)
     (async () => {
       try {
-        const matchInput = {
-          product_name: data.product_name ?? null,
-          category: data.category ?? null,
-          certifications: data.certifications ?? [],
-          target_market: data.target_market ?? null,
-          private_label: data.private_label ?? null,
-          tags: [
-            ...(data.certifications ?? []),
-            data.product_name ?? "",
-            data.category ?? "",
-          ].filter(Boolean),
-          formats: [],
-          ai_analysis: (data.ai_analysis as Record<string, unknown>) ?? null,
-          description: data.description ?? null,
-        };
-
-        const allMatches = await matchSupplierProducts(matchInput, 10);
-        const top10 = allMatches.filter((m) => m.score >= 30);
-
-        if (top10.length > 0) {
-          await supabaseAdmin
-            .from("sourcing_matches")
-            .upsert(
-              top10.map((m, idx) => ({
-                request_id: newRequest.id,
-                supplier_id: m.supplier_id,
-                match_score: Math.round(m.score),
-                product_name: m.product_name,
-                company_name: m.company_name,
-                country: m.country_of_origin,
-                match_summary: m.match_summary ?? null,
-                whatsapp_message: formatWhatsAppMatch(
-                  { product_name: data.product_name, company: data.company },
-                  m,
-                  idx + 1
-                ),
-                match_breakdown: {
-                  reasons: m.match_reasons,
-                  summary: m.match_summary,
-                  kosher_types: m.kosher_types,
-                  certifications: m.certifications,
-                },
-                status: "pending",
-              })),
-              { onConflict: "request_id,supplier_id" }
-            );
-
-          await supabaseAdmin
-            .from("sourcing_requests")
-            .update({
-              last_matched_at: new Date().toISOString(),
-              best_match_score: Math.round(top10[0].score),
-              match_count: top10.length,
-              status: "matched",
-            })
-            .eq("id", newRequest.id);
-        }
-
-        // Only notify admin when best match score is meaningful
-        if ((top10[0]?.score ?? 0) >= 60) {
-          await sendLeadNotification({
-            name: data.name,
-            email: data.email ?? "",
-            company: data.company ?? "",
-            message: data.description ?? intentSummary,
-            intentSummary,
-            matchedItems: [],
-            submittedAt: new Date().toISOString(),
-            supplierMatches: top10.slice(0, 3).map((m) => ({
-              company_name: m.company_name,
-              country: m.country_of_origin,
-              score: Math.round(m.score),
-              reasons: m.match_reasons,
-              match_summary: m.match_summary,
-            })),
-          });
-        } else {
-          await sendLeadNotification({
-            name: data.name,
-            email: data.email ?? "",
-            company: data.company ?? "",
-            message: data.description ?? intentSummary,
-            intentSummary,
-            matchedItems: [],
-            submittedAt: new Date().toISOString(),
-          });
-        }
-      } catch (err) {
-        console.error("Auto-match error:", err);
-        sendLeadNotification({
-          name: data.name,
-          email: data.email ?? "",
-          company: data.company ?? "",
-          message: data.description ?? intentSummary,
-          intentSummary,
-          matchedItems: [],
-          submittedAt: new Date().toISOString(),
-        }).catch(console.error);
-      }
-    })();
-
-    (async () => {
-      try {
+        // 1. Build v1 PIP and resolve canonical 21-leaf category_id first
         const pip = buildPipV1({
           product_name: data.product_name ?? null,
           message: data.description ?? null,
           category: data.category ?? null,
-          certifications: data.certifications ?? [],
+          certifications: allCerts,
           target_market: data.target_market ?? null,
           private_label: data.private_label ?? null,
-          ai_analysis: (data.ai_analysis as Record<string, unknown>) ?? null,
+          ai_analysis: enrichedAiAnalysis,
         });
-        // Buyer-page submissions rarely set category/product_name — fall back to
-        // the free-text description so the LLM classifier has something to work with.
-        const categoryClassificationText =
-          data.category?.trim() || data.product_name?.trim() || data.description?.trim() || "";
+
+        // Enrich nice_to_have with benchmark brand, packaging, and dietary claims for Voyage AI vector embedding
+        const extraTokens: string[] = [];
+        if (data.benchmark_brand) extraTokens.push(`Benchmark profile similar to ${data.benchmark_brand}`);
+        if (data.packaging_preference) extraTokens.push(`Packaging: ${data.packaging_preference}`);
+        for (const claim of data.dietary_claims ?? []) {
+          extraTokens.push(`nutrition:${claim}`);
+        }
+        pip.match_config.nice_to_have = Array.from(
+          new Set([...pip.match_config.nice_to_have, ...extraTokens])
+        );
+
+        const categoryClassificationText = [
+          data.product_name,
+          data.benchmark_brand,
+          data.category,
+          data.description,
+        ]
+          .filter(Boolean)
+          .join(" — ");
+
         const { category_id, category_name } = await resolveCategoryId(categoryClassificationText);
         pip.category.category_id = category_id;
         pip.category.category_name = category_name;
+
         await supabaseAdmin
           .from("sourcing_requests")
-          .update({ intent_json: pip })
+          .update({
+            intent_json: pip,
+            ...(category_name && !data.category ? { category: category_name } : {}),
+          })
           .eq("id", newRequest.id);
-      } catch (e) {
-        console.error("PIP generation failed:", e);
-      }
-    })();
 
-    (async () => {
-      try {
-        await runMatchV1(newRequest.id);
-      } catch (e) {
-        console.error("runMatchV1 failed (submit):", e);
+        // 2. If benchmark images were uploaded, insert and run Gemini Vision groupImages (creates v2 PIP)
+        if (data.image_urls.length > 0) {
+          try {
+            await supabaseAdmin
+              .from("request_images")
+              .insert(data.image_urls.map((url) => ({ request_id: newRequest.id, url })));
+            await groupImages(newRequest.id);
+          } catch (err) {
+            console.error("[v2-pipeline] groupImages failed", newRequest.id, err);
+          }
+        }
+
+        // 3. Run Hybrid Vector + Category + Compliance Matching (match_v3)
+        let matchedCount = 0;
+        try {
+          const v3Res = await runMatchV3(newRequest.id);
+          matchedCount = v3Res.inserted;
+          if (v3Res.inserted > 0 && v3Res.topScore >= 60) {
+            await sendLeadNotification({
+              name: data.name,
+              email: data.email ?? "",
+              company: data.company ?? "",
+              message: data.seller_brief || data.description || intentSummary,
+              intentSummary,
+              matchedItems: [],
+              submittedAt: new Date().toISOString(),
+              supplierMatches: v3Res.matches.slice(0, 3).map((m) => ({
+                company_name: m.company_name,
+                country: m.country,
+                score: Math.round(m.score),
+                reasons: [m.summary],
+                match_summary: m.summary,
+              })),
+            });
+          }
+        } catch (v3Err) {
+          console.error("runMatchV3 failed (submit):", v3Err);
+        }
+
+        // 4. Fallback to heuristic matchSupplierProducts only if match_v3 found 0 matches
+        if (matchedCount === 0) {
+          const matchInput = {
+            product_name: data.product_name ?? null,
+            category: data.category ?? category_name ?? null,
+            certifications: allCerts,
+            target_market: data.target_market ?? null,
+            private_label: data.private_label ?? null,
+            tags: [
+              ...allCerts,
+              data.product_name ?? "",
+              data.benchmark_brand ?? "",
+              data.category ?? "",
+            ].filter(Boolean),
+            formats: data.packaging_preference ? [data.packaging_preference] : [],
+            ai_analysis: enrichedAiAnalysis,
+            description: data.description ?? null,
+          };
+
+          const allMatches = await matchSupplierProducts(matchInput, 10);
+          const top10 = allMatches.filter((m) => m.score >= 30);
+
+          if (top10.length > 0) {
+            await supabaseAdmin
+              .from("sourcing_matches")
+              .upsert(
+                top10.map((m, idx) => ({
+                  request_id: newRequest.id,
+                  supplier_id: m.supplier_id,
+                  match_score: Math.round(m.score),
+                  product_name: m.product_name,
+                  company_name: m.company_name,
+                  country: m.country_of_origin,
+                  match_summary: m.match_summary ?? null,
+                  whatsapp_message: formatWhatsAppMatch(
+                    { product_name: data.product_name, company: data.company },
+                    m,
+                    idx + 1
+                  ),
+                  match_breakdown: {
+                    reasons: m.match_reasons,
+                    summary: m.match_summary,
+                    kosher_types: m.kosher_types,
+                    certifications: m.certifications,
+                  },
+                  status: "pending",
+                })),
+                { onConflict: "request_id,supplier_id" }
+              );
+
+            await supabaseAdmin
+              .from("sourcing_requests")
+              .update({
+                last_matched_at: new Date().toISOString(),
+                best_match_score: Math.round(top10[0].score),
+                match_count: top10.length,
+                status: "matched",
+              })
+              .eq("id", newRequest.id);
+          }
+        }
+      } catch (err) {
+        console.error("Auto-match pipeline error:", err);
       }
     })();
 
