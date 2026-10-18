@@ -9,41 +9,62 @@ interface InsightCardProps {
   href?: string;
 }
 
-const SEVERITY_CLASSES: Record<AlertSeverity, string> = {
-  red: "border-red-200 bg-red-50",
-  yellow: "border-yellow-200 bg-yellow-50",
+const SEVERITY_CLASSES: Record<AlertSeverity, { border: string; bg: string; badge: string }> = {
+  red: {
+    border: "border-rose-200",
+    bg: "bg-rose-50/40",
+    badge: "bg-rose-100 text-rose-800 border-rose-200",
+  },
+  yellow: {
+    border: "border-amber-200",
+    bg: "bg-amber-50/40",
+    badge: "bg-amber-100 text-amber-800 border-amber-200",
+  },
 };
 
-const SEVERITY_DOT: Record<AlertSeverity, string> = {
-  red: "bg-red-500",
-  yellow: "bg-yellow-500",
-};
-
-export default function InsightCard({ variant, severity, title, detail, href }: InsightCardProps) {
-  const containerClasses =
-    variant === "alert" && severity
-      ? `border rounded-xl p-4 ${SEVERITY_CLASSES[severity]}`
-      : "border border-slate-200 bg-slate-50 rounded-xl p-4";
-
-  const content = (
-    <div className={containerClasses}>
-      <div className="flex items-start gap-2.5">
-        {variant === "alert" && severity && (
-          <span className={`mt-1.5 w-2 h-2 rounded-full shrink-0 ${SEVERITY_DOT[severity]}`} />
-        )}
-        <div>
-          <p className="text-sm font-semibold text-slate-800">{title}</p>
-          <p className="text-sm text-slate-600 mt-0.5">{detail}</p>
-        </div>
-      </div>
-    </div>
-  );
-
-  if (!href) return content;
+export default function InsightCard({
+  variant,
+  severity,
+  title,
+  detail,
+  href,
+}: InsightCardProps) {
+  const isAlert = variant === "alert";
+  const styling =
+    isAlert && severity
+      ? SEVERITY_CLASSES[severity]
+      : {
+          border: "border-blue-200 bg-blue-50/30",
+          badge: "bg-blue-100 text-blue-800 border-blue-200",
+        };
 
   return (
-    <Link href={href} className="block hover:opacity-80 transition">
-      {content}
-    </Link>
+    <div
+      className={`border ${styling.border} rounded-2xl p-4.5 shadow-2xs hover:shadow-xs transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3`}
+    >
+      <div className="flex items-start gap-3">
+        <span className="text-xl shrink-0 mt-0.5">
+          {isAlert ? (severity === "red" ? "🚨" : "⚠️") : "💡"}
+        </span>
+        <div>
+          <div className="flex items-center gap-2 flex-wrap">
+            <h4 className="text-sm font-bold text-slate-900">{title}</h4>
+            <span className={`text-[10px] font-bold px-2 py-0.2 rounded-full border ${styling.badge}`}>
+              {isAlert ? (severity === "red" ? "High Priority Bottleneck" : "Warning") : "Optimization Tip"}
+            </span>
+          </div>
+          <p className="text-xs text-slate-600 mt-1 leading-relaxed">{detail}</p>
+        </div>
+      </div>
+
+      {href && (
+        <Link
+          href={href}
+          className="self-end sm:self-center shrink-0 px-3.5 py-1.5 text-xs font-semibold rounded-lg bg-white border border-slate-300 text-slate-700 hover:text-orange-600 hover:border-orange-300 hover:bg-orange-50/50 transition-colors shadow-2xs whitespace-nowrap"
+        >
+          View & Fix →
+        </Link>
+      )}
+    </div>
   );
 }

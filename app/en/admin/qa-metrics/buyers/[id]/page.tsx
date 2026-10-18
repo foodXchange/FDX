@@ -59,20 +59,41 @@ function formatDate(iso: string | null): string {
 export default async function BuyerDrilldownPage({ params }: { params: Params }) {
   const { id } = await params;
 
-  const buyerResult = await supabaseAdmin
+  let buyer: { id: string; name: string | null; email: string; company: string | null; created_at: string | null } | null = null;
+
+  const { data: profileBuyer } = await supabaseAdmin
     .from("buyer_profiles")
     .select("id, name, email, company, created_at")
     .eq("id", id)
-    .single();
+    .maybeSingle();
 
-  if (!buyerResult.data) return notFound();
-  const buyer = buyerResult.data;
+  if (profileBuyer) {
+    buyer = profileBuyer;
+  } else {
+    const { data: realBuyer } = await supabaseAdmin
+      .from("buyers")
+      .select("id, company_name, contact_name, contact_email, created_at")
+      .eq("id", id)
+      .maybeSingle();
+
+    if (realBuyer) {
+      buyer = {
+        id: realBuyer.id,
+        name: realBuyer.contact_name ?? realBuyer.company_name,
+        company: realBuyer.company_name,
+        email: realBuyer.contact_email ?? `${realBuyer.company_name.toLowerCase().replace(/[^a-z0-9]/g, "")}@buyer.fdx`,
+        created_at: realBuyer.created_at,
+      };
+    }
+  }
+
+  if (!buyer) return notFound();
 
   const [requestsResult, eventsResult] = await Promise.all([
     supabaseAdmin
       .from("sourcing_requests")
       .select("id, product_name, status, created_at")
-      .eq("auth_user_id", id)
+      .or(`buyer_id.eq.${id},auth_user_id.eq.${id}`)
       .order("created_at", { ascending: false }),
     supabaseAdmin
       .from("platform_events")

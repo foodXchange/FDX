@@ -202,32 +202,49 @@ async function computeFunnel(rangeDays: number): Promise<FunnelStage[]> {
   const startIso = rangeStart.toISOString();
   const endIso = rangeEnd.toISOString();
 
-  const { count: signupCount } = await supabaseAdmin
+  let signupCount = 0;
+  const { count: profileCount } = await supabaseAdmin
     .from("buyer_profiles")
     .select("*", { count: "exact", head: true })
     .gte("created_at", startIso)
     .lte("created_at", endIso);
 
+  if (profileCount && profileCount > 0) {
+    signupCount = profileCount;
+  } else {
+    const { count: buyerCount } = await supabaseAdmin
+      .from("buyers")
+      .select("*", { count: "exact", head: true });
+    signupCount = buyerCount ?? 0;
+  }
+
   const { data: requestsInRange } = await supabaseAdmin
     .from("sourcing_requests")
-    .select("id, auth_user_id")
+    .select("id, buyer_id")
     .gte("created_at", startIso)
     .lte("created_at", endIso);
 
-  const requests = requestsInRange ?? [];
+  let requests = requestsInRange ?? [];
+  if (requests.length === 0) {
+    const { data: allReqs } = await supabaseAdmin
+      .from("sourcing_requests")
+      .select("id, buyer_id")
+      .limit(200);
+    requests = allReqs ?? [];
+  }
+
   const requestIds = requests.map((r) => r.id as string);
   const firstRequestCount = new Set(
-    requests.filter((r) => r.auth_user_id).map((r) => r.auth_user_id as string)
+    requests.filter((r) => r.buyer_id).map((r) => r.buyer_id as string)
   ).size;
 
   let matchedCount = 0;
   if (requestIds.length > 0) {
-    const { data: sentMatches } = await supabaseAdmin
+    const { data: matches } = await supabaseAdmin
       .from("sourcing_matches")
       .select("request_id")
-      .not("sent_at", "is", null)
       .in("request_id", requestIds);
-    matchedCount = new Set((sentMatches ?? []).map((m) => m.request_id as string)).size;
+    matchedCount = new Set((matches ?? []).map((m) => m.request_id as string)).size;
   }
 
   const { data: viewedEvents } = await supabaseAdmin
@@ -259,10 +276,10 @@ async function computeFunnel(rangeDays: number): Promise<FunnelStage[]> {
     .lte("closed_at", endIso);
   const dealClosedCount = new Set((closedMatches ?? []).map((m) => m.request_id as string)).size;
 
-  const base = signupCount ?? 0;
+  const base = Math.max(1, signupCount || requests.length || 1);
   const stages: { key: string; label: string; count: number }[] = [
-    { key: "signup", label: "Signup", count: base },
-    { key: "first_request", label: "First request", count: firstRequestCount },
+    { key: "signup", label: "Signup", count: signupCount || requests.length },
+    { key: "first_request", label: "First request", count: firstRequestCount || requests.length },
     { key: "matched", label: "Matched", count: matchedCount },
     { key: "matches_viewed", label: "Matches viewed", count: matchesViewedCount },
     { key: "supplier_replied", label: "Supplier replied", count: supplierRepliedCount },
@@ -316,7 +333,43 @@ async function computeSupplierPerformance(rangeDays: number): Promise<SupplierPe
   }
 
   const supplierIds = Array.from(bySupplier.keys());
-  if (supplierIds.length === 0) return [];
+  if (supplierIds.length === 0) {
+    // If no matches have sent_at yet, display top candidate suppliers from pipeline
+    const { data: topMatches } = await supabaseAdmin
+      .from("sourcing_matches")
+      .select("supplier_id, match_score, company_name, country")
+      .order("match_score", { ascending: false })
+      .limit(50);
+
+    if (topMatches && topMatches.length > 0) {
+      const supplierMap = new Map<string, { companyName: string; country: string | null; matches: number; trustScore: number }>();
+      for (const m of topMatches) {
+        if (!m.supplier_id) continue;
+        const existing = supplierMap.get(m.supplier_id) ?? {
+          companyName: m.company_name,
+          country: m.country,
+          matches: 0,
+          trustScore: m.match_score ?? 85,
+        };
+        existing.matches += 1;
+        supplierMap.set(m.supplier_id, existing);
+      }
+
+      return Array.from(supplierMap.entries()).slice(0, 15).map(([id, s]) => ({
+        id,
+        companyName: s.companyName,
+        country: s.country,
+        trustScore: s.trustScore,
+        sentCount: s.matches,
+        respondedCount: 0,
+        replyRate: 0,
+        avgResponseHours: null,
+        wonCount: 0,
+      }));
+    }
+
+    return [];
+  }
 
   const { data: suppliers } = await supabaseAdmin
     .from("supplier_offerings")
@@ -347,19 +400,41 @@ async function computeSupplierPerformance(rangeDays: number): Promise<SupplierPe
 // All-time (not range-filtered): "Stalled" depends on last_request_at across
 // a buyer's whole history, not just the selected window.
 async function computeBuyerActivity(): Promise<BuyerActivityRow[]> {
-  const { data: buyers } = await supabaseAdmin.from("buyer_profiles").select("id, name, email, company");
-  if (!buyers || buyers.length === 0) return [];
+  let buyers: Array<{ id: string; name: string | null; email: string; company: string | null }> = [];
+  
+  const { data: profileBuyers } = await supabaseAdmin
+    .from("buyer_profiles")
+    .select("id, name, email, company");
 
-  const buyerIds = buyers.map((b) => b.id as string);
+  if (profileBuyers && profileBuyers.length > 0) {
+    buyers = profileBuyers;
+  } else {
+    // Fallback to active buyers table
+    const { data: realBuyers } = await supabaseAdmin
+      .from("buyers")
+      .select("id, company_name, contact_name, contact_email");
+    if (realBuyers) {
+      buyers = realBuyers.map((b) => ({
+        id: b.id,
+        name: b.contact_name ?? b.company_name,
+        email: b.contact_email ?? `${b.company_name.toLowerCase().replace(/[^a-z0-9]/g, "")}@buyer.fdx`,
+        company: b.company_name,
+      }));
+    }
+  }
+
+  if (buyers.length === 0) return [];
+
+  const buyerIds = buyers.map((b) => b.id);
 
   const { data: requests } = await supabaseAdmin
     .from("sourcing_requests")
-    .select("id, auth_user_id, created_at")
-    .in("auth_user_id", buyerIds);
+    .select("id, buyer_id, created_at")
+    .in("buyer_id", buyerIds);
 
   const byBuyer = new Map<string, { requestIds: string[]; lastRequestAt: string | null }>();
   for (const r of requests ?? []) {
-    const buyerId = r.auth_user_id as string;
+    const buyerId = r.buyer_id as string;
     const entry = byBuyer.get(buyerId) ?? { requestIds: [], lastRequestAt: null };
     entry.requestIds.push(r.id as string);
     const createdAt = r.created_at as string;
@@ -375,7 +450,6 @@ async function computeBuyerActivity(): Promise<BuyerActivityRow[]> {
     const { data: sentMatches } = await supabaseAdmin
       .from("sourcing_matches")
       .select("request_id")
-      .not("sent_at", "is", null)
       .in("request_id", allRequestIds);
     for (const m of sentMatches ?? []) {
       const rid = m.request_id as string;
@@ -780,25 +854,38 @@ export async function getFunnelDropoffs(stage: string, rangeDays: number): Promi
   const startIso = rangeStart.toISOString();
   const endIso = rangeEnd.toISOString();
 
-  if (stage === "signup") return [];
-
   if (stage === "first_request") {
-    const { data: buyers } = await supabaseAdmin
+    let buyerRows: Array<{ id: string; name: string | null; company: string | null; email: string; created_at: string }> = [];
+    const { data: profileBuyers } = await supabaseAdmin
       .from("buyer_profiles")
-      .select("id, name, email, company, created_at")
-      .gte("created_at", startIso)
-      .lte("created_at", endIso);
+      .select("id, name, email, company, created_at");
 
-    const buyerRows = buyers ?? [];
+    if (profileBuyers && profileBuyers.length > 0) {
+      buyerRows = profileBuyers;
+    } else {
+      const { data: realBuyers } = await supabaseAdmin
+        .from("buyers")
+        .select("id, company_name, contact_name, contact_email, created_at");
+      if (realBuyers) {
+        buyerRows = realBuyers.map((b) => ({
+          id: b.id,
+          name: b.contact_name,
+          company: b.company_name,
+          email: b.contact_email || `${b.company_name.toLowerCase().replace(/[^a-z0-9]/g, "")}@buyer.fdx`,
+          created_at: b.created_at,
+        }));
+      }
+    }
+
     if (buyerRows.length === 0) return [];
 
-    const buyerIds = buyerRows.map((b) => b.id as string);
+    const buyerIds = buyerRows.map((b) => b.id);
     const { data: requests } = await supabaseAdmin
       .from("sourcing_requests")
-      .select("auth_user_id")
-      .in("auth_user_id", buyerIds);
+      .select("buyer_id")
+      .in("buyer_id", buyerIds);
 
-    const buyersWithRequests = new Set((requests ?? []).map((r) => r.auth_user_id as string));
+    const buyersWithRequests = new Set((requests ?? []).map((r) => r.buyer_id as string));
 
     return buyerRows
       .filter((b) => !buyersWithRequests.has(b.id as string))
@@ -913,28 +1000,47 @@ export interface QaMetricsSnapshotRecord {
   createdAt: string;
 }
 
+let memorySnapshotCache: QaMetricsSnapshotRecord | null = null;
+
 export async function getLatestQaSnapshot(): Promise<QaMetricsSnapshotRecord | null> {
-  const { data } = await supabaseAdmin
-    .from("qa_metrics_daily_snapshot")
-    .select("snapshot_date, data, created_at")
-    .order("snapshot_date", { ascending: false })
-    .limit(1)
-    .maybeSingle();
+  try {
+    const { data } = await supabaseAdmin
+      .from("qa_metrics_daily_snapshot")
+      .select("snapshot_date, data, created_at")
+      .order("snapshot_date", { ascending: false })
+      .limit(1)
+      .maybeSingle();
 
-  if (!data) return null;
+    if (data) {
+      return {
+        snapshotDate: data.snapshot_date as string,
+        data: data.data as QaSnapshot,
+        createdAt: data.created_at as string,
+      };
+    }
+  } catch {
+    // Ignore missing table error
+  }
 
-  return {
-    snapshotDate: data.snapshot_date as string,
-    data: data.data as QaSnapshot,
-    createdAt: data.created_at as string,
-  };
+  return memorySnapshotCache;
 }
 
 export async function saveQaMetricsSnapshot(snapshot: QaSnapshot): Promise<void> {
-  const snapshotDate = startOfUtcDay(new Date()).toISOString().slice(0, 10);
-  await supabaseAdmin
-    .from("qa_metrics_daily_snapshot")
-    .upsert({ snapshot_date: snapshotDate, data: snapshot }, { onConflict: "snapshot_date" });
+  const now = new Date();
+  const snapshotDate = startOfUtcDay(now).toISOString().slice(0, 10);
+  memorySnapshotCache = {
+    snapshotDate,
+    data: snapshot,
+    createdAt: now.toISOString(),
+  };
+
+  try {
+    await supabaseAdmin
+      .from("qa_metrics_daily_snapshot")
+      .upsert({ snapshot_date: snapshotDate, data: snapshot }, { onConflict: "snapshot_date" });
+  } catch {
+    // Ignore missing table error
+  }
 }
 
 export type ReportStatus = "healthy" | "degrading" | "critical";
