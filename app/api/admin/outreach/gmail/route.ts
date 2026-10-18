@@ -51,6 +51,109 @@ function extractEmailFromText(text: string): string | null {
   return (preferred ?? filtered[0]).toLowerCase();
 }
 
+async function discoverSupplierEmail(supplier: {
+  id: string;
+  company_name: string | null;
+  website: string | null;
+  country_of_origin: string | null;
+  contact_email: string | null;
+}): Promise<{ email: string | null; source: string }> {
+  if (supplier.contact_email && supplier.contact_email.trim()) {
+    return { email: supplier.contact_email.trim(), source: "existing" };
+  }
+
+  // Check supplier_contacts table first
+  const { data: contactRow } = await supabaseAdmin
+    .from("supplier_contacts")
+    .select("email")
+    .eq("supplier_id", supplier.id)
+    .not("email", "is", null)
+    .neq("email", "")
+    .limit(1)
+    .maybeSingle();
+
+  if (contactRow?.email) {
+    const clean = contactRow.email.trim().toLowerCase();
+    await supabaseAdmin
+      .from("supplier_offerings")
+      .update({ contact_email: clean })
+      .eq("id", supplier.id);
+    return { email: clean, source: "supplier_contacts" };
+  }
+
+  let foundEmail: string | null = null;
+  let source = "website";
+
+  // Step 1: Fetch supplier homepage + /contact or /contacto or /impressum
+  if (supplier.website) {
+    const base = supplier.website.startsWith("http")
+      ? supplier.website.replace(/\/$/, "")
+      : `https://${supplier.website.replace(/\/$/, "")}`;
+
+    const candidateUrls = [
+      base,
+      `${base}/contact`,
+      `${base}/contact-us`,
+      `${base}/contacto`,
+      `${base}/contatti`,
+      `${base}/impressum`,
+    ];
+
+    for (const url of candidateUrls) {
+      try {
+        const res = await fetch(url, {
+          headers: {
+            "User-Agent":
+              "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+          },
+          signal: AbortSignal.timeout(4500),
+        });
+        if (!res.ok) continue;
+        const html = await res.text();
+        const email = extractEmailFromText(html);
+        if (email) {
+          foundEmail = email;
+          break;
+        }
+      } catch {
+        // continue
+      }
+    }
+  }
+
+  // Step 2: Fallback to Gemini Google Search Grounding
+  if (!foundEmail && process.env.GEMINI_API_KEY) {
+    try {
+      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+      const prompt = `Find the official B2B sales, export, or general contact email address for the food manufacturer "${supplier.company_name ?? ""}" (${supplier.country_of_origin ?? ""}) with website ${supplier.website ?? "unknown"}. Return ONLY the email address or "NONE".`;
+      const response = await ai.models.generateContent({
+        model: "gemini-2.5-flash",
+        contents: prompt,
+        config: {
+          tools: [{ googleSearch: {} }],
+          temperature: 0,
+        },
+      });
+      const email = extractEmailFromText(response.text ?? "");
+      if (email) {
+        foundEmail = email;
+        source = "gemini_search";
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  if (foundEmail) {
+    await supabaseAdmin
+      .from("supplier_offerings")
+      .update({ contact_email: foundEmail })
+      .eq("id", supplier.id);
+  }
+
+  return { email: foundEmail, source };
+}
+
 export async function POST(req: NextRequest) {
   const cookieStore = await cookies();
   const session = cookieStore.get(COOKIE_NAME)?.value;
@@ -59,11 +162,16 @@ export async function POST(req: NextRequest) {
   }
 
   const body = (await req.json()) as {
-    action: "save_credentials" | "sync_replies" | "find_supplier_email";
+    action:
+      | "save_credentials"
+      | "sync_replies"
+      | "find_supplier_email"
+      | "bulk_find_emails";
     user?: string;
     appPassword?: string;
     senderName?: string;
     supplierId?: string;
+    supplierIds?: string[];
   };
 
   if (body.action === "save_credentials") {
@@ -71,7 +179,10 @@ export async function POST(req: NextRequest) {
     const appPassword = body.appPassword?.replace(/\s+/g, "").trim() ?? "";
     if (!user || !appPassword) {
       return NextResponse.json(
-        { error: "Both Gmail address and 16-character App Password are required" },
+        {
+          error:
+            "Both Gmail address and 16-character App Password are required",
+        },
         { status: 400 }
       );
     }
@@ -115,93 +226,44 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    if (supplier.contact_email) {
-      return NextResponse.json({
-        ok: true,
-        email: supplier.contact_email,
-        source: "existing",
-      });
-    }
-
-    let foundEmail: string | null = null;
-    let source = "website";
-
-    // Step 1: Fetch supplier homepage + /contact or /contacto or /impressum
-    if (supplier.website) {
-      const base = supplier.website.startsWith("http")
-        ? supplier.website.replace(/\/$/, "")
-        : `https://${supplier.website.replace(/\/$/, "")}`;
-
-      const candidateUrls = [
-        base,
-        `${base}/contact`,
-        `${base}/contact-us`,
-        `${base}/contacto`,
-        `${base}/contatti`,
-        `${base}/impressum`,
-      ];
-
-      for (const url of candidateUrls) {
-        try {
-          const res = await fetch(url, {
-            headers: {
-              "User-Agent":
-                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-            },
-            signal: AbortSignal.timeout(5000),
-          });
-          if (!res.ok) continue;
-          const html = await res.text();
-          const email = extractEmailFromText(html);
-          if (email) {
-            foundEmail = email;
-            break;
-          }
-        } catch {
-          // continue
-        }
-      }
-    }
-
-    // Step 2: Fallback to Gemini Google Search Grounding
-    if (!foundEmail && process.env.GEMINI_API_KEY) {
-      try {
-        const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-        const prompt = `Find the official B2B sales, export, or general contact email address for the food manufacturer "${supplier.company_name}" (${supplier.country_of_origin ?? ""}) with website ${supplier.website ?? "unknown"}. Return ONLY the email address or "NONE".`;
-        const response = await ai.models.generateContent({
-          model: "gemini-3.5-flash",
-          contents: prompt,
-          config: {
-            tools: [{ googleSearch: {} }],
-            temperature: 0,
-          },
-        });
-        const email = extractEmailFromText(response.text ?? "");
-        if (email) {
-          foundEmail = email;
-          source = "gemini_search";
-        }
-      } catch {
-        // ignore
-      }
-    }
-
-    if (!foundEmail) {
+    const { email, source } = await discoverSupplierEmail(supplier);
+    if (!email) {
       return NextResponse.json({
         ok: false,
         error: "Could not find a public email on supplier website",
       });
     }
 
-    await supabaseAdmin
+    return NextResponse.json({
+      ok: true,
+      email,
+      source,
+    });
+  }
+
+  if (body.action === "bulk_find_emails") {
+    const ids = Array.from(new Set(body.supplierIds ?? [])).slice(0, 8);
+    if (ids.length === 0) {
+      return NextResponse.json({ ok: true, foundCount: 0, foundMap: {} });
+    }
+
+    const { data: suppliers } = await supabaseAdmin
       .from("supplier_offerings")
-      .update({ contact_email: foundEmail })
-      .eq("id", supplier.id);
+      .select("id, company_name, website, country_of_origin, contact_email")
+      .in("id", ids);
+
+    const foundMap: Record<string, string> = {};
+    for (const sup of suppliers ?? []) {
+      const { email } = await discoverSupplierEmail(sup);
+      if (email) {
+        foundMap[sup.id] = email;
+      }
+    }
 
     return NextResponse.json({
       ok: true,
-      email: foundEmail,
-      source,
+      foundCount: Object.keys(foundMap).length,
+      foundMap,
     });
   }
 

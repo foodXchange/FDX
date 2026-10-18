@@ -113,18 +113,107 @@ export default async function ProposalPage({ params }: { params: Params }) {
     );
   }
 
-  // Fetch products in the exact product_ids order
-  const productIds = proposal.product_ids as string[];
+  // Fetch products in the exact product_ids order (supports both catalogue_products and sourcing_matches)
+  const productIds = (proposal.product_ids ?? []) as string[];
   const { data: rawProducts } = await supabase
     .from("catalogue_products")
     .select(
       "id,product_name,brand_name,tagline,category,format,size,country_of_origin,certifications,catalogue_image_url,tags"
     )
-    .in("id", productIds)
-    .eq("status", "ready");
+    .in("id", productIds);
+
+  const catalogueMap = new Map<string, ProposalProduct>();
+  for (const p of rawProducts ?? []) {
+    catalogueMap.set(p.id, p as ProposalProduct);
+  }
+
+  const missingIds = productIds.filter((id) => !catalogueMap.has(id));
+  if (missingIds.length > 0) {
+    const { supabaseAdmin } = await import("@/lib/supabaseAdmin");
+    const { data: matchRows } = await supabaseAdmin
+      .from("sourcing_matches")
+      .select(
+        `id, supplier_id, product_name, company_name, country, match_score, match_summary, supplier_message, match_breakdown,
+         supplier:supplier_offerings(company_name, country_of_origin, categories, certifications, kosher_types, logo_url)`
+      )
+      .in("id", missingIds);
+
+    const supplierIds = Array.from(
+      new Set((matchRows ?? []).map((m) => m.supplier_id).filter(Boolean))
+    );
+
+    const { data: supProds } =
+      supplierIds.length > 0
+        ? await supabaseAdmin
+            .from("supplier_products")
+            .select("supplier_id, product_name, category, image_url, formats, certifications")
+            .in("supplier_id", supplierIds)
+        : { data: [] };
+
+    for (const m of matchRows ?? []) {
+      const supObj = Array.isArray(m.supplier) ? m.supplier[0] : m.supplier;
+      const matchingProd =
+        (supProds ?? []).find(
+          (sp) =>
+            sp.supplier_id === m.supplier_id &&
+            sp.product_name?.toLowerCase() === m.product_name?.toLowerCase() &&
+            sp.image_url
+        ) ??
+        (supProds ?? []).find(
+          (sp) => sp.supplier_id === m.supplier_id && sp.image_url
+        ) ??
+        (supProds ?? []).find((sp) => sp.supplier_id === m.supplier_id);
+
+      const certs = Array.from(
+        new Set([
+          ...((supObj?.kosher_types as string[] | null) ?? []),
+          ...((supObj?.certifications as string[] | null) ?? []),
+          ...((matchingProd?.certifications as string[] | null) ?? []),
+        ])
+      ).filter(Boolean);
+
+      const bd =
+        m.match_breakdown && typeof m.match_breakdown === "object"
+          ? (m.match_breakdown as Record<string, unknown>)
+          : {};
+      const quote =
+        bd.supplier_quote && typeof bd.supplier_quote === "object"
+          ? (bd.supplier_quote as Record<string, unknown>)
+          : null;
+
+      const quoteParts: string[] = [];
+      if (quote?.indicative_price) quoteParts.push(`Price: ${String(quote.indicative_price)}`);
+      if (quote?.moq) quoteParts.push(`MOQ: ${String(quote.moq)}`);
+      if (quote?.lead_time) quoteParts.push(`Lead Time: ${String(quote.lead_time)}`);
+
+      const tagline =
+        quoteParts.length > 0
+          ? quoteParts.join(" · ")
+          : m.match_summary ||
+            (m.match_score ? `Verified Match Score: ${m.match_score}/100` : null);
+
+      const formatParts = ((matchingProd?.formats as string[] | null) ?? []).slice(0, 2);
+      const supCategories = (supObj?.categories as string[] | null) ?? [];
+
+      catalogueMap.set(m.id, {
+        id: m.id,
+        product_name: m.product_name || "Sourced Product",
+        brand_name: m.company_name || supObj?.company_name || "Verified Producer",
+        tagline: tagline ?? null,
+        category: matchingProd?.category || supCategories[0] || "Food & Beverage",
+        format: formatParts.length > 0 ? formatParts.join(" · ") : null,
+        size: formatParts[0] ?? null,
+        country_of_origin: m.country || supObj?.country_of_origin || null,
+        certifications: certs,
+        catalogue_image_url:
+          matchingProd?.image_url || supObj?.logo_url || null,
+        tags: m.match_score ? [`${m.match_score}% Match`] : [],
+      });
+    }
+  }
 
   const products = productIds
-    .map((id: string) => rawProducts?.find((p) => p.id === id))
+    .map((id: string) => catalogueMap.get(id))
     .filter((p): p is ProposalProduct => p !== undefined);
 
   return (

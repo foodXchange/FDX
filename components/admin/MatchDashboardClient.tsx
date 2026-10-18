@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import CategoryCombobox from "@/components/admin/CategoryCombobox";
@@ -183,7 +183,44 @@ export default function MatchDashboardClient({
   const [gmailFormPass, setGmailFormPass] = useState("");
   const [gmailSaving, setGmailSaving] = useState(false);
   const [syncingGmail, setSyncingGmail] = useState(false);
+  const [bulkFindingEmails, setBulkFindingEmails] = useState(false);
+  const [creatingProposal, setCreatingProposal] = useState(false);
   const [syncNotice, setSyncNotice] = useState<string | null>(null);
+
+  // Auto-sync Gmail replies silently on mount and every 3 minutes when Gmail is connected
+  useEffect(() => {
+    if (!gmailConnected) return;
+    let active = true;
+    async function silentSync() {
+      try {
+        const res = await fetch("/api/admin/outreach/gmail", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "sync_replies" }),
+        });
+        const json = (await res.json().catch(() => ({}))) as {
+          ok?: boolean;
+          syncedCount?: number;
+        };
+        if (active && json.ok && (json.syncedCount ?? 0) > 0) {
+          setSyncNotice(
+            `🟢 Auto-Synced ${json.syncedCount} new supplier repl${
+              json.syncedCount === 1 ? "y" : "ies"
+            } from your Gmail!`
+          );
+          router.refresh();
+        }
+      } catch {
+        // silent background check
+      }
+    }
+    void silentSync();
+    const timer = setInterval(silentSync, 180_000);
+    return () => {
+      active = false;
+      clearInterval(timer);
+    };
+  }, [gmailConnected, router]);
 
   function resetPage() {
     setVisibleCount(PAGE_SIZE);
@@ -452,6 +489,94 @@ export default function MatchDashboardClient({
     }
   }
 
+  async function handleBulkFindEmails() {
+    const missingSupplierIds = Array.from(
+      new Set(
+        filtered
+          .filter(
+            (m) =>
+              m.match_score >= 60 &&
+              !(localEmails[m.supplier_id] ?? m.supplier?.contact_email)
+          )
+          .map((m) => m.supplier_id)
+          .filter(Boolean)
+      )
+    ).slice(0, 8);
+
+    if (missingSupplierIds.length === 0) {
+      setSyncNotice("✓ All top-scoring visible matches already have an email address!");
+      return;
+    }
+
+    setBulkFindingEmails(true);
+    setSyncNotice(
+      `🔍 Scanning websites & contacts for ${missingSupplierIds.length} top-scoring suppliers missing emails...`
+    );
+    try {
+      const res = await fetch("/api/admin/outreach/gmail", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "bulk_find_emails",
+          supplierIds: missingSupplierIds,
+        }),
+      });
+      const json = (await res.json().catch(() => ({}))) as {
+        ok?: boolean;
+        foundCount?: number;
+        foundMap?: Record<string, string>;
+      };
+      if (json.ok && json.foundMap) {
+        setLocalEmails((prev) => ({ ...prev, ...json.foundMap }));
+        const count = json.foundCount ?? 0;
+        setSyncNotice(
+          count > 0
+            ? `✓ Discovered & saved ${count} supplier email address${
+                count === 1 ? "" : "es"
+              }! Click again to scan the next batch.`
+            : "⚠ Checked supplier websites for this batch — no public emails found on their pages."
+        );
+      }
+    } finally {
+      setBulkFindingEmails(false);
+    }
+  }
+
+  async function handleCreateProposal(matchIds: string[]) {
+    if (matchIds.length === 0) return;
+    setCreatingProposal(true);
+    try {
+      const res = await fetch("/api/admin/matches/create-proposal", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ matchIds }),
+      });
+      const json = (await res.json().catch(() => ({}))) as {
+        ok?: boolean;
+        url?: string;
+        error?: string;
+      };
+      if (!res.ok || !json.ok || !json.url) {
+        setSyncNotice(`⚠ ${json.error ?? "Failed to create buyer proposal"}`);
+        return;
+      }
+      const fullUrl = `${window.location.origin}${json.url}`;
+      try {
+        await navigator.clipboard.writeText(fullUrl);
+      } catch {
+        // ignore clipboard permission error
+      }
+      setSyncNotice(
+        `📋 Created Buyer Proposal (${matchIds.length} option${
+          matchIds.length === 1 ? "" : "s"
+        })! Link copied to clipboard: ${fullUrl}`
+      );
+      window.open(json.url, "_blank", "noopener,noreferrer");
+    } finally {
+      setCreatingProposal(false);
+    }
+  }
+
   function handleBulkDone(matchIds: string[]) {
     setLocalStatuses((prev) => {
       const next = { ...prev };
@@ -535,7 +660,7 @@ export default function MatchDashboardClient({
               </span>
               {gmailConnected ? (
                 <span className="text-[11px] font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 px-2.5 py-0.5 rounded-full">
-                  ✓ Connected: {gmailUser}
+                  ✓ Connected: {gmailUser} (Auto-Sync On)
                 </span>
               ) : (
                 <span className="text-[11px] font-semibold bg-amber-500/20 text-amber-300 border border-amber-400/30 px-2.5 py-0.5 rounded-full">
@@ -559,6 +684,16 @@ export default function MatchDashboardClient({
               ⚡ Select Top 75–100 Matches
             </button>
           )}
+          <button
+            type="button"
+            disabled={bulkFindingEmails}
+            onClick={handleBulkFindEmails}
+            className="text-xs font-semibold px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-emerald-300 border border-emerald-400/30 transition disabled:opacity-50"
+          >
+            {bulkFindingEmails
+              ? "🔍 Finding Emails…"
+              : "🔍 Auto-Find Emails (60–100)"}
+          </button>
           <button
             type="button"
             disabled={syncingGmail}
@@ -807,6 +942,16 @@ export default function MatchDashboardClient({
               className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-700 text-white transition"
             >
               ↻ Send Thread Follow-Up
+            </button>
+            <button
+              type="button"
+              disabled={creatingProposal}
+              onClick={() => handleCreateProposal(Array.from(selectedIds))}
+              className="text-xs font-bold px-3.5 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-white transition disabled:opacity-50"
+            >
+              {creatingProposal
+                ? "📋 Creating Proposal…"
+                : `📋 Create Buyer Proposal (${selectedIds.size})`}
             </button>
             <button
               type="button"
@@ -1252,14 +1397,24 @@ export default function MatchDashboardClient({
                             </a>
                           )}
 
-                          <a
-                            href={`/admin/proposals/new?request=${m.request_id}&supplier=${m.supplier_id}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
+                          <button
+                            type="button"
+                            disabled={creatingProposal}
+                            onClick={() => handleCreateProposal([m.id])}
+                            title="Create a shareable Buyer Proposal page for this match"
                             className="text-xs font-medium px-2.5 py-1.5 rounded-lg border border-gray-200 text-gray-700 hover:bg-gray-50 transition"
                           >
-                            Proposal ↗
-                          </a>
+                            📋 Proposal ↗
+                          </button>
+
+                          <Link
+                            href={`/supplier-match/${m.id}`}
+                            target="_blank"
+                            title="Open the 1-Click Supplier Quote Portal page"
+                            className="text-xs font-medium px-2.5 py-1.5 rounded-lg border border-gray-200 text-gray-700 hover:bg-gray-50 transition"
+                          >
+                            Quote Form ↗
+                          </Link>
 
                           <Link
                             href={`/admin/matches/${m.id}`}

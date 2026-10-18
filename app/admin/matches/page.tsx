@@ -66,6 +66,20 @@ export type MatchRow = {
   } | null;
 };
 
+type RawRequestJoin = {
+  id: string;
+  product_name: string | null;
+  company: string | null;
+  email: string | null;
+  category: string | null;
+  kosher_type: string | null;
+  certifications: string[] | null;
+  volume_per_year: string | null;
+  packaging_preference: string | null;
+  message: string | null;
+  ai_analysis: Record<string, unknown> | null;
+};
+
 export default async function MatchesPage() {
   const [{ data, error }, { data: templateData }, gmailCreds] =
     await Promise.all([
@@ -76,7 +90,7 @@ export default async function MatchesPage() {
            country, match_summary, whatsapp_message, status, approved_at, rejected_at,
            sent_at, sent_via, supplier_responded_at, supplier_message,
            match_breakdown,
-           request:sourcing_requests(id, product_name, company, email, category, kosher, certifications, quantity, unit, notes, reference_image_urls),
+           request:sourcing_requests(id, product_name, company, email, category, kosher_type, certifications, volume_per_year, packaging_preference, message, ai_analysis),
            supplier:supplier_offerings(id, company_name, country_of_origin, logo_url, website, contact_email, contact_phone, certifications, kosher_types, trust_score)`
         )
         .order("match_score", { ascending: false })
@@ -98,12 +112,20 @@ export default async function MatchesPage() {
     );
   }
 
-  const rawMatches = (data ?? []) as unknown as MatchRow[];
+  const rawRows = (data ?? []) as unknown as Array<
+    Omit<MatchRow, "request"> & {
+      request: RawRequestJoin | RawRequestJoin[] | null;
+    }
+  >;
+
   const supplierIds = Array.from(
-    new Set(rawMatches.map((m) => m.supplier_id).filter(Boolean))
+    new Set(rawRows.map((m) => m.supplier_id).filter(Boolean))
+  );
+  const requestIds = Array.from(
+    new Set(rawRows.map((m) => m.request_id).filter(Boolean))
   );
 
-  // Lookup product images & formats from supplier_products for matched suppliers
+  // Lookup product images & formats from supplier_products AND benchmark images from request_images
   const productMapBySupplier = new Map<
     string,
     Array<{
@@ -115,21 +137,41 @@ export default async function MatchesPage() {
     }>
   >();
 
-  if (supplierIds.length > 0) {
-    const { data: spData } = await supabaseAdmin
-      .from("supplier_products")
-      .select("id, supplier_id, product_name, image_url, formats, category")
-      .in("supplier_id", supplierIds.slice(0, 200))
-      .limit(2000);
+  const requestImagesMap = new Map<string, string[]>();
 
-    for (const sp of spData ?? []) {
-      const list = productMapBySupplier.get(sp.supplier_id) ?? [];
-      list.push(sp);
-      productMapBySupplier.set(sp.supplier_id, list);
-    }
-  }
+  await Promise.all([
+    (async () => {
+      if (supplierIds.length === 0) return;
+      const { data: spData } = await supabaseAdmin
+        .from("supplier_products")
+        .select("id, supplier_id, product_name, image_url, formats, category")
+        .in("supplier_id", supplierIds.slice(0, 200))
+        .limit(2000);
 
-  const matches: MatchRow[] = rawMatches.map((m) => {
+      for (const sp of spData ?? []) {
+        const list = productMapBySupplier.get(sp.supplier_id) ?? [];
+        list.push(sp);
+        productMapBySupplier.set(sp.supplier_id, list);
+      }
+    })(),
+    (async () => {
+      if (requestIds.length === 0) return;
+      const { data: imgRows } = await supabaseAdmin
+        .from("request_images")
+        .select("request_id, url")
+        .in("request_id", requestIds.slice(0, 200))
+        .order("created_at", { ascending: true });
+
+      for (const row of imgRows ?? []) {
+        if (!row.url) continue;
+        const list = requestImagesMap.get(row.request_id) ?? [];
+        list.push(row.url);
+        requestImagesMap.set(row.request_id, list);
+      }
+    })(),
+  ]);
+
+  const matches: MatchRow[] = rawRows.map((m) => {
     const candidates = productMapBySupplier.get(m.supplier_id) ?? [];
     const targetName = (m.product_name ?? "").toLowerCase().trim();
     const breakdownProductId = m.match_breakdown?.product_id;
@@ -153,8 +195,31 @@ export default async function MatchesPage() {
       bestProduct = candidates.find((c) => c.image_url) ?? candidates[0];
     }
 
+    const rawReq = Array.isArray(m.request) ? m.request[0] : m.request;
+    const sellerBrief =
+      typeof rawReq?.ai_analysis?.seller_brief === "string"
+        ? rawReq.ai_analysis.seller_brief
+        : null;
+
+    const normalizedRequest: MatchRow["request"] = rawReq
+      ? {
+          id: rawReq.id,
+          product_name: rawReq.product_name,
+          company: rawReq.company,
+          email: rawReq.email,
+          category: rawReq.category,
+          kosher: rawReq.kosher_type,
+          certifications: rawReq.certifications,
+          quantity: rawReq.volume_per_year,
+          unit: rawReq.packaging_preference,
+          notes: sellerBrief || rawReq.message,
+          reference_image_urls: requestImagesMap.get(rawReq.id) ?? null,
+        }
+      : null;
+
     return {
       ...m,
+      request: normalizedRequest,
       product_image_url:
         m.match_breakdown?.image_url ?? bestProduct?.image_url ?? null,
       product_formats: bestProduct?.formats ?? null,

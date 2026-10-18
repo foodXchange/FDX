@@ -81,7 +81,7 @@ export default async function RequestDetailPage({ params }: PageProps) {
       .order("name"),
     supabaseAdmin
       .from("request_images")
-      .select("image_url")
+      .select("url")
       .eq("request_id", id)
       .order("created_at", { ascending: true }),
   ]);
@@ -120,7 +120,7 @@ export default async function RequestDetailPage({ params }: PageProps) {
   const sellerBrief = typeof aiAnalysis?.seller_brief === "string" ? aiAnalysis.seller_brief : "";
   const benchmarkBrand = typeof aiAnalysis?.benchmark_brand === "string" ? aiAnalysis.benchmark_brand : null;
   const imageUrls = (rawImages ?? [])
-    .map((img: { image_url?: string | null }) => img.image_url)
+    .map((img: { url?: string | null }) => img.url)
     .filter((u): u is string => Boolean(u));
 
   const rfqTemplates = (rawRfqTemplates ?? []) as RfqTemplateRow[];

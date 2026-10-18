@@ -180,7 +180,7 @@ export async function POST(req: NextRequest) {
     .from("sourcing_matches")
     .select(
       `id, request_id, supplier_id, status, product_name, company_name, country, match_score, sent_at, match_breakdown,
-       request:sourcing_requests(id, product_name, category, kosher, certifications, quantity, unit, notes, reference_image_urls)`
+       request:sourcing_requests(id, product_name, category, kosher_type, certifications, volume_per_year, packaging_preference, message, ai_analysis)`
     )
     .in("id", matchIds);
 
@@ -188,10 +188,68 @@ export async function POST(req: NextRequest) {
     return Response.json({ error: matchError.message }, { status: 500 });
   }
 
-  // Sort by match_score DESC (100 down to 10)
-  const matches = ((matchData ?? []) as unknown as MatchRow[]).sort(
-    (a, b) => (b.match_score ?? 0) - (a.match_score ?? 0)
+  type RawReq = {
+    id: string;
+    product_name: string | null;
+    category: string | null;
+    kosher_type: string | null;
+    certifications: string[] | null;
+    volume_per_year: string | null;
+    packaging_preference: string | null;
+    message: string | null;
+    ai_analysis: Record<string, unknown> | null;
+  };
+
+  const reqIds = Array.from(
+    new Set(
+      (matchData ?? [])
+        .map((m) => (m as { request_id?: string }).request_id)
+        .filter((id): id is string => Boolean(id))
+    )
   );
+  const reqImagesMap = new Map<string, string[]>();
+  if (reqIds.length > 0) {
+    const { data: imgRows } = await supabaseAdmin
+      .from("request_images")
+      .select("request_id, url")
+      .in("request_id", reqIds)
+      .order("created_at", { ascending: true });
+    for (const r of imgRows ?? []) {
+      if (!r.url) continue;
+      const list = reqImagesMap.get(r.request_id) ?? [];
+      list.push(r.url);
+      reqImagesMap.set(r.request_id, list);
+    }
+  }
+
+  // Sort by match_score DESC (100 down to 10)
+  const matches: MatchRow[] = ((matchData ?? []) as unknown as Array<
+    Omit<MatchRow, "request"> & { request: RawReq | RawReq[] | null }
+  >)
+    .map((m) => {
+      const r = Array.isArray(m.request) ? m.request[0] : m.request;
+      const brief =
+        typeof r?.ai_analysis?.seller_brief === "string"
+          ? r.ai_analysis.seller_brief
+          : null;
+      return {
+        ...m,
+        request: r
+          ? {
+              id: r.id,
+              product_name: r.product_name,
+              category: r.category,
+              kosher: r.kosher_type,
+              certifications: r.certifications,
+              quantity: r.volume_per_year,
+              unit: r.packaging_preference,
+              notes: brief || r.message,
+              reference_image_urls: reqImagesMap.get(r.id) ?? null,
+            }
+          : null,
+      };
+    })
+    .sort((a, b) => (b.match_score ?? 0) - (a.match_score ?? 0));
 
   let template: TemplateRow | null = null;
   if (templateId) {

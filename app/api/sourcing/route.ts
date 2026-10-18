@@ -48,12 +48,15 @@ export async function POST(req: Request) {
     .filter(Boolean)
     .join(" · ");
 
+  const autoBrief = `Hello! We are working with ${data.company} in Israel who is actively sourcing ${data.product_name}${data.kosher_type && data.kosher_type !== "Any kosher" ? ` (${data.kosher_type} certified)` : ""}. If your factory produces a matching or closely equivalent line, please share your available packaging formats, Kosher certificate, and indicative export pricing & MOQ.`;
+
   const { data: newRequest, error } = await supabaseAdmin
     .from("sourcing_requests")
     .insert({
       name,
       email: "",
       company: data.company,
+      whatsapp: data.whatsapp,
       message: `[WhatsApp: ${data.whatsapp}]\n\n${data.product_name}`,
       product_name: data.product_name,
       category: null,
@@ -61,9 +64,11 @@ export async function POST(req: Request) {
         data.kosher_type && data.kosher_type !== "Any kosher"
           ? [data.kosher_type]
           : [],
+      ai_analysis: {
+        seller_brief: autoBrief,
+      },
       source: data.source,
       status: "new",
-      image_urls: data.image_url ? [data.image_url] : [],
     })
     .select("id")
     .single();
