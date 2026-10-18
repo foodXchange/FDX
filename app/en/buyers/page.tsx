@@ -59,6 +59,12 @@ export default function BuyersPage() {
               <p className="mt-3 max-w-xl mx-auto text-sm sm:text-base text-slate-300">
                 Upload a benchmark product or narrate in Hebrew / English — matched across 500+ verified manufacturers.
               </p>
+              <div className="mt-4 flex items-center justify-center gap-1.5 text-xs text-slate-400">
+                <span>Looking to sell instead?</span>
+                <a href="/en/suppliers/register" className="text-orange-400 hover:text-orange-300 font-semibold underline">
+                  Register as a supplier &rarr;
+                </a>
+              </div>
             </Reveal>
           </div>
         </section>

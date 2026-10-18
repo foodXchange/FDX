@@ -93,7 +93,7 @@ export default function LoginPage() {
           <div className="border-t border-slate-800 pt-8">
             <p className="text-xs text-slate-400 mb-4">Want to move faster?</p>
             <Link
-              href="/en/start"
+              href="/en/buyers"
               className="block w-full bg-slate-800 hover:bg-slate-700 border border-slate-700 text-white px-5 py-3 rounded-md text-sm font-semibold transition text-center"
             >
               Tell us what you need →
@@ -154,7 +154,7 @@ export default function LoginPage() {
 
         <p className="mt-8 text-xs text-slate-500 text-center">
           New here?{" "}
-          <Link href="/en/start" className="text-orange-400 hover:text-orange-300">
+          <Link href="/en/buyers" className="text-orange-400 hover:text-orange-300">
             Get matched →
           </Link>
         </p>

@@ -38,7 +38,7 @@ export default function FloatingSourcingButton() {
     >
       <button
         type="button"
-        onClick={() => router.push("/en/start")}
+        onClick={() => router.push("/en/buyers")}
         className="text-white font-semibold text-sm px-5 py-3 rounded-xl shadow-lg flex items-center gap-2 transition-all active:scale-95 hover:brightness-110"
         style={{
           background: "#E8632A",

@@ -87,7 +87,7 @@ export function AuthNavDesktop() {
         Sign in
       </Link>
       <Link
-        href="/en/start"
+        href="/en/buyers"
         className="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-md text-sm font-semibold transition"
       >
         Get Matched →
@@ -126,7 +126,7 @@ export function AuthNavMobile({ onNavigate }: { onNavigate: () => void }) {
   return (
     <>
       <Link
-        href="/en/start"
+        href="/en/buyers"
         onClick={onNavigate}
         className="block text-center bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-md text-sm font-semibold transition"
       >
