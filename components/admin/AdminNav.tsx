@@ -1,82 +1,116 @@
 'use client';
+
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-type NavItem = { href: string; label: string };
+type NavItem = {
+  href: string;
+  label: string;
+  icon: string;
+  badge?: string;
+};
 
 const sections: { title: string; links: NavItem[] }[] = [
   {
-    title: "Operations",
+    title: "Deal Operations",
     links: [
-      { href: "/admin/analytics", label: "Analytics" },
-      { href: "/en/admin/qa-metrics", label: "QA Metrics" },
-      { href: "/admin/requests", label: "Requests" },
-      { href: "/admin/matches", label: "Matches" },
-      { href: "/admin/suppliers", label: "Suppliers" },
-      { href: "/admin/buyers", label: "Buyers" },
+      { href: "/admin/pipeline", label: "Deal Pipeline", icon: "🎯" },
+      { href: "/admin/requests", label: "Sourcing Requests", icon: "📥" },
+      { href: "/admin/matches", label: "Match Engine", icon: "⚡" },
+      { href: "/admin/qa-metrics", label: "QA Metrics", icon: "📈" },
+      { href: "/admin/analytics", label: "Analytics", icon: "📊" },
     ],
   },
   {
-    title: "Data",
+    title: "Catalog & Directory",
     links: [
-      { href: "/admin/scraper", label: "Scraper" },
-      { href: "/admin/products", label: "Products" },
-      { href: "/admin/data-quality", label: "Data Quality" },
-      { href: "/admin/pipeline", label: "Pipeline" },
+      { href: "/admin/buyers", label: "Buyers Directory", icon: "👥" },
+      { href: "/admin/suppliers", label: "Supplier Network", icon: "🏭" },
+      { href: "/admin/products", label: "Product Catalog", icon: "📦" },
+      { href: "/admin/data-quality", label: "Data Quality & Dups", icon: "🏷️" },
+      { href: "/admin/scraper", label: "Web Scraper", icon: "🕷️" },
     ],
   },
   {
-    title: "Content",
+    title: "Sales & Content",
     links: [
-      { href: "/en/admin/blog-editor", label: "Blog" },
-      { href: "/en/admin/newsletter-builder", label: "Newsletter" },
-      { href: "/admin/portfolio", label: "Portfolio" },
-      { href: "/admin/import-guide", label: "Import Guide" },
-      { href: "/admin/scripts", label: "Video Scripts" },
+      { href: "/admin/catalogue", label: "Product Catalogue", icon: "📋" },
+      { href: "/admin/proposals", label: "Buyer Proposals", icon: "💼" },
+      { href: "/en/admin/newsletter-builder", label: "Newsletter Builder", icon: "✉️" },
+      { href: "/en/admin/blog-editor", label: "Blog & SEO Editor", icon: "✍️" },
+      { href: "/admin/portfolio", label: "Portfolio CMS", icon: "📁" },
+      { href: "/admin/scripts", label: "Video Scripts", icon: "🎬" },
     ],
   },
   {
-    title: "Marketing",
+    title: "Configuration",
     links: [
-      { href: "/admin/card-analytics", label: "Card Analytics" },
-      { href: "/admin/card-editor", label: "Card Editor" },
-      { href: "/admin/catalogue", label: "Catalogue" },
-      { href: "/admin/proposals", label: "Proposals" },
-    ],
-  },
-  {
-    title: "Settings",
-    links: [
-      { href: "/admin/settings/category-images", label: "Category Images" },
-      { href: "/admin/settings/email-templates", label: "Email Templates" },
-      { href: "/admin/settings/trash", label: "Trash" },
-      { href: "/admin/settings/audit-log", label: "Audit Log" },
+      { href: "/admin/settings/category-images", label: "Category Images", icon: "🖼️" },
+      { href: "/admin/settings/email-templates", label: "Email Templates", icon: "📧" },
+      { href: "/admin/settings/audit-log", label: "Audit Log", icon: "📜" },
+      { href: "/admin/settings/trash", label: "Trash & Archive", icon: "🗑️" },
     ],
   },
 ];
 
 export default function AdminNav() {
   const pathname = usePathname();
+
+  function isLinkActive(href: string): boolean {
+    if (href === "/admin") return pathname === "/admin";
+    return pathname.startsWith(href);
+  }
+
   return (
-    <nav className="px-3 py-4 space-y-1 flex-1 overflow-y-auto">
-      {sections.map((section, i) => (
-        <div key={section.title} className={i > 0 ? "border-t border-slate-700/50 my-2 pt-1" : ""}>
-          <p className="px-3 py-1 text-[10px] font-semibold uppercase tracking-widest text-slate-600">
+    <nav className="px-3 py-3 space-y-4 flex-1 overflow-y-auto">
+      {/* Quick Dashboard Home Link */}
+      <div>
+        <Link
+          href="/admin"
+          className={`flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all ${
+            pathname === "/admin"
+              ? "bg-orange-500 text-white shadow-xs"
+              : "text-slate-300 hover:text-white hover:bg-slate-800/80"
+          }`}
+        >
+          <span className="text-sm">🏠</span>
+          <span>Mission Control</span>
+        </Link>
+      </div>
+
+      {sections.map((section) => (
+        <div key={section.title} className="space-y-1">
+          <p className="px-3 text-[10px] font-bold uppercase tracking-wider text-slate-500">
             {section.title}
           </p>
-          {section.links.map((link) => (
-            <Link
-              key={link.href}
-              href={link.href}
-              className={`block px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                pathname.startsWith(link.href)
-                  ? "border-l-2 border-orange-500 bg-slate-800 text-white pl-2.5"
-                  : "text-slate-400 hover:text-slate-200 hover:bg-slate-800"
-              }`}
-            >
-              {link.label}
-            </Link>
-          ))}
+          <div className="space-y-0.5">
+            {section.links.map((link) => {
+              const active = isLinkActive(link.href);
+              return (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  className={`flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium transition-all group ${
+                    active
+                      ? "bg-slate-800 text-white border-l-2 border-orange-500 pl-2.5 font-semibold"
+                      : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/60"
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5 truncate">
+                    <span className="text-xs shrink-0 group-hover:scale-110 transition-transform">
+                      {link.icon}
+                    </span>
+                    <span className="truncate">{link.label}</span>
+                  </div>
+                  {link.badge && (
+                    <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-slate-700 text-slate-300 font-bold shrink-0">
+                      {link.badge}
+                    </span>
+                  )}
+                </Link>
+              );
+            })}
+          </div>
         </div>
       ))}
     </nav>
