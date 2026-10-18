@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import AdminNav from "@/components/admin/AdminNav";
 import NotificationBell from "@/components/admin/NotificationBell";
+import AdminUserMenu from "@/components/admin/AdminUserMenu";
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -102,14 +103,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
             <NotificationBell />
 
-            <div className="flex items-center gap-2 pl-1 border-l border-slate-100">
-              <div className="w-6 h-6 rounded-full bg-slate-200 text-slate-700 flex items-center justify-center text-[10px] font-bold">
-                AD
-              </div>
-              <span className="text-xs font-semibold text-slate-700 hidden sm:inline">
-                Admin
-              </span>
-            </div>
+            <AdminUserMenu />
           </div>
         </header>
 
