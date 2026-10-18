@@ -106,6 +106,61 @@ export function ScraperConsole({ supplierId, defaultBatchId, batchOptions }: Scr
     return () => window.removeEventListener("hashchange", readHashParams);
   }, []);
 
+  // Autonomous Queue State
+  const [queueRunning, setQueueRunning] = useState(false);
+  const [queueState, setQueueState] = useState<{
+    currentSupplier: string | null;
+    currentBatch: string | null;
+    processedCount: number;
+    totalPending: number;
+    successCount: number;
+    failedCount: number;
+    skippedCount: number;
+    productsFound: number;
+    lastMessage: string | null;
+  } | null>(null);
+
+  // Poll autonomous queue status every 3 seconds
+  useEffect(() => {
+    let isMounted = true;
+    async function checkQueue() {
+      try {
+        const res = await fetch("/api/admin/scraper/queue");
+        if (!res.ok) return;
+        const data = await res.json();
+        if (isMounted && data.ok && data.state) {
+          setQueueRunning(data.state.isRunning);
+          setQueueState(data.state);
+        }
+      } catch {}
+    }
+
+    checkQueue();
+    const interval = setInterval(checkQueue, 3000);
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
+  }, []);
+
+  async function toggleQueue() {
+    try {
+      const nextAction = queueRunning ? "stop" : "start";
+      const res = await fetch("/api/admin/scraper/queue", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: nextAction }),
+      });
+      const data = await res.json();
+      if (data.ok && data.state) {
+        setQueueRunning(data.state.isRunning);
+        setQueueState(data.state);
+      }
+    } catch (e) {
+      console.error("Failed to toggle queue:", e);
+    }
+  }
+
   // Initialize batchId from first option when options are provided and no hash/default is set
   useEffect(() => {
     if (batchOptions && batchOptions.length > 0 && !defaultBatchId) {
@@ -378,22 +433,63 @@ export function ScraperConsole({ supplierId, defaultBatchId, batchOptions }: Scr
           </>
         )}
 
+        {/* Autonomous Background Queue Button */}
+        {!isSingleSupplier && (
+          <button
+            onClick={toggleQueue}
+            disabled={running}
+            className={`px-4 py-2 text-sm font-semibold rounded-lg shadow-sm transition-all flex items-center gap-2 ${
+              queueRunning
+                ? "bg-emerald-600 text-white hover:bg-emerald-700 animate-pulse"
+                : "bg-slate-900 text-white hover:bg-slate-800"
+            }`}
+          >
+            {queueRunning ? "⚡ Stop Autonomous Queue" : "⚡ Start Autonomous Queue"}
+          </button>
+        )}
+
         {running ? (
           <button
             onClick={stopScraping}
             className="px-4 py-2 bg-red-500 text-white text-sm font-medium rounded-lg hover:bg-red-600 transition-colors"
           >
-            ⏹ Stop
+            ⏹ Stop Browser Stream
           </button>
         ) : (
           <button
             onClick={startScraping}
-            className="px-4 py-2 bg-orange-500 text-white text-sm font-medium rounded-lg hover:bg-orange-600 transition-colors"
+            disabled={queueRunning}
+            className="px-4 py-2 bg-orange-500 text-white text-sm font-medium rounded-lg hover:bg-orange-600 transition-colors disabled:opacity-50"
           >
-            ▶ {isSingleSupplier ? "Re-scrape now" : "Start scraping"}
+            ▶ {isSingleSupplier ? "Re-scrape now" : "Start Browser Scrape"}
           </button>
         )}
       </div>
+
+      {/* Autonomous Background Queue Active Banner */}
+      {queueRunning && queueState && (
+        <div className="mb-4 rounded-xl border border-emerald-300 bg-emerald-50 p-4 text-sm text-emerald-900 shadow-sm animate-fade-in">
+          <div className="flex items-center justify-between font-semibold mb-1">
+            <span className="flex items-center gap-2">
+              <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping" />
+              Autonomous Cloud Queue Running (Continuous Batch-to-Batch)
+            </span>
+            <span className="text-xs font-mono bg-emerald-100 px-2 py-0.5 rounded text-emerald-800">
+              {queueState.totalPending} pending suppliers remaining
+            </span>
+          </div>
+          <p className="text-xs text-emerald-700 mb-2">
+            Safe to close your browser or shut down your computer. The worker is scraping, classifying, and vectorizing directly into Supabase.
+          </p>
+          <div className="flex flex-wrap gap-4 text-xs font-medium text-emerald-800 bg-white/70 p-2.5 rounded-lg border border-emerald-200">
+            <div>Current: <span className="font-bold">{queueState.currentSupplier || "Searching next..."}</span></div>
+            <div>Batch: <span className="font-mono">{queueState.currentBatch || "All Batches"}</span></div>
+            <div>Processed: <span className="font-bold">{queueState.processedCount}</span></div>
+            <div>Succeeded: <span className="text-green-700 font-bold">{queueState.successCount}</span></div>
+            <div>Products Saved: <span className="text-blue-700 font-bold">{queueState.productsFound}</span></div>
+          </div>
+        </div>
+      )}
 
       {batchInfo && (
         <div className="mb-4 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
