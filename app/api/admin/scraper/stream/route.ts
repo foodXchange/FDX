@@ -7,6 +7,7 @@ import {
   detectManufacturerType,
 } from "@/lib/scraper/extract";
 import type { ExtractedProduct } from "@/lib/scraper/extract";
+import { embedBatch } from "@/lib/ai/embed";
 
 export const dynamic = "force-dynamic";
 
@@ -97,7 +98,24 @@ async function insertProducts(
     .eq("supplier_id", supplierId)
     .eq("manually_verified", false);
 
-  const rows = products.map((p) => ({
+  // Generate vector embeddings via Voyage AI for immediate semantic matching
+  let vectors: (number[] | null)[] = [];
+  try {
+    const embedTexts = products.map((p) => {
+      const parts = [
+        p.product_name?.trim(),
+        p.description?.trim(),
+        p.subcategory?.trim(),
+        p.tags?.filter(Boolean).join(". ").trim() || null,
+      ].filter(Boolean).join(". ");
+      return (parts.replace(/\.{2,}/g, ".").replace(/\.\s*$/, "") + ".").replace(/\s+\./g, ".");
+    });
+    vectors = await embedBatch(embedTexts, "document");
+  } catch (e) {
+    console.warn("Auto-embedding failed, inserting without vectors:", e);
+  }
+
+  const rows = products.map((p, i) => ({
     supplier_id: supplierId,
     product_name: p.product_name,
     category: p.category,
@@ -120,6 +138,7 @@ async function insertProducts(
     manually_verified: false,
     needs_review: p.needs_review ?? false,
     is_published: true,
+    embedding: vectors[i] ? JSON.stringify(vectors[i]) : null,
   }));
 
   const { error } = await supabaseAdmin.from("supplier_products").insert(rows);
