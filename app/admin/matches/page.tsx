@@ -54,7 +54,7 @@ export type MatchRow = {
     contact_email: string | null;
     contact_phone: string | null;
     certifications: string[] | null;
-    kosher_status: string | null;
+    kosher_types: string[] | null;
     trust_score: number | null;
   } | null;
 };
@@ -69,7 +69,7 @@ export default async function MatchesPage() {
          sent_at, sent_via, supplier_responded_at,
          match_breakdown,
          request:sourcing_requests(id, product_name, company, email, category, kosher, certifications, quantity, unit, notes, reference_image_urls),
-         supplier:supplier_offerings(id, company_name, country_of_origin, logo_url, website, contact_email, contact_phone, certifications, kosher_status, trust_score)`
+         supplier:supplier_offerings(id, company_name, country_of_origin, logo_url, website, contact_email, contact_phone, certifications, kosher_types, trust_score)`
       )
       .order("match_score", { ascending: false })
       .limit(500),

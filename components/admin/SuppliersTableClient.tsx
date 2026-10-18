@@ -43,7 +43,7 @@ export type SupplierRow = {
   country_of_origin: string | null;
   categories: string[] | null;
   certifications: string[] | null;
-  kosher_status?: string | null;
+  kosher_types?: string[] | null;
   status: string | null;
   priority: number | null;
   verified: boolean | null;
@@ -448,13 +448,14 @@ export function SuppliersTableClient({
                   {/* Certifications + Kosher */}
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-1 flex-wrap">
-                      {supplier.kosher_status &&
-                        supplier.kosher_status !== "none" &&
-                        supplier.kosher_status !== "unknown" && (
-                          <span className="text-[11px] bg-amber-50 text-amber-800 border border-amber-200 rounded-full px-2 py-0.5 font-medium">
-                            ✡ Kosher
-                          </span>
-                        )}
+                      {(supplier.kosher_types?.length ?? 0) > 0 && (
+                        <span
+                          title={(supplier.kosher_types ?? []).join(", ")}
+                          className="text-[11px] bg-amber-50 text-amber-800 border border-amber-200 rounded-full px-2 py-0.5 font-medium"
+                        >
+                          ✡ Kosher
+                        </span>
+                      )}
                       {(supplier.certifications?.length ?? 0) > 0 ? (
                         <span
                           title={(supplier.certifications ?? []).join(", ")}

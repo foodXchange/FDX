@@ -263,7 +263,7 @@ export default async function AdminSuppliersPage({
     .from("supplier_offerings")
     .select(
       `id, company_name, website, logo_url, country_of_origin, categories, certifications,
-       kosher_status, status, priority, verified, product_type, private_label,
+       kosher_types, status, priority, verified, product_type, private_label,
        product_count, qualification_status, trust_score,
        contact_email, contact_phone, linkedin_url, scrape_status,
        markets_served, price_positioning,

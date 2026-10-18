@@ -19,16 +19,17 @@ type FullSupplierRow = {
   scrape_status: string | null;
   last_scraped_at: string | null;
   products_found: number | null;
+  product_count: number | null;
   status: string | null;
-  scrape_source: string | null;
+  source: string | null;
   categories: string[] | null;
   csv_import_batch: string | null;
   created_at: string | null;
-  company_description: string | null;
-  email: string | null;
-  phone: string | null;
+  product_description: string | null;
+  contact_email: string | null;
+  contact_phone: string | null;
   certifications: string[] | null;
-  kosher_status: string | null;
+  kosher_types: string[] | null;
 };
 
 type ScrapeBatchRow = {
@@ -60,6 +61,7 @@ type ParamStats = {
 type BatchSummary = {
   batchId: string;
   filename: string;
+  batchNumber?: string;
   firstSeen: string | null;
   total: number;
   done: number;
@@ -73,6 +75,15 @@ type BatchSummary = {
   searchAiCount: number;
   params: ParamStats;
 };
+
+function extractBatchNumber(filename?: string): string | undefined {
+  if (!filename) return undefined;
+  const match = filename.match(/_(\d+)(?:\.\w+)?$/);
+  if (match && match[1]) {
+    return `Split ${match[1]}`;
+  }
+  return undefined;
+}
 
 async function fetchAllSuppliers(): Promise<FullSupplierRow[]> {
   const { count } = await supabaseAdmin
@@ -92,7 +103,7 @@ async function fetchAllSuppliers(): Promise<FullSupplierRow[]> {
       supabaseAdmin
         .from("supplier_offerings")
         .select(
-          "id, company_name, website, country_of_origin, scrape_status, last_scraped_at, products_found, status, scrape_source, categories, csv_import_batch, created_at, company_description, email, phone, certifications, kosher_status"
+          "id, company_name, website, country_of_origin, scrape_status, last_scraped_at, products_found, product_count, status, source, categories, csv_import_batch, created_at, product_description, contact_email, contact_phone, certifications, kosher_types"
         )
         .order("id", { ascending: true })
         .range(from, to)
@@ -152,12 +163,17 @@ function computeParamStats(
     if (r.website && r.website.trim()) web++;
     if (r.country_of_origin && r.country_of_origin.trim()) country++;
     if (r.categories && r.categories.length > 0) cat++;
-    if ((r.products_found ?? 0) > 0) prod++;
-    if (r.company_description && r.company_description.trim()) profile++;
-    if ((r.email && r.email.trim()) || (r.phone && r.phone.trim())) contact++;
+    if ((r.products_found ?? r.product_count ?? 0) > 0) prod++;
+    if (r.product_description && r.product_description.trim()) profile++;
+    if (
+      (r.contact_email && r.contact_email.trim()) ||
+      (r.contact_phone && r.contact_phone.trim())
+    ) {
+      contact++;
+    }
     if (
       (r.certifications && r.certifications.length > 0) ||
-      (r.kosher_status && r.kosher_status !== "none") ||
+      (r.kosher_types && r.kosher_types.length > 0) ||
       (factoryCountMap[r.id] ?? 0) > 0
     ) {
       certs++;
@@ -231,13 +247,32 @@ export default async function ScraperPage() {
 
   const globalParams = computeParamStats(allSuppliers, factoryCountMap);
 
-  // Filename lookup map
+  // Filename lookup map from both scrape_batches and scraper_csv_uploads
   const origFilenameMap: Record<string, string> = {};
+  const batchMetaMap: Record<
+    string,
+    { filename: string; createdAt: string | null; totalRows: number }
+  > = {};
+
   for (const u of uploadHistory) {
-    if (u.batch_id && u.filename) origFilenameMap[u.batch_id] = u.filename;
+    if (u.batch_id && u.filename) {
+      origFilenameMap[u.batch_id] = u.filename;
+      batchMetaMap[u.batch_id] = {
+        filename: u.filename,
+        createdAt: u.uploaded_at,
+        totalRows: u.rows_total ?? 0,
+      };
+    }
   }
   for (const b of scrapeBatchRows) {
-    if (b.original_filename) origFilenameMap[b.batch_key] = b.original_filename;
+    if (b.original_filename) {
+      origFilenameMap[b.batch_key] = b.original_filename;
+    }
+    batchMetaMap[b.batch_key] = {
+      filename: b.original_filename ?? origFilenameMap[b.batch_key] ?? b.batch_key,
+      createdAt: b.created_at,
+      totalRows: b.total_rows ?? 0,
+    };
   }
 
   // Group suppliers by csv_import_batch
@@ -249,8 +284,16 @@ export default async function ScraperPage() {
     rowsByBatch[batchId].push(s);
   }
 
-  const batchSummaries: BatchSummary[] = Object.entries(rowsByBatch)
-    .map(([batchId, rows]) => {
+  // Ensure any batch recorded in scrape_batches or scraper_csv_uploads is also included
+  const allBatchIds = new Set<string>([
+    ...Object.keys(rowsByBatch),
+    ...Object.keys(batchMetaMap),
+  ]);
+
+  const batchSummaries: BatchSummary[] = Array.from(allBatchIds)
+    .map((batchId) => {
+      const rows = rowsByBatch[batchId] ?? [];
+      const meta = batchMetaMap[batchId];
       let scraped = 0;
       let pending = 0;
       let failed = 0;
@@ -258,7 +301,7 @@ export default async function ScraperPage() {
       let productsCount = 0;
       let directCrawlCount = 0;
       let searchAiCount = 0;
-      let firstSeen: string | null = null;
+      let firstSeen: string | null = meta?.createdAt ?? null;
 
       for (const r of rows) {
         const st = r.scrape_status ?? "pending";
@@ -267,9 +310,9 @@ export default async function ScraperPage() {
         else if (st === "skipped") skipped++;
         else pending++;
 
-        productsCount += r.products_found ?? 0;
+        productsCount += r.products_found ?? r.product_count ?? 0;
 
-        const src = (r.scrape_source ?? "").toLowerCase();
+        const src = (r.source ?? "").toLowerCase();
         if (src.includes("perplexity") || src.includes("search_grounding")) {
           searchAiCount++;
         } else if (src) {
@@ -286,13 +329,15 @@ export default async function ScraperPage() {
         }
       }
 
-      const total = rows.length;
+      const total = rows.length > 0 ? rows.length : meta?.totalRows ?? 0;
       const done = scraped + skipped;
       const donePct = total > 0 ? Math.round((done / total) * 100) : 0;
+      const filename = origFilenameMap[batchId] ?? meta?.filename ?? batchId;
 
       return {
         batchId,
-        filename: origFilenameMap[batchId] ?? batchId,
+        filename,
+        batchNumber: extractBatchNumber(filename),
         firstSeen,
         total,
         done,
@@ -307,6 +352,7 @@ export default async function ScraperPage() {
         params: computeParamStats(rows, factoryCountMap),
       };
     })
+    .filter((b) => b.total > 0)
     .sort((a, b) => {
       const aTime = a.firstSeen ? new Date(a.firstSeen).getTime() : 0;
       const bTime = b.firstSeen ? new Date(b.firstSeen).getTime() : 0;
@@ -322,7 +368,7 @@ export default async function ScraperPage() {
     uploadedAt: b.firstSeen,
   }));
 
-  // Sort table suppliers: pending/scraped first, then company_name
+  // Sort table suppliers: pending/failed first so unscraped records are right at the top
   const tableSuppliers = allSuppliers
     .filter((s) => s.website && s.website.trim() !== "")
     .map((s) => ({
@@ -332,9 +378,9 @@ export default async function ScraperPage() {
       country_of_origin: s.country_of_origin,
       scrape_status: s.scrape_status,
       last_scraped_at: s.last_scraped_at,
-      products_found: s.products_found,
+      products_found: s.products_found ?? s.product_count,
       status: s.status,
-      scrape_source: s.scrape_source,
+      scrape_source: s.source,
       categories: s.categories,
       csv_import_batch: s.csv_import_batch,
     }));
@@ -372,21 +418,27 @@ export default async function ScraperPage() {
               color="green"
               label="Scraped"
               count={globalCounts.scraped}
-              pct={Math.round((globalCounts.scraped / Math.max(globalCounts.total, 1)) * 100)}
+              pct={Math.round(
+                (globalCounts.scraped / Math.max(globalCounts.total, 1)) * 100
+              )}
               tooltip="Confirmed manufacturers with extracted products & profile"
             />
             <KpiPill
               color="orange"
               label="Pending"
               count={globalCounts.pending}
-              pct={Math.round((globalCounts.pending / Math.max(globalCounts.total, 1)) * 100)}
+              pct={Math.round(
+                (globalCounts.pending / Math.max(globalCounts.total, 1)) * 100
+              )}
               tooltip="Waiting to be scraped"
             />
             <KpiPill
               color="red"
               label="Failed"
               count={globalCounts.failed}
-              pct={Math.round((globalCounts.failed / Math.max(globalCounts.total, 1)) * 100)}
+              pct={Math.round(
+                (globalCounts.failed / Math.max(globalCounts.total, 1)) * 100
+              )}
               tooltip="Website blocked or unreachable — eligible for retry"
             />
             <KpiPill
@@ -411,13 +463,41 @@ export default async function ScraperPage() {
             <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mr-1">
               DB Params:
             </span>
-            <ParamChip label="Web" pct={globalParams.websitePct} tooltip="Has valid website URL" />
-            <ParamChip label="Country" pct={globalParams.countryPct} tooltip="Has country_of_origin" />
-            <ParamChip label="Cat" pct={globalParams.categoriesPct} tooltip="Has food categories array" />
-            <ParamChip label="Products" pct={globalParams.productsPct} tooltip="Has extracted products (>0)" />
-            <ParamChip label="Profile" pct={globalParams.profilePct} tooltip="Has extracted company description" />
-            <ParamChip label="Contact" pct={globalParams.contactPct} tooltip="Has email or phone" />
-            <ParamChip label="Certs/Fac" pct={globalParams.certsPct} tooltip="Has certifications, kosher status, or factories" />
+            <ParamChip
+              label="Web"
+              pct={globalParams.websitePct}
+              tooltip="Has valid website URL"
+            />
+            <ParamChip
+              label="Country"
+              pct={globalParams.countryPct}
+              tooltip="Has country_of_origin"
+            />
+            <ParamChip
+              label="Cat"
+              pct={globalParams.categoriesPct}
+              tooltip="Has food categories array"
+            />
+            <ParamChip
+              label="Products"
+              pct={globalParams.productsPct}
+              tooltip="Has extracted products (>0)"
+            />
+            <ParamChip
+              label="Profile"
+              pct={globalParams.profilePct}
+              tooltip="Has extracted product/company description"
+            />
+            <ParamChip
+              label="Contact"
+              pct={globalParams.contactPct}
+              tooltip="Has contact_email or contact_phone"
+            />
+            <ParamChip
+              label="Certs/Fac"
+              pct={globalParams.certsPct}
+              tooltip="Has certifications, kosher types, or factories"
+            />
           </div>
         </div>
       </div>
@@ -438,12 +518,145 @@ export default async function ScraperPage() {
           </div>
         </div>
 
+        {/* Batch Status Cards (Quick-Launch Grid for Uploaded CSV Files) */}
+        {batchSummaries.length > 0 && (
+          <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-2xs">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4">
+              <div>
+                <h2 className="text-sm font-bold text-slate-900 uppercase tracking-wider">
+                  CSV Batch Status Cards ({batchSummaries.length} Uploaded Files)
+                </h2>
+                <p className="text-xs text-slate-500">
+                  Click <strong className="text-orange-600">Scrape pending →</strong> or{" "}
+                  <strong className="text-red-600">Retry failed</strong> on any uploaded CSV file to immediately load it into the scraper console above.
+                </p>
+              </div>
+              <span className="text-xs font-semibold text-orange-700 bg-orange-50 border border-orange-200 px-3 py-1 rounded-full">
+                {globalCounts.pending.toLocaleString()} total pending · {globalCounts.failed.toLocaleString()} failed
+              </span>
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3 max-h-136 overflow-y-auto pr-1">
+              {batchSummaries.map((batch) => (
+                <div
+                  key={batch.batchId}
+                  className={`rounded-2xl border p-4 shadow-2xs transition ${
+                    batch.pending > 0
+                      ? "border-orange-200 bg-orange-50/20"
+                      : "border-slate-200 bg-slate-50"
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-3 mb-2">
+                    <div className="min-w-0">
+                      <p
+                        className="text-sm font-bold text-slate-900 truncate"
+                        title={batch.filename}
+                      >
+                        {batch.filename}
+                      </p>
+                      <p className="text-[11px] font-mono text-slate-400 truncate">
+                        {batch.batchId}
+                      </p>
+                      <p className="text-xs text-slate-500 mt-0.5">
+                        Uploaded {getRelativeTime(batch.firstSeen)}
+                      </p>
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {batch.pending > 0 && (
+                          <a
+                            href={`#batchId=${encodeURIComponent(batch.batchId)}&status=pending`}
+                            className="inline-flex items-center px-2.5 py-1 rounded-lg bg-orange-500 hover:bg-orange-600 text-white text-xs font-semibold transition"
+                          >
+                            ▶ Scrape pending ({batch.pending}) →
+                          </a>
+                        )}
+                        {batch.failed > 0 && (
+                          <a
+                            href={`#batchId=${encodeURIComponent(batch.batchId)}&status=failed`}
+                            className="inline-flex items-center px-2.5 py-1 rounded-lg border border-red-200 bg-white text-red-600 hover:bg-red-50 text-xs font-semibold transition"
+                          >
+                            ↻ Retry failed ({batch.failed})
+                          </a>
+                        )}
+                      </div>
+                    </div>
+                    <span className="shrink-0 rounded-full bg-white border border-slate-200 px-2.5 py-1 text-[11px] font-semibold text-slate-700">
+                      {batch.total} rows
+                    </span>
+                  </div>
+
+                  {/* Products & source stats */}
+                  {(batch.productsCount > 0 ||
+                    batch.directCrawlCount > 0 ||
+                    batch.searchAiCount > 0 ||
+                    batch.batchNumber) && (
+                    <div className="mb-3 flex flex-wrap gap-1.5">
+                      {batch.batchNumber && (
+                        <span className="rounded-full bg-orange-100 px-2 py-0.5 text-[10px] font-semibold text-orange-800 uppercase">
+                          {batch.batchNumber}
+                        </span>
+                      )}
+                      {batch.productsCount > 0 && (
+                        <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-semibold text-blue-700">
+                          {batch.productsCount} products
+                        </span>
+                      )}
+                      {batch.directCrawlCount > 0 && (
+                        <span className="rounded-full bg-purple-50 px-2 py-0.5 text-[10px] font-medium text-purple-700">
+                          Direct: {batch.directCrawlCount}
+                        </span>
+                      )}
+                      {batch.searchAiCount > 0 && (
+                        <span className="rounded-full bg-teal-50 px-2 py-0.5 text-[10px] font-medium text-teal-700">
+                          Search AI: {batch.searchAiCount}
+                        </span>
+                      )}
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-2 gap-1.5 text-xs">
+                    <div className="flex items-center justify-between rounded-xl bg-white px-2.5 py-1.5 border border-slate-200">
+                      <span className="text-slate-500">Pending</span>
+                      <span className="font-bold text-orange-600">{batch.pending}</span>
+                    </div>
+                    <div className="flex items-center justify-between rounded-xl bg-white px-2.5 py-1.5 border border-slate-200">
+                      <span className="text-slate-500">Scraped</span>
+                      <span className="font-bold text-green-700">{batch.scraped}</span>
+                    </div>
+                    <div className="flex items-center justify-between rounded-xl bg-white px-2.5 py-1.5 border border-slate-200">
+                      <span className="text-slate-500">Failed</span>
+                      <span className="font-bold text-red-600">{batch.failed}</span>
+                    </div>
+                    <div className="flex items-center justify-between rounded-xl bg-white px-2.5 py-1.5 border border-slate-200">
+                      <span className="text-slate-500">Skipped</span>
+                      <span className="font-bold text-slate-600">{batch.skipped}</span>
+                    </div>
+                  </div>
+
+                  {/* Progress bar */}
+                  <div className="mt-3">
+                    <div className="flex justify-between text-[11px] text-slate-500 mb-1">
+                      <span>Done ({batch.done}/{batch.total})</span>
+                      <span className="font-semibold">{batch.donePct}%</span>
+                    </div>
+                    <div className="h-1.5 rounded-full bg-slate-200 overflow-hidden">
+                      <div
+                        className="h-full rounded-full bg-green-500 transition-all"
+                        style={{ width: `${batch.donePct}%` }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Unified Uploaded Documents & Batches Table */}
         <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-2xs">
           <div className="flex items-center justify-between gap-4 mb-4 flex-wrap">
             <div className="flex items-center gap-2">
               <h2 className="text-sm font-bold text-slate-900 uppercase tracking-wider">
-                Uploaded CSV Documents & Batch Status ({batchSummaries.length})
+                Uploaded CSV Documents & Parameter Coverage Table ({batchSummaries.length})
               </h2>
               <span
                 className="text-xs text-slate-400 cursor-help border border-slate-200 rounded-full w-4 h-4 inline-flex items-center justify-center"
@@ -468,20 +681,32 @@ export default async function ScraperPage() {
                 <thead className="bg-slate-50 border-b border-slate-200 text-[11px] font-semibold text-slate-500 uppercase tracking-wider sticky top-0 z-10">
                   <tr>
                     <th className="px-3 py-2.5">Document / Batch</th>
-                    <th className="px-3 py-2.5 text-right" title="Unique non-duplicate records uploaded in this CSV">
+                    <th
+                      className="px-3 py-2.5 text-right"
+                      title="Unique non-duplicate records uploaded in this CSV"
+                    >
                       Unique
                     </th>
-                    <th className="px-3 py-2.5 w-32" title="Done = (Scraped + Skipped) / Unique">
+                    <th
+                      className="px-3 py-2.5 w-32"
+                      title="Done = (Scraped + Skipped) / Unique"
+                    >
                       Done %
                     </th>
                     <th className="px-3 py-2.5 text-right">Scraped</th>
                     <th className="px-3 py-2.5 text-right">Pending</th>
                     <th className="px-3 py-2.5 text-right">Failed</th>
                     <th className="px-3 py-2.5 text-right">Skipped</th>
-                    <th className="px-3 py-2.5 text-right" title="Total products extracted for suppliers in this batch">
+                    <th
+                      className="px-3 py-2.5 text-right"
+                      title="Total products extracted for suppliers in this batch"
+                    >
                       Products
                     </th>
-                    <th className="px-3 py-2.5" title="Percentage of records in this batch that have each parameter populated">
+                    <th
+                      className="px-3 py-2.5"
+                      title="Percentage of records in this batch that have each parameter populated"
+                    >
                       Parameter Coverage %
                     </th>
                     <th className="px-3 py-2.5 text-right">Run Only</th>
@@ -502,7 +727,10 @@ export default async function ScraperPage() {
                     ].join(" | ");
 
                     return (
-                      <tr key={b.batchId} className="hover:bg-slate-50/80 transition-colors">
+                      <tr
+                        key={b.batchId}
+                        className="hover:bg-slate-50/80 transition-colors"
+                      >
                         {/* Document / Batch */}
                         <td className="px-3 py-2.5 max-w-52">
                           <div
@@ -610,7 +838,9 @@ export default async function ScraperPage() {
                           <div className="inline-flex items-center justify-end gap-1.5">
                             {b.pending > 0 && (
                               <a
-                                href={`#batchId=${encodeURIComponent(b.batchId)}&status=pending`}
+                                href={`#batchId=${encodeURIComponent(
+                                  b.batchId
+                                )}&status=pending`}
                                 title={`Load ${b.pending} pending suppliers from this batch into console`}
                                 className="px-2.5 py-1 rounded-md bg-orange-500 hover:bg-orange-600 text-white text-[11px] font-semibold transition whitespace-nowrap"
                               >
@@ -619,7 +849,9 @@ export default async function ScraperPage() {
                             )}
                             {b.failed > 0 && (
                               <a
-                                href={`#batchId=${encodeURIComponent(b.batchId)}&status=failed`}
+                                href={`#batchId=${encodeURIComponent(
+                                  b.batchId
+                                )}&status=failed`}
                                 title={`Retry ${b.failed} failed suppliers from this batch in console`}
                                 className="px-2 py-1 rounded-md border border-red-200 text-red-600 hover:bg-red-50 text-[11px] font-semibold transition whitespace-nowrap"
                               >
@@ -719,8 +951,8 @@ function ParamChip({
     pct >= 75
       ? "bg-emerald-50 text-emerald-700 border-emerald-200"
       : pct >= 35
-        ? "bg-amber-50 text-amber-700 border-amber-200"
-        : "bg-slate-100 text-slate-600 border-slate-200";
+      ? "bg-amber-50 text-amber-700 border-amber-200"
+      : "bg-slate-100 text-slate-600 border-slate-200";
   return (
     <span
       title={`${tooltip}: ${pct}%`}
@@ -736,8 +968,8 @@ function MiniParam({ label, pct }: { label: string; pct: number }) {
     pct >= 75
       ? "bg-emerald-50 text-emerald-700"
       : pct >= 30
-        ? "bg-amber-50 text-amber-700"
-        : "bg-slate-100 text-slate-500";
+      ? "bg-amber-50 text-amber-700"
+      : "bg-slate-100 text-slate-500";
   return (
     <span className={`px-1.5 py-0.5 rounded text-[10px] font-semibold ${tone}`}>
       {label}:{pct}%
