@@ -35,8 +35,8 @@ export default function BuyersPage() {
 
       <main id="main">
 
-        {/* ── HERO ── */}
-        <section className="relative w-full overflow-hidden" style={{ minHeight: "520px" }}>
+        {/* ── COMPACT VISUAL HERO ── */}
+        <section className="relative w-full overflow-hidden border-b border-white/10" style={{ minHeight: "280px" }}>
           <Image
             src="/images/buyer-product-review.png"
             alt="Buyer reviewing food product samples"
@@ -46,19 +46,18 @@ export default function BuyersPage() {
             quality={90}
             sizes="100vw"
           />
-          <div className="absolute inset-0 bg-slate-900/75" />
-          <div className="relative z-10 px-6 py-20 sm:py-28 text-center">
+          <div className="absolute inset-0 bg-gradient-to-b from-slate-950/85 via-slate-900/80 to-slate-950" />
+          <div className="relative z-10 px-6 py-12 sm:py-16 text-center max-w-4xl mx-auto">
             <Reveal>
-              <p className="text-xs font-semibold text-orange-400 uppercase tracking-widest mb-4">
-                For Israeli buyers &amp; importers
-              </p>
-              <h1 className="text-4xl md:text-5xl font-semibold tracking-tight text-white max-w-3xl mx-auto leading-tight">
-                Source food products from{" "}
-                <span className="text-orange-500">verified international suppliers</span>
+              <span className="inline-flex items-center gap-2 rounded-full border border-orange-500/30 bg-orange-500/10 px-3.5 py-1 text-xs font-semibold text-orange-400 mb-4">
+                🇮🇱 For Israeli Importers &amp; Retail Buyers
+              </span>
+              <h1 className="text-3xl md:text-4xl font-bold tracking-tight text-white leading-tight">
+                Drop 3 Photos or Speak.{" "}
+                <span className="text-orange-500">We Match Your Factory.</span>
               </h1>
-              <p className="mt-6 max-w-2xl mx-auto text-lg text-slate-300 leading-relaxed">
-                Tell us what you need. We match your request with pre-vetted European and
-                international manufacturers — and handle the commercial alignment.
+              <p className="mt-3 max-w-xl mx-auto text-sm sm:text-base text-slate-300">
+                Upload a benchmark product or narrate in Hebrew / English — matched across 500+ verified manufacturers.
               </p>
             </Reveal>
           </div>

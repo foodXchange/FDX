@@ -5,6 +5,7 @@ import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { cleanRequestName } from "@/lib/matching/cleanRequestName";
 import { getPipForRequest } from "@/lib/pip/getPipForRequest";
 import PipPanel, { type PipV2CardData } from "@/components/admin/PipPanel";
+import SellerBriefPanel from "@/components/admin/SellerBriefPanel";
 import MatchCards from "./MatchCards";
 import type { RfqRequestVars, RfqTemplateRow } from "@/components/admin/RfqComposerModal";
 
@@ -51,7 +52,13 @@ export type SavedMatch = {
 export default async function RequestDetailPage({ params }: PageProps) {
   const { id } = await params;
 
-  const [{ data: request, error }, { data: rawMatches }, { data: rawV2Pips }, { data: rawRfqTemplates }] = await Promise.all([
+  const [
+    { data: request, error },
+    { data: rawMatches },
+    { data: rawV2Pips },
+    { data: rawRfqTemplates },
+    { data: rawImages },
+  ] = await Promise.all([
     supabaseAdmin.from("sourcing_requests").select("*").eq("id", id).single(),
     supabaseAdmin
       .from("sourcing_matches")
@@ -72,6 +79,11 @@ export default async function RequestDetailPage({ params }: PageProps) {
       .select("id, name, subject, body")
       .eq("template_type", "rfq")
       .order("name"),
+    supabaseAdmin
+      .from("request_images")
+      .select("image_url")
+      .eq("request_id", id)
+      .order("created_at", { ascending: true }),
   ]);
 
   if (error || !request) notFound();
@@ -105,8 +117,11 @@ export default async function RequestDetailPage({ params }: PageProps) {
   const hasKosher = certs.some((c) => c.toLowerCase().includes("kosher"));
   const intentJson = (request.intent_json as Record<string, unknown> | null) ?? null;
   const aiAnalysis = (request.ai_analysis as Record<string, unknown> | null) ?? null;
-  const sellerBrief = typeof aiAnalysis?.seller_brief === "string" ? aiAnalysis.seller_brief : null;
+  const sellerBrief = typeof aiAnalysis?.seller_brief === "string" ? aiAnalysis.seller_brief : "";
   const benchmarkBrand = typeof aiAnalysis?.benchmark_brand === "string" ? aiAnalysis.benchmark_brand : null;
+  const imageUrls = (rawImages ?? [])
+    .map((img: { image_url?: string | null }) => img.image_url)
+    .filter((u): u is string => Boolean(u));
 
   const rfqTemplates = (rawRfqTemplates ?? []) as RfqTemplateRow[];
   const pip = await getPipForRequest(id);
@@ -116,7 +131,7 @@ export default async function RequestDetailPage({ params }: PageProps) {
     volume: pip.commercial.volume ?? "",
     certifications: [...pip.compliance.kosher_types, ...pip.compliance.certifications].join(", "),
     request_description:
-      sellerBrief ?? (request.message as string | null) ?? pip.product.raw_description ?? "",
+      sellerBrief || (request.message as string | null) || pip.product.raw_description || "",
   };
 
   return (
@@ -139,7 +154,7 @@ export default async function RequestDetailPage({ params }: PageProps) {
 
       <div className="max-w-6xl mx-auto px-6 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
-          {/* ── Left column: request details + PIP ── */}
+          {/* ── Left column: request details + Wholesale Brief + PIP ── */}
           <div className="space-y-4">
             <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
               <div className="flex items-start justify-between gap-4 flex-wrap mb-4">
@@ -184,21 +199,29 @@ export default async function RequestDetailPage({ params }: PageProps) {
                 )}
               </div>
 
-              {sellerBrief && (
-                <div className="mt-4 rounded-xl border border-orange-200 bg-orange-50/60 p-4">
-                  <p className="mb-1.5 text-xs font-bold uppercase tracking-wider text-orange-700">
-                    🤝 Warm Seller / Agent Sourcing Brief
-                  </p>
-                  <pre className="whitespace-pre-wrap font-sans text-sm text-gray-800 leading-relaxed">
-                    {sellerBrief}
-                  </pre>
-                </div>
-              )}
+              {/* Admin-Only Wholesale / Seller Agent Sourcing Brief with AI Edit & PDF Print */}
+              <SellerBriefPanel
+                requestId={id}
+                initialBrief={sellerBrief}
+                productName={cleanedName || productName}
+                category={(request.category as string | null) ?? null}
+                benchmarkBrand={benchmarkBrand}
+                packagingPreference={(request.packaging_preference as string | null) ?? null}
+                certifications={certs}
+                privateLabel={(request.private_label as boolean | null) ?? null}
+                createdAt={(request.created_at as string | null) ?? null}
+                imageUrls={imageUrls}
+              />
 
               {(request.message as string | null) && (
-                <p className="mt-4 text-sm text-gray-600 leading-relaxed border-t border-gray-100 pt-4 whitespace-pre-wrap">
-                  {request.message as string}
-                </p>
+                <div className="mt-4 border-t border-gray-100 pt-4">
+                  <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-400 mb-1">
+                    Original Buyer Notes
+                  </p>
+                  <p className="text-sm text-gray-600 leading-relaxed whitespace-pre-wrap">
+                    {request.message as string}
+                  </p>
+                </div>
               )}
 
               {(request.created_at as string | null) && (

@@ -83,10 +83,15 @@ export async function POST(req: Request) {
     new Set([...(data.certifications ?? []), ...(data.dietary_claims ?? [])])
   );
 
+  const autoBrief =
+    data.seller_brief ||
+    (typeof data.ai_analysis?.seller_brief === "string" ? data.ai_analysis.seller_brief : "") ||
+    `Hello! We are working with a qualified B2B buyer in ${data.target_market ?? "Israel"} who is actively sourcing ${data.product_name ?? data.description?.slice(0, 80) ?? "Food & Beverage products"}${data.benchmark_brand ? ` (benchmarking quality and profile similar to ${data.benchmark_brand})` : ""}. They are looking for ${data.packaging_preference ?? "standard retail or foodservice packaging"} under ${data.private_label === false ? "Supplier Brand" : data.private_label === true ? "Private Label (Buyer's Brand)" : "Private Label or Supplier Brand"}, with ${allCerts.length > 0 ? allCerts.join(", ") : "standard export quality (BRC/IFS/ISO)"} compliance${data.volume_per_year ? ` for an estimated volume of ${data.volume_per_year}` : ""}. If your factory produces a matching or closely equivalent line, we would love to receive your product specifications, available packaging formats, and export terms!`;
+
   const enrichedAiAnalysis: Record<string, unknown> = {
     ...(data.ai_analysis ?? {}),
     ...(data.benchmark_brand ? { benchmark_brand: data.benchmark_brand } : {}),
-    ...(data.seller_brief ? { seller_brief: data.seller_brief } : {}),
+    seller_brief: autoBrief,
     ...(data.dietary_claims ? { dietary_claims: data.dietary_claims } : {}),
     ...(data.packaging_preference ? { packaging_format: data.packaging_preference } : {}),
   };

@@ -131,7 +131,7 @@ const BENCHMARK_BRAND_SUGGESTIONS = [
 
 const EXAMPLES: ExampleRequest[] = [
   {
-    title: "Catering Mayonnaise (Hellmann's / Heinz style)",
+    title: "🥫 Mayo 5kg + Pump",
     details: "5kg plastic box + catering pump · Kosher · Private Label",
     description:
       "Looking for a rich, creamy mayonnaise similar to Hellmann's or Heinz. Packed in a 5-kilo plastic catering box with a special dispenser pump suitable for QSR / Burger King style stations. Gluten-free, Chief Rabbinate kosher, private label.",
@@ -143,7 +143,7 @@ const EXAMPLES: ExampleRequest[] = [
     dietaryClaims: ["Gluten-Free"],
   },
   {
-    title: "Extra virgin olive oil",
+    title: "🫒 Extra Virgin Olive Oil",
     details: "750ml glass · Chief Rabbinate · 20 tons/yr",
     description:
       "Extra virgin olive oil, 750ml dark glass bottle, Chief Rabbinate kosher certification, private label packaging, approximately 20 tons per year",
@@ -153,7 +153,7 @@ const EXAMPLES: ExampleRequest[] = [
     brandingMode: "private_label",
   },
   {
-    title: "Tomato paste in retail cups (Mutti benchmark)",
+    title: "🍅 Mutti Tomato Paste",
     details: "115g & 200g · Chief Rabbinate · Private Label",
     description:
       "Double-concentrated tomato paste similar to Mutti quality in retail portion cups, 115g and 200g sizes, Chief Rabbinate kosher certification, private label production",
@@ -164,7 +164,7 @@ const EXAMPLES: ExampleRequest[] = [
     brandingMode: "private_label",
   },
   {
-    title: "Sugar-Free Wafer Cubes (Balconi benchmark)",
+    title: "🍫 Balconi Sugar-Free Wafers",
     details: "250g bag · Diabetic-friendly · Badatz",
     description:
       "Crispy hazelnut & cocoa wafer cubes similar to Balconi, sugar-free and suitable for diabetics, 250g pillow bag, Badatz kosher certification",
@@ -176,7 +176,7 @@ const EXAMPLES: ExampleRequest[] = [
     dietaryClaims: ["Sugar-Free", "Good for Diabetics"],
   },
   {
-    title: "Protein-Enriched Organic Granola",
+    title: "🥣 Protein Organic Granola",
     details: "400g pouch · Gluten-Free & Organic · Badatz",
     description:
       "Organic protein-enriched granola with dried fruit mix, gluten-free oats, 400g resealable bag, Badatz Beit Yosef kosher certification, 10 tons per year",
@@ -187,7 +187,7 @@ const EXAMPLES: ExampleRequest[] = [
     dietaryClaims: ["Organic", "Gluten-Free", "Protein-Enriched"],
   },
   {
-    title: "Foodservice Tuna in 1kg Cans / Pouches",
+    title: "🐟 Catering Tuna 1kg",
     details: "1kg catering format · Chief Rabbinate · Supplier or PL",
     description:
       "Skipjack tuna chunks in sunflower oil, 1kg catering cans or pouches for foodservice kitchens, Chief Rabbinate kosher certification",
@@ -201,40 +201,19 @@ const EXAMPLES: ExampleRequest[] = [
 
 function Label({ htmlFor, children }: { htmlFor?: string; children: ReactNode }) {
   return (
-    <label htmlFor={htmlFor} className="mb-1.5 block text-sm font-medium text-slate-200">
+    <label htmlFor={htmlFor} className="mb-1.5 block text-xs font-semibold text-slate-200">
       {children}
     </label>
   );
 }
 
-function Helper({ children }: { children: ReactNode }) {
-  return <p className="mt-1 text-xs leading-relaxed text-slate-400">{children}</p>;
-}
-
 function FieldGroup({ children }: { children: ReactNode }) {
-  return <div className="space-y-2.5">{children}</div>;
+  return <div className="space-y-2">{children}</div>;
 }
 
 function FieldError({ message }: { message?: string }) {
   if (!message) return null;
   return <p className="mt-1 text-xs text-red-400">{message}</p>;
-}
-
-function Tooltip({ text }: { text: string }) {
-  return (
-    <span className="relative ml-1.5 inline-block align-middle group">
-      <button
-        type="button"
-        aria-label="More info"
-        className="flex h-4 w-4 items-center justify-center rounded-full border border-white/20 text-[10px] font-bold text-slate-400 transition-colors hover:border-white/40 hover:text-slate-200 focus:outline-none"
-      >
-        ?
-      </button>
-      <span className="pointer-events-none absolute bottom-full left-1/2 z-50 mb-2 w-64 -translate-x-1/2 rounded-lg border border-white/10 bg-dark-900 px-3 py-2 text-xs leading-relaxed text-slate-200 opacity-0 shadow-lg transition-opacity duration-200 delay-100 group-hover:opacity-100 group-focus-within:opacity-100">
-        {text}
-      </span>
-    </span>
-  );
 }
 
 function inputClass(extra = "") {
@@ -253,7 +232,7 @@ function SectionHeader({
   first?: boolean;
 }) {
   return (
-    <div className={`${first ? "" : "border-t border-white/10 pt-7"} mb-2 flex items-center justify-between`}>
+    <div className={`${first ? "" : "border-t border-white/10 pt-5"} mb-2 flex items-center justify-between`}>
       <h3 className="text-xs font-bold uppercase tracking-wider text-orange-400">
         {n}. {title}
       </h3>
@@ -268,8 +247,8 @@ function SectionHeader({
 
 export default function SourcingRequestForm({
   source = "buyers-page",
-  heading = "Create Your Sourcing Request & AI Brief",
-  subheading = "Upload up to 3 benchmark product photos or simply speak in Hebrew or English — our AI Concierge will guide you and build a warm, accurate brief.",
+  heading = "Start Your Sourcing Request",
+  subheading = "Upload 1–3 photos, speak in Hebrew/English, or tap quick specs below.",
   showExamples = false,
   compact = false,
   initialDescription,
@@ -307,11 +286,10 @@ export default function SourcingRequestForm({
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const recognitionRef = useRef<any>(null);
 
-  // AI Concierge & Seller Brief state
+  // AI Concierge & Seller Brief state (Seller Brief is persisted to Admin)
   const [conciergeLoading, setConciergeLoading] = useState(false);
   const [conciergeData, setConciergeData] = useState<ConciergeResponse | null>(null);
   const [sellerBriefText, setSellerBriefText] = useState("");
-  const [isEditingBrief, setIsEditingBrief] = useState(false);
   const lastAnalyzedImagesRef = useRef<string>("");
 
   // Contact & Submission state
@@ -1089,27 +1067,22 @@ export default function SourcingRequestForm({
   const anyUploading = images.some((img) => img.uploading);
 
   return (
-    <div ref={formRef} className="space-y-10">
+    <div ref={formRef} className="space-y-6">
       {showExamples && (
-        <section className="border-b border-dark-border px-6 py-10">
+        <section className="border-b border-dark-border px-6 py-5 bg-slate-950/30">
           <div className="mx-auto max-w-4xl">
-            <p className="mb-4 text-center text-xs font-semibold uppercase tracking-widest text-slate-400">
-              Benchmark Request Examples — Click any card to see how AI builds the Seller Brief
-            </p>
-
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="flex flex-wrap items-center justify-center gap-2">
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 mr-1">
+                Quick-Fill Example:
+              </span>
               {EXAMPLES.map((example, idx) => (
                 <button
                   key={idx}
                   type="button"
                   onClick={() => prefill(example)}
-                  className="group p-4 text-left transition-all hover:border-orange-500/40 hover:shadow-md hover:shadow-black/30 dark-card"
+                  className="rounded-full border border-white/10 bg-[#0f172a] px-3.5 py-1.5 text-xs font-medium text-slate-300 transition hover:border-orange-500/50 hover:bg-orange-500/10 hover:text-orange-300"
                 >
-                  <p className="mb-1 text-sm font-semibold text-dark-text-primary">{example.title}</p>
-                  <p className="text-xs leading-relaxed text-slate-400">{example.details}</p>
-                  <p className="mt-2 text-xs font-medium text-orange-400 opacity-80 transition-opacity group-hover:opacity-100">
-                    Load benchmark & generate brief →
-                  </p>
+                  {example.title}
                 </button>
               ))}
             </div>
@@ -1117,55 +1090,44 @@ export default function SourcingRequestForm({
         </section>
       )}
 
-      <section className="px-6 py-12">
+      <section className="px-6 py-8">
         <div className="mx-auto max-w-2xl">
           {!compact && (
-            <>
-              <h2 className="mb-2 text-center text-2xl font-bold text-dark-text-primary">{heading}</h2>
-              <p className="mb-8 text-center text-sm text-slate-400">{subheading}</p>
-            </>
+            <div className="mb-6 text-center">
+              <h2 className="text-xl font-bold text-dark-text-primary">{heading}</h2>
+              {subheading && <p className="mt-1 text-xs text-slate-400">{subheading}</p>}
+            </div>
           )}
 
           {submitted ? (
-            <div className="rounded-2xl border border-green-500/20 bg-green-500/10 px-6 py-12 text-center">
+            <div className="rounded-2xl border border-green-500/20 bg-green-500/10 px-6 py-10 text-center">
               <div
-                className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full bg-green-500"
+                className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-green-500"
                 style={{ animation: "pop 0.4s cubic-bezier(0.175,0.885,0.32,1.275)" }}
               >
-                <svg className="h-8 w-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="h-7 w-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
                 </svg>
               </div>
 
-              <h3 className="mb-2 text-xl font-semibold text-dark-text-primary">
-                Your Sourcing Brief & Request are Live!
+              <h3 className="mb-1.5 text-lg font-semibold text-dark-text-primary">
+                Request Received — Matching Manufacturers Now
               </h3>
 
-              <p className="mb-4 text-sm text-slate-300">
-                Our hybrid AI engine is matching your benchmark profile against 24,900+ verified products.
+              <p className="mb-4 text-xs text-slate-300">
+                We are matching your specs across 25,000+ verified products and will reach out with qualified suppliers.
               </p>
 
               {submittedSummary && (
-                <p className="mb-4 text-sm italic text-slate-300">
-                  Request: &ldquo;{submittedSummary}&rdquo;
+                <p className="mb-5 text-xs italic text-slate-300">
+                  &ldquo;{submittedSummary}&rdquo;
                 </p>
-              )}
-
-              {sellerBriefText && (
-                <div className="mx-auto mb-6 max-w-lg rounded-xl border border-orange-500/25 bg-slate-950/80 p-4 text-left">
-                  <p className="mb-1.5 text-[11px] font-bold uppercase tracking-wider text-orange-400">
-                    🤝 Seller / Agent Brief Sent to Matching Engine
-                  </p>
-                  <pre className="whitespace-pre-wrap font-sans text-xs leading-relaxed text-slate-300">
-                    {sellerBriefText}
-                  </pre>
-                </div>
               )}
 
               <button
                 type="button"
                 onClick={handleDifferentProduct}
-                className="btn-brand rounded-lg px-6 py-3 text-sm"
+                className="btn-brand rounded-lg px-6 py-2.5 text-sm"
               >
                 Submit another request
               </button>
@@ -1175,28 +1137,28 @@ export default function SourcingRequestForm({
                   showAddAnother ? "translate-y-0 opacity-100" : "pointer-events-none translate-y-2 opacity-0"
                 }`}
               >
-                <div className="mt-4 flex flex-wrap justify-center gap-3">
+                <div className="mt-3 flex flex-wrap justify-center gap-3">
                   <button
                     type="button"
                     onClick={handleSameCategory}
-                    className="rounded-lg border border-white/20 px-5 py-2.5 text-sm text-slate-300 transition hover:bg-white/5"
+                    className="rounded-lg border border-white/20 px-4 py-2 text-xs text-slate-300 transition hover:bg-white/5"
                   >
                     + Add another product in same category
                   </button>
                 </div>
 
-                <a href="/" className="mt-6 block text-sm text-slate-500 transition hover:text-slate-300">
-                  ← Go to homepage
+                <a href="/" className="mt-5 block text-xs text-slate-500 transition hover:text-slate-300">
+                  ← Back to homepage
                 </a>
               </div>
 
               <style>{`@keyframes pop{0%{transform:scale(0)}80%{transform:scale(1.12)}100%{transform:scale(1)}}`}</style>
             </div>
           ) : (
-            <form onSubmit={handleSubmit} className="space-y-6">
+            <form onSubmit={handleSubmit} className="space-y-5">
               {savedBanner && (
-                <div className="flex items-center justify-between rounded-lg border border-blue-500/20 bg-blue-500/10 px-4 py-2.5 text-sm">
-                  <span className="text-slate-300">We saved your progress — continue where you left off</span>
+                <div className="flex items-center justify-between rounded-lg border border-blue-500/20 bg-blue-500/10 px-4 py-2 text-xs">
+                  <span className="text-slate-300">Draft restored</span>
                   <button
                     type="button"
                     onClick={() => setSavedBanner(false)}
@@ -1207,52 +1169,41 @@ export default function SourcingRequestForm({
                 </div>
               )}
 
-              {/* ── STEP 1: BENCHMARK PHOTOS (MOST PREFERRED) ── */}
+              {/* ── STEP 1: BENCHMARK PHOTOS ── */}
               <SectionHeader
                 n={1}
-                title="Upload 1–3 Benchmark Product Photos"
-                badge="Most Accurate & Fastest"
+                title="Benchmark Photos (1–3 Images)"
+                badge="Recommended"
                 first
               />
 
               <FieldGroup>
-                <Label>
-                  Show us the benchmark product(s) you want to match
-                  <Tooltip text="Uploading 1 to 3 photos of a market benchmark (e.g. Hellmann's or Heinz bottle, 5kg catering tub with pump, and back label) lets our AI extract the exact specs automatically." />
-                </Label>
-
                 <MultiImageUpload value={images} onChange={setImages} maxImages={3} bucket="requests" />
-
-                <Helper>
-                  Best results: ① Front label (brand & product) · ② Packaging format (bottle, jar, 5kg catering box, pump, sachets) · ③ Ingredients / weight / kosher mark.
-                </Helper>
+                <p className="text-[11px] text-slate-400">
+                  ① Front / Brand · ② Packaging / Pump · ③ Ingredients / Kosher
+                </p>
               </FieldGroup>
 
-              {/* ── STEP 2: VOICE NARRATION (HEBREW / ENGLISH) OR TEXT + BENCHMARK BRAND ── */}
+              {/* ── STEP 2: VOICE OR TEXT + BENCHMARK BRAND ── */}
               <SectionHeader
                 n={2}
-                title="Speak (in Hebrew or English) or Describe Your Product"
-                badge="Voice & AI Assisted"
+                title="Speak or Describe Product"
+                badge="עברית / English"
               />
 
-              {/* Voice Narration Bar */}
-              <div className="rounded-xl border border-orange-500/25 bg-gradient-to-r from-orange-500/10 via-slate-900 to-slate-900 p-4">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <div>
-                    <p className="text-sm font-semibold text-slate-100">
-                      🎙️ Prefer speaking instead of typing?
-                    </p>
-                    <p className="text-xs text-slate-400">
-                      Narrate naturally in Hebrew (עברית) or English — tell us the benchmark brand, packaging, weight, and dietary needs.
-                    </p>
-                  </div>
+              {/* Compact Voice + Description Card */}
+              <div className="space-y-3 rounded-2xl border border-white/10 bg-[#0b1324] p-4">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="text-xs font-semibold text-slate-200">
+                    🎙️ Voice Narration or Text
+                  </span>
 
                   <div className="flex items-center gap-2">
-                    <div className="flex rounded-lg border border-white/10 bg-slate-950 p-0.5 text-xs">
+                    <div className="flex rounded-lg border border-white/10 bg-slate-950 p-0.5 text-[11px]">
                       <button
                         type="button"
                         onClick={() => setVoiceLang("he-IL")}
-                        className={`rounded-md px-2.5 py-1 font-medium transition ${
+                        className={`rounded-md px-2 py-1 font-medium transition ${
                           voiceLang === "he-IL"
                             ? "bg-orange-500 text-white"
                             : "text-slate-400 hover:text-slate-200"
@@ -1263,100 +1214,53 @@ export default function SourcingRequestForm({
                       <button
                         type="button"
                         onClick={() => setVoiceLang("en-US")}
-                        className={`rounded-md px-2.5 py-1 font-medium transition ${
+                        className={`rounded-md px-2 py-1 font-medium transition ${
                           voiceLang === "en-US"
                             ? "bg-orange-500 text-white"
                             : "text-slate-400 hover:text-slate-200"
                         }`}
                       >
-                        🇬🇧 English
+                        🇬🇧 EN
                       </button>
                     </div>
 
                     <button
                       type="button"
                       onClick={toggleVoiceRecording}
-                      className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs font-semibold transition ${
+                      className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
                         isRecording
-                          ? "animate-pulse bg-red-500 text-white shadow-lg shadow-red-500/30"
-                          : "bg-orange-500 text-white hover:bg-orange-400 shadow-md shadow-orange-500/20"
+                          ? "animate-pulse bg-red-500 text-white"
+                          : "bg-orange-500 text-white hover:bg-orange-400"
                       }`}
                     >
                       <span className="h-2 w-2 rounded-full bg-white" />
-                      {isRecording ? "Stop & Analyze Speech" : "Speak Now"}
+                      {isRecording ? "Stop" : "Speak"}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => void runConciergeAnalysis()}
+                      disabled={conciergeLoading || (!description.trim() && images.length === 0 && !benchmarkBrand.trim())}
+                      className="rounded-lg border border-orange-500/40 bg-orange-500/15 px-2.5 py-1.5 text-xs font-semibold text-orange-300 transition hover:bg-orange-500/25 disabled:opacity-40"
+                    >
+                      {conciergeLoading ? "✨ Analyzing..." : "✨ AI Check"}
                     </button>
                   </div>
                 </div>
 
                 {isRecording && (
-                  <div className="mt-3 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-200">
-                    🔴 Listening ({voiceLang === "he-IL" ? "דבר/י עכשיו בעברית..." : "Speak now in English..."})
-                    {interimTranscript && (
-                      <span className="ml-2 italic text-white">&ldquo;{interimTranscript}&rdquo;</span>
-                    )}
+                  <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-1.5 text-xs text-red-200">
+                    🔴 {voiceLang === "he-IL" ? "מקשיב בעברית..." : "Listening..."}
+                    {interimTranscript && <span className="ml-2 italic text-white">&ldquo;{interimTranscript}&rdquo;</span>}
                   </div>
                 )}
 
-                {voiceError && <p className="mt-2 text-xs text-amber-400">{voiceError}</p>}
-              </div>
-
-              {/* Benchmark Brand Reference */}
-              <FieldGroup>
-                <Label htmlFor="benchmarkBrand">
-                  Which Benchmark Brand is this similar to?{" "}
-                  <span className="font-normal text-slate-400">(e.g. Hellmann&apos;s, Heinz, Mutti, Balconi)</span>
-                </Label>
-                <input
-                  id="benchmarkBrand"
-                  type="text"
-                  value={benchmarkBrand}
-                  onChange={(e) => setBenchmarkBrand(e.target.value)}
-                  placeholder="e.g. Similar to Hellmann's or Heinz Mayonnaise"
-                  className={inputClass()}
-                />
-                <div className="flex flex-wrap items-center gap-1.5 pt-1">
-                  <span className="text-[11px] text-slate-500 mr-1">Popular benchmarks:</span>
-                  {BENCHMARK_BRAND_SUGGESTIONS.map((brand) => (
-                    <button
-                      key={brand}
-                      type="button"
-                      onClick={() => {
-                        setBenchmarkBrand(brand);
-                        void runConciergeAnalysis({ brand });
-                      }}
-                      className={`rounded-full border px-2.5 py-0.5 text-xs transition ${
-                        benchmarkBrand.toLowerCase().includes(brand.toLowerCase())
-                          ? "border-orange-500 bg-orange-500/20 text-orange-300"
-                          : "border-white/10 bg-white/5 text-slate-400 hover:border-white/25 hover:text-slate-200"
-                      }`}
-                    >
-                      + {brand}
-                    </button>
-                  ))}
-                </div>
-              </FieldGroup>
-
-              {/* Main Description Box */}
-              <FieldGroup>
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="description">
-                    Product description & notes
-                    <Tooltip text="Include what product(s) you need, how many variants, benchmark brand similarity, packaging type (plastic bottle, glass jar, 5kg catering box with pump, sachets), weight, and dietary specs." />
-                  </Label>
-                  <button
-                    type="button"
-                    onClick={() => void runConciergeAnalysis()}
-                    disabled={conciergeLoading || (!description.trim() && images.length === 0 && !benchmarkBrand.trim())}
-                    className="rounded-lg border border-orange-500/40 bg-orange-500/15 px-3 py-1 text-xs font-semibold text-orange-300 transition hover:bg-orange-500/25 disabled:opacity-40"
-                  >
-                    {conciergeLoading ? "✨ AI Analyzing..." : "✨ Guide Me & Build Brief"}
-                  </button>
-                </div>
+                {voiceError && <p className="text-xs text-amber-400">{voiceError}</p>}
 
                 <textarea
                   id="description"
                   ref={descRef}
-                  rows={4}
+                  rows={3}
                   value={description}
                   onChange={(event) => {
                     setDescription(event.target.value);
@@ -1369,37 +1273,65 @@ export default function SourcingRequestForm({
                     }
                   }}
                   maxLength={4000}
-                  placeholder="You can speak above in Hebrew/English or write here: e.g. I want a mayonnaise similar to Hellmann's or Heinz in a 5kg plastic catering box with a dispenser pump (like Burger King), private label, kosher..."
+                  placeholder="e.g. Mayonnaise similar to Hellmann's, 5kg catering plastic box with pump, kosher, private label..."
                   className={`${inputClass("resize-none")} ${descHighlight ? "border-orange-500/60" : ""}`}
                 />
-
                 <FieldError message={fieldErrors.description} />
-              </FieldGroup>
 
-              {/* ── AI CONCIERGE GUIDED GAP-FILLER CARD ── */}
+                {/* Compact Benchmark Brand Input + Chips */}
+                <div className="pt-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <input
+                      id="benchmarkBrand"
+                      type="text"
+                      value={benchmarkBrand}
+                      onChange={(e) => setBenchmarkBrand(e.target.value)}
+                      placeholder="Benchmark brand (e.g. Hellmann's, Heinz, Mutti)..."
+                      className="flex-1 min-w-[200px] rounded-lg border border-white/10 bg-[#0f172a] px-3 py-2 text-xs text-slate-100 placeholder-slate-500 focus:border-orange-500 focus:outline-none"
+                    />
+                    <div className="flex flex-wrap items-center gap-1">
+                      {BENCHMARK_BRAND_SUGGESTIONS.map((brand) => (
+                        <button
+                          key={brand}
+                          type="button"
+                          onClick={() => {
+                            setBenchmarkBrand(brand);
+                            void runConciergeAnalysis({ brand });
+                          }}
+                          className={`rounded-full border px-2.5 py-1 text-[11px] transition ${
+                            benchmarkBrand.toLowerCase().includes(brand.toLowerCase())
+                              ? "border-orange-500 bg-orange-500/20 text-orange-300"
+                              : "border-white/10 bg-white/5 text-slate-400 hover:border-white/25 hover:text-slate-200"
+                          }`}
+                        >
+                          +{brand}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* ── COMPACT AI CONCIERGE CARD ── */}
               {(conciergeLoading || conciergeData) && (
-                <div className="rounded-2xl border border-orange-500/35 bg-gradient-to-b from-slate-900 via-[#0f172a] to-slate-950 p-5 shadow-xl">
-                  <div className="flex items-center justify-between gap-3 border-b border-white/10 pb-3">
-                    <div className="flex items-center gap-2.5">
-                      <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-orange-500/20 text-base">
-                        🤖
-                      </span>
-                      <div>
-                        <h4 className="text-sm font-bold text-slate-100">
-                          AI Sourcing Concierge
-                        </h4>
-                        <p className="text-[11px] text-slate-400">
-                          Checking benchmark, packaging, weight, branding & dietary details
-                        </p>
-                      </div>
+                <div className="rounded-2xl border border-orange-500/35 bg-[#0f172a] p-4 shadow-lg">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm">🤖</span>
+                      <span className="text-xs font-bold text-slate-100">AI Sourcing Concierge</span>
+                      {conciergeData && conciergeData.liveMatchPreview.matchingSuppliersCount > 0 && (
+                        <span className="rounded-full border border-emerald-500/30 bg-emerald-500/15 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-300">
+                          🎯 {conciergeData.liveMatchPreview.matchingSuppliersCount} Factories Ready
+                        </span>
+                      )}
                     </div>
 
                     {conciergeData && (
-                      <div className="text-right">
-                        <span className="text-xs font-bold text-orange-400">
-                          {conciergeData.completenessScore}% Complete
+                      <div className="flex items-center gap-2">
+                        <span className="text-[11px] font-bold text-orange-400">
+                          {conciergeData.completenessScore}%
                         </span>
-                        <div className="mt-1 h-1.5 w-24 overflow-hidden rounded-full bg-white/10">
+                        <div className="h-1.5 w-16 overflow-hidden rounded-full bg-white/10">
                           <div
                             className="h-full rounded-full bg-gradient-to-r from-orange-500 to-emerald-400 transition-all duration-500"
                             style={{ width: `${conciergeData.completenessScore}%` }}
@@ -1410,46 +1342,36 @@ export default function SourcingRequestForm({
                   </div>
 
                   {conciergeLoading ? (
-                    <div className="flex items-center gap-3 py-6 text-sm text-slate-300">
-                      <svg className="h-5 w-5 animate-spin text-orange-400" fill="none" viewBox="0 0 24 24">
+                    <div className="mt-2 flex items-center gap-2 text-xs text-slate-300">
+                      <svg className="h-4 w-4 animate-spin text-orange-400" fill="none" viewBox="0 0 24 24">
                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
                       </svg>
-                      Analyzing your benchmark product, translating if needed, and preparing smart questions...
+                      Checking specs...
                     </div>
                   ) : conciergeData ? (
-                    <div className="mt-4 space-y-4">
-                      <p className="text-sm leading-relaxed text-slate-200">
-                        {conciergeData.conciergeMessage}
-                      </p>
-
+                    <div className="mt-2.5 space-y-2.5">
                       {conciergeData.extractedSpecs.englishTranslation && (
-                        <div className="rounded-lg border border-blue-500/20 bg-blue-500/10 px-3 py-2 text-xs text-blue-200">
-                          <span className="font-semibold">Translated from {conciergeData.extractedSpecs.detectedLanguage}:</span>{" "}
-                          &ldquo;{conciergeData.extractedSpecs.englishTranslation}&rdquo;
-                        </div>
+                        <p className="text-[11px] text-blue-300">
+                          🌐 &ldquo;{conciergeData.extractedSpecs.englishTranslation}&rdquo;
+                        </p>
                       )}
 
-                      {/* Missing Follow-up Questions with 1-Click Chips */}
                       {conciergeData.missingQuestions.length > 0 && (
-                        <div className="space-y-3 pt-1">
-                          <p className="text-xs font-semibold uppercase tracking-wider text-orange-400">
-                            Quick 1-Click Questions to Complete Your Brief:
-                          </p>
+                        <div className="space-y-2">
                           {conciergeData.missingQuestions.map((q) => (
                             <div
                               key={q.id}
-                              className="rounded-xl border border-white/10 bg-slate-950/70 p-3.5"
+                              className="rounded-xl border border-white/10 bg-slate-950/70 p-2.5"
                             >
-                              <p className="text-xs font-semibold text-slate-100">{q.question}</p>
-                              <p className="mb-2.5 text-[11px] text-slate-400">{q.whyItMatters}</p>
+                              <p className="mb-1.5 text-xs font-medium text-slate-200">{q.question}</p>
                               <div className="flex flex-wrap gap-1.5">
                                 {q.options.map((opt) => (
                                   <button
                                     key={opt}
                                     type="button"
                                     onClick={() => handleChipAnswer(q, opt)}
-                                    className="rounded-lg border border-orange-500/30 bg-orange-500/10 px-3 py-1.5 text-xs font-medium text-orange-200 transition hover:border-orange-400 hover:bg-orange-500/25"
+                                    className="rounded-lg border border-orange-500/30 bg-orange-500/10 px-2.5 py-1 text-[11px] font-medium text-orange-200 transition hover:border-orange-400 hover:bg-orange-500/25"
                                   >
                                     + {opt}
                                   </button>
@@ -1459,83 +1381,61 @@ export default function SourcingRequestForm({
                           ))}
                         </div>
                       )}
-
-                      {/* Live Catalog Match Indicator */}
-                      {conciergeData.liveMatchPreview.matchingSuppliersCount > 0 && (
-                        <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3.5 py-2.5 text-xs text-emerald-200">
-                          <span>
-                            🎯 <strong>{conciergeData.liveMatchPreview.matchingSuppliersCount} verified manufacturers</strong> in our catalog produce matching items
-                            {conciergeData.liveMatchPreview.topCountries.length > 0
-                              ? ` (${conciergeData.liveMatchPreview.topCountries.join(", ")})`
-                              : ""}
-                          </span>
-                          <span className="rounded bg-emerald-500/20 px-2 py-0.5 text-[10px] font-semibold uppercase text-emerald-300">
-                            Ready for Match_v3
-                          </span>
-                        </div>
-                      )}
                     </div>
                   ) : null}
                 </div>
               )}
 
-              {/* ── STEP 3: PACKAGING, WEIGHT, BRANDING & DIETARY SPECS ── */}
+              {/* ── STEP 3: QUICK SPECS (1-CLICK CHIPS) ── */}
               <SectionHeader
                 n={3}
-                title="Packaging, Weight, Branding & Dietary Specs"
-                badge="1-Click Selection"
+                title="Quick Product Specs"
+                badge="1-Click"
               />
 
-              {/* Branding Mode: Private Label vs Supplier Brand */}
-              <FieldGroup>
-                <Label>Is this Private Label or Branded with the Supplier&apos;s Brand?</Label>
-                <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-                  {[
-                    { value: "private_label" as const, label: "🏷️ Private Label (My Brand)", desc: "Manufactured under your brand" },
-                    { value: "supplier_brand" as const, label: "🏭 Supplier's Brand", desc: "Manufacturer's existing brand" },
-                    { value: "both" as const, label: "🤝 Open to Both", desc: "Private label or branded" },
-                  ].map((item) => (
-                    <button
-                      key={item.value}
-                      type="button"
-                      onClick={() => {
-                        setBrandingMode(item.value);
-                        setPrivateLabel(item.value === "private_label");
-                      }}
-                      className={`rounded-xl border p-3 text-left transition ${
-                        brandingMode === item.value
-                          ? "border-orange-500 bg-orange-500/15 text-slate-100"
-                          : "border-white/10 bg-[#0f172a] text-slate-300 hover:border-white/25"
-                      }`}
-                    >
-                      <p className="text-xs font-semibold">{item.label}</p>
-                      <p className="mt-0.5 text-[11px] text-slate-400">{item.desc}</p>
-                    </button>
-                  ))}
-                </div>
-              </FieldGroup>
+              {/* Branding Mode Toggle */}
+              <div className="grid grid-cols-3 gap-2">
+                {[
+                  { value: "private_label" as const, label: "🏷️ Private Label" },
+                  { value: "supplier_brand" as const, label: "🏭 Supplier Brand" },
+                  { value: "both" as const, label: "🤝 Either / Both" },
+                ].map((item) => (
+                  <button
+                    key={item.value}
+                    type="button"
+                    onClick={() => {
+                      setBrandingMode(item.value);
+                      setPrivateLabel(item.value === "private_label");
+                    }}
+                    className={`rounded-xl border py-2.5 px-3 text-center text-xs font-semibold transition ${
+                      brandingMode === item.value
+                        ? "border-orange-500 bg-orange-500/15 text-orange-200"
+                        : "border-white/10 bg-[#0f172a] text-slate-300 hover:border-white/25"
+                    }`}
+                  >
+                    {item.label}
+                  </button>
+                ))}
+              </div>
 
-              {/* Packaging Format & Hardware Presets */}
+              {/* Packaging & Hardware */}
               <FieldGroup>
-                <Label htmlFor="packaging">
-                  Packaging format & dispensing hardware{" "}
-                  <span className="font-normal text-slate-400">(bottle, glass, 5kg box + pump, sachets)</span>
-                </Label>
+                <Label htmlFor="packaging">Packaging &amp; Dispenser Format</Label>
                 <input
                   id="packaging"
                   type="text"
                   value={packaging}
                   onChange={(event) => setPackaging(event.target.value)}
-                  placeholder="e.g. 5kg plastic catering box with dispenser pump (Burger King style), or 400ml squeeze bottle"
-                  className={inputClass()}
+                  placeholder="e.g. 5kg catering box + pump, squeeze bottle, glass jar, sachets..."
+                  className={inputClass("py-2.5")}
                 />
-                <div className="flex flex-wrap gap-1.5 pt-1">
+                <div className="flex flex-wrap gap-1.5">
                   {PACKAGING_PRESETS.map((preset) => (
                     <button
                       key={preset}
                       type="button"
                       onClick={() => setPackaging(preset)}
-                      className={`rounded-lg border px-2.5 py-1 text-xs transition ${
+                      className={`rounded-lg border px-2.5 py-1 text-[11px] transition ${
                         packaging === preset
                           ? "border-orange-500 bg-orange-500/20 text-orange-300"
                           : "border-white/10 bg-white/5 text-slate-400 hover:border-white/25 hover:text-slate-200"
@@ -1547,42 +1447,39 @@ export default function SourcingRequestForm({
                 </div>
               </FieldGroup>
 
-              {/* Unit Weight & Number of Products */}
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              {/* Weight & SKU Count */}
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <FieldGroup>
-                  <Label htmlFor="unitWeight">Unit weight / pack size</Label>
+                  <Label htmlFor="unitWeight">Unit Weight / Size</Label>
                   <input
                     id="unitWeight"
                     type="text"
                     value={unitWeight}
                     onChange={(e) => setUnitWeight(e.target.value)}
-                    placeholder="e.g. 5kg, 400g, 750ml, 10g sachets"
-                    className={inputClass()}
+                    placeholder="e.g. 5kg, 400g, 750ml, 10g"
+                    className={inputClass("py-2.5")}
                   />
                 </FieldGroup>
 
                 <FieldGroup>
-                  <Label htmlFor="productCount">How many products / variants?</Label>
+                  <Label htmlFor="productCount">Number of Products</Label>
                   <select
                     id="productCount"
                     value={productCount}
                     onChange={(e) => setProductCount(e.target.value)}
-                    className={inputClass()}
+                    className={inputClass("py-2.5")}
                   >
-                    <option value="1 single product">1 single product</option>
-                    <option value="2–3 pack sizes / variants">2–3 pack sizes / variants</option>
-                    <option value="Full range (4+ SKUs / flavours)">Full range (4+ SKUs / flavours)</option>
+                    <option value="1 single product">1 Product (Single SKU)</option>
+                    <option value="2–3 pack sizes / variants">2–3 Products / Variants</option>
+                    <option value="Full range (4+ SKUs / flavours)">4+ Products (Full Line)</option>
                   </select>
                 </FieldGroup>
               </div>
 
-              {/* Kosher & Dietary / Functional Claims */}
+              {/* Dietary & Functional Chips */}
               <FieldGroup>
-                <Label>
-                  Dietary, Health & Functional Claims{" "}
-                  <span className="font-normal text-slate-400">(select all that apply)</span>
-                </Label>
-                <div className="flex flex-wrap gap-2">
+                <Label>Dietary &amp; Health Claims</Label>
+                <div className="flex flex-wrap gap-1.5">
                   {DIETARY_PRESETS.map((claim) => {
                     const active = dietaryClaims.includes(claim);
                     return (
@@ -1590,7 +1487,7 @@ export default function SourcingRequestForm({
                         key={claim}
                         type="button"
                         onClick={() => toggleDietaryClaim(claim)}
-                        className={`rounded-xl border px-3 py-1.5 text-xs font-medium transition ${
+                        className={`rounded-lg border px-2.5 py-1 text-xs font-medium transition ${
                           active
                             ? "border-emerald-500 bg-emerald-500/20 text-emerald-200"
                             : "border-white/10 bg-[#0f172a] text-slate-400 hover:border-white/25 hover:text-slate-200"
@@ -1604,14 +1501,15 @@ export default function SourcingRequestForm({
                 </div>
               </FieldGroup>
 
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              {/* Kosher, Category & Volume in a compact grid */}
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                 <FieldGroup>
-                  <Label htmlFor="kosherSelect">Kosher certification level</Label>
+                  <Label htmlFor="kosherSelect">Kosher</Label>
                   <select
                     id="kosherSelect"
                     value={kosher}
                     onChange={(e) => setKosher(e.target.value as KosherOption)}
-                    className={inputClass()}
+                    className={inputClass("py-2.5")}
                   >
                     {KOSHER_OPTIONS.map((option) => (
                       <option key={option.value} value={option.value}>
@@ -1622,14 +1520,14 @@ export default function SourcingRequestForm({
                 </FieldGroup>
 
                 <FieldGroup>
-                  <Label htmlFor="category">Product category</Label>
+                  <Label htmlFor="category">Category</Label>
                   <select
                     id="category"
                     value={category}
                     onChange={(event) => setCategory(event.target.value)}
-                    className={inputClass()}
+                    className={inputClass("py-2.5")}
                   >
-                    <option value="">Auto-detect with AI…</option>
+                    <option value="">Auto-detect (AI)</option>
                     {CATEGORY_OPTIONS.map((option) => (
                       <option key={option} value={option}>
                         {option}
@@ -1637,125 +1535,40 @@ export default function SourcingRequestForm({
                     ))}
                   </select>
                 </FieldGroup>
+
+                <FieldGroup>
+                  <Label htmlFor="volume">Annual Volume</Label>
+                  <div className="flex items-center gap-1.5">
+                    <input
+                      id="volume"
+                      type="number"
+                      min={1}
+                      max={99999}
+                      value={volume}
+                      onChange={(event) => setVolume(event.target.value)}
+                      placeholder="20"
+                      className={inputClass("py-2.5 px-3")}
+                    />
+                    <select
+                      value={volumeUnit}
+                      onChange={(event) =>
+                        setVolumeUnit(event.target.value as (typeof VOLUME_UNIT_OPTIONS)[number]["value"])
+                      }
+                      className={inputClass("py-2.5 px-2 text-xs")}
+                      aria-label="Volume unit"
+                    >
+                      {VOLUME_UNIT_OPTIONS.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.value}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </FieldGroup>
               </div>
 
-              <FieldGroup>
-                <Label htmlFor="volume">
-                  Estimated annual volume <span className="font-normal text-slate-500">(optional)</span>
-                </Label>
-                <div className="flex items-center gap-2">
-                  <input
-                    id="volume"
-                    type="number"
-                    min={1}
-                    max={99999}
-                    value={volume}
-                    onChange={(event) => setVolume(event.target.value)}
-                    placeholder="e.g. 20"
-                    className={inputClass()}
-                    style={{ maxWidth: "150px" }}
-                  />
-                  <select
-                    value={volumeUnit}
-                    onChange={(event) =>
-                      setVolumeUnit(event.target.value as (typeof VOLUME_UNIT_OPTIONS)[number]["value"])
-                    }
-                    className={inputClass()}
-                    style={{ maxWidth: "170px" }}
-                    aria-label="Volume unit"
-                  >
-                    {VOLUME_UNIT_OPTIONS.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </FieldGroup>
-
-              {/* ── WARM SELLER / AGENT SOURCING BRIEF PREVIEW ── */}
-              {sellerBriefText && (
-                <div className="rounded-2xl border border-orange-500/30 bg-[#0b1324] p-5">
-                  <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                    <div>
-                      <span className="text-xs font-bold uppercase tracking-wider text-orange-400">
-                        🤝 Warm Seller / Agent Sourcing Brief
-                      </span>
-                      <p className="text-xs text-slate-400">
-                        Written in a friendly, clear tone for manufacturers & sourcing agents — used for automatic matching.
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => void runConciergeAnalysis()}
-                        disabled={conciergeLoading}
-                        className="rounded-lg border border-white/15 bg-white/5 px-2.5 py-1 text-xs text-slate-300 hover:bg-white/10"
-                      >
-                        ↻ Refresh Brief
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setIsEditingBrief((prev) => !prev)}
-                        className="rounded-lg border border-orange-500/30 bg-orange-500/10 px-2.5 py-1 text-xs text-orange-300 hover:bg-orange-500/20"
-                      >
-                        {isEditingBrief ? "Done Editing" : "✎ Edit Brief"}
-                      </button>
-                    </div>
-                  </div>
-
-                  {isEditingBrief ? (
-                    <textarea
-                      rows={8}
-                      value={sellerBriefText}
-                      onChange={(e) => setSellerBriefText(e.target.value)}
-                      className={inputClass("font-sans text-xs leading-relaxed")}
-                    />
-                  ) : (
-                    <pre className="whitespace-pre-wrap rounded-xl border border-white/5 bg-slate-950/70 p-4 font-sans text-xs leading-relaxed text-slate-200">
-                      {sellerBriefText}
-                    </pre>
-                  )}
-                </div>
-              )}
-
-              <FieldGroup>
-                <Label>
-                  Reference product / catalogue link <span className="font-normal text-slate-500">(optional)</span>
-                </Label>
-                {urls.map((url, index) => (
-                  <div key={index} className="mb-1 flex items-center gap-2">
-                    <input
-                      type="url"
-                      value={url}
-                      onChange={(event) => updateUrl(index, event.target.value)}
-                      placeholder="https://..."
-                      className={inputClass()}
-                    />
-                    {urls.length > 1 && (
-                      <button
-                        type="button"
-                        onClick={() => removeUrlInput(index)}
-                        className="px-1 text-lg leading-none text-slate-400 hover:text-red-400"
-                      >
-                        ×
-                      </button>
-                    )}
-                  </div>
-                ))}
-                {urls.length < 5 && (
-                  <button
-                    type="button"
-                    onClick={addUrlInput}
-                    className="mt-1 text-xs text-orange-400 hover:text-orange-300"
-                  >
-                    + Add another reference link
-                  </button>
-                )}
-              </FieldGroup>
-
               {/* ── STEP 4: BUYER CONTACT DETAILS ── */}
-              <SectionHeader n={4} title="Your Contact Details" />
+              <SectionHeader n={4} title="Where Should We Send Your Matches?" />
 
               <ContactFields
                 name={name}
@@ -1805,7 +1618,7 @@ export default function SourcingRequestForm({
                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
                       </svg>
-                      Matching & Sending Your Brief...
+                      Matching Suppliers...
                     </>
                   ) : anyUploading ? (
                     <>
@@ -1813,10 +1626,10 @@ export default function SourcingRequestForm({
                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
                       </svg>
-                      Uploading benchmark photos...
+                      Uploading photos...
                     </>
                   ) : (
-                    "Submit Sourcing Brief & Match Suppliers →"
+                    "Match Verified Manufacturers →"
                   )}
                 </button>
               </div>
