@@ -7,6 +7,7 @@ import {
   linkCatalogueProductToRequest,
   duplicateCatalogueProduct,
 } from "@/app/admin/catalogue/actions";
+import ProductTearSheetModal from "@/components/admin/ProductTearSheetModal";
 
 type OpenRequest = {
   id: string;
@@ -43,6 +44,7 @@ export default function CatalogueGrid({ products, openRequests, linkedCounts }: 
   const [activeTab, setActiveTab] = useState<Tab>("all");
   const [busyId, setBusyId] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  const [selectedTearSheetProduct, setSelectedTearSheetProduct] = useState<CatalogueProduct | null>(null);
 
   useEffect(() => {
     if (!toast) return;
@@ -186,6 +188,13 @@ export default function CatalogueGrid({ products, openRequests, linkedCounts }: 
                   >
                     Duplicate
                   </button>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedTearSheetProduct(product)}
+                    className="text-xs text-emerald-600 hover:text-emerald-700 font-medium transition"
+                  >
+                    Tear Sheet
+                  </button>
                 </div>
 
                 {/* Link to request */}
@@ -212,6 +221,14 @@ export default function CatalogueGrid({ products, openRequests, linkedCounts }: 
             </div>
           ))}
         </div>
+      )}
+
+      {/* Product Tear Sheet Modal */}
+      {selectedTearSheetProduct && (
+        <ProductTearSheetModal
+          data={selectedTearSheetProduct}
+          onClose={() => setSelectedTearSheetProduct(null)}
+        />
       )}
 
       {/* Toast */}

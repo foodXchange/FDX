@@ -44,6 +44,29 @@ export async function updateMatchStage(
       return { ok: false, error: updateError.message };
     }
 
+    // If sent, log notification and schedule 72h reminder
+    if (nextStatus === "sent") {
+      const { data: match } = await supabaseAdmin
+        .from("sourcing_matches")
+        .select("supplier_id, request_id, product_name, company_name")
+        .eq("id", matchId)
+        .single();
+
+      if (match) {
+        void createNotification(
+          "match_sent",
+          `Outreach sent to ${match.company_name} for ${match.product_name}`,
+          `Sent via ${details?.sent_via || "whatsapp"}. Follow-up due in 72 hours.`,
+          {
+            match_id: matchId,
+            supplier_id: match.supplier_id,
+            request_id: match.request_id,
+            channel: details?.sent_via || "whatsapp",
+          }
+        );
+      }
+    }
+
     // If approving, generate outreach message if not yet generated
     let generatedMessage: string | undefined;
     if (nextStatus === "approved") {

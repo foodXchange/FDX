@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { type PipelineRow } from "./PipelineTable";
 import { updateMatchStage } from "./actions";
+import ProductTearSheetModal from "@/components/admin/ProductTearSheetModal";
 
 interface DealActionModalProps {
   deal: PipelineRow | null;
@@ -25,6 +26,7 @@ export default function DealActionModal({
   const [responseNote, setResponseNote] = useState("");
   const [rejectReason, setRejectReason] = useState("");
   const [copied, setCopied] = useState(false);
+  const [showTearSheet, setShowTearSheet] = useState(false);
 
   const defaultOutreach =
     deal.whatsapp_message ||
@@ -268,9 +270,33 @@ export default function DealActionModal({
                   View Supplier Profile →
                 </Link>
               </div>
+
+              <div className="pt-2 border-t border-gray-100">
+                <button
+                  type="button"
+                  onClick={() => setShowTearSheet(true)}
+                  className="w-full py-2 px-3 text-xs font-semibold rounded-lg bg-orange-50 text-orange-700 border border-orange-200 hover:bg-orange-100 transition-colors flex items-center justify-center gap-1.5"
+                >
+                  <span>📄 Generate Israeli Buyer Tear Sheet (Print / PDF)</span>
+                </button>
+              </div>
             </div>
           )}
         </div>
+
+        {/* Tear Sheet Modal */}
+        {showTearSheet && (
+          <ProductTearSheetModal
+            data={{
+              product_name: deal.product_name,
+              supplier_name: deal.company_name,
+              country_of_origin: deal.country,
+              buyer_company: deal.buyer_company,
+              internal_notes: `Matched Deal #${deal.id.slice(0, 8)} (${deal.match_score}% fit score). Sourced for buyer requirement: ${deal.buyer_product || deal.product_name}.`,
+            }}
+            onClose={() => setShowTearSheet(false)}
+          />
+        )}
 
         {/* Footer */}
         <div className="px-6 py-3.5 border-t border-gray-100 bg-gray-50/50 flex items-center justify-end gap-2">

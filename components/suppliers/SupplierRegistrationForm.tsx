@@ -211,6 +211,39 @@ export default function SupplierRegistrationForm() {
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [extractingAi, setExtractingAi] = useState(false);
+  const [aiExtractedSuccess, setAiExtractedSuccess] = useState(false);
+
+  async function handleAutoExtract() {
+    if (!website.trim() || extractingAi) return;
+    setExtractingAi(true);
+    setAiExtractedSuccess(false);
+    try {
+      const res = await fetch("/api/supplier/auto-extract", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ website: website.trim() }),
+      });
+      const json = await res.json();
+      if (json.ok && json.data) {
+        const d = json.data;
+        if (d.company_name && !companyName) setCompanyName(d.company_name);
+        if (d.country) setCountry(d.country);
+        if (Array.isArray(d.categories) && d.categories.length > 0) setCategories(d.categories);
+        if (d.products_description) setProductsDescription(d.products_description);
+        if (Array.isArray(d.certifications) && d.certifications.length > 0) setQualityCerts(d.certifications);
+        if (typeof d.private_label === "boolean") setPrivateLabel(d.private_label);
+        setAiExtractedSuccess(true);
+        setTimeout(() => setAiExtractedSuccess(false), 8000);
+      } else {
+        alert(json.error || "Could not auto-extract details from this website.");
+      }
+    } catch {
+      alert("Extraction network error. Please continue manually.");
+    } finally {
+      setExtractingAi(false);
+    }
+  }
 
   const formRef = useRef<HTMLDivElement>(null);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -483,16 +516,55 @@ export default function SupplierRegistrationForm() {
             </div>
 
             <div>
-              <Label htmlFor="website">Website</Label>
-              <input
-                id="website"
-                type="text"
-                value={website}
-                onChange={(e) => setWebsite(e.target.value)}
-                placeholder="https://yourcompany.com"
-                className={inputCls()}
-              />
-              <Helper>Optional, but helps us review your products faster.</Helper>
+              <div className="flex items-center justify-between mb-1.5">
+                <Label htmlFor="website">Website</Label>
+                {website.trim() && (
+                  <button
+                    type="button"
+                    onClick={handleAutoExtract}
+                    disabled={extractingAi}
+                    className="text-xs font-bold text-orange-400 hover:text-orange-300 transition-colors flex items-center gap-1 disabled:opacity-50"
+                  >
+                    <span>{extractingAi ? "↻ Scanning..." : "⚡ Auto-Fill form with AI"}</span>
+                  </button>
+                )}
+              </div>
+              <div className="flex gap-2">
+                <input
+                  id="website"
+                  type="text"
+                  value={website}
+                  onChange={(e) => setWebsite(e.target.value)}
+                  placeholder="https://yourcompany.com"
+                  className={inputCls("flex-1")}
+                />
+                <button
+                  type="button"
+                  disabled={!website.trim() || extractingAi}
+                  onClick={handleAutoExtract}
+                  className="px-3.5 py-2 rounded-xl bg-orange-500/15 hover:bg-orange-500/25 border border-orange-500/30 text-orange-400 font-bold text-xs disabled:opacity-40 transition-all flex items-center gap-1.5 shrink-0"
+                  title="Scan your website and pre-fill products, categories and factory details"
+                >
+                  {extractingAi ? (
+                    <>
+                      <span className="animate-spin">↻</span>
+                      <span>Scanning...</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>⚡</span>
+                      <span>Auto-Fill (AI)</span>
+                    </>
+                  )}
+                </button>
+              </div>
+              {aiExtractedSuccess && (
+                <p className="mt-2 text-xs font-bold text-emerald-400 bg-emerald-950/50 border border-emerald-500/30 rounded-lg px-3 py-1.5 flex items-center gap-1.5 animate-in fade-in">
+                  <span>✓</span>
+                  <span>Pre-filled company profile, categories &amp; product description from website!</span>
+                </p>
+              )}
+              <Helper>Enter your website and click Auto-Fill to save time.</Helper>
             </div>
 
             <div>
