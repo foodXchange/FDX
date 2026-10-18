@@ -21,6 +21,7 @@ export type MatchRow = {
   rejected_at: string | null;
   sent_at: string | null;
   sent_via: string | null;
+  buyer_interest_at?: string | null;
   supplier_responded_at: string | null;
   supplier_message?: string | null;
   product_image_url?: string | null;
@@ -38,6 +39,17 @@ export type MatchRow = {
     followup_count?: number;
     last_reply_snippet?: string;
     last_reply_from?: string;
+    buyer_interested?: boolean;
+    buyer_proposal_note?: string;
+    supplier_quote?: {
+      response_type?: string;
+      indicative_price?: string | null;
+      moq?: string | null;
+      lead_time?: string | null;
+      label_option?: string | null;
+      confirmed_certs?: string[];
+      samples_available?: string | null;
+    };
   } | null;
   request: {
     id: string;
@@ -88,7 +100,7 @@ export default async function MatchesPage() {
         .select(
           `id, request_id, supplier_id, match_score, product_name, company_name,
            country, match_summary, whatsapp_message, status, approved_at, rejected_at,
-           sent_at, sent_via, supplier_responded_at, supplier_message,
+           sent_at, sent_via, buyer_interest_at, supplier_responded_at, supplier_message,
            match_breakdown,
            request:sourcing_requests(id, product_name, company, email, category, kosher_type, certifications, volume_per_year, packaging_preference, message, ai_analysis),
            supplier:supplier_offerings(id, company_name, country_of_origin, logo_url, website, contact_email, contact_phone, certifications, kosher_types, trust_score)`

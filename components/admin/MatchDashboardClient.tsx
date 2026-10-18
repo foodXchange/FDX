@@ -1000,6 +1000,9 @@ export default function MatchDashboardClient({
             const followUpDueInGroup = group.items.filter(
               (i) => getMatchBucket(i) === "followup_due"
             );
+            const repliedInGroup = group.items.filter(
+              (i) => getMatchBucket(i) === "replied"
+            );
 
             return (
               <div
@@ -1072,6 +1075,18 @@ export default function MatchDashboardClient({
 
                   {/* Request-level quick actions */}
                   <div className="flex flex-wrap items-center gap-2 shrink-0">
+                    {repliedInGroup.length > 0 && (
+                      <button
+                        type="button"
+                        disabled={creatingProposal}
+                        onClick={() =>
+                          handleCreateProposal(repliedInGroup.map((r) => r.id))
+                        }
+                        className="text-xs font-bold px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white transition"
+                      >
+                        📋 Send {repliedInGroup.length} Repl{repliedInGroup.length === 1 ? "y" : "ies"} as Proposal ↗
+                      </button>
+                    )}
                     {followUpDueInGroup.length > 0 && (
                       <button
                         type="button"
@@ -1116,6 +1131,74 @@ export default function MatchDashboardClient({
                     )}
                   </div>
                 </div>
+
+                {/* Side-by-Side Supplier Quote Comparison Strip (when >=1 supplier replied) */}
+                {repliedInGroup.length > 0 && (
+                  <div className="bg-emerald-50/70 border-b border-emerald-200/80 px-5 py-3">
+                    <div className="flex items-center justify-between gap-2 mb-2">
+                      <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-800">
+                        🟢 Replied Supplier Quotes Comparison ({repliedInGroup.length})
+                      </span>
+                      <span className="text-[11px] text-emerald-700">
+                        Compare commercial terms side-by-side before sending Buyer Proposal
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2.5">
+                      {repliedInGroup.map((rm) => {
+                        const q = rm.match_breakdown?.supplier_quote;
+                        const buyerPicked =
+                          Boolean(rm.buyer_interest_at) ||
+                          Boolean(rm.match_breakdown?.buyer_interested);
+                        return (
+                          <div
+                            key={rm.id}
+                            className="bg-white border border-emerald-200 rounded-xl p-3 shadow-2xs flex flex-col justify-between gap-2"
+                          >
+                            <div>
+                              <div className="flex items-center justify-between gap-2">
+                                <span className="text-xs font-bold text-slate-900 truncate">
+                                  {rm.company_name ?? rm.supplier?.company_name ?? "Supplier"}
+                                </span>
+                                <span className="text-[11px] font-bold bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full">
+                                  {rm.match_score}/100
+                                </span>
+                              </div>
+                              <p className="text-[11px] text-slate-600 truncate mt-0.5">
+                                {rm.product_name}
+                              </p>
+                              {buyerPicked && (
+                                <span className="inline-block mt-1 text-[10px] font-bold bg-purple-100 text-purple-800 border border-purple-200 px-2 py-0.5 rounded-full">
+                                  💎 Buyer Requested Samples / Quote
+                                </span>
+                              )}
+                            </div>
+
+                            <div className="grid grid-cols-3 gap-1.5 bg-slate-50 rounded-lg p-2 text-[11px]">
+                              <div>
+                                <span className="text-slate-400 block text-[10px]">Price</span>
+                                <span className="font-semibold text-slate-800 truncate block">
+                                  {q?.indicative_price || "See reply"}
+                                </span>
+                              </div>
+                              <div>
+                                <span className="text-slate-400 block text-[10px]">MOQ</span>
+                                <span className="font-semibold text-slate-800 truncate block">
+                                  {q?.moq || "—"}
+                                </span>
+                              </div>
+                              <div>
+                                <span className="text-slate-400 block text-[10px]">Lead Time</span>
+                                <span className="font-semibold text-slate-800 truncate block">
+                                  {q?.lead_time || "—"}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
 
                 {/* Matched Supplier Products List (Ranked 100 -> 10) */}
                 <div className="divide-y divide-gray-100">

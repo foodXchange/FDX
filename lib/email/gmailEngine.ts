@@ -1,6 +1,7 @@
 import nodemailer from "nodemailer";
 import { ImapFlow } from "imapflow";
 import { Resend } from "resend";
+import { GoogleGenAI } from "@google/genai";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
 export interface GmailCredentials {
@@ -279,6 +280,98 @@ export interface SyncedReplyItem {
   receivedAt: string;
 }
 
+interface ParsedSupplierReply {
+  responseType: "accepted" | "countered" | "declined";
+  englishSummary: string;
+  indicativePrice: string | null;
+  moq: string | null;
+  leadTime: string | null;
+  confirmedCerts: string[];
+  samplesAvailable: string | null;
+}
+
+async function parseSupplierReplyWithAI(
+  rawText: string,
+  subject: string
+): Promise<ParsedSupplierReply> {
+  const fallback: ParsedSupplierReply = {
+    responseType: "accepted",
+    englishSummary: rawText.slice(0, 400),
+    indicativePrice: null,
+    moq: null,
+    leadTime: null,
+    confirmedCerts: [],
+    samplesAvailable: null,
+  };
+
+  if (!process.env.GEMINI_API_KEY || rawText.length < 10) {
+    return fallback;
+  }
+
+  try {
+    const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+    const prompt = `You are a B2B food sourcing analyst. Parse the following supplier email reply (which may be in English, Spanish, Italian, German, French, Greek, Turkish, or Hebrew).
+Translate/summarize the core commercial response into clear English and extract any commercial terms mentioned.
+
+Subject: ${subject}
+Body:
+${rawText.slice(0, 1500)}
+
+Return ONLY valid JSON with this exact shape:
+{
+  "responseType": "accepted" | "countered" | "declined",
+  "englishSummary": "Concise 1-3 sentence English summary of the supplier's reply",
+  "indicativePrice": "Extracted price & currency/incoterm if mentioned, else null",
+  "moq": "Extracted MOQ if mentioned, else null",
+  "leadTime": "Extracted lead time if mentioned, else null",
+  "confirmedCerts": ["Array of confirmed certifications like Kosher, IFS, BRC, Organic, Halal"],
+  "samplesAvailable": "Extracted sample availability if mentioned, else null"
+}`;
+
+    const res = await ai.models.generateContent({
+      model: "gemini-2.5-flash",
+      contents: prompt,
+      config: {
+        responseMimeType: "application/json",
+        temperature: 0.1,
+      },
+    });
+
+    const parsed = JSON.parse(res.text ?? "{}") as Partial<ParsedSupplierReply>;
+    return {
+      responseType:
+        parsed.responseType === "declined" || parsed.responseType === "countered"
+          ? parsed.responseType
+          : "accepted",
+      englishSummary:
+        typeof parsed.englishSummary === "string" && parsed.englishSummary.trim()
+          ? parsed.englishSummary.trim()
+          : fallback.englishSummary,
+      indicativePrice:
+        typeof parsed.indicativePrice === "string" && parsed.indicativePrice.trim()
+          ? parsed.indicativePrice.trim()
+          : null,
+      moq:
+        typeof parsed.moq === "string" && parsed.moq.trim()
+          ? parsed.moq.trim()
+          : null,
+      leadTime:
+        typeof parsed.leadTime === "string" && parsed.leadTime.trim()
+          ? parsed.leadTime.trim()
+          : null,
+      confirmedCerts: Array.isArray(parsed.confirmedCerts)
+        ? parsed.confirmedCerts.filter((c): c is string => typeof c === "string")
+        : [],
+      samplesAvailable:
+        typeof parsed.samplesAvailable === "string" && parsed.samplesAvailable.trim()
+          ? parsed.samplesAvailable.trim()
+          : null,
+    };
+  } catch {
+    return fallback;
+  }
+}
+
 /**
  * Connects to Gmail IMAP (`imap.gmail.com`) and scans recent inbox messages
  * for supplier replies matching `[FDX-xxxxxxxx]` reference tags or contacted supplier emails.
@@ -307,7 +400,7 @@ export async function syncGmailInboxReplies(): Promise<{
       `id, supplier_id, company_name, status, sent_at, supplier_responded_at, match_breakdown,
        supplier:supplier_offerings(contact_email)`
     )
-    .in("status", ["sent", "approved", "responded", "pending"])
+    .in("status", ["sent", "rfq_sent", "approved", "responded", "pending"])
     .limit(500);
 
   const matchesList = ((activeMatches ?? []) as unknown) as Array<{
@@ -379,22 +472,22 @@ export async function syncGmailInboxReplies(): Promise<{
             : new Date().toISOString();
 
           // Extract plain text snippet from raw email source
-          let snippet = "";
+          let rawSnippet = "";
           if (msg.source) {
             const rawStr = msg.source.toString("utf-8");
             const bodyStart = rawStr.indexOf("\r\n\r\n");
             if (bodyStart !== -1) {
-              snippet = rawStr
+              rawSnippet = rawStr
                 .slice(bodyStart + 4)
                 .replace(/=\r?\n/g, "")
                 .replace(/<[^>]+>/g, " ")
                 .replace(/\s+/g, " ")
                 .trim()
-                .slice(0, 400);
+                .slice(0, 1200);
             }
           }
-          if (!snippet) {
-            snippet = `Reply received from ${fromAddr}: "${subj}"`;
+          if (!rawSnippet) {
+            rawSnippet = `Reply received from ${fromAddr}: "${subj}"`;
           }
 
           const existingRespondedAt = matchedRecord.supplier_responded_at;
@@ -404,21 +497,68 @@ export async function syncGmailInboxReplies(): Promise<{
               new Date(existingRespondedAt).getTime();
 
           if (isNewer || matchedRecord.status !== "responded") {
+            const aiParsed = await parseSupplierReplyWithAI(rawSnippet, subj);
+            const prevQuote =
+              matchedRecord.match_breakdown &&
+              typeof matchedRecord.match_breakdown.supplier_quote === "object" &&
+              matchedRecord.match_breakdown.supplier_quote !== null
+                ? (matchedRecord.match_breakdown.supplier_quote as Record<
+                    string,
+                    unknown
+                  >)
+                : {};
+
+            const mergedQuote = {
+              ...prevQuote,
+              response_type: aiParsed.responseType,
+              indicative_price:
+                aiParsed.indicativePrice ?? prevQuote.indicative_price ?? null,
+              moq: aiParsed.moq ?? prevQuote.moq ?? null,
+              lead_time: aiParsed.leadTime ?? prevQuote.lead_time ?? null,
+              confirmed_certs:
+                aiParsed.confirmedCerts.length > 0
+                  ? aiParsed.confirmedCerts
+                  : (prevQuote.confirmed_certs as string[] | undefined) ?? [],
+              samples_available:
+                aiParsed.samplesAvailable ?? prevQuote.samples_available ?? null,
+              contact_email: fromAddr,
+              submitted_at: msgDate,
+            };
+
+            const termsLine = [
+              mergedQuote.indicative_price
+                ? `Price: ${String(mergedQuote.indicative_price)}`
+                : null,
+              mergedQuote.moq ? `MOQ: ${String(mergedQuote.moq)}` : null,
+              mergedQuote.lead_time
+                ? `Lead Time: ${String(mergedQuote.lead_time)}`
+                : null,
+            ]
+              .filter(Boolean)
+              .join(" · ");
+
+            const formattedSnippet = termsLine
+              ? `${aiParsed.englishSummary} (${termsLine})`
+              : aiParsed.englishSummary;
+
             const updatedBreakdown = {
               ...(matchedRecord.match_breakdown ?? {}),
               last_reply_from: fromAddr,
               last_reply_subject: subj,
-              last_reply_snippet: snippet,
+              last_reply_snippet: formattedSnippet.slice(0, 450),
               last_reply_at: msgDate,
+              supplier_quote: mergedQuote,
             };
 
             await supabaseAdmin
               .from("sourcing_matches")
               .update({
-                status: "responded",
+                status:
+                  aiParsed.responseType === "declined" ? "rejected" : "responded",
+                supplier_response: aiParsed.responseType,
                 supplier_responded_at: msgDate,
                 responded_at: msgDate,
-                supplier_message: snippet,
+                supplier_message: formattedSnippet.slice(0, 1000),
                 match_breakdown: updatedBreakdown,
               })
               .eq("id", matchedRecord.id);
@@ -426,7 +566,7 @@ export async function syncGmailInboxReplies(): Promise<{
             await supabaseAdmin.from("match_messages").insert({
               match_id: matchedRecord.id,
               sender_type: "supplier",
-              message: `[Gmail Reply from ${fromAddr}]\n${snippet}`,
+              message: `[Gmail Reply from ${fromAddr}]\nSummary: ${formattedSnippet}\n\nRaw Excerpt:\n${rawSnippet.slice(0, 500)}`,
             });
 
             syncedReplies.push({
@@ -434,7 +574,7 @@ export async function syncGmailInboxReplies(): Promise<{
               supplierName: matchedRecord.company_name,
               fromEmail: fromAddr,
               subject: subj,
-              snippet,
+              snippet: formattedSnippet,
               receivedAt: msgDate,
             });
           }

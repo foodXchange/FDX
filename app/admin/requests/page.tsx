@@ -23,6 +23,8 @@ export type RequestRow = {
   images: { url: string }[];
   match_count: number;
   best_match_score: number | null;
+  sent_count?: number;
+  replied_count?: number;
   is_published?: boolean | null;
   published_product_name?: string | null;
   published_message?: string | null;
@@ -57,18 +59,38 @@ export default async function AdminRequestsPage() {
     requestIds.length > 0
       ? await supabaseAdmin
           .from("sourcing_matches")
-          .select("request_id, match_score")
+          .select("request_id, match_score, status, sent_at, supplier_responded_at")
           .in("request_id", requestIds)
           .neq("status", "rejected")
       : { data: [] };
 
   const matchCountMap = new Map<string, number>();
   const bestScoreMap = new Map<string, number>();
+  const sentCountMap = new Map<string, number>();
+  const repliedCountMap = new Map<string, number>();
   for (const m of matchDataResult.data ?? []) {
-    const row = m as { request_id: string; match_score: number };
+    const row = m as {
+      request_id: string;
+      match_score: number;
+      status: string | null;
+      sent_at: string | null;
+      supplier_responded_at: string | null;
+    };
     matchCountMap.set(row.request_id, (matchCountMap.get(row.request_id) ?? 0) + 1);
     const current = bestScoreMap.get(row.request_id) ?? 0;
     if (row.match_score > current) bestScoreMap.set(row.request_id, row.match_score);
+    if (row.status === "responded" || row.supplier_responded_at) {
+      repliedCountMap.set(
+        row.request_id,
+        (repliedCountMap.get(row.request_id) ?? 0) + 1
+      );
+    } else if (
+      row.status === "sent" ||
+      row.status === "rfq_sent" ||
+      row.sent_at
+    ) {
+      sentCountMap.set(row.request_id, (sentCountMap.get(row.request_id) ?? 0) + 1);
+    }
   }
 
   const imageMap = new Map<string, { url: string }[]>();
@@ -98,7 +120,9 @@ export default async function AdminRequestsPage() {
     images: imageMap.get(r.id) ?? [],
     match_count: matchCountMap.get(r.id) ?? 0,
     best_match_score: bestScoreMap.get(r.id) ?? null,
-    buyer_logo_url: r.buyer_id ? buyerLogoMap.get(r.buyer_id) ?? null : null,
+    sent_count: sentCountMap.get(r.id) ?? 0,
+    replied_count: repliedCountMap.get(r.id) ?? 0,
+    buyer_logo_url: r.buyer_id ? buyerLogoMap.get(r.id) ?? null : null,
   }));
 
   const totalCount = requests.length;

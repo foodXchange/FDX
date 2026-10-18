@@ -580,12 +580,32 @@ export default function RequestsTable({ requests }: Props) {
                   {/* Matches */}
                   <td className="px-3 py-3">
                     {effectiveMatchCount > 0 ? (
-                      <span className="text-xs font-medium text-green-600">
-                        {effectiveMatchCount} match{effectiveMatchCount !== 1 ? "es" : ""}
-                        {req.best_match_score
-                          ? ` · best ${req.best_match_score}%`
-                          : ""}
-                      </span>
+                      <div className="space-y-1">
+                        <span className="text-xs font-medium text-green-600 block">
+                          {effectiveMatchCount} match{effectiveMatchCount !== 1 ? "es" : ""}
+                          {req.best_match_score
+                            ? ` · best ${req.best_match_score}%`
+                            : ""}
+                        </span>
+                        <div className="flex flex-wrap gap-1">
+                          {(req.replied_count ?? 0) > 0 && (
+                            <span className="text-[10px] font-bold bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded-md">
+                              🟢 {req.replied_count} Replied
+                            </span>
+                          )}
+                          {(req.sent_count ?? 0) > 0 && (
+                            <span className="text-[10px] font-semibold bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded-md">
+                              📧 {req.sent_count} Sent
+                            </span>
+                          )}
+                          {(req.replied_count ?? 0) === 0 &&
+                            (req.sent_count ?? 0) === 0 && (
+                              <span className="text-[10px] font-medium bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded-md">
+                                ⚪ Ready to Contact
+                              </span>
+                            )}
+                        </div>
+                      </div>
                     ) : (
                       <span className="text-orange-500 text-xs font-medium">
                         No matches yet
@@ -603,19 +623,27 @@ export default function RequestsTable({ requests }: Props) {
                     className="px-3 py-3"
                     onClick={(e) => e.stopPropagation()}
                   >
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setOpenRequest({
-                          ...req,
-                          status: effectiveStatus,
-                          match_count: effectiveMatchCount,
-                        })
-                      }
-                      className="text-xs px-3 py-1.5 rounded-lg border border-slate-200 text-slate-600 hover:border-orange-300 hover:text-orange-600 transition"
-                    >
-                      Open
-                    </button>
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setOpenRequest({
+                            ...req,
+                            status: effectiveStatus,
+                            match_count: effectiveMatchCount,
+                          })
+                        }
+                        className="text-xs px-2.5 py-1.5 rounded-lg border border-slate-200 text-slate-600 hover:border-orange-300 hover:text-orange-600 transition"
+                      >
+                        Brief
+                      </button>
+                      <Link
+                        href={`/admin/requests/${req.id}`}
+                        className="text-xs font-semibold px-2.5 py-1.5 rounded-lg bg-orange-50 text-orange-700 border border-orange-200 hover:bg-orange-100 transition whitespace-nowrap"
+                      >
+                        Outreach →
+                      </Link>
+                    </div>
                   </td>
                 </tr>
               );
