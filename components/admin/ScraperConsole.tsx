@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 
 function formatBatchDate(date: Date | string): string {
   const d = new Date(date);
@@ -29,19 +30,22 @@ interface ProgressState {
   succeeded: number;
   failed: number;
   products: number;
-  perplexity: number;
+  searchGrounding: number;
 }
 
-interface BatchOption {
+export interface BatchOption {
   batchId: string;
   filename: string;
   rowsTotal: number;
+  pendingCount?: number;
+  failedCount?: number;
   uploadedAt: string | null;
 }
 
 interface ScraperConsoleProps {
   supplierId?: string;
   totalPending?: number;
+  totalFailed?: number;
   totalAll?: number;
   defaultBatchId?: string;
   batchOptions?: BatchOption[];
@@ -59,9 +63,14 @@ const LOG_COLORS: Record<string, string> = {
 
 const LIMIT_OPTIONS: (number | "all")[] = [10, 50, 100, 200, 500, "all"];
 
-type StatusFilter = "pending" | "failed" | "";
+type StatusFilter = "pending" | "failed";
 
-export function ScraperConsole({ supplierId, defaultBatchId, batchOptions }: ScraperConsoleProps) {
+export function ScraperConsole({
+  supplierId,
+  defaultBatchId,
+  batchOptions,
+}: ScraperConsoleProps) {
+  const router = useRouter();
   const [running, setRunning] = useState(false);
   const [logs, setLogs] = useState<LogLine[]>([]);
   const [summary, setSummary] = useState<ScraperSummary | null>(null);
@@ -69,7 +78,6 @@ export function ScraperConsole({ supplierId, defaultBatchId, batchOptions }: Scr
   const [limit, setLimit] = useState<number | "all">("all");
   const [filterStatus, setFilterStatus] = useState<StatusFilter>("pending");
   const [batchId, setBatchId] = useState(defaultBatchId ?? "");
-  const [batchInfo, setBatchInfo] = useState<string | null>(null);
   const eventSourceRef = useRef<EventSource | null>(null);
   const logEndRef = useRef<HTMLDivElement>(null);
 
@@ -91,12 +99,11 @@ export function ScraperConsole({ supplierId, defaultBatchId, batchOptions }: Scr
       const hash = window.location.hash;
       if (!hash || hash === "#") return;
 
-      // Parse hash as URLSearchParams (strip leading #)
       const params = new URLSearchParams(hash.slice(1));
       const batchValue = params.get("batchId");
       const statusValue = params.get("status");
 
-      if (batchValue) setBatchId(batchValue);
+      if (batchValue !== null) setBatchId(batchValue);
       if (statusValue === "failed") setFilterStatus("failed");
       else if (statusValue === "pending") setFilterStatus("pending");
     };
@@ -120,7 +127,6 @@ export function ScraperConsole({ supplierId, defaultBatchId, batchOptions }: Scr
     lastMessage: string | null;
   } | null>(null);
 
-  // Poll autonomous queue status every 3 seconds
   useEffect(() => {
     let isMounted = true;
     async function checkQueue() {
@@ -161,12 +167,13 @@ export function ScraperConsole({ supplierId, defaultBatchId, batchOptions }: Scr
     }
   }
 
-  // Initialize batchId from first option when options are provided and no hash/default is set
   useEffect(() => {
     if (batchOptions && batchOptions.length > 0 && !defaultBatchId) {
       const hash = typeof window !== "undefined" ? window.location.hash : "";
       if (!hash || !new URLSearchParams(hash.slice(1)).get("batchId")) {
-        setBatchId(batchOptions[0].batchId);
+        const firstWithPending =
+          batchOptions.find((b) => (b.pendingCount ?? 0) > 0) ?? batchOptions[0];
+        setBatchId(firstWithPending.batchId);
       }
     }
   }, [batchOptions, defaultBatchId]);
@@ -176,26 +183,21 @@ export function ScraperConsole({ supplierId, defaultBatchId, batchOptions }: Scr
     setLogs([]);
     setSummary(null);
     setProgress(null);
-    setBatchInfo(null);
 
     const params = new URLSearchParams();
     const trimmedBatch = batchId.trim();
 
     if (supplierId) {
       params.set("supplierId", supplierId);
-    }
-
-    if (trimmedBatch) {
-      params.set("batchId", trimmedBatch);
-      const statusLabel = filterStatus === "failed" ? "failed" : "pending";
-      setBatchInfo(`Batch run: only ${statusLabel} rows from ${trimmedBatch}`);
-    }
-
-    if (!supplierId) {
-      if (limit !== "all") params.set("limit", String(limit));
-      // When a batch is selected, default to the chosen filter; otherwise respect filterStatus
-      const effectiveStatus = filterStatus || (trimmedBatch ? "pending" : "");
-      if (effectiveStatus) params.set("status", effectiveStatus);
+    } else {
+      if (trimmedBatch) {
+        params.set("batchId", trimmedBatch);
+      }
+      if (limit !== "all") {
+        params.set("limit", String(limit));
+      }
+      // Strictly Pending or Failed only — never re-scrape already scraped rows
+      params.set("status", filterStatus);
     }
 
     const url = `/api/admin/scraper/stream?${params.toString()}`;
@@ -218,6 +220,7 @@ export function ScraperConsole({ supplierId, defaultBatchId, batchOptions }: Scr
       if (data.type === "done") {
         es.close();
         setRunning(false);
+        router.refresh();
         return;
       }
 
@@ -225,7 +228,6 @@ export function ScraperConsole({ supplierId, defaultBatchId, batchOptions }: Scr
         setSummary(data.data as ScraperSummary);
       }
 
-      // Progress tracking
       if (data.type === "supplier" && data.message) {
         const match = data.message.match(/\[(\d+)\/(\d+)\]/);
         if (match) {
@@ -237,7 +239,7 @@ export function ScraperConsole({ supplierId, defaultBatchId, batchOptions }: Scr
             succeeded: prev?.succeeded ?? 0,
             failed: prev?.failed ?? 0,
             products: prev?.products ?? 0,
-            perplexity: prev?.perplexity ?? 0,
+            searchGrounding: prev?.searchGrounding ?? 0,
           }));
         }
       }
@@ -263,10 +265,11 @@ export function ScraperConsole({ supplierId, defaultBatchId, batchOptions }: Scr
 
       if (
         data.type === "log" &&
-        data.message?.includes("Perplexity research")
+        (data.message?.includes("Google Search Grounding") ||
+          data.message?.includes("Perplexity research"))
       ) {
         setProgress((prev) =>
-          prev ? { ...prev, perplexity: prev.perplexity + 1 } : null
+          prev ? { ...prev, searchGrounding: prev.searchGrounding + 1 } : null
         );
       }
 
@@ -289,10 +292,11 @@ export function ScraperConsole({ supplierId, defaultBatchId, batchOptions }: Scr
         ...prev,
         {
           type: "error",
-          message: "Connection lost",
+          message: "Connection closed",
           timestamp: new Date().toISOString(),
         },
       ]);
+      router.refresh();
     };
   }
 
@@ -307,6 +311,7 @@ export function ScraperConsole({ supplierId, defaultBatchId, batchOptions }: Scr
         timestamp: new Date().toISOString(),
       },
     ]);
+    router.refresh();
   }
 
   function handleCopyLog() {
@@ -336,181 +341,184 @@ export function ScraperConsole({ supplierId, defaultBatchId, batchOptions }: Scr
   const isSingleSupplier = Boolean(supplierId);
   const etaMinutes =
     progress && progress.total > progress.current
-      ? Math.ceil((progress.total - progress.current) * 45 / 60)
+      ? Math.ceil(((progress.total - progress.current) * 35) / 60)
       : 0;
 
-  const STATUS_OPTIONS: { value: StatusFilter; label: string }[] = [
-    { value: "pending", label: "Pending only" },
-    { value: "failed", label: "Failed only" },
-    { value: "", label: "All" },
-  ];
-
   return (
-    <div>
-      {/* Controls */}
-      <div className="flex flex-wrap items-center gap-3 mb-4">
-        {!isSingleSupplier && (
-          <>
-            <div className="flex items-center gap-1 flex-wrap">
-              {LIMIT_OPTIONS.map((n) => (
-                <button
-                  key={n}
-                  onClick={() => setLimit(n)}
-                  disabled={running}
-                  className={`px-3 py-1.5 text-sm rounded-lg border transition-colors disabled:opacity-50
-                    ${
-                      limit === n
-                        ? "bg-slate-800 text-white border-slate-800"
-                        : "border-slate-200 text-slate-600 hover:bg-slate-50"
-                    }`}
-                >
-                  {n === "all" ? "All" : n}
-                </button>
-              ))}
-            </div>
-
-            <div className="flex flex-col gap-3">
-              <label className="text-sm text-slate-600 flex flex-col gap-1">
-                Batch
-                {batchOptions && batchOptions.length > 0 ? (
-                  <select
-                    value={batchId}
-                    onChange={(e) => setBatchId(e.target.value)}
-                    disabled={running}
-                    className="px-3 py-2 border border-slate-200 rounded-lg text-sm w-72 bg-white"
-                  >
-                    <option value="">— All pending (no batch filter) —</option>
-                    {batchOptions.map((opt) => (
-                      <option key={opt.batchId} value={opt.batchId}>
-                        {opt.filename}
-                        {opt.uploadedAt
-                          ? ` — ${formatBatchDate(opt.uploadedAt)}`
-                          : ""}
-                        {` — ${opt.rowsTotal} rows`}
-                      </option>
-                    ))}
-                  </select>
-                ) : (
-                  <input
-                    type="text"
-                    value={batchId}
-                    onChange={(e) => setBatchId(e.target.value)}
-                    disabled={running}
-                    placeholder="csv-1234567890"
-                    className="px-3 py-2 border border-slate-200 rounded-lg text-sm w-60"
-                  />
-                )}
-              </label>
-              {batchId.trim() ? (
-                <p className="text-xs text-slate-500">
-                  This will run only{" "}
-                  {filterStatus === "failed" ? "failed" : filterStatus === "pending" ? "pending" : "all"}{" "}
-                  rows for the selected upload batch.
-                </p>
-              ) : null}
-            </div>
-
-            {/* Status filter: Pending only / Failed only / All */}
-            <div className="flex items-center gap-1">
-              {STATUS_OPTIONS.map((opt) => (
-                <button
-                  key={opt.value}
-                  onClick={() => setFilterStatus(opt.value)}
-                  disabled={running}
-                  className={`px-3 py-1.5 text-xs rounded-lg border transition-colors disabled:opacity-50
-                    ${
-                      filterStatus === opt.value
-                        ? opt.value === "failed"
-                          ? "bg-red-600 text-white border-red-600"
-                          : "bg-slate-800 text-white border-slate-800"
-                        : "border-slate-200 text-slate-600 hover:bg-slate-50"
-                    }`}
-                >
-                  {opt.label}
-                </button>
-              ))}
-            </div>
-          </>
-        )}
-
-        {/* Autonomous Background Queue Button */}
-        {!isSingleSupplier && (
-          <button
-            onClick={toggleQueue}
-            disabled={running}
-            className={`px-4 py-2 text-sm font-semibold rounded-lg shadow-sm transition-all flex items-center gap-2 ${
-              queueRunning
-                ? "bg-emerald-600 text-white hover:bg-emerald-700 animate-pulse"
-                : "bg-slate-900 text-white hover:bg-slate-800"
-            }`}
+    <div id="scraper-console" className="space-y-3">
+      <div className="flex items-center justify-between gap-2 flex-wrap">
+        <div className="flex items-center gap-2">
+          <h2 className="text-sm font-bold text-slate-900 uppercase tracking-wider">
+            {isSingleSupplier ? "Single Supplier Scraper" : "Scraper Console"}
+          </h2>
+          <span
+            className="text-xs text-slate-400 cursor-help border border-slate-200 rounded-full w-4 h-4 inline-flex items-center justify-center"
+            title="Scrapes ONLY Pending or Failed records (never re-scrapes already-scraped suppliers). Uses Direct Crawl (Firecrawl/Jina) with automatic fallback to Gemini 3.5 Flash Google Search Grounding."
           >
-            {queueRunning ? "⚡ Stop Autonomous Queue" : "⚡ Start Autonomous Queue"}
-          </button>
-        )}
+            ?
+          </span>
+        </div>
 
-        {running ? (
-          <button
-            onClick={stopScraping}
-            className="px-4 py-2 bg-red-500 text-white text-sm font-medium rounded-lg hover:bg-red-600 transition-colors"
-          >
-            ⏹ Stop Browser Stream
-          </button>
-        ) : (
-          <button
-            onClick={startScraping}
-            disabled={queueRunning}
-            className="px-4 py-2 bg-orange-500 text-white text-sm font-medium rounded-lg hover:bg-orange-600 transition-colors disabled:opacity-50"
-          >
-            ▶ {isSingleSupplier ? "Re-scrape now" : "Start Browser Scrape"}
-          </button>
-        )}
+        {/* Action Buttons */}
+        <div className="flex items-center gap-2">
+          {!isSingleSupplier && (
+            <button
+              onClick={toggleQueue}
+              disabled={running}
+              title="Runs continuously in the background across all pending batches even if you close the browser tab"
+              className={`px-3 py-1.5 text-xs font-semibold rounded-lg shadow-2xs transition-all flex items-center gap-1.5 ${
+                queueRunning
+                  ? "bg-emerald-600 text-white hover:bg-emerald-700 animate-pulse"
+                  : "bg-slate-900 text-white hover:bg-slate-800"
+              }`}
+            >
+              {queueRunning ? "⚡ Stop Auto-Queue" : "⚡ Auto-Queue (Pending)"}
+            </button>
+          )}
+
+          {running ? (
+            <button
+              onClick={stopScraping}
+              className="px-3 py-1.5 bg-red-500 text-white text-xs font-semibold rounded-lg hover:bg-red-600 transition"
+            >
+              ⏹ Stop Stream
+            </button>
+          ) : (
+            <button
+              onClick={startScraping}
+              disabled={queueRunning}
+              title="Run live stream in browser for the selected batch & status filter"
+              className="px-3.5 py-1.5 bg-orange-500 text-white text-xs font-semibold rounded-lg hover:bg-orange-600 transition disabled:opacity-50"
+            >
+              ▶ {isSingleSupplier ? "Re-scrape Now" : `Run ${filterStatus === "failed" ? "Failed" : "Pending"}`}
+            </button>
+          )}
+        </div>
       </div>
 
-      {/* Autonomous Background Queue Active Banner */}
-      {queueRunning && queueState && (
-        <div className="mb-4 rounded-xl border border-emerald-300 bg-emerald-50 p-4 text-sm text-emerald-900 shadow-sm animate-fade-in">
-          <div className="flex items-center justify-between font-semibold mb-1">
-            <span className="flex items-center gap-2">
-              <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping" />
-              Autonomous Cloud Queue Running (Continuous Batch-to-Batch)
-            </span>
-            <span className="text-xs font-mono bg-emerald-100 px-2 py-0.5 rounded text-emerald-800">
-              {queueState.totalPending} pending suppliers remaining
-            </span>
+      {/* Controls Bar */}
+      {!isSingleSupplier && (
+        <div className="flex flex-wrap items-center gap-2 bg-slate-50 p-2.5 rounded-xl border border-slate-200 text-xs">
+          {/* Batch selector */}
+          {batchOptions && batchOptions.length > 0 ? (
+            <select
+              value={batchId}
+              onChange={(e) => setBatchId(e.target.value)}
+              disabled={running}
+              title="Select a specific CSV batch or all batches"
+              className="px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs bg-white text-slate-700 font-medium max-w-64 truncate"
+            >
+              <option value="">All Batches (Global)</option>
+              {batchOptions.map((opt) => (
+                <option key={opt.batchId} value={opt.batchId}>
+                  {opt.filename}
+                  {opt.uploadedAt ? ` (${formatBatchDate(opt.uploadedAt)})` : ""} —{" "}
+                  {opt.pendingCount ?? 0} pending / {opt.failedCount ?? 0} failed
+                </option>
+              ))}
+            </select>
+          ) : null}
+
+          {/* Strictly Pending vs Failed Toggle */}
+          <div
+            className="inline-flex rounded-lg border border-slate-200 bg-white p-0.5"
+            title="Only Pending or Failed records are eligible — Scraped records are protected from re-scraping"
+          >
+            <button
+              type="button"
+              onClick={() => setFilterStatus("pending")}
+              disabled={running}
+              className={`px-2.5 py-1 rounded-md text-xs font-semibold transition ${
+                filterStatus === "pending"
+                  ? "bg-orange-500 text-white"
+                  : "text-slate-600 hover:bg-slate-50"
+              }`}
+            >
+              Pending Only
+            </button>
+            <button
+              type="button"
+              onClick={() => setFilterStatus("failed")}
+              disabled={running}
+              className={`px-2.5 py-1 rounded-md text-xs font-semibold transition ${
+                filterStatus === "failed"
+                  ? "bg-red-600 text-white"
+                  : "text-slate-600 hover:bg-slate-50"
+              }`}
+            >
+              Failed Only
+            </button>
           </div>
-          <p className="text-xs text-emerald-700 mb-2">
-            Safe to close your browser or shut down your computer. The worker is scraping, classifying, and vectorizing directly into Supabase.
-          </p>
-          <div className="flex flex-wrap gap-4 text-xs font-medium text-emerald-800 bg-white/70 p-2.5 rounded-lg border border-emerald-200">
-            <div>Current: <span className="font-bold">{queueState.currentSupplier || "Searching next..."}</span></div>
-            <div>Batch: <span className="font-mono">{queueState.currentBatch || "All Batches"}</span></div>
-            <div>Processed: <span className="font-bold">{queueState.processedCount}</span></div>
-            <div>Succeeded: <span className="text-green-700 font-bold">{queueState.successCount}</span></div>
-            <div>Products Saved: <span className="text-blue-700 font-bold">{queueState.productsFound}</span></div>
+
+          {/* Batch size limit */}
+          <div
+            className="flex items-center gap-1 ml-auto"
+            title="Maximum number of suppliers to process in this run"
+          >
+            <span className="text-[11px] text-slate-400 mr-0.5">Limit:</span>
+            {LIMIT_OPTIONS.map((n) => (
+              <button
+                key={n}
+                type="button"
+                onClick={() => setLimit(n)}
+                disabled={running}
+                className={`px-2 py-1 text-[11px] font-medium rounded-md border transition disabled:opacity-50 ${
+                  limit === n
+                    ? "bg-slate-800 text-white border-slate-800"
+                    : "bg-white border-slate-200 text-slate-600 hover:bg-slate-100"
+                }`}
+              >
+                {n === "all" ? "All" : n}
+              </button>
+            ))}
           </div>
         </div>
       )}
 
-      {batchInfo && (
-        <div className="mb-4 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
-          {batchInfo}
+      {/* Autonomous Background Queue Active Banner */}
+      {queueRunning && queueState && (
+        <div className="rounded-xl border border-emerald-300 bg-emerald-50 p-3 text-xs text-emerald-900 shadow-2xs">
+          <div className="flex items-center justify-between font-semibold mb-1.5">
+            <span className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
+              Autonomous Queue Active (Pending Only)
+            </span>
+            <span className="font-mono bg-emerald-100 px-2 py-0.5 rounded text-emerald-800">
+              {queueState.totalPending} pending left
+            </span>
+          </div>
+          <div className="flex flex-wrap gap-3 text-[11px] font-medium text-emerald-800 bg-white/80 px-2.5 py-1.5 rounded-lg border border-emerald-200">
+            <div>
+              Now: <span className="font-bold">{queueState.currentSupplier || "Next..."}</span>
+            </div>
+            <div>
+              Batch: <span className="font-mono">{queueState.currentBatch || "All"}</span>
+            </div>
+            <div>
+              Done: <span className="font-bold">{queueState.processedCount}</span>
+            </div>
+            <div>
+              OK: <span className="text-green-700 font-bold">{queueState.successCount}</span>
+            </div>
+            <div>
+              Products: <span className="text-blue-700 font-bold">{queueState.productsFound}</span>
+            </div>
+          </div>
         </div>
       )}
 
       {/* Progress bar */}
       {running && progress !== null && (
-        <div className="mb-4 p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
-          <div className="flex justify-between text-sm font-medium text-slate-700">
+        <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-1.5">
+          <div className="flex justify-between text-xs font-semibold text-slate-700">
             <span>
-              Running — {progress.current} of {progress.total}
+              Processing {progress.current} / {progress.total}
             </span>
-            <span>
-              {etaMinutes > 0 ? `ETA ~${etaMinutes}m` : "Almost done"}
-            </span>
+            <span>{etaMinutes > 0 ? `~${etaMinutes}m left` : "Finishing…"}</span>
           </div>
-          <div className="w-full bg-slate-200 rounded-full h-2">
+          <div className="w-full bg-slate-200 rounded-full h-1.5">
             <div
-              className="bg-orange-500 h-2 rounded-full transition-all duration-500"
+              className="bg-orange-500 h-1.5 rounded-full transition-all duration-500"
               style={{
                 width: `${Math.round(
                   (progress.current / Math.max(progress.total, 1)) * 100
@@ -518,32 +526,38 @@ export function ScraperConsole({ supplierId, defaultBatchId, batchOptions }: Scr
               }}
             />
           </div>
-          <div className="flex gap-4 text-xs text-slate-500 flex-wrap">
-            <span>✓ {progress.succeeded} succeeded</span>
+          <div className="flex gap-3 text-[11px] text-slate-500 flex-wrap">
+            <span>✓ {progress.succeeded} scraped</span>
             <span>✗ {progress.failed} failed</span>
             <span>📦 {progress.products} products</span>
-            {progress.perplexity > 0 && (
-              <span>🔍 {progress.perplexity} via Perplexity</span>
+            {progress.searchGrounding > 0 && (
+              <span title="Fetched via Gemini 3.5 Flash with Google Search Grounding when direct website crawl was blocked">
+                🔍 {progress.searchGrounding} via Search Grounding
+              </span>
             )}
           </div>
         </div>
       )}
 
-      {/* Log panel */}
+      {/* Live Terminal Log */}
       <div
-        className={`bg-slate-900 rounded-xl p-4 font-mono text-sm min-h-75 max-h-125 overflow-y-auto transition-all
-          ${summary ? "ring-2 ring-green-500" : ""}`}
+        className={`bg-slate-900 rounded-xl p-3 font-mono text-xs h-56 overflow-y-auto transition-all ${
+          summary ? "ring-2 ring-green-500" : ""
+        }`}
       >
         {logs.length === 0 && !running ? (
-          <p className="text-slate-600 text-center mt-8">
-            Click &apos;{isSingleSupplier ? "Re-scrape now" : "Start scraping"}
-            &apos; to begin. Live output will appear here.
+          <p className="text-slate-500 text-center mt-16 text-xs">
+            Select a batch or click{" "}
+            <span className="text-slate-300 font-semibold">
+              ▶ Run {filterStatus === "failed" ? "Failed" : "Pending"}
+            </span>{" "}
+            to view live stream output.
           </p>
         ) : (
           <>
             {logs.map((line, i) => (
-              <div key={i} className="flex gap-2 py-0.5">
-                <span className="text-slate-600 text-xs shrink-0 mt-0.5">
+              <div key={i} className="flex gap-2 py-0.5 leading-relaxed">
+                <span className="text-slate-600 text-[11px] shrink-0">
                   {new Date(line.timestamp).toLocaleTimeString()}
                 </span>
                 <span className={LOG_COLORS[line.type] ?? "text-slate-400"}>
@@ -560,12 +574,11 @@ export function ScraperConsole({ supplierId, defaultBatchId, batchOptions }: Scr
             )}
 
             {summary && (
-              <div className="mt-4 p-3 bg-slate-800 rounded-lg text-orange-400">
-                <p className="font-semibold">── Summary ──</p>
-                <p>✓ Succeeded: {summary.succeeded}</p>
-                <p>✗ Failed:    {summary.failed}</p>
-                <p>⊘ Skipped:   {summary.skipped}</p>
-                <p>📦 Products:  {summary.totalProducts}</p>
+              <div className="mt-3 p-2.5 bg-slate-800 rounded-lg text-orange-400 text-xs">
+                <p className="font-semibold">
+                  Summary: ✓ {summary.succeeded} Scraped · ✗ {summary.failed} Failed · ⊘{" "}
+                  {summary.skipped} Skipped · 📦 {summary.totalProducts} Products
+                </p>
               </div>
             )}
           </>
@@ -575,18 +588,18 @@ export function ScraperConsole({ supplierId, defaultBatchId, batchOptions }: Scr
 
       {/* Log actions */}
       {logs.length > 0 && (
-        <div className="flex gap-2 mt-2">
+        <div className="flex gap-2 justify-end">
           <button
             onClick={handleCopyLog}
-            className="px-3 py-1.5 text-xs border border-slate-200 text-slate-600 rounded-lg hover:bg-slate-50 transition"
+            className="px-2.5 py-1 text-[11px] border border-slate-200 text-slate-600 rounded-md hover:bg-slate-50 transition"
           >
-            Copy log
+            Copy Log
           </button>
           <button
             onClick={handleDownloadLog}
-            className="px-3 py-1.5 text-xs border border-slate-200 text-slate-600 rounded-lg hover:bg-slate-50 transition"
+            className="px-2.5 py-1 text-[11px] border border-slate-200 text-slate-600 rounded-md hover:bg-slate-50 transition"
           >
-            Download log
+            Download Log
           </button>
         </div>
       )}

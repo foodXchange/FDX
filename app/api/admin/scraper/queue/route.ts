@@ -253,8 +253,13 @@ async function runBackgroundQueue() {
 
         // Execute Crawl & AI Extraction
         let timerHandle: NodeJS.Timeout | undefined;
+        let isTimedOut = false;
+        let productsSavedCount = 0;
         const timeoutPromise = new Promise<never>((_, reject) => {
-          timerHandle = setTimeout(() => reject(new Error("Supplier timeout")), 75000);
+          timerHandle = setTimeout(() => {
+            isTimedOut = true;
+            reject(new Error("Supplier timeout"));
+          }, 120000);
         });
 
         try {
@@ -266,7 +271,8 @@ async function runBackgroundQueue() {
                 supplier.company_name,
                 supplier.country_of_origin
               );
-              const isPerplexity = content.startsWith("[PERPLEXITY RESEARCH]");
+              if (isTimedOut) return;
+              const isGroundedSearch = content.startsWith("[PERPLEXITY RESEARCH]");
 
               if (!content || content.length < 50) {
                 await supabaseAdmin
@@ -279,6 +285,7 @@ async function runBackgroundQueue() {
 
               // Manufacturer Detection
               const mfr = await detectManufacturerType(content, supplier.company_name);
+              if (isTimedOut) return;
               const shouldSkip =
                 !mfr.isManufacturer &&
                 !["manufacturer", "mixed", "unknown"].includes(mfr.companyType) &&
@@ -297,12 +304,18 @@ async function runBackgroundQueue() {
                 return;
               }
 
-              // Product Extraction
-              const products = await extractProducts(content, {
-                company_name: supplier.company_name,
-                country_of_origin: supplier.country_of_origin,
-                certifications: supplier.certifications ?? [],
-              });
+              // Parallel Product & Profile Extraction
+              const [products, profile] = await Promise.all([
+                extractProducts(content, {
+                  company_name: supplier.company_name,
+                  country_of_origin: supplier.country_of_origin,
+                  certifications: supplier.certifications ?? [],
+                }),
+                extractSupplierProfile(content, supplier.company_name, {
+                  country: supplier.country_of_origin,
+                }),
+              ]);
+              if (isTimedOut) return;
 
               if (products.length === 0) {
                 await supabaseAdmin
@@ -313,13 +326,9 @@ async function runBackgroundQueue() {
                 return;
               }
 
-              const scrapeSource = isPerplexity ? `research:${supplier.website}` : supplier.website!;
+              const scrapeSource = isGroundedSearch ? `google_search:${supplier.website}` : supplier.website!;
               const inserted = await insertProducts(supplier.id, products, scrapeSource);
-
-              // Profile Extraction
-              const profile = await extractSupplierProfile(content, supplier.company_name, {
-                country: supplier.country_of_origin,
-              });
+              productsSavedCount = inserted;
 
               await supabaseAdmin
                 .from("supplier_offerings")
@@ -327,6 +336,7 @@ async function runBackgroundQueue() {
                   scrape_status: "scraped",
                   last_scraped_at: new Date().toISOString(),
                   products_found: inserted,
+                  internal_notes: null,
                   ...(profile.company_description ? { product_description: profile.company_description } : {}),
                   ...(profile.contact_email ? { contact_email: profile.contact_email } : {}),
                   ...(profile.contact_phone ? { contact_phone: profile.contact_phone } : {}),
@@ -368,11 +378,20 @@ async function runBackgroundQueue() {
             timeoutPromise,
           ]);
         } catch {
-          await supabaseAdmin
-            .from("supplier_offerings")
-            .update({ scrape_status: "failed", internal_notes: "Timeout or network error" })
-            .eq("id", supplier.id);
-          globalQueueState.failedCount++;
+          if (productsSavedCount > 0) {
+            await supabaseAdmin
+              .from("supplier_offerings")
+              .update({ scrape_status: "scraped", products_found: productsSavedCount })
+              .eq("id", supplier.id);
+            globalQueueState.successCount++;
+            globalQueueState.productsFound += productsSavedCount;
+          } else {
+            await supabaseAdmin
+              .from("supplier_offerings")
+              .update({ scrape_status: "failed", internal_notes: "Timeout or network error" })
+              .eq("id", supplier.id);
+            globalQueueState.failedCount++;
+          }
         } finally {
           if (timerHandle) clearTimeout(timerHandle);
           globalQueueState.processedCount++;

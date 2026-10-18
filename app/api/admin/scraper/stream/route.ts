@@ -241,10 +241,15 @@ export async function GET(req: NextRequest) {
         query = query.eq("csv_import_batch", batchIdParam);
       }
 
-      if (statusParam === "pending") {
-        query = query.eq("scrape_status", "pending");
-      } else if (statusParam === "failed") {
-        query = query.eq("scrape_status", "failed");
+      if (!supplierIdParam) {
+        if (statusParam === "pending") {
+          query = query.eq("scrape_status", "pending");
+        } else if (statusParam === "failed") {
+          query = query.eq("scrape_status", "failed");
+        } else {
+          // Never re-scrape already scraped or skipped suppliers
+          query = query.in("scrape_status", ["pending", "failed"]);
+        }
       }
 
       if (queryLimit) {
@@ -350,7 +355,7 @@ export async function GET(req: NextRequest) {
 
             const { data: srcProducts } = await supabaseAdmin
               .from("supplier_products")
-              .select("product_name, category, subcategory, description, formats, sizes, brix_level, shelf_life_months, certifications, kosher_types, product_type, primary_ingredients, private_label, tags, markets_suitable, scrape_source, scrape_confidence, embedding")
+              .select("product_name, category, category_id, subcategory, description, formats, sizes, brix_level, shelf_life_months, certifications, kosher_types, product_type, primary_ingredients, private_label, tags, markets_suitable, scrape_source, scrape_confidence, embedding")
               .eq("supplier_id", src.id);
 
             let copiedCount = 0;
@@ -381,8 +386,13 @@ export async function GET(req: NextRequest) {
         }
 
         let timerHandle: NodeJS.Timeout | undefined;
+        let isTimedOut = false;
+        let productsSavedCount = 0;
         const supplierTimeout = new Promise<never>((_, reject) => {
-          timerHandle = setTimeout(() => reject(new Error("Supplier timeout")), 75000);
+          timerHandle = setTimeout(() => {
+            isTimedOut = true;
+            reject(new Error("Supplier timeout"));
+          }, 120000);
         });
 
         try {
@@ -401,7 +411,8 @@ export async function GET(req: NextRequest) {
                 supplier.company_name,
                 supplier.country_of_origin
               );
-              const isPerplexity = content.startsWith("[PERPLEXITY RESEARCH]");
+              if (isTimedOut) return;
+              const isGroundedSearch = content.startsWith("[PERPLEXITY RESEARCH]");
 
               if (!content || content.length < 50) {
                 send({ type: "error", message: "  ✗ Website blocked or no content" });
@@ -418,18 +429,18 @@ export async function GET(req: NextRequest) {
                 return;
               }
 
-              if (isPerplexity) {
+              if (isGroundedSearch) {
                 perplexityCount++;
                 send({
                   type: "log",
-                  message: `  ✓ Content from Perplexity research (${content.length.toLocaleString()} chars)`,
+                  message: `  ✓ Content from Google Search Grounding (${content.length.toLocaleString()} chars)`,
                 });
                 await logEvent(
-                  "perplexity_fallback",
+                  "search_grounding_fallback",
                   supplier.id,
-                  `Fetched ${content.length.toLocaleString()} chars via Perplexity`,
+                  `Fetched ${content.length.toLocaleString()} chars via Google Search Grounding`,
                   0,
-                  "perplexity"
+                  "google_search"
                 );
               } else {
                 const pageCount = content.split("---PAGE BREAK---").length;
@@ -442,6 +453,7 @@ export async function GET(req: NextRequest) {
               // ── MANUFACTURER DETECTION ────────────────────────────────────
               send({ type: "log", message: "  → Checking if manufacturer..." });
               const mfr = await detectManufacturerType(content, supplier.company_name);
+              if (isTimedOut) return;
 
               const shouldSkip =
                 !mfr.isManufacturer &&
@@ -476,13 +488,20 @@ export async function GET(req: NextRequest) {
                 send({ type: "log", message: `  ✓ Confirmed manufacturer` });
               }
 
-              // ── EXTRACT PRODUCTS ──────────────────────────────────────────
-              send({ type: "log", message: "  → Extracting products..." });
-              const products = await extractProducts(content, {
-                company_name: supplier.company_name,
-                country_of_origin: supplier.country_of_origin,
-                certifications: supplier.certifications ?? [],
-              });
+              // ── EXTRACT PRODUCTS & PROFILE IN PARALLEL ───────────────────
+              send({ type: "log", message: "  → Extracting products & company profile..." });
+              const [products, profile] = await Promise.all([
+                extractProducts(content, {
+                  company_name: supplier.company_name,
+                  country_of_origin: supplier.country_of_origin,
+                  certifications: supplier.certifications ?? [],
+                }),
+                extractSupplierProfile(content, supplier.company_name, {
+                  country: supplier.country_of_origin,
+                  categories: supplier.categories ?? [],
+                }),
+              ]);
+              if (isTimedOut) return;
 
               if (products.length === 0) {
                 send({ type: "error", message: "  ✗ No products extracted" });
@@ -508,17 +527,11 @@ export async function GET(req: NextRequest) {
               }
 
               // ── SAVE PRODUCTS ─────────────────────────────────────────────
-              const scrapeSource = isPerplexity
-                ? `perplexity:${supplier.website}`
+              const scrapeSource = isGroundedSearch
+                ? `google_search:${supplier.website}`
                 : supplier.website!;
               const inserted = await insertProducts(supplier.id, products, scrapeSource);
-
-              // ── EXTRACT PROFILE ───────────────────────────────────────────
-              send({ type: "log", message: "  → Extracting company profile..." });
-              const profile = await extractSupplierProfile(content, supplier.company_name, {
-                country: supplier.country_of_origin,
-                categories: supplier.categories ?? [],
-              });
+              productsSavedCount = inserted;
 
               await supabaseAdmin
                 .from("supplier_offerings")
@@ -526,6 +539,7 @@ export async function GET(req: NextRequest) {
                   scrape_status: "scraped",
                   last_scraped_at: new Date().toISOString(),
                   products_found: inserted,
+                  internal_notes: null,
                   ...(profile.company_description
                     ? { product_description: profile.company_description }
                     : {}),
@@ -566,17 +580,21 @@ export async function GET(req: NextRequest) {
                   }))
                 );
 
-                send({
-                  type: "log",
-                  message: `  🏭 ${profile.factories.length} factory/factories found`,
-                });
+                if (!isTimedOut) {
+                  send({
+                    type: "log",
+                    message: `  🏭 ${profile.factories.length} factory/factories found`,
+                  });
+                }
               }
 
-              send({
-                type: "success",
-                message: `  ✓ ${inserted} products saved`,
-                data: { products: inserted, supplier: supplier.company_name },
-              });
+              if (!isTimedOut) {
+                send({
+                  type: "success",
+                  message: `  ✓ ${inserted} products saved`,
+                  data: { products: inserted, supplier: supplier.company_name },
+                });
+              }
 
               succeeded.push({ name: supplier.company_name, products: inserted });
               if (timerHandle) clearTimeout(timerHandle);
@@ -594,16 +612,29 @@ export async function GET(req: NextRequest) {
           if (timerHandle) clearTimeout(timerHandle);
           const msg = err instanceof Error ? err.message : String(err);
           if (err instanceof Error && err.message === "Supplier timeout") {
-            send({ type: "warning", message: "  ⏱ Timeout — moving to next supplier" });
-            await supabaseAdmin
-              .from("supplier_offerings")
-              .update({
-                scrape_status: "failed",
-                internal_notes: "Timeout: exceeded time limit",
-              })
-              .eq("id", supplier.id);
-            failed.push({ name: supplier.company_name, reason: "Timeout" });
-            await logEvent("failed", supplier.id, "Timeout");
+            if (productsSavedCount > 0) {
+              send({
+                type: "success",
+                message: `  ✓ ${productsSavedCount} products saved (profile step timed out)`,
+                data: { products: productsSavedCount, supplier: supplier.company_name },
+              });
+              await supabaseAdmin
+                .from("supplier_offerings")
+                .update({ scrape_status: "scraped", products_found: productsSavedCount })
+                .eq("id", supplier.id);
+              succeeded.push({ name: supplier.company_name, products: productsSavedCount });
+            } else {
+              send({ type: "warning", message: "  ⏱ Timeout — moving to next supplier" });
+              await supabaseAdmin
+                .from("supplier_offerings")
+                .update({
+                  scrape_status: "failed",
+                  internal_notes: "Timeout: exceeded time limit",
+                })
+                .eq("id", supplier.id);
+              failed.push({ name: supplier.company_name, reason: "Timeout" });
+              await logEvent("failed", supplier.id, "Timeout");
+            }
           } else {
             send({ type: "error", message: `  ✗ Error: ${msg}` });
             await supabaseAdmin

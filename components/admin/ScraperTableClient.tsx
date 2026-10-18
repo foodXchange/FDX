@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import SupplierProductsSlideOver from "@/components/admin/SupplierProductsSlideOver";
 import { approveSuppliers, deleteSuppliers } from "@/app/admin/scraper/actions";
 
-type Supplier = {
+export type Supplier = {
   id: string;
   company_name: string;
   website: string | null;
@@ -16,6 +16,7 @@ type Supplier = {
   status: string | null;
   scrape_source: string | null;
   categories: string[] | null;
+  csv_import_batch?: string | null;
 };
 
 type RowState = {
@@ -56,13 +57,13 @@ function ProductCount({ count }: { count: number | null }) {
   if (n === 0) return <span className="text-slate-300">—</span>;
   if (n >= 6)
     return (
-      <span className="text-green-600 font-semibold text-sm">{n} products</span>
+      <span className="text-green-600 font-semibold text-xs">{n} products</span>
     );
-  return <span className="text-slate-600 text-sm">{n} products</span>;
+  return <span className="text-slate-600 text-xs">{n} products</span>;
 }
 
 function RelativeTime({ iso }: { iso: string | null }) {
-  if (!iso) return <span className="text-slate-400">Never</span>;
+  if (!iso) return <span className="text-slate-400 text-xs">Never</span>;
   const date = new Date(iso);
   const diffMs = Date.now() - date.getTime();
   const diffDays = Math.floor(diffMs / 86400000);
@@ -74,7 +75,7 @@ function RelativeTime({ iso }: { iso: string | null }) {
   else if (diffHours < 24) label = `${diffHours}h ago`;
   else if (diffDays < 30) label = `${diffDays}d ago`;
   else label = date.toLocaleDateString();
-  return <span className="text-slate-500 text-sm">{label}</span>;
+  return <span className="text-slate-500 text-xs">{label}</span>;
 }
 
 function KosherBadge({ types }: { types: string[] }) {
@@ -95,15 +96,21 @@ function KosherBadge({ types }: { types: string[] }) {
 
 function SourceBadge({ source }: { source: string | null | undefined }) {
   if (!source) return <span className="text-slate-300">—</span>;
-  if (source.startsWith("perplexity:"))
+  if (source.startsWith("perplexity:") || source.startsWith("search_grounding:"))
     return (
-      <span className="text-xs bg-purple-50 text-purple-700 border border-purple-200 px-2 py-0.5 rounded-full">
-        Perplexity
+      <span
+        title="Researched via Gemini 3.5 Flash with Google Search Grounding"
+        className="text-xs bg-purple-50 text-purple-700 border border-purple-200 px-2 py-0.5 rounded-full cursor-help"
+      >
+        Search AI
       </span>
     );
   return (
-    <span className="text-xs bg-sky-50 text-sky-700 border border-sky-200 px-2 py-0.5 rounded-full">
-      Firecrawl
+    <span
+      title="Crawled directly from supplier website via Firecrawl / Jina"
+      className="text-xs bg-sky-50 text-sky-700 border border-sky-200 px-2 py-0.5 rounded-full cursor-help"
+    >
+      Direct Crawl
     </span>
   );
 }
@@ -169,8 +176,7 @@ function ScraperRow({
   return (
     <>
       <tr className="hover:bg-gray-50 transition-colors">
-        {/* Checkbox */}
-        <td className="px-4 py-3 w-10">
+        <td className="px-3 py-2.5 w-8">
           <input
             type="checkbox"
             checked={checked}
@@ -179,26 +185,24 @@ function ScraperRow({
           />
         </td>
 
-        {/* Company */}
-        <td className="px-4 py-3">
-          <span className="font-medium text-gray-900 text-sm">
+        <td className="px-3 py-2.5">
+          <span className="font-medium text-gray-900 text-xs">
             {supplier.company_name}
           </span>
           {supplier.country_of_origin && (
-            <span className="block text-xs text-slate-400">
+            <span className="block text-[11px] text-slate-400">
               {supplier.country_of_origin}
             </span>
           )}
         </td>
 
-        {/* Website */}
-        <td className="px-4 py-3">
+        <td className="px-3 py-2.5">
           {supplier.website ? (
             <a
               href={supplier.website}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-xs text-blue-600 hover:underline truncate max-w-[180px] block"
+              className="text-xs text-blue-600 hover:underline truncate max-w-[170px] block"
             >
               {supplier.website.replace(/^https?:\/\//, "")}
             </a>
@@ -207,71 +211,58 @@ function ScraperRow({
           )}
         </td>
 
-        {/* Status */}
-        <td className="px-4 py-3">
+        <td className="px-3 py-2.5">
           <StatusBadge status={state.scrape_status} />
         </td>
 
-        {/* Source */}
-        <td className="px-4 py-3">
+        <td className="px-3 py-2.5">
           <SourceBadge source={supplier.scrape_source} />
         </td>
 
-        {/* Products */}
-        <td className="px-4 py-3">
+        <td className="px-3 py-2.5">
           <ProductCount count={state.products_found} />
         </td>
 
-        {/* Factories */}
-        <td className="px-4 py-3">
+        <td className="px-3 py-2.5">
           {factoryCount > 0 ? (
-            <span className="text-slate-600 text-sm">{factoryCount} factory</span>
+            <span className="text-slate-600 text-xs">{factoryCount}</span>
           ) : (
             <span className="text-slate-300">—</span>
           )}
         </td>
 
-        {/* Kosher */}
-        <td className="px-4 py-3">
+        <td className="px-3 py-2.5">
           <KosherBadge types={kosherTypes} />
         </td>
 
-        {/* Last scraped */}
-        <td className="px-4 py-3">
+        <td className="px-3 py-2.5">
           <RelativeTime iso={state.last_scraped_at} />
         </td>
 
-        {/* Actions */}
-        <td className="px-4 py-3">
-          <div className="flex items-center gap-2">
+        <td className="px-3 py-2.5">
+          <div className="flex items-center gap-1.5">
             <button
               onClick={handleScrape}
               disabled={scraping}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-orange-500 hover:bg-orange-600 text-white transition disabled:opacity-60 disabled:cursor-not-allowed"
+              title="Run single-supplier scrape"
+              className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-lg bg-orange-500 hover:bg-orange-600 text-white transition disabled:opacity-60"
             >
-              {scraping ? (
-                <>
-                  <span className="inline-block w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  Scraping…
-                </>
-              ) : (
-                "Scrape now"
-              )}
+              {scraping ? "…" : "Scrape"}
             </button>
 
             {(state.products_found ?? 0) > 0 && (
               <button
                 onClick={() => setSlideOverOpen(true)}
-                className="px-3 py-1.5 text-xs font-medium rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 transition"
+                className="px-2.5 py-1 text-xs font-medium rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 transition"
               >
-                View products
+                Products
               </button>
             )}
 
             {state.scrape_status !== "skipped" && (
               <button
                 onClick={handleSkip}
-                className="px-3 py-1.5 text-xs font-medium rounded-lg text-slate-400 hover:text-slate-600 transition"
+                className="px-2 py-1 text-xs text-slate-400 hover:text-slate-600 transition"
               >
                 Skip
               </button>
@@ -291,7 +282,9 @@ function ScraperRow({
   );
 }
 
-type StatusKey = "all" | "pending" | "scraped" | "failed";
+type StatusKey = "all" | "pending" | "scraped" | "failed" | "skipped";
+
+const PAGE_SIZE = 50;
 
 export default function ScraperTableClient({
   suppliers,
@@ -306,6 +299,8 @@ export default function ScraperTableClient({
   const [statusFilter, setStatusFilter] = useState<StatusKey>("all");
   const [countryFilter, setCountryFilter] = useState("all");
   const [categoryFilter, setCategoryFilter] = useState("all");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [page, setPage] = useState(1);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkLoading, setBulkLoading] = useState(false);
   const selectAllRef = useRef<HTMLInputElement>(null);
@@ -340,49 +335,61 @@ export default function ScraperTableClient({
     return [...Array.from(s).sort()];
   }, [suppliers]);
 
-  const filtered = useMemo(
+  const filtered = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    return suppliers.filter((s) => {
+      if (
+        statusFilter !== "all" &&
+        (s.scrape_status ?? "pending") !== statusFilter
+      )
+        return false;
+      if (countryFilter !== "all" && s.country_of_origin !== countryFilter)
+        return false;
+      if (
+        categoryFilter !== "all" &&
+        !(s.categories ?? []).includes(categoryFilter)
+      )
+        return false;
+      if (q) {
+        const matchName = s.company_name.toLowerCase().includes(q);
+        const matchWeb = (s.website ?? "").toLowerCase().includes(q);
+        if (!matchName && !matchWeb) return false;
+      }
+      return true;
+    });
+  }, [suppliers, statusFilter, countryFilter, categoryFilter, searchQuery]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages);
+  const pagedSuppliers = useMemo(
     () =>
-      suppliers.filter((s) => {
-        if (
-          statusFilter !== "all" &&
-          (s.scrape_status ?? "pending") !== statusFilter
-        )
-          return false;
-        if (countryFilter !== "all" && s.country_of_origin !== countryFilter)
-          return false;
-        if (
-          categoryFilter !== "all" &&
-          !(s.categories ?? []).includes(categoryFilter)
-        )
-          return false;
-        return true;
-      }),
-    [suppliers, statusFilter, countryFilter, categoryFilter]
+      filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE),
+    [filtered, currentPage]
   );
 
-  // Sync select-all indeterminate state
   useEffect(() => {
     if (selectAllRef.current) {
       const allSelected =
-        filtered.length > 0 && filtered.every((s) => selectedIds.has(s.id));
-      const someSelected = filtered.some((s) => selectedIds.has(s.id));
+        pagedSuppliers.length > 0 &&
+        pagedSuppliers.every((s) => selectedIds.has(s.id));
+      const someSelected = pagedSuppliers.some((s) => selectedIds.has(s.id));
       selectAllRef.current.checked = allSelected;
       selectAllRef.current.indeterminate = someSelected && !allSelected;
     }
-  }, [selectedIds, filtered]);
+  }, [selectedIds, pagedSuppliers]);
 
   function toggleSelectAll() {
-    const allSelected = filtered.every((s) => selectedIds.has(s.id));
+    const allSelected = pagedSuppliers.every((s) => selectedIds.has(s.id));
     if (allSelected) {
       setSelectedIds((prev) => {
         const next = new Set(prev);
-        filtered.forEach((s) => next.delete(s.id));
+        pagedSuppliers.forEach((s) => next.delete(s.id));
         return next;
       });
     } else {
       setSelectedIds((prev) => {
         const next = new Set(prev);
-        filtered.forEach((s) => next.add(s.id));
+        pagedSuppliers.forEach((s) => next.add(s.id));
         return next;
       });
     }
@@ -408,9 +415,7 @@ export default function ScraperTableClient({
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ supplierId: id, action: "scrape" }),
         });
-      } catch {
-        // continue with remaining IDs
-      }
+      } catch {}
     }
     setBulkLoading(false);
     setSelectedIds(new Set());
@@ -444,10 +449,11 @@ export default function ScraperTableClient({
   }
 
   const STATUS_PILLS: { key: StatusKey; label: string }[] = [
-    { key: "all", label: `All (${suppliers.length})` },
-    { key: "pending", label: `Pending (${counts.pending})` },
-    { key: "scraped", label: `Scraped (${counts.scraped})` },
-    { key: "failed", label: `Failed (${counts.failed})` },
+    { key: "all", label: `All (${suppliers.length.toLocaleString()})` },
+    { key: "pending", label: `Pending (${counts.pending.toLocaleString()})` },
+    { key: "scraped", label: `Scraped (${counts.scraped.toLocaleString()})` },
+    { key: "failed", label: `Failed (${counts.failed.toLocaleString()})` },
+    { key: "skipped", label: `Skipped (${counts.skipped.toLocaleString()})` },
   ];
 
   const TABLE_HEADERS = [
@@ -458,136 +464,188 @@ export default function ScraperTableClient({
     "Products",
     "Factories",
     "Kosher",
-    "Last scraped",
+    "Scraped",
     "Actions",
   ];
 
   return (
-    <div>
+    <div className="space-y-3">
       {/* Filters row */}
-      <div className="flex gap-2 flex-wrap items-center mb-4">
-        {STATUS_PILLS.map((p) => (
-          <button
-            key={p.key}
-            onClick={() => setStatusFilter(p.key)}
-            className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-              statusFilter === p.key
-                ? "bg-blue-500 text-white"
-                : "bg-white border border-gray-200 text-slate-600 hover:bg-slate-50"
-            }`}
-          >
-            {p.label}
-          </button>
-        ))}
+      <div className="flex gap-2 flex-wrap items-center justify-between">
+        <div className="flex gap-1.5 flex-wrap items-center">
+          {STATUS_PILLS.map((p) => (
+            <button
+              key={p.key}
+              onClick={() => {
+                setStatusFilter(p.key);
+                setPage(1);
+              }}
+              className={`px-3 py-1 rounded-lg text-xs font-semibold transition-colors ${
+                statusFilter === p.key
+                  ? "bg-slate-900 text-white"
+                  : "bg-white border border-gray-200 text-slate-600 hover:bg-slate-50"
+              }`}
+            >
+              {p.label}
+            </button>
+          ))}
+        </div>
 
-        {uniqueCountries.length > 0 && (
-          <select
-            value={countryFilter}
-            onChange={(e) => setCountryFilter(e.target.value)}
-            className="px-3 py-1.5 text-sm border border-gray-200 rounded-lg text-slate-600 bg-white"
-          >
-            <option value="all">All countries</option>
-            {uniqueCountries.map((c) => (
-              <option key={c} value={c}>
-                {c}
-              </option>
-            ))}
-          </select>
-        )}
+        <div className="flex gap-2 flex-wrap items-center">
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => {
+              setSearchQuery(e.target.value);
+              setPage(1);
+            }}
+            placeholder="Search company or domain…"
+            className="px-3 py-1 text-xs border border-gray-200 rounded-lg bg-white text-slate-700 w-48"
+          />
 
-        {uniqueCategories.length > 0 && (
-          <select
-            value={categoryFilter}
-            onChange={(e) => setCategoryFilter(e.target.value)}
-            className="px-3 py-1.5 text-sm border border-gray-200 rounded-lg text-slate-600 bg-white"
-          >
-            <option value="all">All categories</option>
-            {uniqueCategories.map((c) => (
-              <option key={c} value={c}>
-                {c}
-              </option>
-            ))}
-          </select>
-        )}
+          {uniqueCountries.length > 0 && (
+            <select
+              value={countryFilter}
+              onChange={(e) => {
+                setCountryFilter(e.target.value);
+                setPage(1);
+              }}
+              className="px-2.5 py-1 text-xs border border-gray-200 rounded-lg text-slate-600 bg-white"
+            >
+              <option value="all">All countries</option>
+              {uniqueCountries.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
+            </select>
+          )}
+
+          {uniqueCategories.length > 0 && (
+            <select
+              value={categoryFilter}
+              onChange={(e) => {
+                setCategoryFilter(e.target.value);
+                setPage(1);
+              }}
+              className="px-2.5 py-1 text-xs border border-gray-200 rounded-lg text-slate-600 bg-white max-w-44"
+            >
+              <option value="all">All categories</option>
+              {uniqueCategories.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
+            </select>
+          )}
+        </div>
       </div>
 
       {/* Bulk action bar */}
       {selectedIds.size > 0 && (
-        <div className="flex items-center gap-3 p-3 bg-blue-50 border border-blue-200 rounded-xl mb-3 flex-wrap">
-          <span className="text-sm font-medium text-blue-800">
+        <div className="flex items-center gap-3 p-2.5 bg-blue-50 border border-blue-200 rounded-xl flex-wrap">
+          <span className="text-xs font-semibold text-blue-800">
             {selectedIds.size} selected
           </span>
           <button
             onClick={handleBulkRescrape}
             disabled={bulkLoading}
-            className="px-3 py-1.5 text-xs font-medium rounded-lg bg-orange-500 hover:bg-orange-600 text-white disabled:opacity-50 transition"
+            className="px-2.5 py-1 text-xs font-medium rounded-lg bg-orange-500 hover:bg-orange-600 text-white disabled:opacity-50 transition"
           >
             Re-scrape
           </button>
           <button
             onClick={handleBulkApprove}
             disabled={bulkLoading}
-            className="px-3 py-1.5 text-xs font-medium rounded-lg bg-green-500 hover:bg-green-600 text-white disabled:opacity-50 transition"
+            className="px-2.5 py-1 text-xs font-medium rounded-lg bg-green-500 hover:bg-green-600 text-white disabled:opacity-50 transition"
           >
-            Approve all
+            Approve
           </button>
           <button
             onClick={handleBulkDelete}
             disabled={bulkLoading}
-            className="px-3 py-1.5 text-xs font-medium rounded-lg border border-red-200 text-red-600 hover:bg-red-50 disabled:opacity-50 transition"
+            className="px-2.5 py-1 text-xs font-medium rounded-lg border border-red-200 text-red-600 hover:bg-red-50 disabled:opacity-50 transition"
           >
             Delete
           </button>
-          {bulkLoading && (
-            <span className="text-xs text-blue-600 flex items-center gap-1.5">
-              <span className="inline-block w-3 h-3 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
-              Working...
-            </span>
-          )}
         </div>
       )}
 
-      {/* Table or empty state */}
+      {/* Table */}
       {filtered.length === 0 ? (
-        <div className="text-center py-16 text-gray-400 text-sm">
+        <div className="text-center py-12 text-gray-400 text-xs bg-white rounded-2xl border border-gray-200">
           No suppliers match the current filters.
         </div>
       ) : (
-        <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-sm">
-          <table className="w-full text-sm">
-            <thead className="bg-gray-50 border-b border-gray-200">
-              <tr>
-                <th className="px-4 py-3 w-10">
-                  <input
-                    ref={selectAllRef}
-                    type="checkbox"
-                    onChange={toggleSelectAll}
-                    className="rounded border-gray-300 cursor-pointer"
-                  />
-                </th>
-                {TABLE_HEADERS.map((h) => (
-                  <th
-                    key={h}
-                    className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider"
-                  >
-                    {h}
+        <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-2xs">
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead className="bg-gray-50 border-b border-gray-200">
+                <tr>
+                  <th className="px-3 py-2.5 w-8">
+                    <input
+                      ref={selectAllRef}
+                      type="checkbox"
+                      onChange={toggleSelectAll}
+                      className="rounded border-gray-300 cursor-pointer"
+                    />
                   </th>
+                  {TABLE_HEADERS.map((h) => (
+                    <th
+                      key={h}
+                      className="px-3 py-2.5 text-left text-[11px] font-semibold text-gray-500 uppercase tracking-wider"
+                    >
+                      {h}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {pagedSuppliers.map((s) => (
+                  <ScraperRow
+                    key={s.id}
+                    supplier={s}
+                    factoryCount={factoryCountMap[s.id] ?? 0}
+                    kosherTypes={primaryKosherMap[s.id] ?? []}
+                    checked={selectedIds.has(s.id)}
+                    onToggle={toggleRow}
+                  />
                 ))}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {filtered.map((s) => (
-                <ScraperRow
-                  key={s.id}
-                  supplier={s}
-                  factoryCount={factoryCountMap[s.id] ?? 0}
-                  kosherTypes={primaryKosherMap[s.id] ?? []}
-                  checked={selectedIds.has(s.id)}
-                  onToggle={toggleRow}
-                />
-              ))}
-            </tbody>
-          </table>
+              </tbody>
+            </table>
+          </div>
+
+          {/* Pagination Footer */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between px-4 py-2.5 bg-slate-50 border-t border-slate-200 text-xs text-slate-600">
+              <span>
+                Showing {(currentPage - 1) * PAGE_SIZE + 1}–
+                {Math.min(currentPage * PAGE_SIZE, filtered.length)} of{" "}
+                {filtered.length.toLocaleString()}
+              </span>
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  disabled={currentPage <= 1}
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  className="px-2.5 py-1 rounded border border-slate-200 bg-white hover:bg-slate-100 disabled:opacity-40"
+                >
+                  ← Prev
+                </button>
+                <span className="px-2 font-medium">
+                  Page {currentPage} / {totalPages}
+                </span>
+                <button
+                  type="button"
+                  disabled={currentPage >= totalPages}
+                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                  className="px-2.5 py-1 rounded border border-slate-200 bg-white hover:bg-slate-100 disabled:opacity-40"
+                >
+                  Next →
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>

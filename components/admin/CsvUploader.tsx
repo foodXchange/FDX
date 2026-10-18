@@ -1,156 +1,177 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+
+type ParamCompleteness = {
+  companyNamePct: number;
+  websitePct: number;
+  countryPct: number;
+  categoriesPct: number;
+  contactPct: number;
+  notesPct: number;
+};
 
 type UploadResult = {
   ok: boolean;
+  mode?: "check" | "upload";
   batchId?: string;
   batchUuid?: string;
   total: number;
+  uniqueReady?: number;
   inserted: number;
   skipped: number;
+  duplicateCount?: number;
+  duplicateDbNameCount?: number;
+  duplicateDbDomainCount?: number;
+  duplicateInternalCount?: number;
   errors: number;
   invalidUrls?: number;
+  paramCompleteness?: ParamCompleteness;
   skippedNames?: string[];
   errorDetails?: string[];
   error?: string;
 };
 
-type FileResult = UploadResult & { fileName: string };
+type QueuedFileState = {
+  file: File;
+  status: "checking" | "checked" | "uploading" | "uploaded" | "error";
+  checkResult?: UploadResult;
+  uploadResult?: UploadResult;
+};
 
 export function CsvUploader() {
+  const router = useRouter();
   const [dragging, setDragging] = useState(false);
-  const [queue, setQueue] = useState<File[]>([]);
-  const [uploadingIndex, setUploadingIndex] = useState<number | null>(null);
-  const [results, setResults] = useState<FileResult[]>([]);
-  const [globalError, setGlobalError] = useState<string | null>(null);
+  const [items, setItems] = useState<QueuedFileState[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  async function uploadSingleFile(file: File): Promise<FileResult> {
+  async function runApi(file: File, mode: "check" | "upload"): Promise<UploadResult> {
     const form = new FormData();
     form.append("file", file);
+    form.append("mode", mode);
     try {
       const res = await fetch("/api/admin/suppliers/upload-csv", {
         method: "POST",
         body: form,
       });
-      const data = (await res.json()) as UploadResult;
-      return { ...data, fileName: file.name };
+      return (await res.json()) as UploadResult;
     } catch {
       return {
         ok: false,
-        fileName: file.name,
+        mode,
         total: 0,
         inserted: 0,
         skipped: 0,
         errors: 1,
-        error: "Network error — upload failed",
+        error: "Network error",
       };
     }
   }
 
-  async function uploadAll() {
-    if (queue.length === 0) return;
-    setGlobalError(null);
-    const newResults: FileResult[] = [];
+  async function addAndCheckFiles(fileList: FileList | File[]) {
+    const arr = Array.from(fileList).filter((f) => f.name.toLowerCase().endsWith(".csv"));
+    if (arr.length === 0) return;
 
-    for (let i = 0; i < queue.length; i++) {
-      const file = queue[i];
-      if (!file.name.endsWith(".csv")) {
-        newResults.push({
-          ok: false,
-          fileName: file.name,
-          total: 0,
-          inserted: 0,
-          skipped: 0,
-          errors: 1,
-          error: "Not a CSV file",
-        });
-        setResults([...newResults]);
-        continue;
-      }
-      setUploadingIndex(i);
-      const result = await uploadSingleFile(file);
-      newResults.push(result);
-      setResults([...newResults]);
-    }
+    const newEntries: QueuedFileState[] = arr.map((file) => ({
+      file,
+      status: "checking",
+    }));
 
-    setUploadingIndex(null);
-    setQueue([]);
-    if (inputRef.current) inputRef.current.value = "";
-  }
+    setItems((prev) => [...newEntries, ...prev]);
 
-  function addFiles(files: FileList | File[]) {
-    const arr = Array.from(files);
-    setQueue((prev) => {
-      const existingNames = new Set(prev.map((f) => f.name));
-      const deduped = arr.filter((f) => !existingNames.has(f.name));
-      return [...prev, ...deduped];
-    });
-    setGlobalError(null);
-  }
-
-  function removeFromQueue(index: number) {
-    setQueue((prev) => prev.filter((_, i) => i !== index));
-  }
-
-  function onDrop(e: React.DragEvent) {
-    e.preventDefault();
-    setDragging(false);
-    if (e.dataTransfer.files.length > 0) {
-      addFiles(e.dataTransfer.files);
+    for (const entry of newEntries) {
+      const checkRes = await runApi(entry.file, "check");
+      setItems((prev) =>
+        prev.map((it) =>
+          it.file === entry.file
+            ? {
+                ...it,
+                status: checkRes.ok ? "checked" : "error",
+                checkResult: checkRes,
+              }
+            : it
+        )
+      );
     }
   }
 
-  function onInputChange(e: React.ChangeEvent<HTMLInputElement>) {
-    if (e.target.files && e.target.files.length > 0) {
-      addFiles(e.target.files);
+  async function uploadItem(targetFile: File) {
+    setItems((prev) =>
+      prev.map((it) => (it.file === targetFile ? { ...it, status: "uploading" } : it))
+    );
+    const upRes = await runApi(targetFile, "upload");
+    setItems((prev) =>
+      prev.map((it) =>
+        it.file === targetFile
+          ? {
+              ...it,
+              status: upRes.ok ? "uploaded" : "error",
+              uploadResult: upRes,
+            }
+          : it
+      )
+    );
+    if (upRes.ok) {
+      router.refresh();
     }
-    e.target.value = "";
   }
 
-  const isUploading = uploadingIndex !== null;
+  async function uploadAllChecked() {
+    const ready = items.filter(
+      (it) => it.status === "checked" && (it.checkResult?.uniqueReady ?? 0) > 0
+    );
+    for (const it of ready) {
+      await uploadItem(it.file);
+    }
+  }
+
+  function removeItem(targetFile: File) {
+    setItems((prev) => prev.filter((it) => it.file !== targetFile));
+  }
+
+  const totalUniqueReady = items
+    .filter((it) => it.status === "checked")
+    .reduce((sum, it) => sum + (it.checkResult?.uniqueReady ?? 0), 0);
 
   return (
-    <div className="flex flex-col md:flex-row gap-6">
-      {/* Left side */}
-      <div className="flex-1">
-        <p className="text-lg font-semibold text-slate-800 mb-1">
-          Import suppliers from CSV
-        </p>
-        <p className="text-sm text-slate-500 mb-4">
-          Upload one or more supplier lists — we scrape and enrich automatically
-        </p>
+    <div className="space-y-4">
+      <div className="flex items-center justify-between gap-2 flex-wrap">
+        <div className="flex items-center gap-2">
+          <h2 className="text-sm font-bold text-slate-900 uppercase tracking-wider">
+            CSV Import & Deduplication
+          </h2>
+          <span
+            className="text-xs text-slate-400 cursor-help border border-slate-200 rounded-full w-4 h-4 inline-flex items-center justify-center"
+            title="Every CSV is automatically audited against all existing database suppliers (by company name and normalized website domain) before importing. Only unique records are uploaded."
+          >
+            ?
+          </span>
+        </div>
 
-        <div className="flex gap-3 flex-wrap">
+        <div className="flex items-center gap-2">
           <a
             href="/api/admin/suppliers/template"
             download
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm border border-slate-200 text-slate-600 rounded-lg hover:bg-slate-50 transition-colors"
+            title="Download standard CSV column template"
+            className="px-2.5 py-1 text-xs font-medium border border-slate-200 text-slate-600 rounded-lg hover:bg-slate-50 transition"
           >
-            ⬇ Download template
+            ⬇ Template
           </a>
           <button
+            type="button"
             onClick={() => inputRef.current?.click()}
-            disabled={isUploading}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition-colors disabled:opacity-60"
+            className="px-3 py-1 text-xs font-semibold bg-slate-900 text-white rounded-lg hover:bg-slate-800 transition"
           >
-            + Add CSV files
+            + Select CSV
           </button>
-          {queue.length > 0 && (
+          {totalUniqueReady > 0 && (
             <button
-              onClick={uploadAll}
-              disabled={isUploading}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors disabled:opacity-60"
+              type="button"
+              onClick={uploadAllChecked}
+              className="px-3 py-1 text-xs font-semibold bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition shadow-sm"
             >
-              {isUploading ? (
-                <>
-                  <span className="inline-block h-3.5 w-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  Uploading {uploadingIndex! + 1} of {queue.length}…
-                </>
-              ) : (
-                `⬆ Upload all (${queue.length} file${queue.length !== 1 ? "s" : ""})`
-              )}
+              ⬆ Upload Unique ({totalUniqueReady})
             </button>
           )}
           <input
@@ -159,154 +180,196 @@ export function CsvUploader() {
             accept=".csv"
             multiple
             className="hidden"
-            onChange={onInputChange}
+            onChange={(e) => {
+              if (e.target.files?.length) addAndCheckFiles(e.target.files);
+              e.target.value = "";
+            }}
           />
         </div>
-
-        {/* Queue list */}
-        {queue.length > 0 && (
-          <div className="mt-4 space-y-2">
-            {queue.map((file, idx) => (
-              <div
-                key={file.name}
-                className={`flex items-center gap-3 px-3 py-2 rounded-lg border text-sm ${
-                  uploadingIndex === idx
-                    ? "border-orange-300 bg-orange-50"
-                    : "border-slate-200 bg-slate-50"
-                }`}
-              >
-                {uploadingIndex === idx ? (
-                  <span className="inline-block h-3.5 w-3.5 shrink-0 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
-                ) : (
-                  <span className="text-slate-400">📄</span>
-                )}
-                <span className="flex-1 truncate text-slate-700 font-medium">
-                  {file.name}
-                </span>
-                <span className="text-xs text-slate-400 shrink-0">
-                  {(file.size / 1024).toFixed(0)} KB
-                </span>
-                {uploadingIndex === null && (
-                  <button
-                    type="button"
-                    onClick={() => removeFromQueue(idx)}
-                    className="text-slate-400 hover:text-red-500 transition-colors text-xs shrink-0"
-                  >
-                    ✕
-                  </button>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* Per-file results */}
-        {results.length > 0 && (
-          <div className="mt-4 space-y-3">
-            {results.map((r, idx) => (
-              <div
-                key={idx}
-                className={`p-4 rounded-xl border text-sm space-y-2 ${
-                  r.ok
-                    ? "bg-slate-50 border-slate-200"
-                    : "bg-red-50 border-red-200"
-                }`}
-              >
-                <p className="font-semibold text-slate-800">
-                  📄 {r.fileName}
-                  {r.ok ? (
-                    <span className="ml-2 text-xs font-normal text-slate-500">
-                      {r.total} rows processed
-                    </span>
-                  ) : null}
-                </p>
-                {r.ok ? (
-                  <div className="space-y-1 text-slate-600">
-                    <p>
-                      ✓{" "}
-                      <span className="font-medium text-green-700">
-                        {r.inserted}
-                      </span>{" "}
-                      new suppliers added
-                    </p>
-                    <p>
-                      ⊘{" "}
-                      <span className="font-medium text-slate-500">
-                        {r.skipped}
-                      </span>{" "}
-                      duplicates skipped
-                    </p>
-                    {(r.invalidUrls ?? 0) > 0 && (
-                      <p>
-                        ✗{" "}
-                        <span className="font-medium text-red-600">
-                          {r.invalidUrls}
-                        </span>{" "}
-                        invalid URLs skipped
-                      </p>
-                    )}
-                    {r.errors > 0 && (
-                      <p className="text-amber-700">
-                        ⚠ {r.errors} other error{r.errors !== 1 ? "s" : ""}
-                      </p>
-                    )}
-                    {r.batchId && (
-                      <p className="text-xs text-slate-500 font-mono pt-1">
-                        Batch: {r.batchId}
-                      </p>
-                    )}
-                  </div>
-                ) : (
-                  <p className="text-red-700">✗ {r.error ?? "Upload failed"}</p>
-                )}
-                {r.errorDetails && r.errorDetails.length > 0 && (
-                  <ul className="text-xs text-red-700 list-disc list-inside">
-                    {r.errorDetails.slice(0, 5).map((e, i) => (
-                      <li key={i}>{e}</li>
-                    ))}
-                    {r.errorDetails.length > 5 && (
-                      <li className="text-slate-500">
-                        …and {r.errorDetails.length - 5} more
-                      </li>
-                    )}
-                  </ul>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
-
-        {globalError && (
-          <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
-            ✗ {globalError}
-          </div>
-        )}
       </div>
 
-      {/* Drag-and-drop zone */}
+      {/* Compact Dropzone */}
       <div
-        className={`md:w-56 border-2 border-dashed rounded-xl p-6 flex flex-col items-center justify-center text-center transition-colors cursor-pointer
-          ${dragging ? "border-orange-400 bg-orange-50" : "border-slate-200 hover:border-slate-300"}`}
         onDragOver={(e) => {
           e.preventDefault();
           setDragging(true);
         }}
         onDragLeave={() => setDragging(false)}
-        onDrop={onDrop}
+        onDrop={(e) => {
+          e.preventDefault();
+          setDragging(false);
+          if (e.dataTransfer.files.length > 0) addAndCheckFiles(e.dataTransfer.files);
+        }}
         onClick={() => inputRef.current?.click()}
+        className={`border-2 border-dashed rounded-xl px-4 py-4 flex items-center justify-between gap-4 cursor-pointer transition-colors ${
+          dragging
+            ? "border-orange-400 bg-orange-50/60"
+            : "border-slate-200 bg-slate-50/60 hover:border-slate-300"
+        }`}
       >
-        <span className="text-2xl mb-2">📂</span>
-        {queue.length > 0 ? (
-          <p className="text-xs text-slate-600 font-medium">
-            {queue.length} file{queue.length !== 1 ? "s" : ""} queued
-          </p>
-        ) : (
-          <>
-            <p className="text-sm text-slate-500">Drag CSVs here</p>
-            <p className="text-xs text-slate-400 mt-1">or click to browse</p>
-          </>
-        )}
+        <div className="flex items-center gap-3">
+          <span className="text-xl">📄</span>
+          <div>
+            <p className="text-xs font-semibold text-slate-700">
+              Drop CSV file(s) to check uniqueness & parameter coverage
+            </p>
+            <p className="text-[11px] text-slate-400">
+              Auto-checks duplicates by Company Name + Domain before inserting
+            </p>
+          </div>
+        </div>
+        <span className="text-xs font-medium text-slate-500 bg-white px-2.5 py-1 rounded-md border border-slate-200 shrink-0">
+          Browse
+        </span>
       </div>
+
+      {/* File Audit & Upload Results */}
+      {items.length > 0 && (
+        <div className="space-y-2.5 max-h-80 overflow-y-auto pr-1">
+          {items.map((item, idx) => {
+            const res = item.uploadResult ?? item.checkResult;
+            const pc = res?.paramCompleteness;
+            const uniqueCount = res?.uniqueReady ?? 0;
+            const dupCount = res?.duplicateCount ?? 0;
+
+            return (
+              <div
+                key={`${item.file.name}-${idx}`}
+                className="p-3 rounded-xl border border-slate-200 bg-white shadow-2xs space-y-2 text-xs"
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="font-semibold text-slate-800 truncate">
+                      {item.file.name}
+                    </span>
+                    {res?.ok && (
+                      <span className="text-[11px] text-slate-400 shrink-0">
+                        ({res.total} rows)
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    {item.status === "checking" && (
+                      <span className="inline-flex items-center gap-1 text-slate-500">
+                        <span className="w-3 h-3 border-2 border-slate-500 border-t-transparent rounded-full animate-spin" />
+                        Checking…
+                      </span>
+                    )}
+                    {item.status === "uploading" && (
+                      <span className="inline-flex items-center gap-1 text-orange-600 font-medium">
+                        <span className="w-3 h-3 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
+                        Uploading…
+                      </span>
+                    )}
+                    {item.status === "checked" && uniqueCount > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => uploadItem(item.file)}
+                        className="px-2.5 py-1 bg-orange-500 hover:bg-orange-600 text-white font-semibold rounded-md transition"
+                        title="Insert only the unique non-duplicate suppliers into the database"
+                      >
+                        ⬆ Upload {uniqueCount} Unique
+                      </button>
+                    )}
+                    {item.status === "checked" && uniqueCount === 0 && (
+                      <span
+                        className="px-2 py-0.5 bg-slate-100 text-slate-500 rounded font-medium"
+                        title="All rows in this CSV already exist in the database or lack a valid website"
+                      >
+                        0 New (All Duplicate)
+                      </span>
+                    )}
+                    {item.status === "uploaded" && (
+                      <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded font-semibold">
+                        ✓ Uploaded {item.uploadResult?.inserted ?? 0}
+                      </span>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => removeItem(item.file)}
+                      className="text-slate-400 hover:text-slate-600 px-1"
+                      title="Dismiss"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                </div>
+
+                {res?.ok && (
+                  <>
+                    {/* Uniqueness Breakdown Badges */}
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <span
+                        className="px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 font-semibold border border-emerald-200 cursor-help"
+                        title="Unique records with valid websites not found in the database"
+                      >
+                        ✓ {uniqueCount} Unique
+                      </span>
+                      <span
+                        className="px-2 py-0.5 rounded-md bg-amber-50 text-amber-800 font-medium border border-amber-200 cursor-help"
+                        title={`Duplicates skipped: ${res.duplicateDbNameCount ?? 0} by Company Name in DB, ${res.duplicateDbDomainCount ?? 0} by Website Domain in DB, ${res.duplicateInternalCount ?? 0} internal CSV duplicates`}
+                      >
+                        ⊘ {dupCount} Duplicates (Name: {res.duplicateDbNameCount ?? 0} · Domain:{" "}
+                        {res.duplicateDbDomainCount ?? 0} · CSV: {res.duplicateInternalCount ?? 0})
+                      </span>
+                      {(res.invalidUrls ?? 0) > 0 && (
+                        <span
+                          className="px-2 py-0.5 rounded-md bg-red-50 text-red-700 font-medium border border-red-200 cursor-help"
+                          title="Rows missing a valid http/https website or social-only links"
+                        >
+                          ✗ {res.invalidUrls} Invalid URL
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Parameter Completeness % in CSV */}
+                    {pc && (
+                      <div className="flex flex-wrap items-center gap-1 pt-0.5">
+                        <span className="text-[11px] text-slate-400 mr-1">CSV Params:</span>
+                        <ParamBadge label="Web" pct={pc.websitePct} title="Rows with valid website URL" />
+                        <ParamBadge label="Country" pct={pc.countryPct} title="Rows with country specified" />
+                        <ParamBadge label="Cat" pct={pc.categoriesPct} title="Rows with category specified" />
+                        <ParamBadge label="Contact" pct={pc.contactPct} title="Rows with email or phone" />
+                        <ParamBadge label="Desc" pct={pc.notesPct} title="Rows with notes/description" />
+                      </div>
+                    )}
+                  </>
+                )}
+
+                {!res?.ok && res?.error && (
+                  <p className="text-red-600 font-medium">✗ {res.error}</p>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
+  );
+}
+
+function ParamBadge({
+  label,
+  pct,
+  title,
+}: {
+  label: string;
+  pct: number;
+  title: string;
+}) {
+  const color =
+    pct >= 80
+      ? "bg-slate-100 text-slate-700"
+      : pct >= 40
+        ? "bg-amber-50 text-amber-700"
+        : "bg-slate-50 text-slate-400";
+  return (
+    <span
+      title={`${title}: ${pct}%`}
+      className={`px-1.5 py-0.5 rounded text-[10px] font-medium cursor-help ${color}`}
+    >
+      {label} {pct}%
+    </span>
   );
 }
