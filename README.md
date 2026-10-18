@@ -39,6 +39,7 @@ Detailed technical and product guides are maintained in [`/docs`](./docs):
 - **[System Architecture & Tech Stack (`docs/ARCHITECTURE.md`)](./docs/ARCHITECTURE.md)**: Cloud services, data models, database tables, and security mechanisms.
 - **[API Directory & Data Flow (`docs/API_DIRECTORY.md`)](./docs/API_DIRECTORY.md)**: Complete catalog of all `/api/*` endpoints, payloads, and integrations.
 - **[Admin Operations Guide (`docs/ADMIN_GUIDE.md`)](./docs/ADMIN_GUIDE.md)**: Step-by-step instructions for managing sourcing requests, matches, and scraper jobs.
+- **[Roadmap & Next Steps (`docs/ROADMAP.md`)](./docs/ROADMAP.md)**: Prioritized action items, dates to follow up, and milestone checklists.
 
 ---
 
