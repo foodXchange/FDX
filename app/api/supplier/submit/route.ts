@@ -171,6 +171,55 @@ export async function POST(req: Request) {
       { supplier_id: newSupplier.id }
     );
 
+    // Auto-match against open sourcing requests
+    void (async () => {
+      try {
+        const { data: openRequests } = await supabaseAdmin
+          .from("sourcing_requests")
+          .select("id, product_name, category, message")
+          .limit(60);
+
+        if (!openRequests || openRequests.length === 0) return;
+
+        const supplierCats = data.categories.map((c) => c.toLowerCase());
+        const supplierText = `${data.company_name} ${data.description || ""} ${data.categories.join(" ")}`.toLowerCase();
+
+        for (const req of openRequests) {
+          const reqCat = (req.category || "").toLowerCase();
+          const reqProd = (req.product_name || "").toLowerCase();
+
+          let matched = false;
+          let score = 75;
+
+          if (reqCat && supplierCats.some((sc) => reqCat.includes(sc) || sc.includes(reqCat))) {
+            matched = true;
+            score += 15;
+          }
+
+          if (reqProd && supplierText.includes(reqProd)) {
+            matched = true;
+            score += 10;
+          }
+
+          if (matched) {
+            score = Math.min(score, 95);
+            await supabaseAdmin.from("sourcing_matches").insert({
+              request_id: req.id,
+              supplier_id: newSupplier.id,
+              company_name: data.company_name,
+              product_name: req.product_name || data.categories[0] || "Food Offering",
+              country: data.country || "International",
+              match_score: score,
+              status: "suggested",
+              match_summary: `Supplier onboarding match: ${data.company_name} offers products matching ${req.product_name || req.category}`,
+            });
+          }
+        }
+      } catch (err) {
+        console.error("Auto-matching on supplier signup failed:", err);
+      }
+    })();
+
     void logEvent(null, "supplier", "supplier_signup", "supplier", newSupplier.id, {
       company_name: data.company_name,
       source: data.source ?? "manufacturer-widget",

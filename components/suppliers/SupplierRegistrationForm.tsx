@@ -584,6 +584,13 @@ export default function SupplierRegistrationForm() {
         {/* ── Step 2: Certifications & Compliance ── */}
         {step === 2 && (
           <>
+            <div className="p-3.5 rounded-xl bg-orange-500/10 border border-orange-500/20 text-xs text-orange-200 mb-4 flex items-start gap-2.5">
+              <span className="text-base shrink-0">💡</span>
+              <p className="leading-relaxed">
+                <strong>No Kosher certificate yet?</strong> That is completely fine. Select &quot;No — but willing to obtain&quot;. We assess commercial demand first and assist with turnkey Rabbinate guidance once buyer interest is established.
+              </p>
+            </div>
+
             <div>
               <Label>Current kosher certification</Label>
               <div className="space-y-2 mt-1">
@@ -659,6 +666,13 @@ export default function SupplierRegistrationForm() {
         {/* ── Step 3: Contact ── */}
         {step === 3 && (
           <>
+            <div className="p-3.5 rounded-xl bg-slate-800/90 border border-slate-700 text-xs text-slate-300 mb-4 flex items-center gap-2.5">
+              <span className="text-base shrink-0">🔒</span>
+              <p className="leading-relaxed">
+                <strong>Strict Confidentiality:</strong> Your contact details and commercial quotes are protected. We never publish your wholesale pricing or sell your data.
+              </p>
+            </div>
+
             <ContactFields
               name={contactName}
               onNameChange={(value) => { setContactName(value); clearFieldError("contactName"); }}
