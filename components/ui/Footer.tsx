@@ -31,13 +31,13 @@ export default function Footer() {
               <Link href="/" className="hover:text-white">Home</Link>
             </li>
             <li>
-              <Link href="/about" className="hover:text-white">About</Link>
+              <Link href="/en/about" className="hover:text-white">About</Link>
             </li>
             <li>
-              <Link href="/buyers" className="hover:text-white">Buyers</Link>
+              <Link href="/en/buyers" className="hover:text-white">Buyers</Link>
             </li>
             <li>
-              <Link href="/manufacturers" className="hover:text-white">Manufacturers</Link>
+              <Link href="/en/manufacturers" className="hover:text-white">Manufacturers</Link>
             </li>
           </ul>
         </div>
@@ -54,15 +54,13 @@ export default function Footer() {
               <Link href="/en/newsletter" className="hover:text-white">Newsletter</Link>
             </li>
             <li>
-              <a
-                href="https://kb.fdx.trading"
-                target="_blank"
-                rel="noopener noreferrer"
+              <Link
+                href="/en/import-guide"
                 className="hover:text-white flex items-center gap-1.5"
               >
                 Knowledge Base
                 <span className="bg-orange-500 text-white text-[10px] px-1 py-0.5 rounded font-bold leading-none">KB</span>
-              </a>
+              </Link>
             </li>
           </ul>
 

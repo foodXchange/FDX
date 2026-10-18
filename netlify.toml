@@ -21,3 +21,10 @@
   to = "https://fdx.trading/c/udi"
   status = 301
   force = true
+
+# Redirect kb.fdx.trading to the consolidated knowledge base
+[[redirects]]
+  from = "https://kb.fdx.trading/*"
+  to = "https://fdx.trading/en/import-guide"
+  status = 301
+  force = true

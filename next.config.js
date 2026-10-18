@@ -18,6 +18,21 @@ const nextConfig = {
         destination: "/business-card/:handle",
         permanent: true,
       },
+      {
+        source: "/manufacturers",
+        destination: "/en/manufacturers",
+        permanent: true,
+      },
+      {
+        source: "/buyers",
+        destination: "/en/buyers",
+        permanent: true,
+      },
+      {
+        source: "/about",
+        destination: "/en/about",
+        permanent: true,
+      },
     ];
   },
   images: {
