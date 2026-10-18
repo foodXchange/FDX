@@ -304,8 +304,9 @@ export async function GET(req: NextRequest) {
           continue;
         }
 
+        // Optimized for Firecrawl Standard Plan (50 concurrent limit): fast 35s timeout
         const supplierTimeout = new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error("Supplier timeout")), 90000)
+          setTimeout(() => reject(new Error("Supplier timeout")), 35000)
         );
 
         try {
@@ -553,8 +554,8 @@ export async function GET(req: NextRequest) {
         }
 
         if (i < suppliers.length - 1) {
-          send({ type: "log", message: "  ⏳ Waiting 25s before next supplier..." });
-          await sleep(25000);
+          send({ type: "log", message: "  ⚡ Standard Plan: quick 1.5s pause before next supplier..." });
+          await sleep(1500);
         }
       }
 
