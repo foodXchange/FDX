@@ -3,7 +3,13 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { STAGE_COLORS, STAGE_LABELS, statusToStage } from "./stage";
+import {
+  STAGE_COLORS,
+  STAGE_LABELS,
+  statusToStage,
+  getNextActionLabel,
+} from "./stage";
+import { bulkUpdateMatchStage } from "./actions";
 
 export type PipelineRow = {
   id: string;
@@ -19,6 +25,9 @@ export type PipelineRow = {
   responded_at: string | null;
   closed_at: string | null;
   sent_via: string | null;
+  response_note?: string | null;
+  whatsapp_message?: string | null;
+  match_summary?: string | null;
   buyer_company: string | null;
   buyer_product: string | null;
   buyer_id: string | null;
@@ -43,171 +52,265 @@ function truncate(text: string, max: number): string {
 function StatusBadge({ status }: { status: string }) {
   const stage = statusToStage(status);
   return (
-    <span className={`inline-block text-xs font-medium px-2 py-0.5 rounded-full ${STAGE_COLORS[stage]}`}>
+    <span
+      className={`inline-block text-[11px] font-bold px-2.5 py-0.5 rounded-full border ${STAGE_COLORS[stage]}`}
+    >
       {STAGE_LABELS[stage]}
     </span>
   );
 }
 
-function actionLabel(status: string): string | null {
-  if (status === "pending" || status === "new") return "Send proposal";
-  if (status === "approved") return "Send";
-  if (status === "sent") return "Mark responded";
-  if (status === "responded") return "Close";
-  return null;
+interface PipelineTableProps {
+  rows: PipelineRow[];
+  statuses: Record<string, string>;
+  loading: Set<string>;
+  onAdvance: (row: PipelineRow) => void;
+  onOpenModal: (row: PipelineRow, mode: "send" | "respond" | "details" | "reject") => void;
 }
 
-function actionPayload(
-  status: string
-): { action: string; sent_via?: string } | null {
-  if (status === "pending" || status === "new") return { action: "approve" };
-  if (status === "approved") return { action: "send", sent_via: "whatsapp" };
-  if (status === "sent") return { action: "respond" };
-  if (status === "responded") return { action: "close" };
-  return null;
-}
-
-export default function PipelineTable({ rows }: { rows: PipelineRow[] }) {
+export default function PipelineTable({
+  rows,
+  statuses,
+  loading,
+  onAdvance,
+  onOpenModal,
+}: PipelineTableProps) {
   const router = useRouter();
-  const [statuses, setStatuses] = useState<Record<string, string>>(
-    Object.fromEntries(rows.map((r) => [r.id, r.status]))
-  );
-  const [loading, setLoading] = useState<Set<string>>(new Set());
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkBusy, setBulkBusy] = useState(false);
 
-  async function handleAction(e: React.MouseEvent, row: PipelineRow) {
-    e.stopPropagation();
-    const status = statuses[row.id];
-    const payload = actionPayload(status);
-    if (!payload) return;
+  const allSelected = rows.length > 0 && selectedIds.size === rows.length;
 
-    setLoading((prev) => new Set([...prev, row.id]));
-
-    const nextMap: Record<string, string> = {
-      approve: "approved",
-      send: "sent",
-      respond: "responded",
-      close: "closed",
-    };
-    const nextStatus = nextMap[payload.action] ?? status;
-
-    setStatuses((prev) => ({ ...prev, [row.id]: nextStatus }));
-
-    try {
-      await fetch(`/api/matching/${row.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-    } catch {
-      setStatuses((prev) => ({ ...prev, [row.id]: status }));
-    } finally {
-      setLoading((prev) => {
-        const next = new Set(prev);
-        next.delete(row.id);
-        return next;
-      });
+  function toggleSelectAll() {
+    if (allSelected) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(rows.map((r) => r.id)));
     }
+  }
+
+  function toggleRow(id: string, e: React.MouseEvent) {
+    e.stopPropagation();
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  async function handleBulkApprove() {
+    if (selectedIds.size === 0) return;
+    setBulkBusy(true);
+    await bulkUpdateMatchStage(Array.from(selectedIds), "approved");
+    setSelectedIds(new Set());
+    setBulkBusy(false);
+  }
+
+  async function handleBulkReject() {
+    if (selectedIds.size === 0) return;
+    setBulkBusy(true);
+    await bulkUpdateMatchStage(Array.from(selectedIds), "rejected");
+    setSelectedIds(new Set());
+    setBulkBusy(false);
   }
 
   if (rows.length === 0) {
     return (
-      <p className="text-sm text-gray-400 py-8 text-center">No matches found.</p>
+      <div className="text-center py-12">
+        <p className="text-sm font-semibold text-gray-700">No deals match this filter.</p>
+        <p className="text-xs text-gray-400 mt-1">Try clearing your search query or stage filters.</p>
+      </div>
     );
   }
 
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full text-sm">
-        <thead>
-          <tr className="text-left border-b border-gray-200">
-            <th className="pb-2 pr-4 font-medium text-gray-500">Buyer</th>
-            <th className="pb-2 pr-4 font-medium text-gray-500">Product</th>
-            <th className="pb-2 pr-4 font-medium text-gray-500">Supplier</th>
-            <th className="pb-2 pr-4 font-medium text-gray-500">Country</th>
-            <th className="pb-2 pr-4 font-medium text-gray-500 text-center">Score</th>
-            <th className="pb-2 pr-4 font-medium text-gray-500">Status</th>
-            <th className="pb-2 pr-4 font-medium text-gray-500">Updated</th>
-            <th className="pb-2 font-medium text-gray-500 w-28"></th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-gray-100">
-          {rows.map((row) => {
-            const currentStatus = statuses[row.id];
-            const label = actionLabel(currentStatus);
-            const isLoading = loading.has(row.id);
+    <div className="space-y-3">
+      {/* Bulk Action Toolbar */}
+      {selectedIds.size > 0 && (
+        <div className="bg-orange-50 border border-orange-200 rounded-xl px-4 py-2.5 flex items-center justify-between gap-3 animate-in fade-in duration-150">
+          <div className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-orange-500 animate-pulse" />
+            <span className="text-xs font-bold text-orange-950">
+              {selectedIds.size} deal{selectedIds.size === 1 ? "" : "s"} selected
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handleBulkApprove}
+              disabled={bulkBusy}
+              className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-orange-500 hover:bg-orange-600 text-white shadow-xs transition-colors cursor-pointer disabled:opacity-50"
+            >
+              {bulkBusy ? "Processing…" : `Approve Selected (${selectedIds.size}) →`}
+            </button>
+            <button
+              type="button"
+              onClick={handleBulkReject}
+              disabled={bulkBusy}
+              className="px-3 py-1.5 text-xs font-semibold rounded-lg border border-red-200 text-red-600 bg-white hover:bg-red-50 transition-colors cursor-pointer disabled:opacity-50"
+            >
+              Reject Selected
+            </button>
+            <button
+              type="button"
+              onClick={() => setSelectedIds(new Set())}
+              className="text-xs text-gray-500 hover:text-gray-800 ml-1"
+            >
+              Clear
+            </button>
+          </div>
+        </div>
+      )}
 
-            return (
-              <tr
-                key={row.id}
-                onClick={() => router.push(`/admin/requests/${row.request_id}`)}
-                className="cursor-pointer hover:bg-gray-50 transition-colors group"
-              >
-                <td className="py-2.5 pr-4 text-gray-600 text-xs max-w-[120px] truncate">
-                  {row.buyer_id ? (
-                    <Link
-                      href={`/admin/buyers/${row.buyer_id}`}
-                      onClick={(e) => e.stopPropagation()}
-                      className="hover:text-orange-600 hover:underline"
-                    >
-                      {row.buyer_company ?? "—"}
-                    </Link>
-                  ) : (
-                    row.buyer_company ?? "—"
-                  )}
-                </td>
-                <td
-                  className="py-2.5 pr-4 text-gray-800 font-medium text-xs max-w-[140px] truncate"
-                  title={row.product_name}
+      <div className="overflow-x-auto border border-gray-200 rounded-xl shadow-xs">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="text-left bg-gray-50/80 border-b border-gray-200 text-xs font-semibold text-gray-600">
+              <th className="py-2.5 px-3 w-8 text-center">
+                <input
+                  type="checkbox"
+                  checked={allSelected}
+                  onChange={toggleSelectAll}
+                  className="rounded border-gray-300 text-orange-600 focus:ring-orange-400"
+                />
+              </th>
+              <th className="py-2.5 pr-4 font-semibold">Buyer Company</th>
+              <th className="py-2.5 pr-4 font-semibold">Matched Product</th>
+              <th className="py-2.5 pr-4 font-semibold">Supplier</th>
+              <th className="py-2.5 pr-4 font-semibold">Origin</th>
+              <th className="py-2.5 pr-4 text-center font-semibold">Score</th>
+              <th className="py-2.5 pr-4 font-semibold">Stage</th>
+              <th className="py-2.5 pr-4 font-semibold">Last Updated</th>
+              <th className="py-2.5 pr-4 text-right font-semibold w-40">Pipeline Action</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-100 bg-white">
+            {rows.map((row) => {
+              const currentStatus = statuses[row.id] ?? row.status;
+              const nextLabel = getNextActionLabel(currentStatus);
+              const isLoading = loading.has(row.id);
+              const isSelected = selectedIds.has(row.id);
+
+              return (
+                <tr
+                  key={row.id}
+                  onClick={() => router.push(`/admin/requests/${row.request_id}`)}
+                  className={`cursor-pointer transition-colors group ${
+                    isSelected ? "bg-orange-50/40" : "hover:bg-gray-50/70"
+                  }`}
                 >
-                  {truncate(row.product_name, 40)}
-                </td>
-                <td className="py-2.5 pr-4 text-gray-700 text-xs max-w-[140px] truncate">
-                  <Link
-                    href={`/admin/suppliers/${row.supplier_id}`}
-                    onClick={(e) => e.stopPropagation()}
-                    className="hover:text-orange-600 hover:underline"
+                  <td
+                    className="py-3 px-3 text-center"
+                    onClick={(e) => toggleRow(row.id, e)}
                   >
-                    {row.company_name}
-                  </Link>
-                </td>
-                <td className="py-2.5 pr-4 text-gray-400 text-xs">
-                  {row.country ?? "—"}
-                </td>
-                <td className="py-2.5 pr-4 text-center">
-                  <span
-                    className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
-                      row.match_score >= 70
-                        ? "bg-green-100 text-green-700"
-                        : row.match_score >= 50
-                        ? "bg-orange-100 text-orange-700"
-                        : "bg-gray-100 text-gray-600"
-                    }`}
+                    <input
+                      type="checkbox"
+                      checked={isSelected}
+                      onChange={() => {}}
+                      className="rounded border-gray-300 text-orange-600 focus:ring-orange-400"
+                    />
+                  </td>
+                  <td className="py-3 pr-4 text-gray-900 text-xs font-medium max-w-[130px] truncate">
+                    {row.buyer_id ? (
+                      <Link
+                        href={`/admin/buyers/${row.buyer_id}`}
+                        onClick={(e) => e.stopPropagation()}
+                        className="hover:text-orange-600 hover:underline"
+                      >
+                        {row.buyer_company ?? "Direct Sourcing"}
+                      </Link>
+                    ) : (
+                      row.buyer_company ?? "Direct Sourcing"
+                    )}
+                  </td>
+                  <td
+                    className="py-3 pr-4 text-gray-900 font-semibold text-xs max-w-[160px] truncate"
+                    title={row.product_name}
                   >
-                    {row.match_score}
-                  </span>
-                </td>
-                <td className="py-2.5 pr-4">
-                  <StatusBadge status={currentStatus} />
-                </td>
-                <td className="py-2.5 pr-4 text-gray-400 text-xs whitespace-nowrap">
-                  {lastUpdated(row)}
-                </td>
-                <td className="py-2.5">
-                  {label && (
-                    <button
-                      onClick={(e) => handleAction(e, row)}
-                      disabled={isLoading}
-                      className="text-xs font-medium text-orange-600 border border-orange-200 hover:bg-orange-50 disabled:opacity-40 px-2.5 py-1 rounded-lg transition-colors whitespace-nowrap"
+                    {truncate(row.product_name, 45)}
+                  </td>
+                  <td className="py-3 pr-4 text-gray-700 text-xs max-w-[150px] truncate">
+                    <Link
+                      href={`/admin/suppliers/${row.supplier_id}`}
+                      onClick={(e) => e.stopPropagation()}
+                      className="hover:text-orange-600 hover:underline font-medium"
                     >
-                      {isLoading ? "…" : label}
-                    </button>
-                  )}
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
+                      {row.company_name}
+                    </Link>
+                  </td>
+                  <td className="py-3 pr-4 text-gray-500 text-xs">
+                    {row.country ?? "—"}
+                  </td>
+                  <td className="py-3 pr-4 text-center">
+                    <span
+                      className={`text-[11px] font-extrabold px-2 py-0.5 rounded-full ${
+                        row.match_score >= 80
+                          ? "bg-emerald-100 text-emerald-800"
+                          : row.match_score >= 60
+                          ? "bg-amber-100 text-amber-800"
+                          : "bg-gray-100 text-gray-600"
+                      }`}
+                    >
+                      {row.match_score}%
+                    </span>
+                  </td>
+                  <td className="py-3 pr-4">
+                    <StatusBadge status={currentStatus} />
+                  </td>
+                  <td className="py-3 pr-4 text-gray-400 text-xs whitespace-nowrap">
+                    {lastUpdated(row)}
+                  </td>
+                  <td
+                    className="py-3 pr-4 text-right"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <div className="flex items-center justify-end gap-1.5">
+                      {currentStatus === "approved" ? (
+                        <button
+                          type="button"
+                          onClick={() => onOpenModal(row, "send")}
+                          disabled={isLoading}
+                          className="text-xs font-semibold text-white bg-orange-500 hover:bg-orange-600 px-3 py-1 rounded-lg transition-colors shadow-xs whitespace-nowrap cursor-pointer"
+                        >
+                          🚀 Send Outreach
+                        </button>
+                      ) : currentStatus === "sent" ? (
+                        <button
+                          type="button"
+                          onClick={() => onOpenModal(row, "respond")}
+                          disabled={isLoading}
+                          className="text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 px-3 py-1 rounded-lg transition-colors shadow-xs whitespace-nowrap cursor-pointer"
+                        >
+                          💬 Log Response
+                        </button>
+                      ) : nextLabel ? (
+                        <button
+                          type="button"
+                          onClick={() => onAdvance(row)}
+                          disabled={isLoading}
+                          className="text-xs font-semibold text-gray-800 border border-gray-300 hover:border-orange-400 hover:text-orange-600 bg-white hover:bg-orange-50/50 disabled:opacity-40 px-3 py-1 rounded-lg transition-colors whitespace-nowrap cursor-pointer shadow-xs"
+                        >
+                          {isLoading ? "…" : nextLabel}
+                        </button>
+                      ) : null}
+
+                      <button
+                        type="button"
+                        onClick={() => onOpenModal(row, "details")}
+                        title="View match details"
+                        className="text-gray-400 hover:text-gray-700 p-1 rounded hover:bg-gray-100 text-xs"
+                      >
+                        ℹ
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
