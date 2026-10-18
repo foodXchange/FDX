@@ -92,7 +92,7 @@ const rawCards: ContactCardData[] = [
       "I help Israeli food buyers find the right European manufacturer — pre-screened for specs, kosher path, and volume capacity. And I help European manufacturers enter Israel with a local partner who knows the market.",
     pitchHe:
       "אני עוזר לקמעונאים ישראלים למצוא את היצרן האירופאי הנכון, ועוזר ליצרנים אירופאים להיכנס לשוק הישראלי.",
-    email: "info@foodz-x.com",
+    email: "udi@fdx.trading",
     phone: "+972525222291",
     whatsapp: "972525222291",
     website: "https://fdx.trading",

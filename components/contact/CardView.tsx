@@ -53,6 +53,13 @@ export function CardView({ card, cardUrl, preview = false }: CardViewProps) {
   const [copied, setCopied] = useState(false);
   const [activePhoto, setActivePhoto] = useState(0);
   const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [emailModalOpen, setEmailModalOpen] = useState(false);
+  const [formName, setFormName] = useState("");
+  const [formEmail, setFormEmail] = useState("");
+  const [formCompany, setFormCompany] = useState("");
+  const [formMessage, setFormMessage] = useState("");
+  const [formStatus, setFormStatus] = useState<"idle" | "sending" | "success" | "error">("idle");
+  const [formError, setFormError] = useState("");
   const touchStartX = useRef(0);
   const touchStartY = useRef(0);
 
@@ -72,12 +79,50 @@ export function CardView({ card, cardUrl, preview = false }: CardViewProps) {
     }
 
     function onKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape") setLightboxOpen(false);
+      if (e.key === "Escape") {
+        setLightboxOpen(false);
+        setEmailModalOpen(false);
+      }
     }
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  async function handleSendEmail(e: React.FormEvent) {
+    e.preventDefault();
+    if (!formEmail.trim() || !formMessage.trim()) {
+      setFormError("Please provide your email and a message.");
+      return;
+    }
+    setFormStatus("sending");
+    setFormError("");
+
+    try {
+      const res = await fetch("/api/contact", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: formName.trim() || undefined,
+          email: formEmail.trim(),
+          company: formCompany.trim() || undefined,
+          message: formMessage.trim(),
+          lead_type: `business_card_${card.handle}`,
+          lang: "en",
+        }),
+      });
+
+      if (!res.ok) {
+        throw new Error("Failed to send message. Please try again.");
+      }
+
+      setFormStatus("success");
+      track("contact_card_email_sent", { handle: card.handle });
+    } catch (err: any) {
+      setFormStatus("error");
+      setFormError(err?.message || "Something went wrong. Please try again.");
+    }
+  }
 
   function track(event: string, extra: Record<string, string> = {}) {
     if (preview) return;
@@ -307,13 +352,18 @@ export function CardView({ card, cardUrl, preview = false }: CardViewProps) {
 
       {/* ── Other actions ── */}
       <div className="space-y-2 mb-6">
-        <a
-          href={`mailto:${card.email}`}
-          onClick={() => track("contact_card_email_clicked")}
+        <button
+          type="button"
+          onClick={() => {
+            setEmailModalOpen(true);
+            setFormStatus("idle");
+            setFormError("");
+            track("contact_card_email_clicked");
+          }}
           className={btnSecondary}
         >
           <EmailIcon /> Email
-        </a>
+        </button>
 
         <div className="grid grid-cols-2 gap-2">
           <a
@@ -470,6 +520,133 @@ export function CardView({ card, cardUrl, preview = false }: CardViewProps) {
               ›
             </button>
           )}
+        </div>
+      )}
+
+      {/* ── Email Modal ── */}
+      {emailModalOpen && (
+        <div
+          className="fixed inset-0 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm z-50"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setEmailModalOpen(false);
+          }}
+        >
+          <div className="bg-[#1B2A4A] border border-white/10 rounded-2xl w-full max-w-md p-6 text-white shadow-2xl relative">
+            <button
+              type="button"
+              onClick={() => setEmailModalOpen(false)}
+              className="absolute top-4 right-4 text-slate-400 hover:text-white text-xl p-1"
+              aria-label="Close"
+            >
+              ✕
+            </button>
+
+            <h3 className="text-lg font-semibold mb-1">Send a message to {card.name}</h3>
+            <p className="text-xs text-slate-400 mb-5">
+              Delivered directly to <span className="text-[#F47920]">{card.email}</span>
+            </p>
+
+            {formStatus === "success" ? (
+              <div className="text-center py-6">
+                <div className="w-12 h-12 bg-green-500/20 text-green-400 rounded-full flex items-center justify-center mx-auto mb-3 text-2xl">
+                  ✓
+                </div>
+                <h4 className="font-semibold text-white mb-1">Message Sent!</h4>
+                <p className="text-xs text-slate-300 mb-6">
+                  Thank you. Your message was sent directly to {card.name}.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEmailModalOpen(false);
+                    setFormName("");
+                    setFormEmail("");
+                    setFormCompany("");
+                    setFormMessage("");
+                    setFormStatus("idle");
+                  }}
+                  className="bg-[#F47920] hover:bg-[#d96810] text-white text-xs font-semibold px-5 py-2.5 rounded-xl transition"
+                >
+                  Done
+                </button>
+              </div>
+            ) : (
+              <form onSubmit={handleSendEmail} className="space-y-3.5">
+                <div>
+                  <label className="block text-xs font-medium text-slate-300 mb-1">Your Name</label>
+                  <input
+                    type="text"
+                    value={formName}
+                    onChange={(e) => setFormName(e.target.value)}
+                    placeholder="Your name"
+                    className="w-full bg-slate-900/60 border border-white/10 rounded-xl px-3 py-2 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-[#F47920]"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-slate-300 mb-1">
+                    Your Email <span className="text-[#F47920]">*</span>
+                  </label>
+                  <input
+                    type="email"
+                    required
+                    value={formEmail}
+                    onChange={(e) => setFormEmail(e.target.value)}
+                    placeholder="you@company.com"
+                    className="w-full bg-slate-900/60 border border-white/10 rounded-xl px-3 py-2 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-[#F47920]"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-slate-300 mb-1">Company (optional)</label>
+                  <input
+                    type="text"
+                    value={formCompany}
+                    onChange={(e) => setFormCompany(e.target.value)}
+                    placeholder="Your company"
+                    className="w-full bg-slate-900/60 border border-white/10 rounded-xl px-3 py-2 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-[#F47920]"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-slate-300 mb-1">
+                    Message <span className="text-[#F47920]">*</span>
+                  </label>
+                  <textarea
+                    required
+                    rows={4}
+                    value={formMessage}
+                    onChange={(e) => setFormMessage(e.target.value)}
+                    placeholder="How can we help you?"
+                    className="w-full bg-slate-900/60 border border-white/10 rounded-xl px-3 py-2 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-[#F47920] resize-none"
+                  />
+                </div>
+
+                {formError && (
+                  <p className="text-xs text-red-400 bg-red-950/40 border border-red-800/50 rounded-lg p-2.5">
+                    {formError}
+                  </p>
+                )}
+
+                <div className="flex gap-2 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setEmailModalOpen(false)}
+                    className="w-1/3 bg-white/5 hover:bg-white/10 text-slate-300 text-xs font-medium py-2.5 rounded-xl transition"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={formStatus === "sending"}
+                    className="w-2/3 bg-[#F47920] hover:bg-[#d96810] text-white text-xs font-semibold py-2.5 rounded-xl transition disabled:opacity-50"
+                  >
+                    {formStatus === "sending" ? "Sending..." : "Send Message"}
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
         </div>
       )}
     </div>
