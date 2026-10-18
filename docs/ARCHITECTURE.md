@@ -51,20 +51,46 @@ flowchart TD
     Aggregate --> TopCandidates[Ranked Supplier & Product Recommendations]
 ```
 
-### Scoring Formula Breakdown (0 to 110 Points):
-1. **Semantic Vector Similarity (`pts_vector` — Max 40 pts)**:
-   $$\text{pts\_vector} = \max\left(0.0, (1.0 - (c.\text{embedding} \Leftrightarrow \text{request\_emb})) \times 40.0\right)$$
-   Powered by Voyage AI `voyage-3` 1024-dimensional vectors. Provides asymmetric semantic matching between buyer requirement prose and supplier product descriptions.
-2. **Category & Taxonomy Match (`pts_category` — Max 35 pts)**:
-   - Exact category ID match: `35 pts`
-   - Sibling category under the same parent taxonomy node: `30 pts`
-   - Keyword / partial taxonomy overlap: `18–25 pts`
-3. **Packaging Format Match (`pts_format` — Max 15 pts)**:
-   Evaluates container format overlap (e.g. cans, jars, bottles, aseptic pouches, bulk crates).
-4. **Compliance & Certifications (`pts_compliance` — Max 10 pts)**:
-   Evaluates overlap of international food certifications (BRC, IFS, ISO, Organic, Halal).
-5. **Evidence & Operational History (`pts_evidence` — Max 10 pts)**:
-   Supplier verification status (`+4`), manual verification by admin (`+3`), past Israeli market delivery fit (`+2`), and verified supplier certifications (`+1`).
+### Phase 1: Hard Elimination Gates (Pre-Filters)
+If a supplier's product fails *any* of the buyer's strict requirements, it is immediately excluded from the candidate pool:
+
+1. **Supplier Approval Status**:
+   - `supplier_offerings.status = 'approved'` and `supplier_products.needs_review = false`. Only verified suppliers enter matching.
+2. **Private Label Gate**:
+   - If the buyer requests private label / own brand, only products where `supplier_products.private_label = true` qualify.
+3. **Packaging Format Gate**:
+   - If the buyer specifies container requirements (e.g. `cup`, `glass_jar`, `tin_can`, `aseptic_bag`), the supplier product must have an overlapping format array (`sp.formats && req_formats`).
+4. **Temperature Regime Gate**:
+   - Matches storage conditions: `ambient`, `chilled`, or `frozen`. A chilled/frozen product will never match an ambient shelf-stable request.
+5. **Distribution Channel Gate**:
+   - Validates whether the supplier can pack for the requested trade channel: `Retail`, `Foodservice` (HoReCa), or `Industry` (bulk ingredients).
+6. **Organic Gate**:
+   - If the buyer explicitly requests organic, non-organic products (`is_organic = false`) are excluded.
+
+*(Note on Kosher: A lack of kosher mention on a European website is treated as "unknown" rather than "not kosher", because European manufacturers regularly obtain rabbinical batch supervision specifically when an export contract is confirmed).*
+
+---
+
+### Phase 2: The Multi-Factor Scoring Formula (Max 110 Points)
+
+Candidates that pass the hard gates are scored and ranked from 0 to 110 points across 5 parameters:
+
+```mermaid
+pie title Match Score Weight Distribution (Max 110 Points)
+    "Vector Semantic Similarity (Voyage AI)" : 40
+    "Taxonomy & Category Alignment" : 35
+    "Packaging Format Precision" : 15
+    "Compliance & Quality Certifications" : 10
+    "Evidence & Israeli Market Fit" : 10
+```
+
+| Parameter | Max Points | How It Is Evaluated |
+| :--- | :---: | :--- |
+| **1. Semantic Vector Similarity (`pts_vector`)** | **40 pts** | Uses **Voyage AI’s `voyage-3`** 1024-dimensional embeddings. Computes the cosine similarity between the buyer's descriptive message and the supplier's product specs: <br>$$\text{pts\_vector} = \max\left(0.0, (1.0 - (\text{product\_emb} \Leftrightarrow \text{request\_emb})) \times 40.0\right)$$ |
+| **2. Category & Taxonomy Alignment (`pts_category`)** | **35 pts** | Evaluates category hierarchy depth: <br>• **35 pts**: Exact taxonomy node match (e.g., both are `Tomato Products > Paste`)<br>• **30 pts**: Sibling sub-category under the same parent<br>• **25 pts**: Product title keyword match<br>• **18 pts**: High-level category string overlap |
+| **3. Packaging Format Compatibility (`pts_format`)** | **15 pts** | • **15 pts**: Supplier offers the exact target format (e.g., 70g cups, 2.5kg cans)<br>• **8 pts**: Buyer specified no strict format preference (neutral)<br>• **0 pts**: Format mismatch |
+| **4. Compliance & Food Certifications (`pts_compliance`)** | **10 pts** | Checks overlap of international quality and safety standards requested by Israeli importers:<br>• **10 pts**: Verified match on **BRC**, **IFS**, **ISO 22000**, or **FSSC**<br>• **5 pts**: Buyer had no specific standard requirements |
+| **5. Evidence & Israeli Market Fit (`pts_evidence`)** | **10 pts** | Rewards proven reliability and past import history:<br>• **+4 pts**: Supplier is fully verified by FoodXchange<br>• **+3 pts**: Catalog item was manually reviewed by Udi<br>• **+2 pts**: Supplier has past successful export history to Israel (`israeli_market_fit`)<br>• **+1 pt**: Supplier holds active export documentation |
 
 ---
 
