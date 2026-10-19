@@ -498,6 +498,79 @@ export async function recordSupplierQuote(
   return { ok: true };
 }
 
+export interface AgentQuotationMargin {
+  margin_type: "markup" | "percentage";
+  margin_value: number;
+  factory_cost: number;
+  buyer_quoted_price: number;
+  currency: string;
+  container_units: number;
+  container_profit_eur: number;
+  payment_terms: string;
+  incoterms: string;
+  valid_days: number;
+  notes?: string;
+  updated_at?: string;
+  updated_by?: string;
+}
+
+export async function saveAgentQuotationMargin(
+  matchId: string,
+  margin: AgentQuotationMargin
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const { data: match, error: fetchErr } = await supabaseAdmin
+    .from("sourcing_matches")
+    .select("id, request_id, match_breakdown, company_name")
+    .eq("id", matchId)
+    .single();
+
+  if (fetchErr || !match) {
+    return { ok: false, error: fetchErr?.message || "Match not found" };
+  }
+
+  const existingBreakdown = (match.match_breakdown as Record<string, unknown> | null) ?? {};
+  const updatedBreakdown = {
+    ...existingBreakdown,
+    agent_margin: {
+      ...margin,
+      updated_at: new Date().toISOString(),
+      updated_by: getAdminEmail() || "admin",
+    },
+  };
+
+  const { error: updateErr } = await supabaseAdmin
+    .from("sourcing_matches")
+    .update({
+      match_breakdown: updatedBreakdown,
+    })
+    .eq("id", matchId);
+
+  if (updateErr) {
+    console.error("saveAgentQuotationMargin error:", updateErr);
+    return { ok: false, error: updateErr.message };
+  }
+
+  await logAdminAction({
+    adminEmail: getAdminEmail(),
+    action: "save_agent_quotation_margin",
+    targetType: "sourcing_match",
+    targetId: matchId,
+    metadata: {
+      factory_cost: margin.factory_cost,
+      buyer_quoted_price: margin.buyer_quoted_price,
+      profit_eur: margin.container_profit_eur,
+      margin_type: margin.margin_type,
+    },
+  });
+
+  try {
+    revalidatePath(`/admin/requests/${match.request_id}`);
+    revalidatePath("/admin/requests");
+  } catch {}
+
+  return { ok: true };
+}
+
 export interface SampleDispatchProtocol {
   status:
     | "pre_alignment"

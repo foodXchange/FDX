@@ -1,7 +1,12 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { type SupplierQuotePayload, recordSupplierQuote } from "@/app/admin/requests/actions";
+import {
+  type SupplierQuotePayload,
+  recordSupplierQuote,
+  type AgentQuotationMargin,
+} from "@/app/admin/requests/actions";
+import AgentMarginPitchModal from "@/components/admin/AgentMarginPitchModal";
 
 export type ComparisonSupplier = {
   matchId: string;
@@ -27,6 +32,7 @@ export type ComparisonSupplier = {
     supplier_notes?: string | null;
     quoted_at?: string | null;
   } | null;
+  agent_margin?: AgentQuotationMargin | null;
 };
 
 interface Props {
@@ -57,6 +63,8 @@ export default function ProductComparisonMatrix({
   const [suppliers, setSuppliers] = useState<ComparisonSupplier[]>(initialSuppliers);
   const [filterMode, setFilterMode] = useState<"all" | "quoted_only" | "top_tier">("all");
   const [editingQuoteMatchId, setEditingQuoteMatchId] = useState<string | null>(null);
+  const [selectedForMargin, setSelectedForMargin] = useState<ComparisonSupplier | null>(null);
+  const [tradingView, setTradingView] = useState<"agent" | "buyer">("agent");
   const [quoteForm, setQuoteForm] = useState<SupplierQuotePayload>({
     unit_price: 0.85,
     currency: "EUR",
@@ -72,6 +80,21 @@ export default function ProductComparisonMatrix({
   });
 
   const [isPending, startTransition] = useTransition();
+
+  function handleMarginSaved(savedMargin: AgentQuotationMargin) {
+    if (!selectedForMargin) return;
+    setSuppliers((prev) =>
+      prev.map((sup) =>
+        sup.matchId === selectedForMargin.matchId
+          ? {
+              ...sup,
+              agent_margin: savedMargin,
+            }
+          : sup
+      )
+    );
+    setSelectedForMargin(null);
+  }
 
   // Filtered view
   const displaySuppliers = suppliers.filter((s) => {
@@ -163,41 +186,70 @@ export default function ProductComparisonMatrix({
           </p>
         </div>
 
-        {/* Filter Pills */}
-        <div className="flex items-center gap-2 self-start md:self-auto bg-slate-800/80 p-1 rounded-xl border border-slate-700">
-          <button
-            type="button"
-            onClick={() => setFilterMode("all")}
-            className={`text-xs font-semibold px-3 py-1.5 rounded-lg transition ${
-              filterMode === "all"
-                ? "bg-orange-600 text-white shadow-xs"
-                : "text-slate-300 hover:text-white"
-            }`}
-          >
-            All Matched ({suppliers.length})
-          </button>
-          <button
-            type="button"
-            onClick={() => setFilterMode("top_tier")}
-            className={`text-xs font-semibold px-3 py-1.5 rounded-lg transition ${
-              filterMode === "top_tier"
-                ? "bg-orange-600 text-white shadow-xs"
-                : "text-slate-300 hover:text-white"
-            }`}
-          >
-            ⭐️ 65%+ Match ({suppliers.filter((s) => s.matchScore >= 65).length})
-          </button>
-          <button
-            type="button"
-            onClick={() => setFilterMode("quoted_only")}
-            className={`text-xs font-semibold px-3 py-1.5 rounded-lg transition ${
-              filterMode === "quoted_only"
-                ? "bg-orange-600 text-white shadow-xs"
-                : "text-slate-300 hover:text-white"
-            }`}
-          >
-            Quoted ({suppliers.filter((s) => s.quote?.unit_price).length})
-          </button>
+        {/* Action Controls & Filter Pills */}
+        <div className="flex flex-wrap items-center gap-2 self-start md:self-auto">
+          {/* Trading View Mode Switch */}
+          <div className="bg-slate-800 p-1 rounded-xl border border-slate-700 flex items-center gap-1">
+            <button
+              type="button"
+              onClick={() => setTradingView("agent")}
+              className={`text-xs font-semibold px-2.5 py-1 rounded-lg transition ${
+                tradingView === "agent"
+                  ? "bg-indigo-600 text-white shadow-xs font-bold"
+                  : "text-slate-400 hover:text-white"
+              }`}
+            >
+              💼 Agent View (Spread & Profit)
+            </button>
+            <button
+              type="button"
+              onClick={() => setTradingView("buyer")}
+              className={`text-xs font-semibold px-2.5 py-1 rounded-lg transition ${
+                tradingView === "buyer"
+                  ? "bg-indigo-600 text-white shadow-xs font-bold"
+                  : "text-slate-400 hover:text-white"
+              }`}
+            >
+              🛡️ Buyer View (Anonymized)
+            </button>
+          </div>
+
+          {/* Filter Pills */}
+          <div className="flex items-center gap-1 bg-slate-800/80 p-1 rounded-xl border border-slate-700">
+            <button
+              type="button"
+              onClick={() => setFilterMode("all")}
+              className={`text-xs font-semibold px-2.5 py-1 rounded-lg transition ${
+                filterMode === "all"
+                  ? "bg-orange-600 text-white shadow-xs"
+                  : "text-slate-300 hover:text-white"
+              }`}
+            >
+              All ({suppliers.length})
+            </button>
+            <button
+              type="button"
+              onClick={() => setFilterMode("top_tier")}
+              className={`text-xs font-semibold px-2.5 py-1 rounded-lg transition ${
+                filterMode === "top_tier"
+                  ? "bg-orange-600 text-white shadow-xs"
+                  : "text-slate-300 hover:text-white"
+              }`}
+            >
+              ⭐️ 65%+ ({suppliers.filter((s) => s.matchScore >= 65).length})
+            </button>
+            <button
+              type="button"
+              onClick={() => setFilterMode("quoted_only")}
+              className={`text-xs font-semibold px-2.5 py-1 rounded-lg transition ${
+                filterMode === "quoted_only"
+                  ? "bg-orange-600 text-white shadow-xs"
+                  : "text-slate-300 hover:text-white"
+              }`}
+            >
+              Quoted ({suppliers.filter((s) => s.quote?.unit_price).length})
+            </button>
+          </div>
         </div>
       </div>
 
@@ -238,7 +290,11 @@ export default function ProductComparisonMatrix({
                     <div className="flex items-center justify-between mb-1.5">
                       <span className="text-xs font-bold text-slate-800 flex items-center gap-1">
                         <span>{s.country === "Spain" ? "🇪🇸" : s.country === "Italy" ? "🇮🇹" : s.country === "Poland" ? "🇵🇱" : "🇪🇺"}</span>
-                        <span className="truncate max-w-[130px]">{s.companyName}</span>
+                        <span className="truncate max-w-[130px]" title={s.companyName}>
+                          {tradingView === "buyer"
+                            ? `Producer #${s.country ? s.country.slice(0, 2).toUpperCase() : "EU"}-${s.supplierId.slice(0, 4).toUpperCase()}`
+                            : s.companyName}
+                        </span>
                       </span>
                       <span
                         className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
@@ -255,14 +311,23 @@ export default function ProductComparisonMatrix({
                     <p className="font-semibold text-slate-700 text-xs truncate">
                       {s.productName}
                     </p>
-                    <div className="mt-2 flex items-center gap-2">
+                    <div className="mt-2 flex items-center gap-1.5 flex-wrap">
                       <button
                         type="button"
                         onClick={() => openQuoteModal(s)}
                         className="text-[11px] font-semibold px-2 py-1 rounded bg-slate-100 text-slate-700 hover:bg-slate-200 transition"
                       >
-                        {hasQuote ? "✏️ Edit Quote" : "+ Record Quote"}
+                        {hasQuote ? "✏️ Factory Quote" : "+ Record Quote"}
                       </button>
+                      {hasQuote && (
+                        <button
+                          type="button"
+                          onClick={() => setSelectedForMargin(s)}
+                          className="text-[11px] font-bold px-2 py-1 rounded bg-indigo-50 border border-indigo-200 text-indigo-700 hover:bg-indigo-100 transition shadow-2xs flex items-center gap-1"
+                        >
+                          💼 Margin & Pitch
+                        </button>
+                      )}
                       {hasQuote && onSelectForOrder && (
                         <button
                           type="button"
@@ -283,9 +348,9 @@ export default function ProductComparisonMatrix({
             {/* ROW 1: Quoted Price & Normalized €/kg */}
             <tr className="hover:bg-slate-50/50">
               <td className="p-3.5 font-bold text-slate-700 sticky left-0 bg-white z-10 border-r border-slate-200">
-                💰 Quoted Price (Per Unit)
+                💰 {tradingView === "agent" ? "Commercial Pricing & Spread" : "Quoted Selling Price"}
                 <span className="block font-normal text-[11px] text-slate-400">
-                  Normalized Price (€ / kg)
+                  {tradingView === "agent" ? "Factory Cost · Agent Margin · Buyer Price" : "Normalized Price (€ / kg)"}
                 </span>
               </td>
               <td className="p-3.5 bg-amber-50/30 border-r-2 border-amber-300 font-bold text-slate-900">
@@ -296,17 +361,57 @@ export default function ProductComparisonMatrix({
               </td>
               {displaySuppliers.map((s) => {
                 const q = s.quote;
+                const m = s.agent_margin;
+                const factoryPrice = q?.unit_price ?? 0;
+                const buyerPrice = m?.buyer_quoted_price ?? (factoryPrice > 0 ? factoryPrice + 0.1 : 0);
+
                 return (
                   <td key={s.matchId} className="p-3.5 border-r border-slate-200 font-semibold text-slate-800">
-                    {q?.unit_price ? (
+                    {factoryPrice > 0 ? (
                       <div>
-                        <span className="text-emerald-700 font-bold text-sm">
-                          {q.currency || "€"}{q.unit_price.toFixed(2)}
-                        </span>
-                        <span className="text-[11px] text-slate-500 font-normal"> / unit ({q.incoterm || "CIF"})</span>
-                        <span className="block text-[11px] text-emerald-800 font-bold mt-0.5">
-                          {getNormalizedPrice(q.unit_price, q.net_weight)}
-                        </span>
+                        {tradingView === "agent" ? (
+                          <div className="space-y-1">
+                            {/* Final Buyer Price */}
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-[10px] uppercase font-bold text-indigo-700 bg-indigo-50 px-1.5 py-0.2 rounded">
+                                Buyer:
+                              </span>
+                              <span className="text-sm font-extrabold text-indigo-700">
+                                €{buyerPrice.toFixed(2)}
+                              </span>
+                              <span className="text-[11px] text-slate-500 font-normal">/ unit ({m?.incoterms || q?.incoterm || "CIF"})</span>
+                            </div>
+
+                            {/* Factory Net Cost */}
+                            <div className="flex items-center gap-1.5 text-[11px] text-slate-600 font-normal">
+                              <span className="text-[10px] uppercase font-semibold text-slate-500">
+                                Factory:
+                              </span>
+                              <span>€{factoryPrice.toFixed(2)}</span>
+                              <span className="text-emerald-700 font-bold">
+                                (+€{(buyerPrice - factoryPrice).toFixed(2)} spread)
+                              </span>
+                            </div>
+
+                            {/* Container Profit */}
+                            <div className="pt-0.5">
+                              <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded">
+                                <span>Profit:</span>
+                                <span>+€{(m?.container_profit_eur ?? Math.round((buyerPrice - factoryPrice) * 24000)).toLocaleString()} / FCL</span>
+                              </span>
+                            </div>
+                          </div>
+                        ) : (
+                          <div>
+                            <span className="text-emerald-700 font-bold text-sm">
+                              €{buyerPrice.toFixed(2)}
+                            </span>
+                            <span className="text-[11px] text-slate-500 font-normal"> / unit ({m?.incoterms || q?.incoterm || "CIF"})</span>
+                            <span className="block text-[11px] text-emerald-800 font-bold mt-0.5">
+                              {getNormalizedPrice(buyerPrice, q?.net_weight)}
+                            </span>
+                          </div>
+                        )}
                       </div>
                     ) : (
                       <span className="text-slate-400 italic">RFQ in progress</span>
@@ -618,6 +723,18 @@ export default function ProductComparisonMatrix({
             </div>
           </form>
         </div>
+      )}
+
+      {/* ── Modal: Agent Margin & Buyer Pitch Hub ── */}
+      {selectedForMargin && (
+        <AgentMarginPitchModal
+          requestId={requestId}
+          buyerCompany={buyerCompany}
+          supplier={selectedForMargin}
+          benchmark={benchmark}
+          onClose={() => setSelectedForMargin(null)}
+          onSaved={handleMarginSaved}
+        />
       )}
     </div>
   );

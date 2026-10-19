@@ -22,6 +22,7 @@ import type {
   SampleDispatchProtocol,
   QaRegulatoryDossier,
   PackagingArtworkWorkflow,
+  AgentQuotationMargin,
 } from "@/app/admin/requests/actions";
 
 export const metadata: Metadata = { title: "Request Detail | Admin" };
@@ -166,6 +167,7 @@ export default async function RequestDetailPage({ params }: PageProps) {
   const comparisonSuppliers: ComparisonSupplier[] = matches.map((m) => {
     const breakdown = m.match_breakdown as Record<string, unknown> | null;
     const quote = (breakdown?.quote as ComparisonSupplier["quote"]) ?? null;
+    const agentMargin = (breakdown?.agent_margin as AgentQuotationMargin | null) ?? null;
 
     return {
       matchId: m.id,
@@ -176,6 +178,7 @@ export default async function RequestDetailPage({ params }: PageProps) {
       matchScore: m.match_score,
       status: m.status,
       quote,
+      agent_margin: agentMargin,
     };
   });
 
