@@ -8,6 +8,8 @@ import PipPanel, { type PipV2CardData } from "@/components/admin/PipPanel";
 import SellerBriefPanel from "@/components/admin/SellerBriefPanel";
 import MatchCards from "./MatchCards";
 import type { RfqRequestVars, RfqTemplateRow } from "@/components/admin/RfqComposerModal";
+import OrderWorkflowTracker from "@/components/admin/OrderWorkflowTracker";
+import type { CommercialOrderLifecycle } from "@/app/admin/requests/actions";
 
 export const metadata: Metadata = { title: "Request Detail | Admin" };
 
@@ -134,6 +136,14 @@ export default async function RequestDetailPage({ params }: PageProps) {
       sellerBrief || (request.message as string | null) || pip.product.raw_description || "",
   };
 
+  const orderWorkflow = (aiAnalysis?.order_workflow as CommercialOrderLifecycle | null) ?? null;
+  const matchedSuppliersList = matches.map((m) => ({
+    id: m.supplier_id,
+    company_name: m.company_name,
+    product_name: m.product_name,
+    country: m.country,
+  }));
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
@@ -153,6 +163,14 @@ export default async function RequestDetailPage({ params }: PageProps) {
       </div>
 
       <div className="max-w-6xl mx-auto px-6 py-8">
+        <OrderWorkflowTracker
+          requestId={id}
+          buyerCompany={(request.company as string | null) ?? (request.name as string | null) ?? "Buyer"}
+          productName={cleanedName || productName || "Product"}
+          initialWorkflow={orderWorkflow}
+          matchedSuppliers={matchedSuppliersList}
+        />
+
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
           {/* ── Left column: request details + Wholesale Brief + PIP ── */}
           <div className="space-y-4">
