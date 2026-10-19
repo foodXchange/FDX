@@ -26,17 +26,26 @@ const supabase = createClient(
 );
 
 async function main() {
-  const { data, count, error } = await supabase
-    .from("supplier_offerings")
-    .select("id, company_name, sector, business_role, taxonomy_category, country_of_origin, website, offerings_summary, capabilities, contact_email, contact_phone, logo_url", { count: "exact" })
-    .or("sector.neq.food_beverage,supplier_type.eq.non_food");
+  const [pending, scraped, skipped, failed, products, buyers, nonFood] = await Promise.all([
+    supabase.from("supplier_offerings").select("*", { count: "exact", head: true }).eq("scrape_status", "pending"),
+    supabase.from("supplier_offerings").select("*", { count: "exact", head: true }).eq("scrape_status", "scraped"),
+    supabase.from("supplier_offerings").select("*", { count: "exact", head: true }).eq("scrape_status", "skipped"),
+    supabase.from("supplier_offerings").select("*", { count: "exact", head: true }).eq("scrape_status", "failed"),
+    supabase.from("supplier_products").select("*", { count: "exact", head: true }),
+    supabase.from("buyers").select("*", { count: "exact", head: true }),
+    supabase.from("supplier_offerings").select("*", { count: "exact", head: true }).neq("sector", "food_beverage").not("sector", "is", null),
+  ]);
 
-  if (error) {
-    console.error("Error:", error);
-    return;
-  }
-
-  console.log("Total non-food companies with or query:", count);
+  console.log("Database Live Counts:");
+  console.log({
+    pending: pending.count,
+    scraped: scraped.count,
+    skipped: skipped.count,
+    failed: failed.count,
+    totalProducts: products.count,
+    activeBuyers: buyers.count,
+    nonFoodPartners: nonFood.count,
+  });
 }
 
 main().catch(console.error);
