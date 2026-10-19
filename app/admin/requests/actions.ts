@@ -614,3 +614,130 @@ export async function updateSampleDispatchProtocol(
 
   return { ok: true };
 }
+
+export interface FactoryCertificateItem {
+  id: string;
+  name: "BRCGS" | "IFS Food" | "ISO 22000" | "HACCP" | "GMP" | "FSSC 22000" | "Other";
+  issuer?: string;
+  certificate_number?: string;
+  grade?: string; // e.g. "Grade AA", "Higher Level (98.5%)"
+  valid_until?: string;
+  file_url?: string;
+  status: "verified" | "pending_review" | "expired" | "not_provided";
+}
+
+export interface QaRegulatoryDossier {
+  status:
+    | "in_progress"
+    | "documents_submitted"
+    | "regulatory_review"
+    | "approved"
+    | "rejected";
+  factory_safety: {
+    certificates: FactoryCertificateItem[];
+    technical_data_sheet_url?: string;
+    allergen_matrix_url?: string;
+    microbiological_lab_url?: string;
+    pesticide_screening_url?: string;
+    shelf_life_months?: number;
+    storage_conditions?: string;
+  };
+  regulatory_compliance: {
+    target_country: string;
+    moh_import_permit_status:
+      | "not_started"
+      | "dossier_submitted"
+      | "under_review"
+      | "approved"
+      | "clarifications_needed";
+    moh_file_number?: string;
+    moh_permit_url?: string;
+    takin_standard_number?: string;
+    takin_compliance_status: "compliant" | "lab_test_pending" | "exempt";
+    agricultural_permit_required: boolean;
+    agricultural_permit_status?: "approved" | "pending" | "not_required";
+    organic_eu_equivalence_verified: boolean;
+  };
+  kosher_gateway: {
+    is_kosher_required: boolean;
+    kosher_type: string;
+    supervising_agency: string;
+    audit_status:
+      | "not_started"
+      | "raw_materials_approved"
+      | "rabbi_audit_scheduled"
+      | "rabbi_audit_completed"
+      | "certificate_issued";
+    rabbi_inspector_name?: string;
+    audit_scheduled_date?: string;
+    production_supervision_type:
+      | "year_round_kosher"
+      | "special_kosher_run"
+      | "kashering_required";
+    kosher_certificate_url?: string;
+    kosher_notes?: string;
+  };
+  final_signoff: {
+    is_approved: boolean;
+    approved_at?: string | null;
+    approved_by?: string | null;
+    qa_director_notes?: string;
+  };
+  updated_at?: string;
+  updated_by?: string;
+}
+
+export async function updateQaRegulatoryDossier(
+  requestId: string,
+  dossier: QaRegulatoryDossier
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const { data: req, error: fetchErr } = await supabaseAdmin
+    .from("sourcing_requests")
+    .select("ai_analysis, company, product_name")
+    .eq("id", requestId)
+    .single();
+
+  if (fetchErr || !req) {
+    return { ok: false, error: fetchErr?.message || "Request not found" };
+  }
+
+  const existingAiAnalysis = (req.ai_analysis as Record<string, unknown> | null) ?? {};
+  const updatedAiAnalysis = {
+    ...existingAiAnalysis,
+    qa_regulatory_dossier: {
+      ...dossier,
+      updated_at: new Date().toISOString(),
+      updated_by: getAdminEmail() || "admin",
+    },
+  };
+
+  const { error: updateErr } = await supabaseAdmin
+    .from("sourcing_requests")
+    .update({ ai_analysis: updatedAiAnalysis })
+    .eq("id", requestId);
+
+  if (updateErr) {
+    console.error("updateQaRegulatoryDossier error:", updateErr);
+    return { ok: false, error: updateErr.message };
+  }
+
+  await logAdminAction({
+    adminEmail: getAdminEmail(),
+    action: "update_qa_regulatory_dossier",
+    targetType: "sourcing_request",
+    targetId: requestId,
+    metadata: {
+      status: dossier.status,
+      moh_status: dossier.regulatory_compliance.moh_import_permit_status,
+      kosher_status: dossier.kosher_gateway.audit_status,
+      is_approved: dossier.final_signoff.is_approved,
+    },
+  });
+
+  try {
+    revalidatePath(`/admin/requests/${requestId}`);
+    revalidatePath("/admin/requests");
+  } catch {}
+
+  return { ok: true };
+}

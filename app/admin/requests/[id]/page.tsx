@@ -12,10 +12,12 @@ import OrderWorkflowTracker from "@/components/admin/OrderWorkflowTracker";
 import BuyerBriefApprovalCard from "@/components/admin/BuyerBriefApprovalCard";
 import ProductComparisonMatrix, { type ComparisonSupplier } from "@/components/admin/ProductComparisonMatrix";
 import SampleDispatchHub from "@/components/admin/SampleDispatchHub";
+import QaRegulatoryGateway from "@/components/admin/QaRegulatoryGateway";
 import type {
   CommercialOrderLifecycle,
   BuyerBriefApproval,
   SampleDispatchProtocol,
+  QaRegulatoryDossier,
 } from "@/app/admin/requests/actions";
 
 export const metadata: Metadata = { title: "Request Detail | Admin" };
@@ -146,6 +148,7 @@ export default async function RequestDetailPage({ params }: PageProps) {
   const orderWorkflow = (aiAnalysis?.order_workflow as CommercialOrderLifecycle | null) ?? null;
   const buyerBriefApproval = (aiAnalysis?.buyer_brief_approval as BuyerBriefApproval | null) ?? null;
   const sampleDispatch = (aiAnalysis?.sample_dispatch as SampleDispatchProtocol | null) ?? null;
+  const qaDossier = (aiAnalysis?.qa_regulatory_dossier as QaRegulatoryDossier | null) ?? null;
   const buyerCompany = (request.company as string | null) ?? (request.name as string | null) ?? "Buyer";
 
   const matchedSuppliersList = matches.map((m) => ({
@@ -224,6 +227,16 @@ export default async function RequestDetailPage({ params }: PageProps) {
           productName={cleanedName || productName || "Product"}
           initialProtocol={sampleDispatch}
           suppliers={comparisonSuppliers}
+        />
+
+        {/* ── Stage 5: Quality Assurance, Regulatory & Kosher Gateway ── */}
+        <QaRegulatoryGateway
+          requestId={id}
+          buyerCompany={buyerCompany}
+          productName={cleanedName || productName || "Product"}
+          targetMarket={request.target_market as string | null}
+          hasKosherRequired={hasKosher}
+          initialDossier={qaDossier}
         />
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
