@@ -50,3 +50,6 @@ next-env.d.ts
 data/*.csv
 data/*.xlsx
 data/*.xls
+
+# Supabase CLI temp files
+supabase/.temp/

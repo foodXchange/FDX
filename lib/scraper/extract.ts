@@ -1,5 +1,6 @@
 import { GoogleGenAI } from "@google/genai";
 import Anthropic from "@anthropic-ai/sdk";
+import { cleanScrapedContent } from "./cleanContent";
 
 export interface ExtractedFactory {
   factory_name: string;
@@ -258,6 +259,8 @@ export async function extractProducts(
       `from the supplier website. Extract with slightly lower confidence (max 0.8).`
     : `NOTE: This content is directly from the supplier website.`;
 
+  const cleaned = cleanScrapedContent(websiteContent, 45000);
+
   const userPrompt =
     `Extract all food products from this supplier website content.\n\n` +
     `IMPORTANT: The website may be in ANY language — Italian, Spanish, French, German, ` +
@@ -277,7 +280,7 @@ export async function extractProducts(
     `Supplier: ${supplier.company_name}\n` +
     `Country: ${supplier.country_of_origin ?? "Unknown"}\n` +
     `Known certifications: ${supplier.certifications.join(", ") || "None stated"}\n\n` +
-    `Website content:\n${websiteContent.slice(0, 100000)}\n\n` +
+    `Website content:\n${cleaned}\n\n` +
     `Return ONLY this JSON array — no other text:\n` +
     `[\n` +
     `  {\n` +
@@ -394,11 +397,13 @@ export async function extractSupplierProfile(
     return EMPTY_PROFILE;
   }
 
+  const cleaned = cleanScrapedContent(websiteContent, 30000);
+
   const userPrompt =
     `Extract company profile information from this food supplier website.\n\n` +
     `Company: ${companyName}\n` +
     `Country hint: ${existingData.country ?? "Unknown"}\n` +
-    `Website content:\n${websiteContent.slice(0, 50000)}\n\n` +
+    `Website content:\n${cleaned}\n\n` +
     `Return ONLY this JSON (no other text):\n` +
     `{\n` +
     `  "company_description": "max 300 word description of what they make and their market position",\n` +
@@ -540,3 +545,176 @@ export async function extractSupplierProfile(
     return EMPTY_PROFILE;
   }
 }
+
+/**
+ * Unified single-pass extraction of both products and company profile/factories.
+ * This cuts LLM calls by 50% while improving cross-context accuracy (e.g. Kosher logos in footer matched to products).
+ */
+export async function extractSupplierFull(
+  websiteContent: string,
+  supplier: {
+    company_name: string;
+    country_of_origin: string | null;
+    certifications?: string[];
+    categories?: string[];
+  }
+): Promise<{ products: ExtractedProduct[]; profile: SupplierProfile }> {
+  if (!websiteContent || websiteContent.length < 100) {
+    return { products: [], profile: EMPTY_PROFILE };
+  }
+
+  const cleaned = cleanScrapedContent(websiteContent, 45000);
+
+  const isPerplexity = websiteContent.startsWith("[PERPLEXITY RESEARCH]");
+  const sourceNote = isPerplexity
+    ? "NOTE: Content is from AI web research across sources. Extract with max confidence 0.8."
+    : "NOTE: Content is directly from the supplier website.";
+
+  const prompt =
+    `You are a senior food industry data specialist. Extract structured company profile and all products from this website.\n\n` +
+    `Company: ${supplier.company_name}\n` +
+    `Country: ${supplier.country_of_origin ?? "Unknown"}\n` +
+    `Known certifications: ${(supplier.certifications ?? []).join(", ") || "None stated"}\n` +
+    `${sourceNote}\n\n` +
+    `Website Content:\n${cleaned}\n\n` +
+    `Return ONLY a JSON object with this exact structure:\n` +
+    `{\n` +
+    `  "profile": {\n` +
+    `    "company_description": "concise description of production activities and specialties",\n` +
+    `    "founded_year": number or null,\n` +
+    `    "employees_range": "e.g. 50-200" or null,\n` +
+    `    "export_markets": ["EU", "Middle East", "USA"],\n` +
+    `    "production_capacity": "e.g. 5,000 tons/year" or null,\n` +
+    `    "contact_email": "email" or null,\n` +
+    `    "contact_phone": "phone" or null,\n` +
+    `    "contact_name": "contact name" or null,\n` +
+    `    "linkedin_url": null,\n` +
+    `    "logo_url": null,\n` +
+    `    "factories": [\n` +
+    `      {\n` +
+    `        "factory_name": "Main Plant",\n` +
+    `        "country": "${supplier.country_of_origin ?? "Unknown"}",\n` +
+    `        "city": string or null,\n` +
+    `        "is_primary": true,\n` +
+    `        "kosher_types": ["Chief Rabbinate", "Badatz Beit Yosef", "OU", "OK", "Star-K"] or [],\n` +
+    `        "kosher_certifying_body": string or null,\n` +
+    `        "certifications_quality": ["BRC", "IFS", "ISO 22000", "HACCP"],\n` +
+    `        "certifications_dietary": ["Organic", "Halal", "Vegan", "Gluten-Free"],\n` +
+    `        "brc_grade": null,\n` +
+    `        "ifs_grade": null,\n` +
+    `        "production_capacity": null\n` +
+    `      }\n` +
+    `    ]\n` +
+    `  },\n` +
+    `  "products": [\n` +
+    `    {\n` +
+    `      "product_name": "specific product name in English",\n` +
+    `      "category": "one of: Tomato Products | Pasta & Grains | Snacks | Dairy | Beverages | Sauces & Condiments | Canned Foods | Frozen Foods | Oils & Fats | Fish & Seafood | Bakery | Spices & Herbs | Meat & Poultry | Pulses & Legumes | Organic & Natural | Ingredients & Additives | Other",\n` +
+    `      "subcategory": string or null,\n` +
+    `      "description": string or null,\n` +
+    `      "formats": ["Bottle 500ml", "Jar 350g", "Bag 1kg", "Tin 400g"],\n` +
+    `      "sizes": ["500ml", "350g"],\n` +
+    `      "brix_level": null,\n` +
+    `      "shelf_life_months": number or null,\n` +
+    `      "certifications": ["BRC", "IFS", "Kosher", "Organic"],\n` +
+    `      "kosher_types": [],\n` +
+    `      "processing_type": "canned | dried | frozen | fresh | vacuum | ambient | other or null",\n` +
+    `      "ingredients": "comma-separated main ingredients in English",\n` +
+    `      "product_type": "pure_ingredient or processed_food or semi_processed",\n` +
+    `      "primary_ingredients": ["ingredient"],\n` +
+    `      "private_label": true or false,\n` +
+    `      "tags": ["tag1", "tag2"],\n` +
+    `      "markets_suitable": ["Retail", "Foodservice"],\n` +
+    `      "confidence": 0.8,\n` +
+    `      "detected_language": "english" or "italian" or "spanish" or "french" or "german" or "other",\n` +
+    `      "image_url": null\n` +
+    `    }\n` +
+    `  ]\n` +
+    `}`;
+
+  const gemini = getGeminiClient();
+  const anthropic = getAnthropicClient();
+
+  let raw = "";
+  if (gemini) {
+    try {
+      const response = await gemini.models.generateContent({
+        model: "gemini-3.5-flash",
+        contents: prompt,
+        config: {
+          systemInstruction: "Extract structured B2B food products and company profile. Output JSON only.",
+          responseMimeType: "application/json",
+        },
+      });
+      raw = response.text?.trim() ?? "";
+    } catch (e) {
+      if (anthropic) {
+        const resp = await anthropic.messages.create({
+          model: "claude-sonnet-4-5",
+          max_tokens: 3500,
+          system: "Extract structured B2B food products and company profile. Output JSON only.",
+          messages: [{ role: "user", content: prompt }],
+        });
+        raw = resp.content.filter((c) => c.type === "text").map((c) => ("text" in c ? c.text : "")).join("");
+      } else {
+        throw e;
+      }
+    }
+  } else if (anthropic) {
+    const resp = await anthropic.messages.create({
+      model: "claude-sonnet-4-5",
+      max_tokens: 3500,
+      system: "Extract structured B2B food products and company profile. Output JSON only.",
+      messages: [{ role: "user", content: prompt }],
+    });
+    raw = resp.content.filter((c) => c.type === "text").map((c) => ("text" in c ? c.text : "")).join("");
+  }
+
+  try {
+    const match = raw.match(/\{[\s\S]*\}/);
+    if (!match) return { products: [], profile: EMPTY_PROFILE };
+    const parsed = JSON.parse(match[0]) as {
+      profile?: Record<string, unknown>;
+      products?: ExtractedProduct[];
+    };
+
+    const parsedProducts = Array.isArray(parsed.products) ? parsed.products : [];
+    const p = parsed.profile ?? {};
+
+    const factories: ExtractedFactory[] = Array.isArray(p.factories)
+      ? (p.factories as Record<string, unknown>[]).map((f, i) => ({
+          factory_name: typeof f.factory_name === "string" ? f.factory_name : "Main Factory",
+          country: typeof f.country === "string" ? f.country : supplier.country_of_origin ?? null,
+          city: typeof f.city === "string" ? f.city : null,
+          is_primary: i === 0,
+          kosher_types: Array.isArray(f.kosher_types) ? (f.kosher_types as string[]) : [],
+          kosher_certifying_body: typeof f.kosher_certifying_body === "string" ? f.kosher_certifying_body : null,
+          certifications_quality: Array.isArray(f.certifications_quality) ? (f.certifications_quality as string[]) : [],
+          certifications_dietary: Array.isArray(f.certifications_dietary) ? (f.certifications_dietary as string[]) : [],
+          brc_grade: typeof f.brc_grade === "string" ? f.brc_grade : null,
+          ifs_grade: typeof f.ifs_grade === "string" ? f.ifs_grade : null,
+          production_capacity: typeof f.production_capacity === "string" ? f.production_capacity : null,
+        }))
+      : [];
+
+    const profile: SupplierProfile = {
+      company_description: typeof p.company_description === "string" ? p.company_description : null,
+      founded_year: typeof p.founded_year === "number" ? p.founded_year : null,
+      employees_range: typeof p.employees_range === "string" ? p.employees_range : null,
+      export_markets: Array.isArray(p.export_markets) ? (p.export_markets as string[]) : [],
+      production_capacity: typeof p.production_capacity === "string" ? p.production_capacity : null,
+      contact_email: typeof p.contact_email === "string" ? p.contact_email : null,
+      contact_phone: typeof p.contact_phone === "string" ? p.contact_phone : null,
+      contact_name: typeof p.contact_name === "string" ? p.contact_name : null,
+      linkedin_url: typeof p.linkedin_url === "string" ? p.linkedin_url : null,
+      logo_url: typeof p.logo_url === "string" ? p.logo_url : null,
+      factories,
+    };
+
+    return { products: parsedProducts, profile };
+  } catch (err) {
+    console.error("Unified extraction parse error:", err);
+    return { products: [], profile: EMPTY_PROFILE };
+  }
+}
+

@@ -4,6 +4,7 @@ import { crawlSupplier } from "@/lib/scraper/crawl";
 import {
   extractProducts,
   extractSupplierProfile,
+  extractSupplierFull,
 } from "@/lib/scraper/extract";
 import { classifyCompany, saveClassification, saveCrawlSnapshot } from "@/lib/scraper/classify";
 import { embedBatch } from "@/lib/ai/embed";
@@ -343,17 +344,13 @@ async function runBackgroundQueue() {
                 return;
               }
 
-              // Parallel Product & Profile Extraction
-              const [products, profile] = await Promise.all([
-                extractProducts(content, {
-                  company_name: supplier.company_name,
-                  country_of_origin: supplier.country_of_origin,
-                  certifications: supplier.certifications ?? [],
-                }),
-                extractSupplierProfile(content, supplier.company_name, {
-                  country: supplier.country_of_origin,
-                }),
-              ]);
+              // Unified single-pass product & profile extraction
+              const { products, profile } = await extractSupplierFull(content, {
+                company_name: supplier.company_name,
+                country_of_origin: supplier.country_of_origin,
+                certifications: supplier.certifications ?? [],
+                categories: supplier.categories ?? [],
+              });
               if (isTimedOut) return;
 
               if (products.length === 0) {

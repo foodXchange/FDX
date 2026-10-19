@@ -91,27 +91,69 @@ function getAnthropic() {
   return key ? new Anthropic({ apiKey: key }) : null;
 }
 
+async function callPerplexity(prompt: string): Promise<string> {
+  const key = process.env.PERPLEXITY_API_KEY;
+  if (!key) throw new Error("PERPLEXITY_API_KEY is not configured");
+
+  const res = await fetch("https://api.perplexity.ai/chat/completions", {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${key}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: "sonar",
+      messages: [
+        { role: "system", content: SYSTEM_PROMPT },
+        { role: "user", content: prompt },
+      ],
+      temperature: 0.1,
+    }),
+  });
+
+  if (!res.ok) {
+    throw new Error(`Perplexity API error ${res.status}: ${await res.text()}`);
+  }
+  const data = (await res.json()) as { choices?: Array<{ message?: { content?: string } }> };
+  return data.choices?.[0]?.message?.content?.trim() ?? "";
+}
+
 async function callModel(prompt: string): Promise<string> {
   const gemini = getGemini();
-  if (gemini) {
-    const response = await gemini.models.generateContent({
-      model: "gemini-3.5-flash",
-      contents: prompt,
-      config: { systemInstruction: SYSTEM_PROMPT, responseMimeType: "application/json" },
-    });
-    return response.text?.trim() ?? "";
-  }
   const anthropic = getAnthropic();
-  if (anthropic) {
-    const response = await anthropic.messages.create({
-      model: "claude-sonnet-4-5",
-      max_tokens: 700,
-      system: SYSTEM_PROMPT,
-      messages: [{ role: "user", content: prompt }],
-    });
-    return response.content[0].type === "text" ? response.content[0].text.trim() : "";
+
+  if (gemini) {
+    try {
+      const response = await gemini.models.generateContent({
+        model: "gemini-3.5-flash",
+        contents: prompt,
+        config: { systemInstruction: SYSTEM_PROMPT, responseMimeType: "application/json" },
+      });
+      return response.text?.trim() ?? "";
+    } catch {
+      // Fall through to Anthropic / Perplexity
+    }
   }
-  throw new Error("Neither GEMINI_API_KEY nor ANTHROPIC_API_KEY is configured");
+
+  if (anthropic) {
+    try {
+      const response = await anthropic.messages.create({
+        model: "claude-sonnet-4-5",
+        max_tokens: 700,
+        system: SYSTEM_PROMPT,
+        messages: [{ role: "user", content: prompt }],
+      });
+      return response.content[0].type === "text" ? response.content[0].text.trim() : "";
+    } catch {
+      // Fall through to Perplexity
+    }
+  }
+
+  if (process.env.PERPLEXITY_API_KEY) {
+    return await callPerplexity(prompt);
+  }
+
+  throw new Error("No available AI provider succeeded (tried Gemini, Anthropic, Perplexity)");
 }
 
 function strList(v: unknown, max: number): string[] {
@@ -227,6 +269,7 @@ export async function classifyFromSummary(input: {
     c.contactPhone = null;
     return c;
   } catch (err) {
+    console.error(`classifyFromSummary(${input.companyName}) error:`, err);
     const c = fallback(`backfill classification failed: ${err instanceof Error ? err.message : String(err)}`);
     c.route = "profiled";
     c.sector = "other";

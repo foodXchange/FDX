@@ -127,7 +127,7 @@ async function discoverSupplierEmail(supplier: {
       const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
       const prompt = `Find the official B2B sales, export, or general contact email address for the food manufacturer "${supplier.company_name ?? ""}" (${supplier.country_of_origin ?? ""}) with website ${supplier.website ?? "unknown"}. Return ONLY the email address or "NONE".`;
       const response = await ai.models.generateContent({
-        model: "gemini-2.5-flash",
+        model: "gemini-3.5-flash",
         contents: prompt,
         config: {
           tools: [{ googleSearch: {} }],

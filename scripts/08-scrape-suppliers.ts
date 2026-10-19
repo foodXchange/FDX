@@ -18,6 +18,7 @@ import { scrapeSupplier } from "../lib/scraper/firecrawlPipeline";
 import type { PageProduct } from "../lib/scraper/firecrawlPipeline";
 import {
   extractSupplierProfile,
+  extractSupplierFull,
 } from "../lib/scraper/extract";
 import {
   classifyCompany,
@@ -523,9 +524,13 @@ async function main(): Promise<void> {
             );
             if (!goOn0) return;
 
-            console.log(`\n  → Extracting products (legacy path)...`);
-            const { extractProducts: extractP } = await import("../lib/scraper/extract");
-            const legacyProds = await extractP(content, { company_name: supplier.company_name, country_of_origin: supplier.country_of_origin, certifications: supplier.certifications ?? [] });
+            console.log(`\n  → Extracting products & company profile (unified pass)...`);
+            const { products: legacyProds, profile: profile0 } = await extractSupplierFull(content, {
+              company_name: supplier.company_name,
+              country_of_origin: supplier.country_of_origin,
+              certifications: supplier.certifications ?? [],
+              categories: supplier.categories ?? [],
+            });
             if (legacyProds.length === 0) {
               console.log(`  ✗ No products extracted`);
               await supabase.from("supplier_offerings").update({ scrape_status: "failed" }).eq("id", supplier.id);
@@ -538,8 +543,6 @@ async function main(): Promise<void> {
             const legacyAvg = legacyProds.reduce((s: number, p: ExtractedProduct) => s + (p.confidence ?? 0), 0) / legacyProds.length;
             await supabase.from("supplier_offerings").update({ scrape_status: "scraped", last_scraped_at: new Date().toISOString(), products_found: legacyInserted }).eq("id", supplier.id);
             console.log(`  ✓ Saved ${legacyInserted} products`);
-            console.log(`\n  → Extracting company profile...`);
-            const profile0 = await extractSupplierProfile(content, supplier.company_name, { country: supplier.country_of_origin, categories: supplier.categories ?? [] });
             await persistProfile(supplier, profile0);
             succeeded.push({ name: supplier.company_name, products: legacyInserted, avgConfidence: legacyAvg });
             totalProducts += legacyInserted;

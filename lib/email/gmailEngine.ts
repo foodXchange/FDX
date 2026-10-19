@@ -329,7 +329,7 @@ Return ONLY valid JSON with this exact shape:
 }`;
 
     const res = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
+      model: "gemini-3.5-flash",
       contents: prompt,
       config: {
         responseMimeType: "application/json",

@@ -4,6 +4,7 @@ import { crawlSupplier } from "@/lib/scraper/crawl";
 import {
   extractProducts,
   extractSupplierProfile,
+  extractSupplierFull,
 } from "@/lib/scraper/extract";
 import type { ExtractedProduct } from "@/lib/scraper/extract";
 import {
@@ -554,19 +555,14 @@ export async function GET(req: NextRequest) {
                 send({ type: "log", message: `  ✓ Food producer — ${describeClassification(cls)}` });
               }
 
-              // ── EXTRACT PRODUCTS & PROFILE IN PARALLEL ───────────────────
+              // ── UNIFIED EXTRACT: PRODUCTS & PROFILE IN SINGLE PASS ───────
               send({ type: "log", message: "  → Extracting products & company profile..." });
-              const [products, profile] = await Promise.all([
-                extractProducts(content, {
-                  company_name: supplier.company_name,
-                  country_of_origin: supplier.country_of_origin,
-                  certifications: supplier.certifications ?? [],
-                }),
-                extractSupplierProfile(content, supplier.company_name, {
-                  country: supplier.country_of_origin,
-                  categories: supplier.categories ?? [],
-                }),
-              ]);
+              const { products, profile } = await extractSupplierFull(content, {
+                company_name: supplier.company_name,
+                country_of_origin: supplier.country_of_origin,
+                certifications: supplier.certifications ?? [],
+                categories: supplier.categories ?? [],
+              });
               if (isTimedOut) return;
 
               if (products.length === 0) {
