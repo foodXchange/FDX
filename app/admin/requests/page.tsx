@@ -3,6 +3,7 @@ import RequestsTable from "@/components/admin/RequestsTable";
 import ScriptGenerator from "@/components/admin/ScriptGenerator";
 import BulkMatchButton from "@/components/admin/BulkMatchButton";
 import BulkReMatchButton from "@/components/admin/BulkReMatchButton";
+import AgentCommandRadar from "@/components/admin/AgentCommandRadar";
 
 export type RequestRow = {
   id: string;
@@ -168,7 +169,23 @@ export default async function AdminRequestsPage() {
       </div>
 
       <div className="p-6 max-w-7xl mx-auto">
-        <RequestsTable requests={requests} />
+        {/* ── Multi-Project Sourcing Radar (Agent Command Dashboard) ── */}
+        <AgentCommandRadar requests={requests} />
+
+        {/* ── Requests Master Table & Catalog Registry ── */}
+        <div className="mt-10 pt-8 border-t border-gray-200">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h2 className="text-base font-bold text-gray-900">
+                Detailed Requests Registry
+              </h2>
+              <p className="text-xs text-gray-500">
+                Tabular overview with advanced sorting, column filters, and slide-over panel
+              </p>
+            </div>
+          </div>
+          <RequestsTable requests={requests} />
+        </div>
       </div>
     </main>
   );
