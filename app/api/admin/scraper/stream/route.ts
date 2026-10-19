@@ -315,6 +315,34 @@ export async function GET(req: NextRequest) {
       send({ type: "log", message: `Found ${suppliers.length} suppliers to process` });
       await logEvent("info", undefined, `Found ${suppliers.length} suppliers to process`);
 
+      // Pre-flight AI check to protect Firecrawl credits and avoid partial runs if AI is depleted
+      if (process.env.GEMINI_API_KEY) {
+        try {
+          const { GoogleGenAI } = await import("@google/genai");
+          const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+          await ai.models.generateContent({
+            model: "gemini-3.8-flash",
+            contents: "ping",
+          });
+        } catch (err: any) {
+          const msg = err?.message || String(err);
+          if (
+            msg.includes("402") ||
+            msg.includes("RESOURCE_EXHAUSTED") ||
+            msg.includes("prepayment credits are depleted") ||
+            msg.includes("organization_on_hold")
+          ) {
+            send({
+              type: "error",
+              message: `⚡ CIRCUIT BREAKER: AI Prepayment credits are depleted (HTTP 402). Pausing scraper safely — no suppliers were modified or crawled. Top up at https://ai.studio/projects.`,
+            });
+            send({ type: "done" });
+            controller.close();
+            return;
+          }
+        }
+      }
+
       const succeeded: { name: string; products: number }[] = [];
       const failed: { name: string; reason: string }[] = [];
       const skippedList: { name: string; type: string }[] = [];

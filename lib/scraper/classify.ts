@@ -248,7 +248,16 @@ export async function classifyCompany(
     );
     return parseClassification(raw);
   } catch (err) {
-    return fallback(`classification failed: ${err instanceof Error ? err.message : String(err)}`);
+    const msg = err instanceof Error ? err.message : String(err);
+    if (
+      msg.includes("402") ||
+      msg.includes("RESOURCE_EXHAUSTED") ||
+      msg.includes("prepayment credits are depleted") ||
+      msg.includes("organization_on_hold")
+    ) {
+      throw err;
+    }
+    return fallback(`classification failed: ${msg}`);
   }
 }
 
