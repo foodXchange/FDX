@@ -130,12 +130,20 @@ async function callModel(prompt: string): Promise<string> {
         config: { systemInstruction: SYSTEM_PROMPT, responseMimeType: "application/json" },
       });
       return response.text?.trim() ?? "";
-    } catch {
-      // Fall through to Anthropic / Perplexity
+    } catch (err: any) {
+      const msg = err?.message || String(err);
+      if (
+        msg.includes("402") ||
+        msg.includes("RESOURCE_EXHAUSTED") ||
+        msg.includes("prepayment credits are depleted")
+      ) {
+        throw new Error("Google AI Studio prepayment credits depleted (HTTP 402 RESOURCE_EXHAUSTED). Please top up balance at https://ai.studio/projects.");
+      }
+      // If other error, only fall through if another provider is explicitly configured
     }
   }
 
-  if (anthropic) {
+  if (anthropic && process.env.AI_PROVIDER === "anthropic") {
     try {
       const response = await anthropic.messages.create({
         model: "claude-sonnet-4-5",
@@ -149,11 +157,11 @@ async function callModel(prompt: string): Promise<string> {
     }
   }
 
-  if (process.env.PERPLEXITY_API_KEY) {
+  if (process.env.PERPLEXITY_API_KEY && process.env.AI_PROVIDER === "perplexity") {
     return await callPerplexity(prompt);
   }
 
-  throw new Error("No available AI provider succeeded (tried Gemini, Anthropic, Perplexity)");
+  throw new Error("GEMINI_API_KEY call failed or quota exhausted");
 }
 
 function strList(v: unknown, max: number): string[] {

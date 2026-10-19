@@ -15,6 +15,7 @@ import {
 } from "@/lib/scraper/classify";
 import { embedBatch } from "@/lib/ai/embed";
 import { mapScraperCategoryToCanonicalId } from "@/lib/pip/resolveCategoryId";
+import { isBlockedOrEmptyContent } from "@/lib/scraper/cleanContent";
 
 export const dynamic = "force-dynamic";
 
@@ -453,13 +454,13 @@ export async function GET(req: NextRequest) {
               if (isTimedOut) return;
               const isGroundedSearch = content.startsWith("[PERPLEXITY RESEARCH]");
 
-              if (!content || content.length < 50) {
-                send({ type: "error", message: "  ✗ Website blocked or no content" });
+              if (!content || isBlockedOrEmptyContent(content)) {
+                send({ type: "warning", message: `  ✗ Website blocked by challenge or no readable content (${content?.length ?? 0} chars)` });
                 await supabaseAdmin
                   .from("supplier_offerings")
-                  .update({ scrape_status: "failed", internal_notes: "No content returned from scraper" })
+                  .update({ scrape_status: "failed", internal_notes: "Website blocked by bot challenge or no content returned" })
                   .eq("id", supplier.id);
-                failed.push({ name: supplier.company_name, reason: "No content returned" });
+                failed.push({ name: supplier.company_name, reason: "Website blocked or no content" });
                 await logEvent(
                   "failed",
                   supplier.id,
@@ -720,6 +721,21 @@ export async function GET(req: NextRequest) {
               await logEvent("failed", supplier.id, "Timeout");
             }
           } else {
+            const isCircuitBreaker =
+              msg.includes("402") ||
+              msg.includes("RESOURCE_EXHAUSTED") ||
+              msg.includes("prepayment credits are depleted") ||
+              msg.includes("organization_on_hold");
+
+            if (isCircuitBreaker) {
+              send({
+                type: "error",
+                message: `  ⚡ CIRCUIT BREAKER TRIPPED: Google AI Studio prepayment credits depleted (HTTP 402). Pausing scraper safely — remaining suppliers retained as pending.`,
+              });
+              // Retain current supplier as pending — do NOT mark failed!
+              break;
+            }
+
             send({ type: "error", message: `  ✗ Error: ${msg}` });
             await supabaseAdmin
               .from("supplier_offerings")

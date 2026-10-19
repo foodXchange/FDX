@@ -259,7 +259,7 @@ export async function extractProducts(
       `from the supplier website. Extract with slightly lower confidence (max 0.8).`
     : `NOTE: This content is directly from the supplier website.`;
 
-  const cleaned = cleanScrapedContent(websiteContent, 45000);
+  const cleaned = cleanScrapedContent(websiteContent, 22000);
 
   const userPrompt =
     `Extract all food products from this supplier website content.\n\n` +
@@ -397,7 +397,7 @@ export async function extractSupplierProfile(
     return EMPTY_PROFILE;
   }
 
-  const cleaned = cleanScrapedContent(websiteContent, 30000);
+  const cleaned = cleanScrapedContent(websiteContent, 16000);
 
   const userPrompt =
     `Extract company profile information from this food supplier website.\n\n` +
@@ -563,7 +563,7 @@ export async function extractSupplierFull(
     return { products: [], profile: EMPTY_PROFILE };
   }
 
-  const cleaned = cleanScrapedContent(websiteContent, 45000);
+  const cleaned = cleanScrapedContent(websiteContent, 22000);
 
   const isPerplexity = websiteContent.startsWith("[PERPLEXITY RESEARCH]");
   const sourceNote = isPerplexity
@@ -647,8 +647,16 @@ export async function extractSupplierFull(
         },
       });
       raw = response.text?.trim() ?? "";
-    } catch (e) {
-      if (anthropic) {
+    } catch (e: any) {
+      const msg = e?.message || String(e);
+      if (
+        msg.includes("402") ||
+        msg.includes("RESOURCE_EXHAUSTED") ||
+        msg.includes("prepayment credits are depleted")
+      ) {
+        throw new Error("Google AI Studio prepayment credits depleted (HTTP 402 RESOURCE_EXHAUSTED). Please top up balance at https://ai.studio/projects.");
+      }
+      if (anthropic && process.env.AI_PROVIDER === "anthropic") {
         const resp = await anthropic.messages.create({
           model: "claude-sonnet-4-5",
           max_tokens: 3500,
@@ -660,7 +668,7 @@ export async function extractSupplierFull(
         throw e;
       }
     }
-  } else if (anthropic) {
+  } else if (anthropic && process.env.AI_PROVIDER === "anthropic") {
     const resp = await anthropic.messages.create({
       model: "claude-sonnet-4-5",
       max_tokens: 3500,
@@ -668,6 +676,8 @@ export async function extractSupplierFull(
       messages: [{ role: "user", content: prompt }],
     });
     raw = resp.content.filter((c) => c.type === "text").map((c) => ("text" in c ? c.text : "")).join("");
+  } else {
+    throw new Error("GEMINI_API_KEY is not configured or available");
   }
 
   try {
