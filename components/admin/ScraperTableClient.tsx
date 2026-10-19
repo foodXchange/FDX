@@ -74,8 +74,18 @@ function RelativeTime({ iso }: { iso: string | null }) {
   else if (diffMins < 60) label = `${diffMins}m ago`;
   else if (diffHours < 24) label = `${diffHours}h ago`;
   else if (diffDays < 30) label = `${diffDays}d ago`;
-  else label = date.toLocaleDateString();
-  return <span className="text-slate-500 text-xs">{label}</span>;
+  else {
+    label = date.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
+  }
+  return (
+    <span suppressHydrationWarning className="text-slate-500 text-xs">
+      {label}
+    </span>
+  );
 }
 
 function KosherBadge({ types }: { types: string[] }) {
