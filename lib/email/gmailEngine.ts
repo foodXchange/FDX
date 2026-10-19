@@ -524,9 +524,7 @@ export async function syncGmailInboxReplies(): Promise<{
             const newStatus =
               aiParsed.responseType === "declined"
                 ? "rejected"
-                : aiParsed.responseType === "accepted"
-                ? "accepted"
-                : aMatch.status;
+                : "reviewed"; // within ('proposed', 'reviewed', 'pitched', 'rejected')
 
             await supabaseAdmin
               .from("assortment_matches")
