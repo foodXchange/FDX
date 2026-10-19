@@ -741,3 +741,123 @@ export async function updateQaRegulatoryDossier(
 
   return { ok: true };
 }
+
+export interface PackagingArtworkWorkflow {
+  status:
+    | "dieline_staging"
+    | "food_advisory_review"
+    | "buyer_marketing_review"
+    | "supplier_technical_proof"
+    | "artwork_approved"
+    | "print_master_released";
+  packaging_specs: {
+    packaging_type:
+      | "PET Bottle"
+      | "Glass Jar"
+      | "Tin Can"
+      | "Flexible Foil / Pouch"
+      | "Tetra Pak"
+      | "Corrugated Box"
+      | "Other";
+    dieline_template_url?: string;
+    dieline_dimensions_mm?: string;
+    artwork_pdf_url?: string;
+    artwork_version: number;
+    barcode_ean13?: string;
+    inkjet_zone_position?: string;
+    cylinder_unwind_direction?: "1" | "2" | "3" | "4" | "sheet_fed";
+    color_profile?: "CMYK + 2 Pantone" | "CMYK" | "Pantone Spot Colors";
+  };
+  approval_gates: {
+    food_advisory: {
+      status: "pending" | "approved" | "changes_requested";
+      advisory_company_name: string;
+      reviewed_by?: string;
+      reviewed_at?: string | null;
+      hebrew_nutrition_table_verified: boolean;
+      allergen_bolding_verified: boolean;
+      legal_origin_marking_verified: boolean;
+      front_warning_labels_verified: boolean;
+      notes?: string;
+    };
+    buyer_marketing: {
+      status: "pending" | "approved" | "changes_requested";
+      approver_name: string;
+      reviewed_at?: string | null;
+      brand_compliance_verified: boolean;
+      finish_and_coating: "Glossy" | "Matte" | "Soft-touch" | "Metallic Foil Stamp";
+      notes?: string;
+    };
+    supplier_technical: {
+      status: "pending" | "approved" | "changes_requested";
+      factory_print_engineer_name?: string;
+      reviewed_at?: string | null;
+      roll_unwinding_confirmed: boolean;
+      inkjet_code_gap_confirmed: boolean;
+      die_cut_tolerances_confirmed: boolean;
+      notes?: string;
+    };
+  };
+  print_master_release: {
+    is_released_to_factory: boolean;
+    released_at?: string | null;
+    released_by?: string | null;
+    signed_proof_pdf_url?: string;
+  };
+  updated_at?: string;
+  updated_by?: string;
+}
+
+export async function updatePackagingArtworkWorkflow(
+  requestId: string,
+  artwork: PackagingArtworkWorkflow
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const { data: req, error: fetchErr } = await supabaseAdmin
+    .from("sourcing_requests")
+    .select("ai_analysis, company, product_name")
+    .eq("id", requestId)
+    .single();
+
+  if (fetchErr || !req) {
+    return { ok: false, error: fetchErr?.message || "Request not found" };
+  }
+
+  const existingAiAnalysis = (req.ai_analysis as Record<string, unknown> | null) ?? {};
+  const updatedAiAnalysis = {
+    ...existingAiAnalysis,
+    packaging_artwork: {
+      ...artwork,
+      updated_at: new Date().toISOString(),
+      updated_by: getAdminEmail() || "admin",
+    },
+  };
+
+  const { error: updateErr } = await supabaseAdmin
+    .from("sourcing_requests")
+    .update({ ai_analysis: updatedAiAnalysis })
+    .eq("id", requestId);
+
+  if (updateErr) {
+    console.error("updatePackagingArtworkWorkflow error:", updateErr);
+    return { ok: false, error: updateErr.message };
+  }
+
+  await logAdminAction({
+    adminEmail: getAdminEmail(),
+    action: "update_packaging_artwork_workflow",
+    targetType: "sourcing_request",
+    targetId: requestId,
+    metadata: {
+      status: artwork.status,
+      version: artwork.packaging_specs.artwork_version,
+      is_released: artwork.print_master_release.is_released_to_factory,
+    },
+  });
+
+  try {
+    revalidatePath(`/admin/requests/${requestId}`);
+    revalidatePath("/admin/requests");
+  } catch {}
+
+  return { ok: true };
+}

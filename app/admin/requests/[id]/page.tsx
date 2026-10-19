@@ -13,11 +13,13 @@ import BuyerBriefApprovalCard from "@/components/admin/BuyerBriefApprovalCard";
 import ProductComparisonMatrix, { type ComparisonSupplier } from "@/components/admin/ProductComparisonMatrix";
 import SampleDispatchHub from "@/components/admin/SampleDispatchHub";
 import QaRegulatoryGateway from "@/components/admin/QaRegulatoryGateway";
+import PackagingArtworkStaging from "@/components/admin/PackagingArtworkStaging";
 import type {
   CommercialOrderLifecycle,
   BuyerBriefApproval,
   SampleDispatchProtocol,
   QaRegulatoryDossier,
+  PackagingArtworkWorkflow,
 } from "@/app/admin/requests/actions";
 
 export const metadata: Metadata = { title: "Request Detail | Admin" };
@@ -149,6 +151,7 @@ export default async function RequestDetailPage({ params }: PageProps) {
   const buyerBriefApproval = (aiAnalysis?.buyer_brief_approval as BuyerBriefApproval | null) ?? null;
   const sampleDispatch = (aiAnalysis?.sample_dispatch as SampleDispatchProtocol | null) ?? null;
   const qaDossier = (aiAnalysis?.qa_regulatory_dossier as QaRegulatoryDossier | null) ?? null;
+  const packagingArtwork = (aiAnalysis?.packaging_artwork as PackagingArtworkWorkflow | null) ?? null;
   const buyerCompany = (request.company as string | null) ?? (request.name as string | null) ?? "Buyer";
 
   const matchedSuppliersList = matches.map((m) => ({
@@ -237,6 +240,14 @@ export default async function RequestDetailPage({ params }: PageProps) {
           targetMarket={request.target_market as string | null}
           hasKosherRequired={hasKosher}
           initialDossier={qaDossier}
+        />
+
+        {/* ── Stage 6: Packaging Graphics, Hebrew Labeling & Private Label Staging ── */}
+        <PackagingArtworkStaging
+          requestId={id}
+          buyerCompany={buyerCompany}
+          productName={cleanedName || productName || "Product"}
+          initialArtwork={packagingArtwork}
         />
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
