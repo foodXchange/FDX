@@ -108,3 +108,85 @@ create policy "Allow service role full access to retail trends"
   on public.retail_trends for all
   using (auth.jwt() ->> 'role' = 'service_role' or auth.role() = 'service_role')
   with check (auth.jwt() ->> 'role' = 'service_role' or auth.role() = 'service_role');
+
+
+-- 4. ASSORTMENT MATCHES (The Reverse Match Store linking Buyer SKUs to Supplier Catalog)
+create table if not exists public.assortment_matches (
+  id uuid primary key default gen_random_uuid(),
+  buyer_assortment_id uuid references public.buyer_assortments(id) on delete cascade,
+  buyer_id uuid references public.buyers(id) on delete cascade,
+  supplier_product_id uuid references public.supplier_products(id) on delete cascade,
+  supplier_id uuid references public.supplier_offerings(id) on delete cascade,
+  match_score numeric(5, 2) not null,
+  vector_similarity numeric(5, 4),
+  category_match boolean default false,
+  kosher_match boolean default false,
+  pitch_angle text,
+  potential_margin_gain text,
+  status text check (status in ('proposed', 'reviewed', 'pitched', 'rejected')) default 'proposed',
+  created_at timestamptz not null default now()
+);
+
+create index if not exists assortment_matches_buyer_idx on public.assortment_matches(buyer_id);
+create index if not exists assortment_matches_supplier_idx on public.assortment_matches(supplier_id);
+create index if not exists assortment_matches_score_idx on public.assortment_matches(match_score desc);
+create index if not exists assortment_matches_status_idx on public.assortment_matches(status);
+
+alter table public.assortment_matches enable row level security;
+
+create policy "Allow public read access to assortment matches"
+  on public.assortment_matches for select using (true);
+
+create policy "Allow service role full access to assortment matches"
+  on public.assortment_matches for all
+  using (auth.jwt() ->> 'role' = 'service_role' or auth.role() = 'service_role')
+  with check (auth.jwt() ->> 'role' = 'service_role' or auth.role() = 'service_role');
+
+
+-- 5. RPC FUNCTION: High-Performance Vector Sourcing Matcher
+create or replace function match_assortment_to_suppliers(
+  p_assortment_id uuid,
+  p_threshold float default 0.65,
+  p_limit int default 10
+)
+returns table (
+  supplier_product_id uuid,
+  supplier_id uuid,
+  product_name text,
+  company_name text,
+  country_of_origin text,
+  vector_similarity float,
+  category_match boolean
+)
+language plpgsql
+as $$
+declare
+  v_embedding vector(1024);
+  v_category_id uuid;
+begin
+  select embedding, category_id into v_embedding, v_category_id
+  from public.buyer_assortments
+  where id = p_assortment_id;
+
+  if v_embedding is null then
+    return;
+  end if;
+
+  return query
+  select 
+    sp.id as supplier_product_id,
+    so.id as supplier_id,
+    sp.product_name,
+    so.company_name,
+    so.country_of_origin,
+    (1 - (sp.embedding <=> v_embedding))::float as vector_similarity,
+    (sp.category_id = v_category_id) as category_match
+  from public.supplier_products sp
+  join public.supplier_offerings so on so.id = sp.supplier_id
+  where sp.embedding is not null
+    and (1 - (sp.embedding <=> v_embedding)) >= p_threshold
+  order by (1 - (sp.embedding <=> v_embedding)) desc
+  limit p_limit;
+end;
+$$;
+
