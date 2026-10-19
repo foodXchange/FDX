@@ -1,7 +1,7 @@
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import ScraperTableClient from "@/components/admin/ScraperTableClient";
-import { CsvUploader } from "@/components/admin/CsvUploader";
-import { ScraperConsole } from "@/components/admin/ScraperConsole";
+import { ProviderHealthBar } from "@/components/admin/scraper/ProviderHealthBar";
+import { ScraperWorkspaceClient } from "@/components/admin/scraper/ScraperWorkspaceClient";
 
 export const dynamic = "force-dynamic";
 
@@ -503,20 +503,16 @@ export default async function ScraperPage() {
       </div>
 
       <div className="p-6 max-w-7xl mx-auto space-y-6">
-        {/* Top 2-Column Workspace: Left = CSV Check & Upload, Right = Scraper Console */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-          <div className="lg:col-span-5 bg-white border border-slate-200 rounded-2xl p-5 shadow-2xs">
-            <CsvUploader />
-          </div>
-          <div className="lg:col-span-7 bg-white border border-slate-200 rounded-2xl p-5 shadow-2xs">
-            <ScraperConsole
-              totalPending={globalCounts.pending}
-              totalFailed={globalCounts.failed}
-              totalAll={globalCounts.total}
-              batchOptions={effectiveBatchOptions}
-            />
-          </div>
-        </div>
+        {/* Provider Health & Circuit Breaker Status Bar */}
+        <ProviderHealthBar />
+
+        {/* Unified Ingestion & Scraper Workspace */}
+        <ScraperWorkspaceClient
+          totalPending={globalCounts.pending}
+          totalFailed={globalCounts.failed}
+          totalAll={globalCounts.total}
+          batchOptions={effectiveBatchOptions}
+        />
 
         {/* Batch Status Cards (Quick-Launch Grid for Uploaded CSV Files) */}
         {batchSummaries.length > 0 && (

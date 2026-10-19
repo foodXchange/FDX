@@ -434,7 +434,23 @@ async function runBackgroundQueue() {
             })(),
             timeoutPromise,
           ]);
-        } catch {
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err);
+          const isCircuitBreaker =
+            msg.includes("402") ||
+            msg.includes("RESOURCE_EXHAUSTED") ||
+            msg.includes("prepayment credits are depleted") ||
+            msg.includes("organization_on_hold");
+
+          if (isCircuitBreaker) {
+            console.error("⚡ CIRCUIT BREAKER TRIPPED in queue runner:", msg);
+            globalQueueState.lastMessage = `⚡ Circuit breaker tripped (Google Gemini / AI quota exhausted). Pausing queue safely.`;
+            globalQueueState.isRunning = false;
+            globalQueueState.shouldStop = true;
+            // Retain supplier as pending — do NOT mark failed!
+            break;
+          }
+
           if (productsSavedCount > 0) {
             await supabaseAdmin
               .from("supplier_offerings")
