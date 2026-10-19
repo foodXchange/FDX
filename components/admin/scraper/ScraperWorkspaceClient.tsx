@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import SmartFileImportWizard from "@/components/admin/scraper/SmartFileImportWizard";
+import { ManualTargetInjector } from "@/components/admin/scraper/ManualTargetInjector";
 import { CsvUploader } from "@/components/admin/CsvUploader";
 import { ScraperConsole, type BatchOption } from "@/components/admin/ScraperConsole";
 
@@ -18,7 +19,7 @@ export function ScraperWorkspaceClient({
   totalAll,
   batchOptions,
 }: ScraperWorkspaceClientProps) {
-  const [ingestMode, setIngestMode] = useState<"smart" | "quick">("smart");
+  const [ingestMode, setIngestMode] = useState<"smart" | "manual" | "quick">("smart");
   const [isExpanded, setIsExpanded] = useState(false);
 
   return (
@@ -32,8 +33,8 @@ export function ScraperWorkspaceClient({
         >
           <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-2xs space-y-4">
             {/* Tab & Expansion Controls */}
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <div className="flex items-center gap-1.5 p-1 bg-slate-100 rounded-xl">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3 flex-wrap gap-2">
+              <div className="flex items-center gap-1 p-1 bg-slate-100 rounded-xl flex-wrap">
                 <button
                   type="button"
                   onClick={() => setIngestMode("smart")}
@@ -45,15 +46,26 @@ export function ScraperWorkspaceClient({
                 >
                   <span>⚡ Smart Wizard</span>
                   <span className="text-[10px] px-1.5 py-0.2 rounded bg-blue-100 text-blue-700 font-semibold">
-                    CSV / Excel
+                    Excel/CSV
                   </span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIngestMode("manual")}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
+                    ingestMode === "manual"
+                      ? "bg-white text-slate-900 shadow-2xs font-bold"
+                      : "text-slate-500 hover:text-slate-800"
+                  }`}
+                >
+                  ✍️ Quick URL Injector
                 </button>
                 <button
                   type="button"
                   onClick={() => setIngestMode("quick")}
                   className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
                     ingestMode === "quick"
-                      ? "bg-white text-slate-900 shadow-2xs"
+                      ? "bg-white text-slate-900 shadow-2xs font-bold"
                       : "text-slate-500 hover:text-slate-800"
                   }`}
                 >
@@ -72,11 +84,17 @@ export function ScraperWorkspaceClient({
             </div>
 
             {/* Ingestion Content */}
-            {ingestMode === "smart" ? (
+            {ingestMode === "smart" && (
               <div>
                 <SmartFileImportWizard />
               </div>
-            ) : (
+            )}
+            {ingestMode === "manual" && (
+              <div>
+                <ManualTargetInjector />
+              </div>
+            )}
+            {ingestMode === "quick" && (
               <div>
                 <CsvUploader />
               </div>
