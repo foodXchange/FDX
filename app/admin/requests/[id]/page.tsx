@@ -186,17 +186,30 @@ export default async function RequestDetailPage({ params }: PageProps) {
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <div className="border-b border-gray-200 bg-white px-6 py-4 sticky top-0 z-10 shadow-sm">
-        <div className="flex items-center gap-3 max-w-6xl mx-auto">
-          <Link
-            href="/admin/requests"
-            className="text-sm text-slate-500 hover:text-slate-800 transition-colors"
-          >
-            ← Requests
-          </Link>
-          <span className="text-slate-300">/</span>
-          <span className="text-sm font-medium text-slate-700 truncate max-w-xs">
-            {cleanedName || productName || "Request"}
-          </span>
+        <div className="flex items-center justify-between gap-3 max-w-6xl mx-auto">
+          <div className="flex items-center gap-3">
+            <Link
+              href="/admin/requests"
+              className="text-sm text-slate-500 hover:text-slate-800 transition-colors"
+            >
+              ← Requests
+            </Link>
+            <span className="text-slate-300">/</span>
+            <span className="text-sm font-medium text-slate-700 truncate max-w-xs">
+              {cleanedName || productName || "Request"}
+            </span>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Link
+              href={`/track/${id}`}
+              target="_blank"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-50 border border-indigo-200 text-indigo-700 hover:bg-indigo-100 text-xs font-bold transition shadow-2xs"
+            >
+              <span>🔗 Client Buyer Portal</span>
+              <span className="text-[10px] text-indigo-500">↗</span>
+            </Link>
+          </div>
         </div>
       </div>
 
