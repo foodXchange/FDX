@@ -18,6 +18,7 @@ const sections: { title: string; links: NavItem[] }[] = [
       { href: "/admin/notifications", label: "Alerts & Reminders", icon: "🔔" },
       { href: "/admin/requests", label: "Sourcing Requests", icon: "📥" },
       { href: "/admin/matches", label: "Match Engine", icon: "⚡" },
+      { href: "/admin/opportunities", label: "Proactive Opportunities", icon: "💡", badge: "45" },
       { href: "/admin/qa-metrics", label: "QA Metrics", icon: "📈" },
       { href: "/admin/analytics", label: "Market Intelligence", icon: "📊" },
     ],
