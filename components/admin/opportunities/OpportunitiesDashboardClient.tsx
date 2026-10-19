@@ -12,7 +12,14 @@ export type AssortmentMatchRow = {
   kosher_match: boolean | null;
   pitch_angle: string | null;
   potential_margin_gain: string | null;
-  status: "proposed" | "reviewed" | "pitched" | "rejected";
+  status:
+    | "proposed"
+    | "reviewed"
+    | "pitched"
+    | "in_negotiation"
+    | "accepted"
+    | "deal_won"
+    | "rejected";
   created_at: string;
   buyer: {
     id: string;
@@ -134,10 +141,19 @@ export function OpportunitiesDashboardClient({ initialMatches, initialGmailUser 
 
   // Status counts
   const counts = useMemo(() => {
-    const c = { all: matches.length, proposed: 0, reviewed: 0, pitched: 0, rejected: 0 };
+    const c: Record<string, number> = {
+      all: matches.length,
+      proposed: 0,
+      reviewed: 0,
+      pitched: 0,
+      in_negotiation: 0,
+      accepted: 0,
+      deal_won: 0,
+      rejected: 0,
+    };
     matches.forEach((m) => {
       if (m.status in c) {
-        c[m.status as keyof typeof c]++;
+        c[m.status]++;
       }
     });
     return c;
@@ -355,20 +371,41 @@ export function OpportunitiesDashboardClient({ initialMatches, initialGmailUser 
       <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-2xs space-y-3">
         {/* Status Tabs */}
         <div className="flex items-center gap-1 overflow-x-auto pb-1 border-b border-slate-100">
-          {(["all", "proposed", "reviewed", "pitched", "rejected"] as const).map((tab) => {
-            const count = counts[tab];
+          {(
+            [
+              "all",
+              "proposed",
+              "reviewed",
+              "pitched",
+              "in_negotiation",
+              "accepted",
+              "deal_won",
+              "rejected",
+            ] as const
+          ).map((tab) => {
+            const count = counts[tab] ?? 0;
             const active = statusTab === tab;
+            const labelMap: Record<string, string> = {
+              all: "All",
+              proposed: "Proposed",
+              reviewed: "Reviewed",
+              pitched: "Pitched 💡",
+              in_negotiation: "Negotiating 💬",
+              accepted: "Accepted 🤝",
+              deal_won: "Won 🏆",
+              rejected: "Rejected",
+            };
             return (
               <button
                 key={tab}
                 onClick={() => setStatusTab(tab)}
-                className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold capitalize whitespace-nowrap transition flex items-center gap-1.5 ${
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition flex items-center gap-1.5 ${
                   active
                     ? "bg-orange-500 text-white shadow-2xs"
                     : "text-slate-600 hover:bg-slate-100"
                 }`}
               >
-                <span>{tab}</span>
+                <span>{labelMap[tab] ?? tab}</span>
                 <span
                   className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
                     active ? "bg-white/20 text-white" : "bg-slate-200 text-slate-700"
@@ -541,8 +578,11 @@ export function OpportunitiesDashboardClient({ initialMatches, initialGmailUser 
                           >
                             <option value="proposed">Proposed</option>
                             <option value="reviewed">Reviewed</option>
-                            <option value="pitched">Pitched</option>
-                            <option value="rejected">Rejected</option>
+                            <option value="pitched">Pitched 💡</option>
+                            <option value="in_negotiation">Negotiating 💬</option>
+                            <option value="accepted">Accepted 🤝</option>
+                            <option value="deal_won">Won 🏆</option>
+                            <option value="rejected">Rejected ✕</option>
                           </select>
                         </div>
                       </td>
@@ -709,31 +749,21 @@ function OpportunityCard({
         </div>
 
         <div className="flex items-center gap-1.5">
-          {match.status === "proposed" && (
-            <button
-              onClick={() => onUpdateStatus(match.id, "reviewed")}
-              className="px-2.5 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-100 text-slate-700 text-xs font-medium transition"
-            >
-              ✓ Review
-            </button>
-          )}
-          {match.status !== "pitched" && (
-            <button
-              onClick={() => onUpdateStatus(match.id, "pitched")}
-              className="px-2.5 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-100 text-slate-700 text-xs font-medium transition"
-            >
-              🚀 Pitch
-            </button>
-          )}
-          {match.status !== "rejected" && (
-            <button
-              onClick={() => onUpdateStatus(match.id, "rejected")}
-              className="px-2 py-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 text-xs transition"
-              title="Reject match"
-            >
-              ✕
-            </button>
-          )}
+          <select
+            value={match.status}
+            onChange={(e) =>
+              onUpdateStatus(match.id, e.target.value as AssortmentMatchRow["status"])
+            }
+            className="text-xs bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-slate-700 font-semibold focus:outline-none"
+          >
+            <option value="proposed">Proposed</option>
+            <option value="reviewed">Reviewed</option>
+            <option value="pitched">Pitched 💡</option>
+            <option value="in_negotiation">Negotiating 💬</option>
+            <option value="accepted">Accepted 🤝</option>
+            <option value="deal_won">Won 🏆</option>
+            <option value="rejected">Rejected ✕</option>
+          </select>
         </div>
       </div>
     </div>
@@ -745,7 +775,19 @@ function StatusBadge({ status }: { status: string }) {
     proposed: "bg-amber-50 text-amber-700 border-amber-200",
     reviewed: "bg-blue-50 text-blue-700 border-blue-200",
     pitched: "bg-purple-50 text-purple-700 border-purple-200",
+    in_negotiation: "bg-indigo-50 text-indigo-700 border-indigo-200",
+    accepted: "bg-emerald-50 text-emerald-700 border-emerald-200",
+    deal_won: "bg-teal-50 text-teal-800 border-teal-300 font-black",
     rejected: "bg-red-50 text-red-600 border-red-200",
+  };
+  const labelMap: Record<string, string> = {
+    proposed: "Proposed",
+    reviewed: "Reviewed",
+    pitched: "Pitched",
+    in_negotiation: "Negotiating",
+    accepted: "Accepted",
+    deal_won: "Won 🏆",
+    rejected: "Rejected",
   };
   return (
     <span
@@ -753,7 +795,8 @@ function StatusBadge({ status }: { status: string }) {
         map[status] ?? "bg-slate-100 text-slate-600 border-slate-200"
       }`}
     >
-      {status}
+      {labelMap[status] ?? status}
     </span>
   );
 }
+

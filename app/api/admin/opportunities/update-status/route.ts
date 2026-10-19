@@ -6,7 +6,15 @@ import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
 const UpdateStatusSchema = z.object({
   id: z.string().uuid(),
-  status: z.enum(["proposed", "reviewed", "pitched", "rejected"]),
+  status: z.enum([
+    "proposed",
+    "reviewed",
+    "pitched",
+    "in_negotiation",
+    "accepted",
+    "deal_won",
+    "rejected",
+  ]),
 });
 
 export async function PATCH(req: NextRequest) {
