@@ -1,0 +1,26 @@
+# Dependencies & Builds
+node_modules/
+.next/
+.netlify/
+.vercel/
+dist/
+build/
+coverage/
+
+# Data Files (CSVs, Excel, raw exports)
+data/*.csv
+data/*.xlsx
+data/*.xls
+scripts/test-data/
+
+# Reports & Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lighthouse-report.html
+*.tsbuildinfo
+
+# Env & Secrets
+.env*
+*.pem
