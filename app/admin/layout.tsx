@@ -86,6 +86,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 📊 Intelligence
               </Link>
               <Link
+                href="/admin/ecosystem"
+                className="px-2.5 py-1 text-xs font-semibold rounded-md border border-slate-200 bg-white text-slate-700 hover:border-orange-300 hover:text-orange-600 transition-colors shadow-2xs"
+              >
+                🤝 Trade Partners
+              </Link>
+              <Link
                 href="/admin/pipeline"
                 className="px-2.5 py-1 text-xs font-semibold rounded-md border border-slate-200 bg-white text-slate-700 hover:border-orange-300 hover:text-orange-600 transition-colors shadow-2xs"
               >

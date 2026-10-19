@@ -254,28 +254,43 @@ export function IntelligenceEcosystem({ data }: Props) {
               </div>
             </div>
 
-            <div className="space-y-2.5">
+            <div className="space-y-2">
               {sectors
                 .filter((s) => s.sector !== "food_beverage" && s.sector !== "unclassified")
-                .slice(0, 6)
+                .slice(0, 7)
                 .map((sec) => {
                   const meta = SECTOR_LABELS[sec.sector] ?? { label: sec.sector, icon: "📁" };
                   return (
-                    <div
+                    <Link
                       key={sec.sector}
-                      className="flex items-center justify-between p-2.5 rounded-xl border border-slate-100 bg-slate-50/50 hover:bg-white hover:border-slate-200 transition-colors"
+                      href={`/admin/ecosystem?sector=${sec.sector}`}
+                      className="flex items-center justify-between p-2.5 rounded-xl border border-slate-100 bg-slate-50/70 hover:bg-orange-50/50 hover:border-orange-200 hover:text-orange-950 transition-all group"
                     >
                       <div className="flex items-center gap-2">
                         <span className="text-base">{meta.icon}</span>
-                        <span className="text-xs font-semibold text-slate-800">{meta.label}</span>
+                        <span className="text-xs font-semibold text-slate-800 group-hover:text-orange-950">
+                          {meta.label}
+                        </span>
                       </div>
-                      <span className="text-xs font-mono font-bold text-slate-700 bg-white px-2 py-0.5 rounded-md border border-slate-200 shadow-2xs">
-                        {sec.count}
-                      </span>
-                    </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-mono font-bold text-slate-700 bg-white px-2 py-0.5 rounded-md border border-slate-200 shadow-2xs">
+                          {sec.count}
+                        </span>
+                        <span className="text-xs text-slate-400 group-hover:text-orange-600 transition">
+                          &rarr;
+                        </span>
+                      </div>
+                    </Link>
                   );
                 })}
             </div>
+
+            <Link
+              href="/admin/ecosystem"
+              className="mt-3 block w-full text-center py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs transition-colors shadow-xs"
+            >
+              Explore All Non-Food Trade Enablers ({overview.non_food.toLocaleString()} Partners) &rarr;
+            </Link>
           </div>
         </div>
       </div>

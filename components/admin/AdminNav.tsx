@@ -27,6 +27,7 @@ const sections: { title: string; links: NavItem[] }[] = [
     links: [
       { href: "/admin/buyers", label: "Buyers Directory", icon: "👥" },
       { href: "/admin/suppliers", label: "Supplier Network", icon: "🏭" },
+      { href: "/admin/ecosystem", label: "Trade Partners & Enablers", icon: "🤝" },
       { href: "/admin/products", label: "Product Catalog", icon: "📦" },
       { href: "/admin/data-quality", label: "Data Quality & Dups", icon: "🏷️" },
       { href: "/admin/scraper", label: "Web Scraper", icon: "🕷️" },
