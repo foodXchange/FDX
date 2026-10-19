@@ -3,6 +3,12 @@ import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
 export const dynamic = "force-dynamic";
 
+let lastGeminiCheck: { isTripped: boolean; reason: string | null; checkedAt: number } = {
+  isTripped: true,
+  reason: "Google AI Studio prepayment credit is depleted (HTTP 402 RESOURCE_EXHAUSTED).",
+  checkedAt: 0,
+};
+
 export async function GET() {
   try {
     const hasVoyage = Boolean(process.env.VOYAGE_API_KEY);
@@ -35,10 +41,38 @@ export async function GET() {
       supplierStatus.total++;
     }
 
-    // Circuit breaker state
-    const circuitBreakerTripped = true; // Google AI Studio balance is $0 (HTTP 402)
-    const circuitBreakerReason =
-      "Google AI Studio prepayment credit is depleted (HTTP 402 RESOURCE_EXHAUSTED). Workers are safely paused without dropping suppliers.";
+    // Dynamic Circuit breaker check (cached for 60 seconds)
+    if (hasGemini && Date.now() - lastGeminiCheck.checkedAt > 60_000) {
+      try {
+        const { GoogleGenAI } = await import("@google/genai");
+        const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
+        await ai.models.generateContent({
+          model: "gemini-3.8-flash",
+          contents: "ping",
+        });
+        lastGeminiCheck = { isTripped: false, reason: null, checkedAt: Date.now() };
+      } catch (err: any) {
+        const msg = err?.message || String(err);
+        if (msg.includes("402") || msg.includes("RESOURCE_EXHAUSTED") || msg.includes("depleted")) {
+          lastGeminiCheck = {
+            isTripped: true,
+            reason: "Google AI Studio prepayment credit is depleted (HTTP 402 RESOURCE_EXHAUSTED). Please top up balance at https://ai.studio/projects.",
+            checkedAt: Date.now(),
+          };
+        } else {
+          lastGeminiCheck = {
+            isTripped: false,
+            reason: null,
+            checkedAt: Date.now(),
+          };
+        }
+      }
+    }
+
+    const circuitBreakerTripped = !hasGemini || lastGeminiCheck.isTripped;
+    const circuitBreakerReason = !hasGemini
+      ? "GEMINI_API_KEY is not configured."
+      : lastGeminiCheck.reason;
 
     return NextResponse.json({
       ok: true,
@@ -61,14 +95,14 @@ export async function GET() {
           name: "Google Gemini",
           configured: hasGemini,
           status: circuitBreakerTripped ? "circuit_breaker_active" : "operational",
-          model: "gemini-2.5-flash",
-          note: circuitBreakerTripped ? "Quota depleted (HTTP 402)" : "Ready",
+          model: "gemini-3.8-flash",
+          note: circuitBreakerTripped ? (circuitBreakerReason || "Quota depleted") : "Ready",
         },
         anthropic: {
           name: "Claude AI",
           configured: hasAnthropic,
           status: hasAnthropic ? "operational" : "unconfigured",
-          model: "claude-3-5-sonnet",
+          model: "claude-sonnet-4-5",
         },
       },
       catalog: {
