@@ -143,6 +143,9 @@ export interface ScrapeOpts {
   mapLimit?: number;
   maxPages?: number;
   dryRun?: boolean;
+  companyName?: string;
+  countryOfOrigin?: string | null;
+  certifications?: string[];
 }
 
 export interface PageProduct {
@@ -261,7 +264,11 @@ export async function scrapeSupplier(supplierId: string, supplierUrl: string, op
   const extractedAll: PageProduct[] = [];
   for (const p of pages) {
     try {
-      const prods = await extractProducts(p.markdown, { company_name: supplierId, country_of_origin: null, certifications: [] });
+      const prods = await extractProducts(p.markdown, {
+        company_name: opts.companyName ?? supplierId,
+        country_of_origin: opts.countryOfOrigin ?? null,
+        certifications: opts.certifications ?? [],
+      });
       const { url: image_url, source: image_source } = resolveProductImage(
         { metadata: p.metadata, markdown: p.markdown },
         p.url
@@ -277,6 +284,15 @@ export async function scrapeSupplier(supplierId: string, supplierUrl: string, op
         });
       }
     } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (
+        msg.includes("402") ||
+        msg.includes("RESOURCE_EXHAUSTED") ||
+        msg.includes("prepayment credits are depleted") ||
+        msg.includes("organization_on_hold")
+      ) {
+        throw err;
+      }
       console.warn("Extraction failed for page", p.url, err);
     }
   }

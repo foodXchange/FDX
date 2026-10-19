@@ -28,6 +28,8 @@ import {
 } from "../lib/scraper/classify";
 import { extractSupplierContacts, ExtractedContact } from "../lib/scraper/extractContacts";
 import type { ExtractedProduct } from "../lib/scraper/extract";
+import { embedBatch } from "../lib/ai/embed";
+import { mapScraperCategoryToCanonicalId } from "../lib/pip/resolveCategoryId";
 
 const SUPPLIER_TIMEOUT_MS = 420_000; // 7 minutes
 
@@ -108,6 +110,21 @@ type SupplierRow = {
   status: string | null;
 };
 
+async function recomputeSupplierQualification(supplierId: string) {
+  const { count, error } = await supabase
+    .from("supplier_products")
+    .select("id", { count: "exact", head: true })
+    .eq("supplier_id", supplierId);
+  if (error) return;
+  const product_count = count ?? 0;
+  const qualification_status =
+    product_count >= 3 ? "strong" : product_count >= 1 ? "thin" : "empty";
+  await supabase
+    .from("supplier_offerings")
+    .update({ product_count, qualification_status })
+    .eq("id", supplierId);
+}
+
 // ─── Insert products ──────────────────────────────────────────────────────────
 async function insertProducts(
   supplierId: string,
@@ -122,10 +139,27 @@ async function insertProducts(
     .eq("supplier_id", supplierId)
     .eq("manually_verified", false);
 
-  const rows = pageProducts.map(({ source_url, page_type, product: p, image_url, image_source }) => ({
+  let vectors: (number[] | null)[] = [];
+  try {
+    const embedTexts = pageProducts.map(({ product: p }) => {
+      const parts = [
+        p.product_name?.trim(),
+        p.description?.trim(),
+        p.subcategory?.trim(),
+        p.tags?.filter(Boolean).join(". ").trim() || null,
+      ].filter(Boolean).join(". ");
+      return (parts.replace(/\.{2,}/g, ".").replace(/\.\s*$/, "") + ".").replace(/\s+\./g, ".");
+    });
+    vectors = await embedBatch(embedTexts, "document");
+  } catch (e) {
+    console.warn("  ⚠ Embedding batch failed in scraper:", e);
+  }
+
+  const rows = pageProducts.map(({ source_url, page_type, product: p, image_url, image_source }, idx) => ({
     supplier_id: supplierId,
     product_name: p.product_name,
     category: p.category,
+    category_id: mapScraperCategoryToCanonicalId(p.category),
     subcategory: p.subcategory ?? null,
     processing_type: p.processing_type ?? null,
     ingredients: p.ingredients ?? null,
@@ -150,29 +184,16 @@ async function insertProducts(
     last_scraped_at: new Date().toISOString(),
     manually_verified: false,
     needs_review: p.needs_review ?? false,
+    embedding: vectors[idx] ? JSON.stringify(vectors[idx]) : null,
   }));
 
   const { error } = await supabase.from("supplier_products").insert(rows);
   if (error) {
-  await recomputeSupplierQualification(supplierId);
     console.error("  Insert error:", error);
     return 0;
-
-async function recomputeSupplierQualification(supplierId: string) {
-  const { count, error } = await supabase
-    .from("supplier_products")
-    .select("id", { count: "exact", head: true })
-    .eq("supplier_id", supplierId);
-  if (error) return;
-  const product_count = count ?? 0;
-  const qualification_status =
-    product_count >= 3 ? "strong" : product_count >= 1 ? "thin" : "empty";
-  await supabase
-    .from("supplier_offerings")
-    .update({ product_count, qualification_status })
-    .eq("id", supplierId);
-}
   }
+
+  await recomputeSupplierQualification(supplierId);
   return rows.length;
 }
 
@@ -486,6 +507,8 @@ async function main(): Promise<void> {
   console.log(`  Concurrency: ${concurrency} worker(s) | Inter-supplier delay: ${delayMs}ms`);
 
   let currentIndex = 0;
+  let circuitBreakerOpen = false;
+  let circuitBreakerReason = "";
 
   async function processWorker(workerId: number) {
     if (workerId > 1) {
@@ -493,6 +516,7 @@ async function main(): Promise<void> {
     }
 
     while (true) {
+      if (circuitBreakerOpen) break;
       const i = currentIndex++;
       if (i >= list.length) break;
 
@@ -573,7 +597,11 @@ async function main(): Promise<void> {
 
             // ── Default: 4-stage Firecrawl pipeline (map→filter→scrape→extract) ─
             console.log(`\n  → Running 4-stage Firecrawl pipeline...`);
-            const result = await scrapeSupplier(supplier.id, crawlUrl);
+            const result = await scrapeSupplier(supplier.id, crawlUrl, {
+              companyName: supplier.company_name,
+              countryOfOrigin: supplier.country_of_origin,
+              certifications: supplier.certifications ?? [],
+            });
 
             console.log(`  ✓ Scraped ${result.pagesScraped} page(s), found ${result.products.length} product(s)`);
             if (result.needsReview) {
@@ -675,6 +703,31 @@ async function main(): Promise<void> {
             .eq("id", supplier.id);
           failed.push({ name: supplier.company_name, reason: "Timeout after 420s (check DB for partial save)" });
         } else {
+          const msg = err instanceof Error ? err.message : String(err);
+          const isQuotaDepleted =
+            msg.includes("402") ||
+            msg.includes("prepayment credits are depleted") ||
+            msg.includes("RESOURCE_EXHAUSTED") ||
+            msg.includes("organization_on_hold");
+
+          if (isQuotaDepleted) {
+            circuitBreakerOpen = true;
+            circuitBreakerReason = msg;
+            console.error(`\n${SEP2}`);
+            console.error(`  🚨 CIRCUIT BREAKER TRIPPED — AI PROVIDER QUOTA DEPLETED (402)`);
+            console.error(`  ${msg.slice(0, 250)}`);
+            console.error(`  Preserving supplier as 'pending'. Halting all workers safely.`);
+            console.error(`${SEP2}\n`);
+            await supabase
+              .from("supplier_offerings")
+              .update({
+                scrape_status: "pending",
+                internal_notes: "Scrape halted: AI quota depleted (preserved as pending)",
+              })
+              .eq("id", supplier.id);
+            return;
+          }
+
           console.error(`  ${tag} ✗ Error:`, err);
           await supabase
             .from("supplier_offerings")
@@ -699,6 +752,14 @@ async function main(): Promise<void> {
   await Promise.all(
     Array.from({ length: concurrency }, (_, idx) => processWorker(idx + 1))
   );
+
+  if (circuitBreakerOpen) {
+    console.log(`\n${SEP2}`);
+    console.log(`  ⚠ SCRAPER RUN PAUSED BY CIRCUIT BREAKER: ${circuitBreakerReason}`);
+    console.log(`  No suppliers were falsely marked as failed.`);
+    console.log(`  Top up AI credits at https://ai.studio/projects, then re-run to resume.`);
+    console.log(`${SEP2}\n`);
+  }
 
   // ─── Summary ───────────────────────────────────────────────────────────────
   const totalElapsed = Date.now() - startTime;

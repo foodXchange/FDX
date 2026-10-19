@@ -149,46 +149,83 @@ export async function resolveCategoryId(rawText: string): Promise<{
 export { CANONICAL_LEAVES, CANONICAL_IDS, ID_TO_NAME };
 
 const SCRAPER_CATEGORY_MAP: Record<string, string> = {
+  // Sauces & Condiments
   "Sauces & Condiments": CANONICAL_LEAVES["Specialty Sauces & Condiments"],
   "Specialty Sauces & Condiments": CANONICAL_LEAVES["Specialty Sauces & Condiments"],
+  "Spreads & Nut Butters": CANONICAL_LEAVES["Fats, Oils & Spreads"],
+
+  // Snacks & Confectionery
   "Snacks": CANONICAL_LEAVES["Savory Snacks & Cereals"],
   "Savory Snacks & Cereals": CANONICAL_LEAVES["Savory Snacks & Cereals"],
   "Nuts & Dried Fruit": CANONICAL_LEAVES["Savory Snacks & Cereals"],
   "Biscuits & Confectionery": CANONICAL_LEAVES["Sweet Biscuits & Bars"],
   "Sweet Biscuits & Bars": CANONICAL_LEAVES["Sweet Biscuits & Bars"],
   "Confectionery & Chocolate": CANONICAL_LEAVES["Confectionery & Chocolate"],
+
+  // Oils & Fats
   "Oils & Fats": CANONICAL_LEAVES["Fats, Oils & Spreads"],
   "Fats, Oils & Spreads": CANONICAL_LEAVES["Fats, Oils & Spreads"],
-  "Spreads & Nut Butters": CANONICAL_LEAVES["Fats, Oils & Spreads"],
+
+  // Canned & Preserved
+  "Canned Foods": CANONICAL_LEAVES["Canned & Preserved Goods"],
   "Canned Goods": CANONICAL_LEAVES["Canned & Preserved Goods"],
   "Canned & Preserved Goods": CANONICAL_LEAVES["Canned & Preserved Goods"],
   "Canned Vegetables & Pulses": CANONICAL_LEAVES["Canned Vegetables & Pulses"],
   "Pickles & Olives": CANONICAL_LEAVES["Canned Vegetables & Pulses"],
+  "Pulses & Legumes": CANONICAL_LEAVES["Canned Vegetables & Pulses"],
   "Tomato Products": CANONICAL_LEAVES["Tomato Products"],
+
+  // Beverages
   "Beverages": CANONICAL_LEAVES["Beverages (Non-Alcoholic)"],
   "Beverages (Non-Alcoholic)": CANONICAL_LEAVES["Beverages (Non-Alcoholic)"],
+
+  // Bakery
+  "Bakery": CANONICAL_LEAVES["Bakery & Bread Products"],
+  "Bakery & Bread": CANONICAL_LEAVES["Bakery & Bread Products"],
+  "Bakery & Bread Products": CANONICAL_LEAVES["Bakery & Bread Products"],
+
+  // Dairy
+  "Dairy": CANONICAL_LEAVES["Dairy Products & Analogues"],
   "Dairy & Alternatives": CANONICAL_LEAVES["Dairy Products & Analogues"],
   "Dairy Products & Analogues": CANONICAL_LEAVES["Dairy Products & Analogues"],
   "Dairy-Free Desserts": CANONICAL_LEAVES["Dairy-Free Desserts"],
-  "Frozen Foods": CANONICAL_LEAVES["Prepared Meals (Frozen & Shelf-Stable)"],
-  "Prepared Meals (Frozen & Shelf-Stable)": CANONICAL_LEAVES["Prepared Meals (Frozen & Shelf-Stable)"],
-  "Grains, Rice & Pulses": CANONICAL_LEAVES["Breakfast Cereals"],
-  "Breakfast Cereals": CANONICAL_LEAVES["Breakfast Cereals"],
+
+  // Pasta & Grains
+  "Pasta & Grains": CANONICAL_LEAVES["Pasta/Noodles"],
   "Pasta & Noodles": CANONICAL_LEAVES["Pasta/Noodles"],
   "Pasta/Noodles": CANONICAL_LEAVES["Pasta/Noodles"],
-  "Bakery & Bread": CANONICAL_LEAVES["Bakery & Bread Products"],
-  "Bakery & Bread Products": CANONICAL_LEAVES["Bakery & Bread Products"],
-  "Spices & Seasonings": CANONICAL_LEAVES["Herbs"],
-  "Herbs": CANONICAL_LEAVES["Herbs"],
-  "Honey & Sweeteners": CANONICAL_LEAVES["Sugars & Sweeteners"],
-  "Sugars & Sweeteners": CANONICAL_LEAVES["Sugars & Sweeteners"],
-  "Meat & Poultry": CANONICAL_LEAVES["Raw Meat & Poultry"],
-  "Raw Meat & Poultry": CANONICAL_LEAVES["Raw Meat & Poultry"],
+  "Grains, Rice & Pulses": CANONICAL_LEAVES["Breakfast Cereals"],
+  "Breakfast Cereals": CANONICAL_LEAVES["Breakfast Cereals"],
+
+  // Frozen & Prepared
+  "Frozen Foods": CANONICAL_LEAVES["Prepared Meals (Frozen & Shelf-Stable)"],
+  "Prepared Meals (Frozen & Shelf-Stable)": CANONICAL_LEAVES["Prepared Meals (Frozen & Shelf-Stable)"],
+  "Baby Food": CANONICAL_LEAVES["Prepared Meals (Frozen & Shelf-Stable)"],
+
+  // Fish & Seafood
+  "Fish & Seafood": CANONICAL_LEAVES["Fresh & Frozen Fish"],
   "Seafood": CANONICAL_LEAVES["Fresh & Frozen Fish"],
   "Fresh & Frozen Fish": CANONICAL_LEAVES["Fresh & Frozen Fish"],
-  "Baking Ingredients": CANONICAL_LEAVES["Ingredients & Additives"],
+
+  // Spices & Herbs
+  "Spices & Herbs": CANONICAL_LEAVES["Herbs"],
+  "Spices & Seasonings": CANONICAL_LEAVES["Herbs"],
+  "Herbs": CANONICAL_LEAVES["Herbs"],
+
+  // Meat & Poultry
+  "Meat & Poultry": CANONICAL_LEAVES["Raw Meat & Poultry"],
+  "Raw Meat & Poultry": CANONICAL_LEAVES["Raw Meat & Poultry"],
+
+  // Ingredients & Additives
   "Ingredients & Additives": CANONICAL_LEAVES["Ingredients & Additives"],
-  "Baby Food": CANONICAL_LEAVES["Prepared Meals (Frozen & Shelf-Stable)"],
+  "Baking Ingredients": CANONICAL_LEAVES["Ingredients & Additives"],
+
+  // Sweeteners
+  "Honey & Sweeteners": CANONICAL_LEAVES["Sugars & Sweeteners"],
+  "Sugars & Sweeteners": CANONICAL_LEAVES["Sugars & Sweeteners"],
+
+  // Health / Organic
+  "Organic & Natural": CANONICAL_LEAVES["Plant-Based Proteins"],
   "Health & Functional Foods": CANONICAL_LEAVES["Plant-Based Proteins"],
   "Plant-Based Proteins": CANONICAL_LEAVES["Plant-Based Proteins"],
 };
