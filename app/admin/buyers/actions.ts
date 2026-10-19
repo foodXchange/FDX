@@ -85,8 +85,61 @@ export async function uploadBuyerLogo(
     .from("buyer-logos")
     .upload(path, buffer, { contentType: file.type, upsert: true });
 
-  if (uploadError) return { ok: false, error: uploadError.message };
-
   const { data } = supabaseAdmin.storage.from("buyer-logos").getPublicUrl(path);
   return { ok: true, url: data.publicUrl };
 }
+
+export async function promoteDiscoveredBuyer(
+  supplierId: string
+): Promise<{ ok: true; buyerId: string } | { ok: false; error: string }> {
+  try {
+    const { data: sup, error: fetchErr } = await supabaseAdmin
+      .from("supplier_offerings")
+      .select("company_name, website, country_of_origin, business_role, contact_name, contact_email, contact_phone, logo_url, offerings_summary, product_description")
+      .eq("id", supplierId)
+      .single();
+
+    if (fetchErr || !sup) {
+      return { ok: false, error: fetchErr?.message ?? "Supplier not found" };
+    }
+
+    // Insert into buyers table
+    const { data: newBuyer, error: insertErr } = await supabaseAdmin
+      .from("buyers")
+      .insert({
+        company_name: sup.company_name,
+        website: sup.website,
+        country: sup.country_of_origin,
+        buyer_type: sup.business_role ?? "importer",
+        contact_name: sup.contact_name,
+        contact_email: sup.contact_email,
+        contact_whatsapp: sup.contact_phone,
+        logo_url: sup.logo_url,
+        notes: sup.offerings_summary || sup.product_description || "Promoted from discovered wholesale buyers",
+        active: true,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      })
+      .select("id")
+      .single();
+
+    if (insertErr || !newBuyer) {
+      return { ok: false, error: insertErr?.message ?? "Failed to insert buyer" };
+    }
+
+    // Update supplier offering with reference
+    await supabaseAdmin
+      .from("supplier_offerings")
+      .update({
+        internal_notes: `Promoted to active buyer directory (ID: ${newBuyer.id})`,
+      })
+      .eq("id", supplierId);
+
+    revalidatePath("/admin/buyers");
+    return { ok: true, buyerId: newBuyer.id as string };
+  } catch (err) {
+    console.error("promoteDiscoveredBuyer error:", err);
+    return { ok: false, error: String(err) };
+  }
+}
+

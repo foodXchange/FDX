@@ -68,6 +68,8 @@ const args = (() => {
     supplier?: string;
     batch?: string;
     force: boolean;
+    concurrency?: number;
+    delay?: number;
   } = { force: false };
 
   for (const arg of process.argv.slice(2)) {
@@ -79,6 +81,10 @@ const args = (() => {
       result.batch = arg.slice(8);
     } else if (arg === "--force") {
       result.force = true;
+    } else if (arg.startsWith("--concurrency=")) {
+      result.concurrency = parseInt(arg.slice(14), 10);
+    } else if (arg.startsWith("--delay=")) {
+      result.delay = parseInt(arg.slice(8), 10);
     }
   }
 
@@ -474,202 +480,225 @@ async function main(): Promise<void> {
     return true;
   }
 
-  for (let i = 0; i < list.length; i++) {
-    const supplier = list[i];
-    const supplierStart = Date.now();
+  const concurrency = Math.max(1, Math.min(args.concurrency ?? (args.supplier ? 1 : 4), 8));
+  const delayMs = args.delay ?? 3000;
 
-    console.log(`\n${SEP}`);
-    console.log(`[${i + 1}/${list.length}] ${supplier.company_name}`);
-    console.log(SEP);
-    console.log(`  Country:  ${supplier.country_of_origin ?? "Unknown"}`);
-    console.log(`  Website:  ${supplier.website}`);
-    console.log(`  Status:   ${supplier.status ?? "unknown"}`);
+  console.log(`  Concurrency: ${concurrency} worker(s) | Inter-supplier delay: ${delayMs}ms`);
 
-    const supplierTimeout = new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error("Supplier timeout")), SUPPLIER_TIMEOUT_MS)
-    );
+  let currentIndex = 0;
 
-    try {
-      await supabase
-        .from("supplier_offerings")
-        .update({ scrape_status: "pending" })
-        .eq("id", supplier.id);
+  async function processWorker(workerId: number) {
+    if (workerId > 1) {
+      await new Promise((r) => setTimeout(r, (workerId - 1) * 2000));
+    }
 
-      await Promise.race([
-        (async () => {
-          const crawlUrl = getHomepage(supplier.website!);
-          if (crawlUrl !== supplier.website) {
-            console.log(`  Using homepage: ${crawlUrl}`);
-          }
+    while (true) {
+      const i = currentIndex++;
+      if (i >= list.length) break;
 
-          // ── SCRAPER_MODE=perplexity_only: legacy crawlSupplier path ────────
-          if (SCRAPER_MODE === "perplexity_only") {
-            console.log(`\n  → Crawling website (perplexity_only mode)...`);
-            const content = await crawlSupplier(crawlUrl, supplier.company_name, supplier.country_of_origin);
-            if (!content || content.length < 50) {
-              console.log(`  ✗ Website blocked or no content`);
+      const supplier = list[i];
+      const supplierStart = Date.now();
+      const tag = concurrency > 1 ? `[W${workerId}] [${i + 1}/${list.length}]` : `[${i + 1}/${list.length}]`;
+
+      console.log(`\n${SEP}`);
+      console.log(`${tag} ${supplier.company_name}`);
+      console.log(SEP);
+      console.log(`  Country:  ${supplier.country_of_origin ?? "Unknown"}`);
+      console.log(`  Website:  ${supplier.website}`);
+      console.log(`  Status:   ${supplier.status ?? "unknown"}`);
+
+      const supplierTimeout = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error("Supplier timeout")), SUPPLIER_TIMEOUT_MS)
+      );
+
+      try {
+        await supabase
+          .from("supplier_offerings")
+          .update({ scrape_status: "pending" })
+          .eq("id", supplier.id);
+
+        await Promise.race([
+          (async () => {
+            const crawlUrl = getHomepage(supplier.website!);
+            if (crawlUrl !== supplier.website) {
+              console.log(`  Using homepage: ${crawlUrl}`);
+            }
+
+            // ── SCRAPER_MODE=perplexity_only: legacy crawlSupplier path ────────
+            if (SCRAPER_MODE === "perplexity_only") {
+              console.log(`\n  → Crawling website (perplexity_only mode)...`);
+              const content = await crawlSupplier(crawlUrl, supplier.company_name, supplier.country_of_origin);
+              if (!content || content.length < 50) {
+                console.log(`  ✗ Website blocked or no content`);
+                await supabase.from("supplier_offerings").update({ scrape_status: "failed" }).eq("id", supplier.id);
+                failed.push({ name: supplier.company_name, reason: "No content returned" });
+                return;
+              }
+              const isPerplexity = content.startsWith("[PERPLEXITY RESEARCH]");
+              const pageCount = content.split("---PAGE BREAK---").length;
+              console.log(`  ✓ ${isPerplexity ? "Perplexity research" : `${pageCount} page(s)`} (${content.length.toLocaleString()} chars)`);
+
+              const goOn0 = await classifyAndRoute(
+                supplier,
+                content,
+                crawlUrl,
+                isPerplexity ? "perplexity" : "firecrawl"
+              );
+              if (!goOn0) return;
+
+              console.log(`\n  → Extracting products & company profile (unified pass)...`);
+              const { products: legacyProds, profile: profile0 } = await extractSupplierFull(content, {
+                company_name: supplier.company_name,
+                country_of_origin: supplier.country_of_origin,
+                certifications: supplier.certifications ?? [],
+                categories: supplier.categories ?? [],
+              });
+              if (legacyProds.length === 0) {
+                console.log(`  ✗ No products extracted`);
+                await supabase.from("supplier_offerings").update({ scrape_status: "failed" }).eq("id", supplier.id);
+                failed.push({ name: supplier.company_name, reason: "No products extracted" });
+                return;
+              }
+              const legacySource = isPerplexity ? `perplexity:${supplier.website}` : supplier.website!;
+              const legacyPageProds: PageProduct[] = legacyProds.map((p: ExtractedProduct) => ({ source_url: legacySource, page_type: "homepage", supplier_id: supplier.id, product: p, image_url: null, image_source: null }));
+              const legacyInserted = await insertProducts(supplier.id, legacyPageProds, legacySource);
+              const legacyAvg = legacyProds.reduce((s: number, p: ExtractedProduct) => s + (p.confidence ?? 0), 0) / legacyProds.length;
+              await supabase.from("supplier_offerings").update({ scrape_status: "scraped", last_scraped_at: new Date().toISOString(), products_found: legacyInserted }).eq("id", supplier.id);
+              console.log(`  ✓ Saved ${legacyInserted} products`);
+              await persistProfile(supplier, profile0);
+              succeeded.push({ name: supplier.company_name, products: legacyInserted, avgConfidence: legacyAvg });
+              totalProducts += legacyInserted;
+              return;
+            }
+
+            // ── Default: 4-stage Firecrawl pipeline (map→filter→scrape→extract) ─
+            console.log(`\n  → Running 4-stage Firecrawl pipeline...`);
+            const result = await scrapeSupplier(supplier.id, crawlUrl);
+
+            console.log(`  ✓ Scraped ${result.pagesScraped} page(s), found ${result.products.length} product(s)`);
+            if (result.needsReview) {
+              console.log(`  ⚠ No product-URL patterns found — homepage-only scrape, needs_review flagged`);
+            }
+
+            if (!result.homepageMarkdown || result.homepageMarkdown.length < 50) {
+              console.log(`  ✗ Website blocked or no content returned`);
+              console.log(`  ℹ Try manually: ${supplier.website}`);
               await supabase.from("supplier_offerings").update({ scrape_status: "failed" }).eq("id", supplier.id);
               failed.push({ name: supplier.company_name, reason: "No content returned" });
               return;
             }
-            const isPerplexity = content.startsWith("[PERPLEXITY RESEARCH]");
-            const pageCount = content.split("---PAGE BREAK---").length;
-            console.log(`  ✓ ${isPerplexity ? "Perplexity research" : `${pageCount} page(s)`} (${content.length.toLocaleString()} chars)`);
 
-            const goOn0 = await classifyAndRoute(
-              supplier,
-              content,
-              crawlUrl,
-              isPerplexity ? "perplexity" : "firecrawl"
-            );
-            if (!goOn0) return;
+            // ── Classification (homepage only — fast check) ────────────────────
+            const goOn = await classifyAndRoute(supplier, result.homepageMarkdown, crawlUrl, "firecrawl");
+            if (!goOn) return;
 
-            console.log(`\n  → Extracting products & company profile (unified pass)...`);
-            const { products: legacyProds, profile: profile0 } = await extractSupplierFull(content, {
-              company_name: supplier.company_name,
-              country_of_origin: supplier.country_of_origin,
-              certifications: supplier.certifications ?? [],
-              categories: supplier.categories ?? [],
-            });
-            if (legacyProds.length === 0) {
-              console.log(`  ✗ No products extracted`);
-              await supabase.from("supplier_offerings").update({ scrape_status: "failed" }).eq("id", supplier.id);
+            // ── Products already extracted by pipeline ────────────────────────
+            const products = result.products;
+
+            if (products.length === 0) {
+              console.log(`  ✗ Products not found in content`);
+              console.log(`  ℹ Site may be JavaScript-heavy or product pages not detected`);
+              console.log(`  ℹ Add manually via /admin/suppliers`);
+              await supabase
+                .from("supplier_offerings")
+                .update({
+                  scrape_status: "failed",
+                  ...(result.needsReview ? { internal_notes: "No product URLs found" } : {}),
+                })
+                .eq("id", supplier.id);
               failed.push({ name: supplier.company_name, reason: "No products extracted" });
               return;
             }
-            const legacySource = isPerplexity ? `perplexity:${supplier.website}` : supplier.website!;
-            const legacyPageProds: PageProduct[] = legacyProds.map((p: ExtractedProduct) => ({ source_url: legacySource, page_type: "homepage", supplier_id: supplier.id, product: p, image_url: null, image_source: null }));
-            const legacyInserted = await insertProducts(supplier.id, legacyPageProds, legacySource);
-            const legacyAvg = legacyProds.reduce((s: number, p: ExtractedProduct) => s + (p.confidence ?? 0), 0) / legacyProds.length;
-            await supabase.from("supplier_offerings").update({ scrape_status: "scraped", last_scraped_at: new Date().toISOString(), products_found: legacyInserted }).eq("id", supplier.id);
-            console.log(`  ✓ Saved ${legacyInserted} products`);
-            await persistProfile(supplier, profile0);
-            succeeded.push({ name: supplier.company_name, products: legacyInserted, avgConfidence: legacyAvg });
-            totalProducts += legacyInserted;
-            return;
-          }
 
-          // ── Default: 4-stage Firecrawl pipeline (map→filter→scrape→extract) ─
-          console.log(`\n  → Running 4-stage Firecrawl pipeline...`);
-          const result = await scrapeSupplier(supplier.id, crawlUrl);
+            const avgConfidence =
+              products.reduce((sum, pp) => sum + (pp.product.confidence ?? 0), 0) / products.length;
 
-          console.log(`  ✓ Scraped ${result.pagesScraped} page(s), found ${result.products.length} product(s)`);
-          if (result.needsReview) {
-            console.log(`  ⚠ No product-URL patterns found — homepage-only scrape, needs_review flagged`);
-          }
+            console.log(`  ✓ Found ${products.length} products:`);
+            const detectedLang = products[0]?.product.detected_language;
+            if (detectedLang && detectedLang !== "english") {
+              console.log(`  Content language: ${detectedLang}`);
+            }
+            products.forEach((pp, idx) => {
+              const p = pp.product;
+              const formatsStr = (p.formats ?? []).length > 0 ? (p.formats ?? []).join(", ") : "—";
+              const certsStr = (p.certifications ?? []).length > 0 ? (p.certifications ?? []).join(", ") : "—";
+              const conf = p.confidence ?? 0;
+              const reviewFlag = p.needs_review ? " ⚠ review" : "";
+              console.log(`     ${idx + 1}. ${p.product_name} (${p.category})${reviewFlag}`);
+              console.log(`        Formats: ${formatsStr}`);
+              console.log(`        Certs:   ${certsStr}`);
+              console.log(`        Conf:    ${confidenceBar(conf)}  ${conf.toFixed(1)}`);
+            });
 
-          if (!result.homepageMarkdown || result.homepageMarkdown.length < 50) {
-            console.log(`  ✗ Website blocked or no content returned`);
-            console.log(`  ℹ Try manually: ${supplier.website}`);
-            await supabase.from("supplier_offerings").update({ scrape_status: "failed" }).eq("id", supplier.id);
-            failed.push({ name: supplier.company_name, reason: "No content returned" });
-            return;
-          }
+            // ── Save to database ───────────────────────────────────────────────
+            console.log(`\n  → Saving to database...`);
+            const inserted = await insertProducts(supplier.id, products, supplier.website!);
 
-          // ── Classification (homepage only — fast check) ────────────────────
-          const goOn = await classifyAndRoute(supplier, result.homepageMarkdown, crawlUrl, "firecrawl");
-          if (!goOn) return;
+            console.log(`  ✓ Saved ${inserted} products`);
 
-          // ── Products already extracted by pipeline ────────────────────────
-          const products = result.products;
+            console.log(`\n  → Extracting supplier contacts...`);
+            const extractedContacts = await extractSupplierContacts(result.contactPages);
+            const contactInserted = await insertSupplierContacts(supplier.id, extractedContacts);
+            console.log(`  ✓ Found ${extractedContacts.length} contact(s); inserted ${contactInserted}`);
 
-          if (products.length === 0) {
-            console.log(`  ✗ Products not found in content`);
-            console.log(`  ℹ Site may be JavaScript-heavy or product pages not detected`);
-            console.log(`  ℹ Add manually via /admin/suppliers`);
             await supabase
               .from("supplier_offerings")
               .update({
-                scrape_status: "failed",
-                ...(result.needsReview ? { internal_notes: "No product URLs found" } : {}),
+                scrape_status: "scraped",
+                last_scraped_at: new Date().toISOString(),
+                products_found: inserted,
               })
               .eq("id", supplier.id);
-            failed.push({ name: supplier.company_name, reason: "No products extracted" });
-            return;
-          }
 
-          const avgConfidence =
-            products.reduce((sum, pp) => sum + (pp.product.confidence ?? 0), 0) / products.length;
+            // ── Extract supplier profile + factories ───────────────────────────
+            console.log(`\n  → Extracting company profile...`);
+            const profile = await extractSupplierProfile(result.allMarkdown, supplier.company_name, {
+              country: supplier.country_of_origin,
+              categories: supplier.categories ?? [],
+            });
+            await persistProfile(supplier, profile);
 
-          console.log(`  ✓ Found ${products.length} products:`);
-          const detectedLang = products[0]?.product.detected_language;
-          if (detectedLang && detectedLang !== "english") {
-            console.log(`  Content language: ${detectedLang}`);
-          }
-          products.forEach((pp, idx) => {
-            const p = pp.product;
-            const formatsStr = (p.formats ?? []).length > 0 ? (p.formats ?? []).join(", ") : "—";
-            const certsStr = (p.certifications ?? []).length > 0 ? (p.certifications ?? []).join(", ") : "—";
-            const conf = p.confidence ?? 0;
-            const reviewFlag = p.needs_review ? " ⚠ review" : "";
-            console.log(`     ${idx + 1}. ${p.product_name} (${p.category})${reviewFlag}`);
-            console.log(`        Formats: ${formatsStr}`);
-            console.log(`        Certs:   ${certsStr}`);
-            console.log(`        Conf:    ${confidenceBar(conf)}  ${conf.toFixed(1)}`);
-          });
-
-          // ── Save to database ───────────────────────────────────────────────
-          console.log(`\n  → Saving to database...`);
-          const inserted = await insertProducts(supplier.id, products, supplier.website!);
-
-          console.log(`  ✓ Saved ${inserted} products`);
-
-          console.log(`\n  → Extracting supplier contacts...`);
-          const extractedContacts = await extractSupplierContacts(result.contactPages);
-          const contactInserted = await insertSupplierContacts(supplier.id, extractedContacts);
-          console.log(`  ✓ Found ${extractedContacts.length} contact(s); inserted ${contactInserted}`);
-
+            succeeded.push({ name: supplier.company_name, products: inserted, avgConfidence });
+            totalProducts += inserted;
+          })(),
+          supplierTimeout,
+        ]);
+      } catch (err) {
+        if (err instanceof Error && err.message === "Supplier timeout") {
+          console.log(`  ${tag} ⏱ Timeout after 420s — skipping`);
           await supabase
             .from("supplier_offerings")
             .update({
-              scrape_status: "scraped",
-              last_scraped_at: new Date().toISOString(),
-              products_found: inserted,
+              scrape_status: "failed",
+              internal_notes: "Timeout: exceeded 420s (possible partial save)",
             })
             .eq("id", supplier.id);
-
-          // ── Extract supplier profile + factories ───────────────────────────
-          console.log(`\n  → Extracting company profile...`);
-          const profile = await extractSupplierProfile(result.allMarkdown, supplier.company_name, {
-            country: supplier.country_of_origin,
-            categories: supplier.categories ?? [],
+          failed.push({ name: supplier.company_name, reason: "Timeout after 420s (check DB for partial save)" });
+        } else {
+          console.error(`  ${tag} ✗ Error:`, err);
+          await supabase
+            .from("supplier_offerings")
+            .update({ scrape_status: "failed" })
+            .eq("id", supplier.id);
+          failed.push({
+            name: supplier.company_name,
+            reason: err instanceof Error ? err.message : String(err),
           });
-          await persistProfile(supplier, profile);
+        }
+      }
 
-          succeeded.push({ name: supplier.company_name, products: inserted, avgConfidence });
-          totalProducts += inserted;
-        })(),
-        supplierTimeout,
-      ]);
-    } catch (err) {
-      if (err instanceof Error && err.message === "Supplier timeout") {
-        console.log(`  ⏱ Timeout after 420s — skipping`);
-        await supabase
-          .from("supplier_offerings")
-          .update({
-            scrape_status: "failed",
-            internal_notes: "Timeout: exceeded 420s (possible partial save)",
-          })
-          .eq("id", supplier.id);
-        failed.push({ name: supplier.company_name, reason: "Timeout after 420s (check DB for partial save)" });
-      } else {
-        console.error(`  ✗ Error:`, err);
-        await supabase
-          .from("supplier_offerings")
-          .update({ scrape_status: "failed" })
-          .eq("id", supplier.id);
-        failed.push({
-          name: supplier.company_name,
-          reason: err instanceof Error ? err.message : String(err),
-        });
+      const elapsed = ((Date.now() - supplierStart) / 1000).toFixed(1);
+      console.log(`\n  ${tag} Time taken: ${elapsed}s`);
+
+      if (delayMs > 0) {
+        await new Promise((r) => setTimeout(r, delayMs));
       }
     }
-
-    const elapsed = ((Date.now() - supplierStart) / 1000).toFixed(1);
-    console.log(`\n  Time taken: ${elapsed}s`);
-
-    await new Promise((r) => setTimeout(r, 25000));
   }
+
+  await Promise.all(
+    Array.from({ length: concurrency }, (_, idx) => processWorker(idx + 1))
+  );
 
   // ─── Summary ───────────────────────────────────────────────────────────────
   const totalElapsed = Date.now() - startTime;

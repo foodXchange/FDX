@@ -234,7 +234,7 @@ export function IntelligenceEcosystem({ data }: Props) {
             </div>
 
             <Link
-              href="/admin/suppliers?buyer=true"
+              href="/admin/buyers?tab=discovered"
               className="mt-4 block w-full text-center py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs transition-colors shadow-xs"
             >
               Browse All Discovered Buyers ({overview.potential_buyers}) &rarr;

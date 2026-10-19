@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { IntelligencePayload } from "@/lib/admin/intelligenceService";
 import { IntelligenceEcosystem } from "./IntelligenceEcosystem";
+import { IntelligenceLiquidityMatrix } from "./IntelligenceLiquidityMatrix";
 import { IntelligenceCatalogDepth } from "./IntelligenceCatalogDepth";
 import { IntelligenceGeography } from "./IntelligenceGeography";
 
@@ -12,7 +13,7 @@ interface Props {
   dealPipelineSlot: React.ReactNode;
 }
 
-type TabKey = "ecosystem" | "catalog" | "geography" | "pipeline";
+type TabKey = "ecosystem" | "liquidity" | "catalog" | "geography" | "pipeline";
 
 export function IntelligenceDashboardClient({ data, dealPipelineSlot }: Props) {
   const [activeTab, setActiveTab] = useState<TabKey>("ecosystem");
@@ -23,6 +24,12 @@ export function IntelligenceDashboardClient({ data, dealPipelineSlot }: Props) {
       label: "Ecosystem & Roles",
       icon: "🌐",
       count: `${data.overview.total_suppliers.toLocaleString()} Co.`,
+    },
+    {
+      key: "liquidity",
+      label: "Supply vs Demand Matrix",
+      icon: "⚖️",
+      count: "Liquidity",
     },
     {
       key: "catalog",
@@ -121,6 +128,7 @@ export function IntelligenceDashboardClient({ data, dealPipelineSlot }: Props) {
       {/* Tab Panels */}
       <div>
         {activeTab === "ecosystem" && <IntelligenceEcosystem data={data} />}
+        {activeTab === "liquidity" && <IntelligenceLiquidityMatrix data={data} />}
         {activeTab === "catalog" && <IntelligenceCatalogDepth data={data} />}
         {activeTab === "geography" && <IntelligenceGeography data={data} />}
         {activeTab === "pipeline" && (
