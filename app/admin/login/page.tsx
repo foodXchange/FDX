@@ -5,8 +5,16 @@ import Link from "next/link";
 import Header from "@/components/Header";
 import Footer from "@/components/ui/Footer";
 
-const MAX_ATTEMPTS = 5;
-const COOLDOWN_SECONDS = 30;
+const MAX_ATTEMPTS = 3;
+const COOLDOWN_SECONDS = 30 * 60; // 30 minutes lockout
+const LOCKOUT_KEY = "fdx_admin_login_lockout_until";
+const ATTEMPTS_KEY = "fdx_admin_login_failed_attempts";
+
+function formatCooldown(seconds: number): string {
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  return `${m}m ${s < 10 ? "0" : ""}${s}s`;
+}
 
 function EyeIcon() {
   return (
@@ -47,6 +55,26 @@ function AdminLoginContent() {
   const router = useRouter();
 
   useEffect(() => {
+    try {
+      const stored = localStorage.getItem(LOCKOUT_KEY);
+      const attempts = localStorage.getItem(ATTEMPTS_KEY);
+      const ts = stored ? parseInt(stored, 10) : null;
+      if (ts && ts > Date.now()) {
+        setCooldownUntil(ts);
+        const rem = Math.ceil((ts - Date.now()) / 1000);
+        setCooldownRemaining(rem);
+        setFailedAttempts(MAX_ATTEMPTS);
+        setError(`Security lockout active (3 bad attempts). Please wait ${formatCooldown(rem)} before trying again.`);
+      } else if (ts && ts <= Date.now()) {
+        localStorage.removeItem(LOCKOUT_KEY);
+        localStorage.removeItem(ATTEMPTS_KEY);
+      } else if (attempts) {
+        setFailedAttempts(parseInt(attempts, 10));
+      }
+    } catch {}
+  }, []);
+
+  useEffect(() => {
     if (!cooldownUntil) return;
 
     const tick = () => {
@@ -56,6 +84,12 @@ function AdminLoginContent() {
         setCooldownUntil(null);
         setFailedAttempts(0);
         setError("");
+        try {
+          localStorage.removeItem(LOCKOUT_KEY);
+          localStorage.removeItem(ATTEMPTS_KEY);
+        } catch {}
+      } else {
+        setError(`Security lockout active (3 bad attempts). Please wait ${formatCooldown(remaining)} before trying again.`);
       }
     };
 
@@ -82,6 +116,10 @@ function AdminLoginContent() {
 
       if (res.ok) {
         setSuccess(true);
+        try {
+          localStorage.removeItem(LOCKOUT_KEY);
+          localStorage.removeItem(ATTEMPTS_KEY);
+        } catch {}
         router.push("/admin/portfolio");
         return;
       }
@@ -90,12 +128,20 @@ function AdminLoginContent() {
       setFailedAttempts(nextAttempts);
 
       if (nextAttempts >= MAX_ATTEMPTS) {
-        setCooldownUntil(Date.now() + COOLDOWN_SECONDS * 1000);
+        const lockUntil = Date.now() + COOLDOWN_SECONDS * 1000;
+        setCooldownUntil(lockUntil);
         setCooldownRemaining(COOLDOWN_SECONDS);
-        setError(`Too many incorrect attempts. Please wait ${COOLDOWN_SECONDS} seconds before trying again.`);
+        setError(`Too many incorrect attempts. Account locked for 30 minutes (${formatCooldown(COOLDOWN_SECONDS)}).`);
+        try {
+          localStorage.setItem(LOCKOUT_KEY, String(lockUntil));
+          localStorage.setItem(ATTEMPTS_KEY, String(MAX_ATTEMPTS));
+        } catch {}
       } else {
         const remaining = MAX_ATTEMPTS - nextAttempts;
-        setError(`Incorrect password. ${remaining} attempt${remaining === 1 ? "" : "s"} remaining before temporary lockout.`);
+        setError(`Incorrect password. ${remaining} attempt${remaining === 1 ? "" : "s"} remaining before 30-minute lockout.`);
+        try {
+          localStorage.setItem(ATTEMPTS_KEY, String(nextAttempts));
+        } catch {}
       }
     } catch {
       setError("An unexpected network error occurred. Please try again.");

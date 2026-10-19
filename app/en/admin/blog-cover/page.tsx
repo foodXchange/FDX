@@ -400,4 +400,3 @@ export default function BlogCoverAdminPage() {
     </main>
   );
 }
-``
