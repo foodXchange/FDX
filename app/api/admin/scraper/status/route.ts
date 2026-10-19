@@ -16,12 +16,25 @@ export async function GET() {
     const hasGemini = Boolean(process.env.GEMINI_API_KEY);
     const hasAnthropic = Boolean(process.env.ANTHROPIC_API_KEY);
 
-    // Fast catalog counts in parallel
-    const [totalRes, missingCatRes, embeddedRes, suppliersRes] = await Promise.all([
+    // Fast catalog & supplier counts in parallel
+    const [
+      totalRes,
+      missingCatRes,
+      embeddedRes,
+      totalSuppliersRes,
+      pendingRes,
+      scrapedRes,
+      failedRes,
+      skippedRes,
+    ] = await Promise.all([
       supabaseAdmin.from("supplier_products").select("*", { count: "exact", head: true }),
       supabaseAdmin.from("supplier_products").select("*", { count: "exact", head: true }).is("category_id", null),
       supabaseAdmin.from("supplier_products").select("*", { count: "exact", head: true }).not("embedding", "is", null),
-      supabaseAdmin.from("supplier_offerings").select("scrape_status"),
+      supabaseAdmin.from("supplier_offerings").select("*", { count: "exact", head: true }),
+      supabaseAdmin.from("supplier_offerings").select("*", { count: "exact", head: true }).eq("scrape_status", "pending"),
+      supabaseAdmin.from("supplier_offerings").select("*", { count: "exact", head: true }).eq("scrape_status", "scraped"),
+      supabaseAdmin.from("supplier_offerings").select("*", { count: "exact", head: true }).eq("scrape_status", "failed"),
+      supabaseAdmin.from("supplier_offerings").select("*", { count: "exact", head: true }).eq("scrape_status", "skipped"),
     ]);
 
     const totalProducts = totalRes.count ?? 0;
@@ -31,15 +44,13 @@ export async function GET() {
     const catRate = totalProducts > 0 ? Number(((categorized / totalProducts) * 100).toFixed(1)) : 0;
     const embedRate = totalProducts > 0 ? Number(((embedded / totalProducts) * 100).toFixed(1)) : 0;
 
-    const supplierStatus = { pending: 0, scraped: 0, failed: 0, skipped: 0, total: 0 };
-    for (const s of (suppliersRes.data ?? []) as { scrape_status: string | null }[]) {
-      const st = s.scrape_status ?? "pending";
-      if (st === "scraped") supplierStatus.scraped++;
-      else if (st === "failed") supplierStatus.failed++;
-      else if (st === "skipped") supplierStatus.skipped++;
-      else supplierStatus.pending++;
-      supplierStatus.total++;
-    }
+    const supplierStatus = {
+      pending: pendingRes.count ?? 0,
+      scraped: scrapedRes.count ?? 0,
+      failed: failedRes.count ?? 0,
+      skipped: skippedRes.count ?? 0,
+      total: totalSuppliersRes.count ?? 0,
+    };
 
     // Dynamic Circuit breaker check (cached for 60 seconds)
     if (hasGemini && Date.now() - lastGeminiCheck.checkedAt > 60_000) {
