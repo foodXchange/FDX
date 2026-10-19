@@ -19,7 +19,7 @@ const sections: { title: string; links: NavItem[] }[] = [
       { href: "/admin/requests", label: "Sourcing Requests", icon: "📥" },
       { href: "/admin/matches", label: "Match Engine", icon: "⚡" },
       { href: "/admin/qa-metrics", label: "QA Metrics", icon: "📈" },
-      { href: "/admin/analytics", label: "Analytics", icon: "📊" },
+      { href: "/admin/analytics", label: "Market Intelligence", icon: "📊" },
     ],
   },
   {
