@@ -80,7 +80,7 @@ Output STRICT JSON only:
     try {
       const ai = new GoogleGenAI({ apiKey: geminiKey });
       const response = await ai.models.generateContent({
-        model: "gemini-3.5-flash",
+        model: "gemini-3.8-flash",
         contents: `${SYSTEM_PROMPT}\n\n${userPrompt}`,
         config: {
           temperature: 0,

@@ -125,7 +125,7 @@ async function callModel(prompt: string): Promise<string> {
   if (gemini) {
     try {
       const response = await gemini.models.generateContent({
-        model: "gemini-3.5-flash",
+        model: "gemini-3.8-flash",
         contents: prompt,
         config: { systemInstruction: SYSTEM_PROMPT, responseMimeType: "application/json" },
       });

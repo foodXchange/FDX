@@ -62,7 +62,7 @@ async function extractFromPage(
 
     if (gemini) {
       const response = await gemini.models.generateContent({
-        model: "gemini-3.5-flash",
+        model: "gemini-3.8-flash",
         contents: userPrompt,
         config: {
           systemInstruction:

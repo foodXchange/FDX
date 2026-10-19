@@ -142,7 +142,7 @@ export async function detectManufacturerType(
 
     if (gemini) {
       const response = await gemini.models.generateContent({
-        model: "gemini-3.5-flash",
+        model: "gemini-3.8-flash",
         contents: userPrompt,
         config: {
           systemInstruction:
@@ -243,7 +243,7 @@ export async function extractProducts(
   supplier: {
     company_name: string;
     country_of_origin: string | null;
-    certifications: string[];
+    certifications?: string[];
   }
 ): Promise<ExtractedProduct[]> {
   const gemini = getGeminiClient();
@@ -279,7 +279,7 @@ export async function extractProducts(
     `  Always output certifications in English\n\n` +
     `Supplier: ${supplier.company_name}\n` +
     `Country: ${supplier.country_of_origin ?? "Unknown"}\n` +
-    `Known certifications: ${supplier.certifications.join(", ") || "None stated"}\n\n` +
+    `Known certifications: ${(supplier.certifications ?? []).join(", ") || "None stated"}\n\n` +
     `Website content:\n${cleaned}\n\n` +
     `Return ONLY this JSON array — no other text:\n` +
     `[\n` +
@@ -322,7 +322,7 @@ export async function extractProducts(
 
     if (gemini) {
       const response = await gemini.models.generateContent({
-        model: "gemini-3.5-flash",
+        model: "gemini-3.8-flash",
         contents: userPrompt,
         config: {
           systemInstruction: EXTRACT_SYSTEM_PROMPT,
@@ -446,7 +446,7 @@ export async function extractSupplierProfile(
 
     if (gemini) {
       const response = await gemini.models.generateContent({
-        model: "gemini-3.5-flash",
+        model: "gemini-3.8-flash",
         contents: userPrompt,
         config: {
           systemInstruction:
@@ -639,7 +639,7 @@ export async function extractSupplierFull(
   if (gemini) {
     try {
       const response = await gemini.models.generateContent({
-        model: "gemini-3.5-flash",
+        model: "gemini-3.8-flash",
         contents: prompt,
         config: {
           systemInstruction: "Extract structured B2B food products and company profile. Output JSON only.",

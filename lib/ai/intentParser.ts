@@ -51,7 +51,7 @@ Buyer request: ${text}`;
 async function geminiParser(text: string): Promise<IntentResult> {
   const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
   const response = await ai.models.generateContent({
-    model: "gemini-3.5-flash",
+    model: "gemini-3.8-flash",
     contents: `${SYSTEM_PROMPT}\n\n${buildUserMessage(text)}`,
     config: {
       temperature: 0.1,

@@ -27,7 +27,7 @@ export async function researchSupplier(
         `Check their official website, LinkedIn, Europages, Kompass, and food trade directories.`;
 
       const response = await ai.models.generateContent({
-        model: "gemini-3.5-flash",
+        model: "gemini-3.8-flash",
         contents: prompt,
         config: {
           systemInstruction:
