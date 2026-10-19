@@ -19,6 +19,8 @@ export type AssortmentMatchRow = {
     company_name: string;
     buyer_type: string | null;
     website: string | null;
+    contact_email?: string | null;
+    contact_name?: string | null;
     notes?: string | null;
   } | null;
   assortment: {
@@ -53,17 +55,22 @@ export type AssortmentMatchRow = {
 
 interface Props {
   initialMatches: AssortmentMatchRow[];
+  initialGmailUser?: string | null;
 }
 
-export function OpportunitiesDashboardClient({ initialMatches }: Props) {
+export function OpportunitiesDashboardClient({ initialMatches, initialGmailUser }: Props) {
   const [matches, setMatches] = useState<AssortmentMatchRow[]>(initialMatches);
+  const [gmailUser] = useState<string | null>(initialGmailUser ?? null);
   const [search, setSearch] = useState("");
   const [selectedBuyer, setSelectedBuyer] = useState("all");
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [minScore, setMinScore] = useState<number>(0);
   const [statusTab, setStatusTab] = useState<string>("all");
   const [viewMode, setViewMode] = useState<"cards" | "table">("cards");
-  const [activePitchMatch, setActivePitchMatch] = useState<AssortmentMatchRow | null>(null);
+  const [activePitchModal, setActivePitchModal] = useState<{
+    match: AssortmentMatchRow;
+    tab: "buyer" | "supplier";
+  } | null>(null);
   const [isRunningMatcher, setIsRunningMatcher] = useState(false);
   const [matcherMessage, setMatcherMessage] = useState<string | null>(null);
 
@@ -310,23 +317,37 @@ export function OpportunitiesDashboardClient({ initialMatches }: Props) {
           </div>
         )}
 
-        <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl">
-          <button
-            onClick={() => setViewMode("cards")}
-            className={`px-3 py-1 rounded-lg text-xs font-semibold transition ${
-              viewMode === "cards" ? "bg-white text-slate-900 shadow-2xs" : "text-slate-500 hover:text-slate-900"
-            }`}
-          >
-            🗂️ Cards View
-          </button>
-          <button
-            onClick={() => setViewMode("table")}
-            className={`px-3 py-1 rounded-lg text-xs font-semibold transition ${
-              viewMode === "table" ? "bg-white text-slate-900 shadow-2xs" : "text-slate-500 hover:text-slate-900"
-            }`}
-          >
-            📊 Table View
-          </button>
+        <div className="flex items-center gap-2">
+          {gmailUser ? (
+            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 text-emerald-800 border border-emerald-200 text-xs font-semibold">
+              <span>🟢</span>
+              <span>Gmail: {gmailUser}</span>
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 text-slate-700 border border-slate-200 text-xs font-semibold">
+              <span>✉️</span>
+              <span>Outbound: Resend / SMTP Active</span>
+            </span>
+          )}
+
+          <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl">
+            <button
+              onClick={() => setViewMode("cards")}
+              className={`px-3 py-1 rounded-lg text-xs font-semibold transition ${
+                viewMode === "cards" ? "bg-white text-slate-900 shadow-2xs" : "text-slate-500 hover:text-slate-900"
+              }`}
+            >
+              🗂️ Cards View
+            </button>
+            <button
+              onClick={() => setViewMode("table")}
+              className={`px-3 py-1 rounded-lg text-xs font-semibold transition ${
+                viewMode === "table" ? "bg-white text-slate-900 shadow-2xs" : "text-slate-500 hover:text-slate-900"
+              }`}
+            >
+              📊 Table View
+            </button>
+          </div>
         </div>
       </div>
 
@@ -434,7 +455,7 @@ export function OpportunitiesDashboardClient({ initialMatches }: Props) {
               key={m.id}
               match={m}
               onUpdateStatus={handleUpdateStatus}
-              onOpenPitch={() => setActivePitchMatch(m)}
+              onOpenPitch={(tab) => setActivePitchModal({ match: m, tab })}
             />
           ))}
         </div>
@@ -498,10 +519,18 @@ export function OpportunitiesDashboardClient({ initialMatches }: Props) {
                       <td className="px-4 py-3 text-right whitespace-nowrap">
                         <div className="flex items-center justify-end gap-1.5">
                           <button
-                            onClick={() => setActivePitchMatch(m)}
+                            onClick={() => setActivePitchModal({ match: m, tab: "buyer" })}
                             className="px-2.5 py-1 rounded-lg bg-orange-50 hover:bg-orange-100 text-orange-700 font-semibold text-[11px] transition"
+                            title="Pitch Retailer via Gmail"
                           >
                             💡 Pitch
+                          </button>
+                          <button
+                            onClick={() => setActivePitchModal({ match: m, tab: "supplier" })}
+                            className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-800 font-semibold text-[11px] transition"
+                            title="Dispatch Factory RFQ via Gmail"
+                          >
+                            🏭 RFQ
                           </button>
                           <select
                             value={m.status}
@@ -526,11 +555,13 @@ export function OpportunitiesDashboardClient({ initialMatches }: Props) {
         </div>
       )}
 
-      {/* Pitch Modal */}
-      {activePitchMatch && (
+      {/* Pitch & Factory RFQ Outreach Modal */}
+      {activePitchModal && (
         <PitchGeneratorModal
-          match={activePitchMatch}
-          onClose={() => setActivePitchMatch(null)}
+          match={activePitchModal.match}
+          initialTab={activePitchModal.tab}
+          gmailUser={gmailUser}
+          onClose={() => setActivePitchModal(null)}
           onStatusUpdated={(id, newStatus) => {
             setMatches((prev) =>
               prev.map((item) => (item.id === id ? { ...item, status: newStatus } : item))
@@ -549,7 +580,7 @@ function OpportunityCard({
 }: {
   match: AssortmentMatchRow;
   onUpdateStatus: (id: string, newStatus: AssortmentMatchRow["status"]) => void;
-  onOpenPitch: () => void;
+  onOpenPitch: (tab: "buyer" | "supplier") => void;
 }) {
   const buyerName = match.buyer?.company_name || "Enterprise Retailer";
   const targetSku = match.assortment?.product_name || "Private Label Item";
@@ -658,14 +689,24 @@ function OpportunityCard({
       </div>
 
       {/* Footer Actions */}
-      <div className="pt-2 border-t border-slate-100 flex items-center justify-between gap-2">
-        <button
-          onClick={onOpenPitch}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-orange-600 hover:bg-orange-700 text-white font-semibold text-xs transition shadow-2xs"
-        >
-          <span>💡</span>
-          <span>Generate Pitch / RFP</span>
-        </button>
+      <div className="pt-2 border-t border-slate-100 flex items-center justify-between gap-2 flex-wrap">
+        <div className="flex items-center gap-1.5">
+          <button
+            onClick={() => onOpenPitch("buyer")}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-orange-600 hover:bg-orange-700 text-white font-semibold text-xs transition shadow-2xs"
+          >
+            <span>💡</span>
+            <span>Pitch Retailer</span>
+          </button>
+          <button
+            onClick={() => onOpenPitch("supplier")}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-white font-semibold text-xs transition shadow-2xs"
+            title="Dispatch Specification RFQ to Factory"
+          >
+            <span>🏭</span>
+            <span>Factory RFQ</span>
+          </button>
+        </div>
 
         <div className="flex items-center gap-1.5">
           {match.status === "proposed" && (

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { getGmailCredentials } from "@/lib/email/gmailEngine";
 import {
   OpportunitiesDashboardClient,
   type AssortmentMatchRow,
@@ -8,25 +9,28 @@ import {
 export const dynamic = "force-dynamic";
 
 export default async function AdminOpportunitiesPage() {
-  const { data, error } = await supabaseAdmin
-    .from("assortment_matches")
-    .select(`
-      id,
-      match_score,
-      vector_similarity,
-      category_match,
-      kosher_match,
-      pitch_angle,
-      potential_margin_gain,
-      status,
-      created_at,
-      buyer:buyers(id, company_name, buyer_type, website),
-      assortment:buyer_assortments(id, product_name, brand_name, manufacturer_country, retail_price_ils, package_size, barcode_gtin, category:product_categories(id, name)),
-      supplier_product:supplier_products(id, product_name, category_id, subcategory, formats, image_url, category:product_categories(id, name)),
-      supplier:supplier_offerings(id, company_name, country_of_origin, website, verified, certifications, contact_email)
-    `)
-    .order("match_score", { ascending: false })
-    .limit(500);
+  const [{ data, error }, gmailCreds] = await Promise.all([
+    supabaseAdmin
+      .from("assortment_matches")
+      .select(`
+        id,
+        match_score,
+        vector_similarity,
+        category_match,
+        kosher_match,
+        pitch_angle,
+        potential_margin_gain,
+        status,
+        created_at,
+        buyer:buyers(id, company_name, buyer_type, website, contact_email, contact_name),
+        assortment:buyer_assortments(id, product_name, brand_name, manufacturer_country, retail_price_ils, package_size, barcode_gtin, category:product_categories(id, name)),
+        supplier_product:supplier_products(id, product_name, category_id, subcategory, formats, image_url, category:product_categories(id, name)),
+        supplier:supplier_offerings(id, company_name, country_of_origin, website, verified, certifications, contact_email)
+      `)
+      .order("match_score", { ascending: false })
+      .limit(500),
+    getGmailCredentials(),
+  ]);
 
   if (error) {
     return (
@@ -93,7 +97,10 @@ export default async function AdminOpportunitiesPage() {
       </div>
 
       <div className="p-6 max-w-7xl mx-auto">
-        <OpportunitiesDashboardClient initialMatches={matches} />
+        <OpportunitiesDashboardClient
+          initialMatches={matches}
+          initialGmailUser={gmailCreds?.user ?? null}
+        />
       </div>
     </main>
   );
