@@ -15,6 +15,7 @@ import SampleDispatchHub from "@/components/admin/SampleDispatchHub";
 import QaRegulatoryGateway from "@/components/admin/QaRegulatoryGateway";
 import PackagingArtworkStaging from "@/components/admin/PackagingArtworkStaging";
 import Stage7CommercialOrderHub from "@/components/admin/Stage7CommercialOrderHub";
+import InboundCorrespondenceHub from "@/components/admin/InboundCorrespondenceHub";
 import type {
   CommercialOrderLifecycle,
   BuyerBriefApproval,
@@ -204,6 +205,14 @@ export default async function RequestDetailPage({ params }: PageProps) {
           productName={cleanedName || productName || "Product"}
           initialWorkflow={orderWorkflow}
           matchedSuppliers={matchedSuppliersList}
+        />
+
+        {/* ── Inbound AI Correspondence Engine ("Unhuman Scale") ── */}
+        <InboundCorrespondenceHub
+          requestId={id}
+          productName={cleanedName || productName || "Product"}
+          buyerCompany={buyerCompany}
+          suppliers={comparisonSuppliers}
         />
 
         {/* ── Stage 3: Product & Factory Comparison Matrix ── */}
