@@ -7,6 +7,7 @@ import MatchPipelineBadge from "@/components/matches/MatchPipelineBadge";
 import { getPipelineStatus } from "@/lib/matches/pipelineStatus";
 import { sleep, waLink } from "@/lib/outreach/waLink";
 import RfqComposerModal, { type RfqRequestVars, type RfqTemplateRow } from "@/components/admin/RfqComposerModal";
+import { recordSupplierQuote, type SupplierQuotePayload } from "@/app/admin/requests/actions";
 
 interface Props {
   requestId: string;
@@ -107,6 +108,129 @@ export default function MatchCards({ requestId, initialMatches, productName, com
   } | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [rfqOpen, setRfqOpen] = useState(false);
+
+  // New Workflow States: 65%+ Filtering, Bulk Follow-up, and Quote Capture
+  const [filterTab, setFilterTab] = useState<"all" | "top_tier" | "quoted" | "pending_followup">("all");
+  const [followUpPending, setFollowUpPending] = useState(false);
+  const [followUpNotice, setFollowUpNotice] = useState<string | null>(null);
+  const [quoteMatch, setQuoteMatch] = useState<LocalMatch | null>(null);
+  const [quoteForm, setQuoteForm] = useState<SupplierQuotePayload>({
+    unit_price: 0.82,
+    currency: "EUR",
+    net_weight: "1L",
+    packaging_format: "PET Bottle",
+    moq: "1 x 40ft HQ FCL",
+    lead_time_weeks: 3,
+    incoterm: "CIF Ashdod",
+    kosher_type: "Kosher (Chief Rabbinate)",
+    certifications: ["BRC", "ISO 22000"],
+    cooperation_status: "cooperating",
+    supplier_notes: "",
+  });
+
+  const topTierMatches = matches.filter((m) => m.match_score >= 65);
+  const quotedMatches = matches.filter(
+    (m) => Boolean((m.match_breakdown as Record<string, any>)?.quote?.unit_price) || m.localStatus === "responded"
+  );
+  const pendingFollowUpMatches = matches.filter(
+    (m) =>
+      m.localStatus === "sent" &&
+      m.sent_at &&
+      Date.now() - new Date(m.sent_at).getTime() > 2 * 86400000
+  );
+
+  const filteredMatches = matches.filter((m) => {
+    if (filterTab === "top_tier") return m.match_score >= 65;
+    if (filterTab === "quoted")
+      return Boolean((m.match_breakdown as Record<string, any>)?.quote?.unit_price) || m.localStatus === "responded";
+    if (filterTab === "pending_followup")
+      return m.localStatus === "sent" && m.sent_at && Date.now() - new Date(m.sent_at).getTime() > 2 * 86400000;
+    return true;
+  });
+
+  function selectAllTopTier() {
+    const ids = topTierMatches.map((m) => m.id);
+    setSelectedIds(new Set(ids));
+  }
+
+  async function handleSendBulkFollowUp() {
+    const targetIds = pendingFollowUpMatches.map((m) => m.id);
+    if (targetIds.length === 0) return;
+
+    setFollowUpPending(true);
+    setFollowUpNotice(null);
+    try {
+      const res = await fetch("/api/admin/matches/bulk-send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          matchIds: targetIds,
+          channel: "email",
+          isFollowUp: true,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setFollowUpNotice(`Sent follow-up reminders to ${targetIds.length} suppliers!`);
+        startTransition(() => router.refresh());
+        setTimeout(() => setFollowUpNotice(null), 4000);
+      } else {
+        setRunError(data.error || "Failed to send follow-up");
+      }
+    } catch (err: any) {
+      setRunError(err.message || "Follow-up error");
+    } finally {
+      setFollowUpPending(false);
+    }
+  }
+
+  function openCardQuoteModal(m: LocalMatch) {
+    const existing = (m.match_breakdown as Record<string, any>)?.quote;
+    setQuoteMatch(m);
+    setQuoteForm({
+      unit_price: existing?.unit_price ?? 0.82,
+      currency: existing?.currency ?? "EUR",
+      net_weight: existing?.net_weight ?? "1L",
+      packaging_format: existing?.packaging_format ?? "Standard Packaging",
+      moq: existing?.moq ?? "1 x 40ft HQ FCL",
+      lead_time_weeks: existing?.lead_time_weeks ?? 3,
+      incoterm: existing?.incoterm ?? "CIF Ashdod",
+      kosher_type: existing?.kosher_type ?? "Kosher (Chief Rabbinate)",
+      certifications: existing?.certifications ?? ["BRC", "ISO 22000"],
+      cooperation_status: existing?.cooperation_status ?? "cooperating",
+      supplier_notes: existing?.supplier_notes ?? "",
+    });
+  }
+
+  function handleSaveQuoteModal(e: React.FormEvent) {
+    e.preventDefault();
+    if (!quoteMatch) return;
+
+    startTransition(async () => {
+      const res = await recordSupplierQuote(quoteMatch.id, quoteForm);
+      if (res.ok) {
+        setMatches((prev) =>
+          prev.map((m) =>
+            m.id === quoteMatch.id
+              ? {
+                  ...m,
+                  localStatus: "responded",
+                  match_breakdown: {
+                    ...(m.match_breakdown ?? {}),
+                    quote: {
+                      ...quoteForm,
+                      quoted_at: new Date().toISOString(),
+                    },
+                  },
+                }
+              : m
+          )
+        );
+        setQuoteMatch(null);
+        router.refresh();
+      }
+    });
+  }
 
   function toggleSelected(matchId: string) {
     setSelectedIds((prev) => {
@@ -274,56 +398,135 @@ export default function MatchCards({ requestId, initialMatches, productName, com
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between gap-2 flex-wrap">
-        <h2 className="text-sm font-semibold text-gray-700">
-          {matches.length} match{matches.length !== 1 ? "es" : ""}
-        </h2>
-        <div className="flex items-center gap-2">
-          {matches.some((m) => m.localStatus === "approved") && (
+      {/* ── Top Match Controls & Workflow Filters ── */}
+      <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs space-y-3">
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <div>
+            <h2 className="text-sm font-bold text-slate-900">
+              Sourcing Matches ({matches.length})
+            </h2>
+            <p className="text-xs text-slate-500">
+              Ranked from 100% to lowest. Focus outreach on 65%+ top-tier factories.
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2">
             <button
-              onClick={runBulkWhatsapp}
-              disabled={!!bulkState}
-              className="inline-flex items-center gap-1.5 text-xs text-white bg-green-600 hover:bg-green-700 disabled:opacity-60 px-3 py-1.5 rounded-lg transition-colors"
+              onClick={selectAllTopTier}
+              className="inline-flex items-center gap-1.5 text-xs font-bold text-orange-700 bg-orange-50 hover:bg-orange-100 border border-orange-200 px-3 py-1.5 rounded-lg transition shadow-xs"
             >
-              💬 Send WhatsApp to {matches.filter((m) => m.localStatus === "approved").length} approved
+              <span>⚡</span>
+              <span>Select All 65%+ ({topTierMatches.length})</span>
+            </button>
+
+            {pendingFollowUpMatches.length > 0 && (
+              <button
+                onClick={handleSendBulkFollowUp}
+                disabled={followUpPending}
+                className="inline-flex items-center gap-1.5 text-xs font-bold text-amber-900 bg-amber-50 hover:bg-amber-100 border border-amber-300 px-3 py-1.5 rounded-lg transition shadow-xs"
+              >
+                <span>📬</span>
+                <span>
+                  {followUpPending
+                    ? "Sending follow-ups…"
+                    : `Follow Up Unresponsive (${pendingFollowUpMatches.length})`}
+                </span>
+              </button>
+            )}
+
+            <button
+              onClick={runMatching}
+              disabled={isRunning || isPending}
+              className="inline-flex items-center gap-1.5 text-xs text-slate-600 hover:text-slate-900 border border-slate-200 rounded-lg px-2.5 py-1.5 transition"
+            >
+              {isRunning || isPending ? <Spinner size="sm" /> : "↺ Re-run"}
+            </button>
+          </div>
+        </div>
+
+        {/* Filter Pills */}
+        <div className="flex items-center gap-1.5 overflow-x-auto pt-1 border-t border-slate-100">
+          <button
+            type="button"
+            onClick={() => setFilterTab("all")}
+            className={`text-xs font-semibold px-2.5 py-1 rounded-lg transition ${
+              filterTab === "all"
+                ? "bg-slate-900 text-white"
+                : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+            }`}
+          >
+            All Matches ({matches.length})
+          </button>
+          <button
+            type="button"
+            onClick={() => setFilterTab("top_tier")}
+            className={`text-xs font-semibold px-2.5 py-1 rounded-lg transition ${
+              filterTab === "top_tier"
+                ? "bg-orange-600 text-white font-bold"
+                : "bg-orange-50 text-orange-800 hover:bg-orange-100 border border-orange-200"
+            }`}
+          >
+            ⭐️ Top-Tier: 65% - 100% ({topTierMatches.length})
+          </button>
+          <button
+            type="button"
+            onClick={() => setFilterTab("quoted")}
+            className={`text-xs font-semibold px-2.5 py-1 rounded-lg transition ${
+              filterTab === "quoted"
+                ? "bg-emerald-600 text-white font-bold"
+                : "bg-emerald-50 text-emerald-800 hover:bg-emerald-100 border border-emerald-200"
+            }`}
+          >
+            Quoted & Responded ({quotedMatches.length})
+          </button>
+          {pendingFollowUpMatches.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setFilterTab("pending_followup")}
+              className={`text-xs font-semibold px-2.5 py-1 rounded-lg transition ${
+                filterTab === "pending_followup"
+                  ? "bg-amber-600 text-white font-bold"
+                  : "bg-amber-50 text-amber-800 hover:bg-amber-100 border border-amber-300"
+              }`}
+            >
+              ⏰ Follow-up Due ({pendingFollowUpMatches.length})
             </button>
           )}
-          <button
-            onClick={runMatching}
-            disabled={isRunning || isPending}
-            className="inline-flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-800 disabled:opacity-50 transition-colors border border-slate-200 rounded-lg px-3 py-1.5"
-          >
-            {isRunning || isPending ? (
-              <>
-                <Spinner size="sm" />
-                Re-running…
-              </>
-            ) : (
-              "↺ Re-run matching"
-            )}
-          </button>
         </div>
       </div>
 
+      {followUpNotice && (
+        <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-800 text-xs font-semibold">
+          ✓ {followUpNotice}
+        </div>
+      )}
+
       {selectedIds.size > 0 && (
-        <div className="sticky top-2 z-10 flex items-center justify-between gap-3 bg-blue-600 text-white rounded-2xl px-4 py-3 shadow-lg">
-          <p className="text-sm font-medium">{selectedIds.size} supplier{selectedIds.size !== 1 ? "s" : ""} selected</p>
+        <div className="sticky top-2 z-20 flex items-center justify-between gap-3 bg-slate-900 text-white rounded-2xl px-5 py-3.5 shadow-xl border border-slate-800">
+          <div className="flex items-center gap-2">
+            <span className="w-6 h-6 rounded-full bg-orange-600 text-white flex items-center justify-center text-xs font-bold">
+              {selectedIds.size}
+            </span>
+            <p className="text-xs font-bold">
+              {selectedIds.size} supplier{selectedIds.size !== 1 ? "s" : ""} selected for outreach
+            </p>
+          </div>
           <div className="flex items-center gap-2">
             <button
               onClick={() => setRfqOpen(true)}
-              className="text-xs font-semibold bg-white text-blue-700 hover:bg-blue-50 px-3 py-1.5 rounded-lg transition-colors"
+              className="text-xs font-bold bg-orange-600 text-white hover:bg-orange-700 px-3.5 py-1.5 rounded-xl transition shadow-xs cursor-pointer"
             >
-              Send RFQ →
+              Send Bulk RFQ Email →
             </button>
             <button
               onClick={exportSelected}
-              className="text-xs font-medium text-white border border-white/40 hover:bg-white/10 px-3 py-1.5 rounded-lg transition-colors"
+              className="text-xs font-medium text-slate-300 hover:text-white border border-slate-700 px-2.5 py-1.5 rounded-lg transition"
             >
-              Export list
+              Export
             </button>
             <button
               onClick={() => setSelectedIds(new Set())}
-              className="text-xs font-medium text-white/80 hover:text-white px-3 py-1.5 rounded-lg transition-colors"
+              className="text-xs font-medium text-slate-400 hover:text-white px-2 py-1.5"
             >
               Clear
             </button>
@@ -331,19 +534,7 @@ export default function MatchCards({ requestId, initialMatches, productName, com
         </div>
       )}
 
-      {bulkState && (
-        <p className="text-xs text-green-700 bg-green-50 border border-green-200 rounded-lg px-3 py-2">
-          Opening WhatsApp for {bulkState.company} in {bulkState.countdown}s… ({bulkState.index}/{bulkState.total})
-        </p>
-      )}
-
-      {runError && (
-        <p className="text-xs text-red-500 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
-          {runError}
-        </p>
-      )}
-
-      {matches.map((match, idx) => {
+      {filteredMatches.map((match, idx) => {
         const s = match.localStatus;
         const isRejectedOrClosed = s === "rejected" || s === "closed";
         const isActive = s === "approved" || s === "sent" || s === "responded";
@@ -359,6 +550,7 @@ export default function MatchCards({ requestId, initialMatches, productName, com
         const contact = contactMap[match.supplier_id];
         const pipelineFields = { status: s, supplier_response: match.supplier_response, closed_at: match.closed_at };
         const pipeline = getPipelineStatus(pipelineFields);
+        const matchQuote = (breakdown as Record<string, any>)?.quote;
 
         return (
           <div
@@ -393,47 +585,74 @@ export default function MatchCards({ requestId, initialMatches, productName, com
                 {match.supplier_response && <MatchPipelineBadge match={pipelineFields} />}
               </div>
 
-              {/* new / pending: approve + reject */}
-              {(s === "pending" || s === "new") && (
-                <div className="flex items-center gap-2">
+              {/* Action buttons */}
+              <div className="flex items-center gap-2 flex-wrap">
+                {/* Quote Button */}
+                {matchQuote?.unit_price ? (
                   <button
-                    onClick={() => patchMatch(match.id, "approve")}
-                    className="text-xs text-white bg-blue-600 hover:bg-blue-700 px-3 py-1.5 rounded-lg transition-colors"
+                    onClick={() => openCardQuoteModal(match)}
+                    className="text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-2.5 py-1.5 rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer"
+                    title="Click to edit recorded supplier quote"
                   >
-                    Approve
+                    <span>💶</span>
+                    <span>{matchQuote.currency ?? "€"}{Number(matchQuote.unit_price).toFixed(2)}</span>
+                    <span className="text-[10px] text-emerald-600 bg-white px-1.5 py-0.5 rounded border border-emerald-200">
+                      {matchQuote.net_weight || "quote"}
+                    </span>
+                    <span className="text-emerald-500 font-normal ml-0.5">Edit</span>
                   </button>
+                ) : (
                   <button
-                    onClick={() => patchMatch(match.id, "reject")}
-                    className="text-xs text-red-600 hover:text-red-800 border border-red-200 hover:bg-red-50 px-3 py-1.5 rounded-lg transition-colors"
+                    onClick={() => openCardQuoteModal(match)}
+                    className="text-xs font-medium text-slate-700 hover:text-slate-900 border border-slate-200 hover:border-slate-400 hover:bg-slate-50 px-2.5 py-1.5 rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer"
+                    title="Record supplier response quote and cooperation terms"
                   >
-                    Reject
+                    <span>+ Record Quote</span>
                   </button>
-                </div>
-              )}
+                )}
 
-              {/* responded: mark as won + close */}
-              {s === "responded" && (
-                <div className="flex items-center gap-2">
-                  {pipeline === "accepted" && (
+                {/* new / pending: approve + reject */}
+                {(s === "pending" || s === "new") && (
+                  <div className="flex items-center gap-2">
                     <button
-                      onClick={() => {
-                        if (window.confirm("This will notify both the buyer and supplier that the deal is closed. Continue?")) {
-                          patchMatch(match.id, "close");
-                        }
-                      }}
-                      className="text-xs font-medium text-white bg-green-600 hover:bg-green-700 px-3 py-1.5 rounded-lg transition-colors"
+                      onClick={() => patchMatch(match.id, "approve")}
+                      className="text-xs text-white bg-blue-600 hover:bg-blue-700 px-3 py-1.5 rounded-lg transition-colors cursor-pointer"
                     >
-                      🎉 Mark as won
+                      Approve
                     </button>
-                  )}
-                  <button
-                    onClick={() => patchMatch(match.id, "close")}
-                    className="text-xs text-gray-600 border border-gray-200 hover:border-gray-400 hover:bg-gray-50 px-3 py-1.5 rounded-lg transition-colors"
-                  >
-                    Close
-                  </button>
-                </div>
-              )}
+                    <button
+                      onClick={() => patchMatch(match.id, "reject")}
+                      className="text-xs text-red-600 hover:text-red-800 border border-red-200 hover:bg-red-50 px-3 py-1.5 rounded-lg transition-colors cursor-pointer"
+                    >
+                      Reject
+                    </button>
+                  </div>
+                )}
+
+                {/* responded: mark as won + close */}
+                {s === "responded" && (
+                  <div className="flex items-center gap-2">
+                    {pipeline === "accepted" && (
+                      <button
+                        onClick={() => {
+                          if (window.confirm("This will notify both the buyer and supplier that the deal is closed. Continue?")) {
+                            patchMatch(match.id, "close");
+                          }
+                        }}
+                        className="text-xs font-medium text-white bg-green-600 hover:bg-green-700 px-3 py-1.5 rounded-lg transition-colors cursor-pointer"
+                      >
+                        🎉 Mark as won
+                      </button>
+                    )}
+                    <button
+                      onClick={() => patchMatch(match.id, "close")}
+                      className="text-xs text-gray-600 border border-gray-200 hover:border-gray-400 hover:bg-gray-50 px-3 py-1.5 rounded-lg transition-colors cursor-pointer"
+                    >
+                      Close
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Product & supplier info */}
@@ -522,6 +741,51 @@ export default function MatchCards({ requestId, initialMatches, productName, com
               <p className="mt-3 text-xs text-gray-500 leading-relaxed border-t border-gray-100 pt-3">
                 {match.match_summary}
               </p>
+            )}
+
+            {/* Recorded Factory Quote Snippet */}
+            {matchQuote?.unit_price && (
+              <div className="mt-3 bg-emerald-50/70 border border-emerald-200/80 rounded-xl p-3.5 text-xs text-emerald-950 shadow-2xs">
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-emerald-900 text-sm">
+                      Factory Quote: {matchQuote.currency ?? "€"}{Number(matchQuote.unit_price).toFixed(2)}
+                    </span>
+                    <span className="text-emerald-700 font-medium">
+                      / {matchQuote.packaging_format || matchQuote.net_weight || "unit"}
+                    </span>
+                    {matchQuote.incoterm && (
+                      <span className="bg-emerald-100 text-emerald-800 text-[10px] font-semibold px-2 py-0.5 rounded-md">
+                        {matchQuote.incoterm}
+                      </span>
+                    )}
+                  </div>
+                  <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${
+                    matchQuote.cooperation_status === "declined"
+                      ? "bg-red-100 text-red-800"
+                      : matchQuote.cooperation_status === "counter_offer"
+                      ? "bg-amber-100 text-amber-800"
+                      : "bg-emerald-100 text-emerald-800"
+                  }`}>
+                    {matchQuote.cooperation_status === "declined"
+                      ? "Declined"
+                      : matchQuote.cooperation_status === "counter_offer"
+                      ? "Counter-Offer"
+                      : "Ready to Cooperate"}
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-2.5 text-[11px] text-emerald-900/90 font-medium bg-white/70 rounded-lg p-2 border border-emerald-100">
+                  <div><span className="text-emerald-600 font-normal">Pack:</span> {matchQuote.net_weight || "—"}</div>
+                  <div><span className="text-emerald-600 font-normal">MOQ:</span> {matchQuote.moq || "—"}</div>
+                  <div><span className="text-emerald-600 font-normal">Lead Time:</span> {matchQuote.lead_time_weeks ? `${matchQuote.lead_time_weeks} wks` : "—"}</div>
+                  <div><span className="text-emerald-600 font-normal">Kosher:</span> {matchQuote.kosher_type || "—"}</div>
+                </div>
+                {matchQuote.supplier_notes && (
+                  <p className="mt-2 text-[11px] text-emerald-900/80 italic border-t border-emerald-200/50 pt-2">
+                    &ldquo;{matchQuote.supplier_notes}&rdquo;
+                  </p>
+                )}
+              </div>
             )}
 
             {/* ── Approved state: editable message + send buttons ── */}
@@ -684,6 +948,211 @@ export default function MatchCards({ requestId, initialMatches, productName, com
           onClose={() => setRfqOpen(false)}
           onDone={handleRfqDone}
         />
+      )}
+
+      {/* Supplier Quote Recording Modal */}
+      {quoteMatch && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <form
+            onSubmit={handleSaveQuoteModal}
+            className="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-xl w-full overflow-hidden animate-in fade-in zoom-in-95 duration-150"
+          >
+            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/70">
+              <div>
+                <h3 className="text-sm font-bold text-slate-900">
+                  Record Factory Quote: {quoteMatch.company_name}
+                </h3>
+                <p className="text-xs text-slate-500">
+                  Product: {quoteMatch.product_name} · Match Score {quoteMatch.match_score}/100
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setQuoteMatch(null)}
+                className="w-7 h-7 rounded-full hover:bg-slate-200 text-slate-500 flex items-center justify-center text-sm font-bold cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4 max-h-[75vh] overflow-y-auto text-xs">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-semibold text-slate-600 uppercase mb-1">
+                    Offered Unit Price (€)
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    required
+                    className="w-full text-xs border border-slate-200 rounded-lg p-2.5 font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    placeholder="0.85"
+                    value={quoteForm.unit_price ?? ""}
+                    onChange={(e) =>
+                      setQuoteForm((q) => ({
+                        ...q,
+                        unit_price: e.target.value === "" ? null : Number(e.target.value),
+                      }))
+                    }
+                  />
+                </div>
+                <div>
+                  <label className="block font-semibold text-slate-600 uppercase mb-1">
+                    Currency
+                  </label>
+                  <select
+                    className="w-full text-xs border border-slate-200 rounded-lg p-2.5 bg-white font-medium"
+                    value={quoteForm.currency ?? "EUR"}
+                    onChange={(e) => setQuoteForm((q) => ({ ...q, currency: e.target.value }))}
+                  >
+                    <option value="EUR">EUR (€)</option>
+                    <option value="USD">USD ($)</option>
+                    <option value="ILS">ILS (₪)</option>
+                    <option value="GBP">GBP (£)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-semibold text-slate-600 uppercase mb-1">
+                    Pack Net Weight (e.g. 1L, 400g, 500ml)
+                  </label>
+                  <input
+                    className="w-full text-xs border border-slate-200 rounded-lg p-2.5 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    placeholder="1L / 400g"
+                    value={quoteForm.net_weight ?? ""}
+                    onChange={(e) => setQuoteForm((q) => ({ ...q, net_weight: e.target.value }))}
+                  />
+                </div>
+                <div>
+                  <label className="block font-semibold text-slate-600 uppercase mb-1">
+                    Packaging Format
+                  </label>
+                  <input
+                    className="w-full text-xs border border-slate-200 rounded-lg p-2.5 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    placeholder="PET Bottle / Glass Jar / Tin Can"
+                    value={quoteForm.packaging_format ?? ""}
+                    onChange={(e) =>
+                      setQuoteForm((q) => ({ ...q, packaging_format: e.target.value }))
+                    }
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-semibold text-slate-600 uppercase mb-1">
+                    Minimum Order Quantity (MOQ)
+                  </label>
+                  <input
+                    className="w-full text-xs border border-slate-200 rounded-lg p-2.5 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    placeholder="1 x 40ft HQ FCL / 25,000 units"
+                    value={quoteForm.moq ?? ""}
+                    onChange={(e) => setQuoteForm((q) => ({ ...q, moq: e.target.value }))}
+                  />
+                </div>
+                <div>
+                  <label className="block font-semibold text-slate-600 uppercase mb-1">
+                    Incoterm
+                  </label>
+                  <input
+                    className="w-full text-xs border border-slate-200 rounded-lg p-2.5 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    placeholder="CIF Ashdod / FOB Valencia"
+                    value={quoteForm.incoterm ?? ""}
+                    onChange={(e) => setQuoteForm((q) => ({ ...q, incoterm: e.target.value }))}
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-semibold text-slate-600 uppercase mb-1">
+                    Lead Time (weeks)
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    className="w-full text-xs border border-slate-200 rounded-lg p-2.5 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    placeholder="3"
+                    value={quoteForm.lead_time_weeks ?? ""}
+                    onChange={(e) =>
+                      setQuoteForm((q) => ({
+                        ...q,
+                        lead_time_weeks: e.target.value === "" ? null : Number(e.target.value),
+                      }))
+                    }
+                  />
+                </div>
+                <div>
+                  <label className="block font-semibold text-slate-600 uppercase mb-1">
+                    Kosher Standard
+                  </label>
+                  <input
+                    className="w-full text-xs border border-slate-200 rounded-lg p-2.5 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    placeholder="Kosher (Chief Rabbinate) / Badatz"
+                    value={quoteForm.kosher_type ?? ""}
+                    onChange={(e) => setQuoteForm((q) => ({ ...q, kosher_type: e.target.value }))}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-600 uppercase mb-1">
+                  Cooperation Intention
+                </label>
+                <select
+                  className="w-full text-xs border border-slate-200 rounded-lg p-2.5 bg-white font-semibold"
+                  value={quoteForm.cooperation_status}
+                  onChange={(e) =>
+                    setQuoteForm((q) => ({
+                      ...q,
+                      cooperation_status: e.target.value as any,
+                    }))
+                  }
+                >
+                  <option value="cooperating">Ready to Cooperate & Supply ✓</option>
+                  <option value="counter_offer">Counter-Offer / Modified Specs</option>
+                  <option value="declined">Declined / Cannot Supply</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-600 uppercase mb-1">
+                  Supplier Notes & Technical Details
+                </label>
+                <textarea
+                  rows={2}
+                  className="w-full text-xs border border-slate-200 rounded-lg p-2.5 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  placeholder="Shelf life, payment terms (30/70), palletization specs..."
+                  value={quoteForm.supplier_notes ?? ""}
+                  onChange={(e) =>
+                    setQuoteForm((q) => ({ ...q, supplier_notes: e.target.value }))
+                  }
+                />
+              </div>
+            </div>
+
+            <div className="px-6 py-3 border-t border-slate-200 bg-slate-50 flex items-center justify-between">
+              <button
+                type="button"
+                onClick={() => setQuoteMatch(null)}
+                className="text-xs font-semibold text-slate-600 hover:text-slate-800 cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={isPending}
+                className="text-xs font-semibold px-4 py-2 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition flex items-center gap-2 cursor-pointer shadow-xs"
+              >
+                {isPending && <Spinner size="sm" />}
+                {isPending ? "Saving Quote…" : "Save Quote to Decision Board"}
+              </button>
+            </div>
+          </form>
+        </div>
       )}
     </div>
   );

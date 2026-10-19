@@ -356,3 +356,132 @@ export async function updateRequestOrderWorkflow(
 
   return { ok: true };
 }
+
+export interface BuyerBriefApproval {
+  status: "draft" | "submitted_to_buyer" | "approved";
+  approved_at?: string | null;
+  approved_by?: string | null;
+  notes?: string | null;
+}
+
+export async function updateBuyerBriefApproval(
+  requestId: string,
+  approval: BuyerBriefApproval
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const { data: req, error: fetchErr } = await supabaseAdmin
+    .from("sourcing_requests")
+    .select("ai_analysis")
+    .eq("id", requestId)
+    .single();
+
+  if (fetchErr || !req) {
+    return { ok: false, error: fetchErr?.message || "Request not found" };
+  }
+
+  const existingAiAnalysis = (req.ai_analysis as Record<string, unknown> | null) ?? {};
+  const updatedAiAnalysis = {
+    ...existingAiAnalysis,
+    buyer_brief_approval: {
+      ...approval,
+      updated_at: new Date().toISOString(),
+    },
+  };
+
+  const { error: updateErr } = await supabaseAdmin
+    .from("sourcing_requests")
+    .update({ ai_analysis: updatedAiAnalysis })
+    .eq("id", requestId);
+
+  if (updateErr) {
+    console.error("updateBuyerBriefApproval error:", updateErr);
+    return { ok: false, error: updateErr.message };
+  }
+
+  await logAdminAction({
+    adminEmail: getAdminEmail(),
+    action: "approve_buyer_brief",
+    targetType: "sourcing_request",
+    targetId: requestId,
+    metadata: { status: approval.status, approved_by: approval.approved_by },
+  });
+
+  try {
+    revalidatePath(`/admin/requests/${requestId}`);
+    revalidatePath("/admin/requests");
+  } catch {}
+
+  return { ok: true };
+}
+
+export interface SupplierQuotePayload {
+  unit_price: number | null;
+  currency: string;
+  net_weight: string | null;
+  packaging_format: string | null;
+  moq: string | null;
+  lead_time_weeks?: number | null;
+  incoterm?: string | null;
+  kosher_type?: string | null;
+  certifications?: string[];
+  cooperation_status: "cooperating" | "counter_offer" | "declined";
+  supplier_notes?: string | null;
+}
+
+export async function recordSupplierQuote(
+  matchId: string,
+  quote: SupplierQuotePayload
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const { data: match, error: fetchErr } = await supabaseAdmin
+    .from("sourcing_matches")
+    .select("id, request_id, match_breakdown, company_name")
+    .eq("id", matchId)
+    .single();
+
+  if (fetchErr || !match) {
+    return { ok: false, error: fetchErr?.message || "Match not found" };
+  }
+
+  const existingBreakdown = (match.match_breakdown as Record<string, unknown> | null) ?? {};
+  const updatedBreakdown = {
+    ...existingBreakdown,
+    quote: {
+      ...quote,
+      quoted_at: new Date().toISOString(),
+      recorded_by: getAdminEmail() || "admin",
+    },
+  };
+
+  const { error: updateErr } = await supabaseAdmin
+    .from("sourcing_matches")
+    .update({
+      match_breakdown: updatedBreakdown,
+      supplier_response: quote.cooperation_status === "declined" ? "declined" : "accepted",
+      supplier_message: quote.supplier_notes ?? null,
+      supplier_responded_at: new Date().toISOString(),
+      status: "responded",
+    })
+    .eq("id", matchId);
+
+  if (updateErr) {
+    console.error("recordSupplierQuote error:", updateErr);
+    return { ok: false, error: updateErr.message };
+  }
+
+  await logAdminAction({
+    adminEmail: getAdminEmail(),
+    action: "record_supplier_quote",
+    targetType: "sourcing_match",
+    targetId: matchId,
+    metadata: {
+      supplier_name: match.company_name,
+      unit_price: quote.unit_price,
+      currency: quote.currency,
+    },
+  });
+
+  try {
+    revalidatePath(`/admin/requests/${match.request_id}`);
+  } catch {}
+
+  return { ok: true };
+}

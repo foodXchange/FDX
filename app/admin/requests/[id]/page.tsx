@@ -9,7 +9,9 @@ import SellerBriefPanel from "@/components/admin/SellerBriefPanel";
 import MatchCards from "./MatchCards";
 import type { RfqRequestVars, RfqTemplateRow } from "@/components/admin/RfqComposerModal";
 import OrderWorkflowTracker from "@/components/admin/OrderWorkflowTracker";
-import type { CommercialOrderLifecycle } from "@/app/admin/requests/actions";
+import BuyerBriefApprovalCard from "@/components/admin/BuyerBriefApprovalCard";
+import ProductComparisonMatrix, { type ComparisonSupplier } from "@/components/admin/ProductComparisonMatrix";
+import type { CommercialOrderLifecycle, BuyerBriefApproval } from "@/app/admin/requests/actions";
 
 export const metadata: Metadata = { title: "Request Detail | Admin" };
 
@@ -137,12 +139,31 @@ export default async function RequestDetailPage({ params }: PageProps) {
   };
 
   const orderWorkflow = (aiAnalysis?.order_workflow as CommercialOrderLifecycle | null) ?? null;
+  const buyerBriefApproval = (aiAnalysis?.buyer_brief_approval as BuyerBriefApproval | null) ?? null;
+  const buyerCompany = (request.company as string | null) ?? (request.name as string | null) ?? "Buyer";
+
   const matchedSuppliersList = matches.map((m) => ({
     id: m.supplier_id,
     company_name: m.company_name,
     product_name: m.product_name,
     country: m.country,
   }));
+
+  const comparisonSuppliers: ComparisonSupplier[] = matches.map((m) => {
+    const breakdown = m.match_breakdown as Record<string, unknown> | null;
+    const quote = (breakdown?.quote as ComparisonSupplier["quote"]) ?? null;
+
+    return {
+      matchId: m.id,
+      supplierId: m.supplier_id,
+      companyName: m.company_name,
+      country: m.country,
+      productName: m.product_name,
+      matchScore: m.match_score,
+      status: m.status,
+      quote,
+    };
+  });
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -163,12 +184,31 @@ export default async function RequestDetailPage({ params }: PageProps) {
       </div>
 
       <div className="max-w-6xl mx-auto px-6 py-8">
+        {/* ── 7-Stage Order & Logistics Workflow Tracker ── */}
         <OrderWorkflowTracker
           requestId={id}
-          buyerCompany={(request.company as string | null) ?? (request.name as string | null) ?? "Buyer"}
+          buyerCompany={buyerCompany}
           productName={cleanedName || productName || "Product"}
           initialWorkflow={orderWorkflow}
           matchedSuppliers={matchedSuppliersList}
+        />
+
+        {/* ── Product & Factory Comparison Matrix ── */}
+        <ProductComparisonMatrix
+          requestId={id}
+          buyerCompany={buyerCompany}
+          benchmark={{
+            productName: cleanedName || productName || "Food Product",
+            benchmarkBrand: benchmarkBrand,
+            category: (request.category as string | null) ?? null,
+            netWeight: (request.packaging_preference as string | null) ?? null,
+            packagingFormat: (request.packaging_preference as string | null) ?? null,
+            targetPrice: pip.commercial.budget || null,
+            targetVolume: (request.volume_per_year as string | null) ?? null,
+            certifications: certs,
+            imageUrl: imageUrls[0] ?? null,
+          }}
+          suppliers={comparisonSuppliers}
         />
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
@@ -215,6 +255,15 @@ export default async function RequestDetailPage({ params }: PageProps) {
                     Private label
                   </span>
                 )}
+              </div>
+
+              {/* Buyer Brief Sign-Off Card */}
+              <div className="mt-4">
+                <BuyerBriefApprovalCard
+                  requestId={id}
+                  buyerCompany={buyerCompany}
+                  initialApproval={buyerBriefApproval}
+                />
               </div>
 
               {/* Admin-Only Wholesale / Seller Agent Sourcing Brief with AI Edit & PDF Print */}
