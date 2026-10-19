@@ -11,7 +11,12 @@ import type { RfqRequestVars, RfqTemplateRow } from "@/components/admin/RfqCompo
 import OrderWorkflowTracker from "@/components/admin/OrderWorkflowTracker";
 import BuyerBriefApprovalCard from "@/components/admin/BuyerBriefApprovalCard";
 import ProductComparisonMatrix, { type ComparisonSupplier } from "@/components/admin/ProductComparisonMatrix";
-import type { CommercialOrderLifecycle, BuyerBriefApproval } from "@/app/admin/requests/actions";
+import SampleDispatchHub from "@/components/admin/SampleDispatchHub";
+import type {
+  CommercialOrderLifecycle,
+  BuyerBriefApproval,
+  SampleDispatchProtocol,
+} from "@/app/admin/requests/actions";
 
 export const metadata: Metadata = { title: "Request Detail | Admin" };
 
@@ -140,6 +145,7 @@ export default async function RequestDetailPage({ params }: PageProps) {
 
   const orderWorkflow = (aiAnalysis?.order_workflow as CommercialOrderLifecycle | null) ?? null;
   const buyerBriefApproval = (aiAnalysis?.buyer_brief_approval as BuyerBriefApproval | null) ?? null;
+  const sampleDispatch = (aiAnalysis?.sample_dispatch as SampleDispatchProtocol | null) ?? null;
   const buyerCompany = (request.company as string | null) ?? (request.name as string | null) ?? "Buyer";
 
   const matchedSuppliersList = matches.map((m) => ({
@@ -193,7 +199,7 @@ export default async function RequestDetailPage({ params }: PageProps) {
           matchedSuppliers={matchedSuppliersList}
         />
 
-        {/* ── Product & Factory Comparison Matrix ── */}
+        {/* ── Stage 3: Product & Factory Comparison Matrix ── */}
         <ProductComparisonMatrix
           requestId={id}
           buyerCompany={buyerCompany}
@@ -208,6 +214,15 @@ export default async function RequestDetailPage({ params }: PageProps) {
             certifications: certs,
             imageUrl: imageUrls[0] ?? null,
           }}
+          suppliers={comparisonSuppliers}
+        />
+
+        {/* ── Stage 4: Sample Dispatch & Courier Protocols Hub ── */}
+        <SampleDispatchHub
+          requestId={id}
+          buyerCompany={buyerCompany}
+          productName={cleanedName || productName || "Product"}
+          initialProtocol={sampleDispatch}
           suppliers={comparisonSuppliers}
         />
 

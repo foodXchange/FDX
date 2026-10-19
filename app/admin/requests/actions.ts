@@ -485,3 +485,132 @@ export async function recordSupplierQuote(
 
   return { ok: true };
 }
+
+export interface SampleDispatchProtocol {
+  status:
+    | "pre_alignment"
+    | "instructions_issued"
+    | "in_transit"
+    | "delivered"
+    | "tasting_passed"
+    | "tasting_rejected";
+  selected_supplier?: {
+    match_id?: string;
+    supplier_id?: string;
+    company_name?: string;
+    product_name?: string;
+    contact_email?: string;
+    contact_phone?: string;
+  };
+  commercial_pre_alignment: {
+    unit_price?: number | null;
+    currency?: string;
+    pack_weight?: string;
+    payment_terms?: string;
+    moq?: string;
+    kosher_type?: string;
+    organic?: boolean;
+    gluten_free?: boolean;
+    aligned_at?: string | null;
+    aligned_by?: string | null;
+    is_aligned: boolean;
+  };
+  courier_instructions: {
+    courier_name: "DHL Express" | "FedEx" | "UPS" | "TNT" | "Aramex" | "Other";
+    courier_account_number?: string;
+    bill_recipient: "buyer_account" | "factory_prepaid" | "broker_account";
+    declared_value_eur: number;
+    customs_declaration_text: string;
+    awb_description: string;
+    hs_code_suggestion?: string;
+    consignee: {
+      company: string;
+      contact_person: string;
+      phone: string;
+      email: string;
+      address_line1: string;
+      address_city: string;
+      address_country: string;
+      postal_code: string;
+    };
+    breakage_packaging_mandate: string;
+    issued_at?: string | null;
+  };
+  shipment: {
+    courier_name?: string;
+    awb_tracking_number?: string;
+    awb_tracking_url?: string;
+    proforma_invoice_url?: string;
+    dispatched_date?: string | null;
+    estimated_arrival_date?: string | null;
+    delivered_date?: string | null;
+  };
+  sensory_evaluation: {
+    evaluator_name?: string;
+    evaluated_at?: string | null;
+    taste_score: number; // 1-5
+    texture_score: number; // 1-5
+    aroma_score: number; // 1-5
+    packaging_score: number; // 1-5
+    overall_verdict: "passed" | "rejected" | "reformulation_needed" | "pending";
+    notes?: string;
+    approved_for_qa: boolean;
+  };
+  updated_at?: string;
+  updated_by?: string;
+}
+
+export async function updateSampleDispatchProtocol(
+  requestId: string,
+  protocol: SampleDispatchProtocol
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const { data: req, error: fetchErr } = await supabaseAdmin
+    .from("sourcing_requests")
+    .select("ai_analysis, company, product_name")
+    .eq("id", requestId)
+    .single();
+
+  if (fetchErr || !req) {
+    return { ok: false, error: fetchErr?.message || "Request not found" };
+  }
+
+  const existingAiAnalysis = (req.ai_analysis as Record<string, unknown> | null) ?? {};
+  const updatedAiAnalysis = {
+    ...existingAiAnalysis,
+    sample_dispatch: {
+      ...protocol,
+      updated_at: new Date().toISOString(),
+      updated_by: getAdminEmail() || "admin",
+    },
+  };
+
+  const { error: updateErr } = await supabaseAdmin
+    .from("sourcing_requests")
+    .update({ ai_analysis: updatedAiAnalysis })
+    .eq("id", requestId);
+
+  if (updateErr) {
+    console.error("updateSampleDispatchProtocol error:", updateErr);
+    return { ok: false, error: updateErr.message };
+  }
+
+  await logAdminAction({
+    adminEmail: getAdminEmail(),
+    action: "update_sample_dispatch_protocol",
+    targetType: "sourcing_request",
+    targetId: requestId,
+    metadata: {
+      status: protocol.status,
+      courier: protocol.courier_instructions.courier_name,
+      awb: protocol.shipment.awb_tracking_number,
+      verdict: protocol.sensory_evaluation.overall_verdict,
+    },
+  });
+
+  try {
+    revalidatePath(`/admin/requests/${requestId}`);
+    revalidatePath("/admin/requests");
+  } catch {}
+
+  return { ok: true };
+}
