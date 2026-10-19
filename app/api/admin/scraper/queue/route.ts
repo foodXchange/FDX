@@ -4,8 +4,8 @@ import { crawlSupplier } from "@/lib/scraper/crawl";
 import {
   extractProducts,
   extractSupplierProfile,
-  detectManufacturerType,
 } from "@/lib/scraper/extract";
+import { classifyCompany, saveClassification, saveCrawlSnapshot } from "@/lib/scraper/classify";
 import { embedBatch } from "@/lib/ai/embed";
 import { mapScraperCategoryToCanonicalId } from "@/lib/pip/resolveCategoryId";
 
@@ -313,21 +313,30 @@ async function runBackgroundQueue() {
                 return;
               }
 
-              // Manufacturer Detection
-              const mfr = await detectManufacturerType(content, supplier.company_name);
+              // Classification (sector · role · category)
+              await saveCrawlSnapshot(
+                supabaseAdmin,
+                supplier.id,
+                content,
+                crawlUrl,
+                isGroundedSearch ? "perplexity" : "firecrawl"
+              );
+              const cls = await classifyCompany(content, supplier.company_name);
               if (isTimedOut) return;
-              const shouldSkip =
-                !mfr.isManufacturer &&
-                !["manufacturer", "mixed", "unknown"].includes(mfr.companyType) &&
-                mfr.confidence >= 0.4;
+              await saveClassification(supabaseAdmin, supplier.id, cls, "crawl");
 
-              if (shouldSkip) {
+              if (cls.route !== "food_pipeline") {
                 await supabaseAdmin
                   .from("supplier_offerings")
                   .update({
                     scrape_status: "skipped",
-                    internal_notes: `Auto-skipped: ${mfr.companyType}`,
-                    ...(mfr.companyType === "non_food" ? { supplier_type: "non_food" } : {}),
+                    internal_notes:
+                      cls.route === "invalid"
+                        ? `Invalid site: ${cls.reason}`
+                        : `Profiled: ${cls.sector}/${cls.businessRole ?? "unknown"} — ${cls.reason}`,
+                    ...(cls.route === "profiled" && cls.sector !== "food_beverage"
+                      ? { supplier_type: "non_food" }
+                      : {}),
                   })
                   .eq("id", supplier.id);
                 globalQueueState.skippedCount++;

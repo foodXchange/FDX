@@ -4,9 +4,14 @@ import { crawlSupplier } from "@/lib/scraper/crawl";
 import {
   extractProducts,
   extractSupplierProfile,
-  detectManufacturerType,
 } from "@/lib/scraper/extract";
 import type { ExtractedProduct } from "@/lib/scraper/extract";
+import {
+  classifyCompany,
+  describeClassification,
+  saveClassification,
+  saveCrawlSnapshot,
+} from "@/lib/scraper/classify";
 import { embedBatch } from "@/lib/ai/embed";
 import { mapScraperCategoryToCanonicalId } from "@/lib/pip/resolveCategoryId";
 
@@ -483,42 +488,70 @@ export async function GET(req: NextRequest) {
                 });
               }
 
-              // ── MANUFACTURER DETECTION ────────────────────────────────────
-              send({ type: "log", message: "  → Checking if manufacturer..." });
-              const mfr = await detectManufacturerType(content, supplier.company_name);
+              // ── CLASSIFICATION (sector · role · category) ─────────────────
+              await saveCrawlSnapshot(
+                supabaseAdmin,
+                supplier.id,
+                content,
+                crawlUrl,
+                isGroundedSearch ? "search_grounding" : "firecrawl"
+              );
+              send({ type: "log", message: "  → Classifying company..." });
+              const cls = await classifyCompany(content, supplier.company_name);
               if (isTimedOut) return;
+              await saveClassification(supabaseAdmin, supplier.id, cls, "crawl");
 
-              const shouldSkip =
-                !mfr.isManufacturer &&
-                !["manufacturer", "mixed", "unknown"].includes(mfr.companyType) &&
-                mfr.confidence >= 0.4;
-
-              if (shouldSkip) {
+              if (cls.route === "invalid") {
                 send({
                   type: "warning",
-                  message: `  ✗ SKIPPED — Not a manufacturer (${mfr.companyType}): ${mfr.reason}`,
+                  message: `  ✗ INVALID SITE — ${cls.reason}`,
                 });
+                await supabaseAdmin
+                  .from("supplier_offerings")
+                  .update({ scrape_status: "skipped", internal_notes: `Invalid site: ${cls.reason}` })
+                  .eq("id", supplier.id);
+                skippedList.push({ name: supplier.company_name, type: "invalid" });
+                await logEvent("skipped", supplier.id, `Invalid site: ${cls.reason}`);
+                return;
+              }
+
+              if (cls.route === "profiled") {
+                send({
+                  type: "log",
+                  message: `  📇 PROFILED (not a food producer) — ${describeClassification(cls)}`,
+                });
+                if (cls.offeringsSummary) {
+                  send({ type: "log", message: `     ${cls.offeringsSummary}` });
+                }
                 await supabaseAdmin
                   .from("supplier_offerings")
                   .update({
                     scrape_status: "skipped",
-                    internal_notes: `Auto-skipped: ${mfr.companyType}`,
-                    ...(mfr.companyType === "non_food" ? { supplier_type: "non_food" } : {}),
+                    internal_notes: `Profiled: ${cls.sector}/${cls.businessRole ?? "unknown"} — ${cls.reason}`,
+                    ...(cls.sector !== "food_beverage" ? { supplier_type: "non_food" } : {}),
                   })
                   .eq("id", supplier.id);
-                skippedList.push({ name: supplier.company_name, type: mfr.companyType });
+                skippedList.push({
+                  name: supplier.company_name,
+                  type: `${cls.sector}/${cls.businessRole ?? "unknown"}`,
+                });
                 await logEvent(
                   "skipped",
                   supplier.id,
-                  `Not a manufacturer (${mfr.companyType}): ${mfr.reason}`
+                  `Profiled (${describeClassification(cls)}): ${cls.reason}`,
+                  0,
+                  undefined,
+                  { sector: cls.sector, business_role: cls.businessRole, category: cls.category }
                 );
                 return;
               }
 
-              if (mfr.companyType === "mixed") {
-                send({ type: "warning", message: `  ⚠ Mixed company — ${mfr.reason}` });
+              if (cls.failed) {
+                send({ type: "warning", message: `  ⚠ Classification unavailable — continuing as food producer` });
+              } else if (cls.businessRole && cls.businessRole !== "manufacturer") {
+                send({ type: "warning", message: `  ⚠ Mixed company (${cls.businessRole}) — ${cls.reason}` });
               } else {
-                send({ type: "log", message: `  ✓ Confirmed manufacturer` });
+                send({ type: "log", message: `  ✓ Food producer — ${describeClassification(cls)}` });
               }
 
               // ── EXTRACT PRODUCTS & PROFILE IN PARALLEL ───────────────────

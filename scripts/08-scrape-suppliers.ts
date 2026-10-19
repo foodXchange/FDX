@@ -18,8 +18,13 @@ import { scrapeSupplier } from "../lib/scraper/firecrawlPipeline";
 import type { PageProduct } from "../lib/scraper/firecrawlPipeline";
 import {
   extractSupplierProfile,
-  detectManufacturerType,
 } from "../lib/scraper/extract";
+import {
+  classifyCompany,
+  describeClassification,
+  saveClassification,
+  saveCrawlSnapshot,
+} from "../lib/scraper/classify";
 import { extractSupplierContacts, ExtractedContact } from "../lib/scraper/extractContacts";
 import type { ExtractedProduct } from "../lib/scraper/extract";
 
@@ -413,6 +418,61 @@ async function main(): Promise<void> {
   console.log(`  Suppliers to process: ${list.length}`);
   console.log(SEP2);
 
+  async function classifyAndRoute(
+    supplier: SupplierRow,
+    content: string,
+    crawlUrl: string,
+    source: "firecrawl" | "perplexity"
+  ): Promise<boolean> {
+    console.log(`\n  → Classifying company (multi-sector & role)...`);
+    await saveCrawlSnapshot(supabase, supplier.id, content, crawlUrl, source);
+    const cls = await classifyCompany(content, supplier.company_name);
+    await saveClassification(supabase, supplier.id, cls, "crawl");
+
+    if (cls.route === "invalid") {
+      console.log(`  ✗ INVALID SITE — ${cls.reason}`);
+      await supabase
+        .from("supplier_offerings")
+        .update({
+          scrape_status: "skipped",
+          internal_notes: `Invalid site: ${cls.reason}`,
+        })
+        .eq("id", supplier.id);
+      skipped.push({ name: supplier.company_name, reason: cls.reason, type: "invalid" });
+      return false;
+    }
+
+    if (cls.route === "profiled") {
+      console.log(`  📇 PROFILED (not a food producer) — ${describeClassification(cls)}`);
+      if (cls.offeringsSummary) {
+        console.log(`     Offerings: ${cls.offeringsSummary}`);
+      }
+      await supabase
+        .from("supplier_offerings")
+        .update({
+          scrape_status: "skipped",
+          internal_notes: `Profiled: ${cls.sector}/${cls.businessRole ?? "unknown"} — ${cls.reason}`,
+          ...(cls.sector !== "food_beverage" ? { supplier_type: "non_food" } : {}),
+        })
+        .eq("id", supplier.id);
+      skipped.push({
+        name: supplier.company_name,
+        reason: cls.reason,
+        type: `${cls.sector}/${cls.businessRole ?? "unknown"}`,
+      });
+      return false;
+    }
+
+    if (cls.failed) {
+      console.log(`  ⚠ Classification unavailable — proceeding with food product extraction`);
+    } else if (cls.businessRole && cls.businessRole !== "manufacturer") {
+      console.log(`  ⚠ Mixed company (${cls.businessRole}) — ${cls.reason}`);
+    } else {
+      console.log(`  ✓ Confirmed food producer: ${describeClassification(cls)}`);
+    }
+    return true;
+  }
+
   for (let i = 0; i < list.length; i++) {
     const supplier = list[i];
     const supplierStart = Date.now();
@@ -455,14 +515,13 @@ async function main(): Promise<void> {
             const pageCount = content.split("---PAGE BREAK---").length;
             console.log(`  ✓ ${isPerplexity ? "Perplexity research" : `${pageCount} page(s)`} (${content.length.toLocaleString()} chars)`);
 
-            console.log(`\n  → Checking if manufacturer...`);
-            const mfr0 = await detectManufacturerType(content, supplier.company_name);
-            if (!mfr0.isManufacturer && !["manufacturer", "mixed", "unknown"].includes(mfr0.companyType) && mfr0.confidence >= 0.4) {
-              console.log(`  ✗ SKIPPED — Not a manufacturer: ${mfr0.reason}`);
-              await supabase.from("supplier_offerings").update({ scrape_status: "skipped", internal_notes: `Auto-skipped: ${mfr0.companyType} — ${mfr0.reason}` }).eq("id", supplier.id);
-              skipped.push({ name: supplier.company_name, reason: mfr0.reason, type: mfr0.companyType });
-              return;
-            }
+            const goOn0 = await classifyAndRoute(
+              supplier,
+              content,
+              crawlUrl,
+              isPerplexity ? "perplexity" : "firecrawl"
+            );
+            if (!goOn0) return;
 
             console.log(`\n  → Extracting products (legacy path)...`);
             const { extractProducts: extractP } = await import("../lib/scraper/extract");
@@ -504,38 +563,9 @@ async function main(): Promise<void> {
             return;
           }
 
-          // ── Manufacturer detection (homepage only — fast check) ────────────
-          console.log(`\n  → Checking if manufacturer...`);
-          const mfr = await detectManufacturerType(result.homepageMarkdown, supplier.company_name);
-
-          const shouldSkip =
-            !mfr.isManufacturer &&
-            !["manufacturer", "mixed", "unknown"].includes(mfr.companyType) &&
-            mfr.confidence >= 0.4;
-
-          if (shouldSkip) {
-            console.log(`  ✗ SKIPPED — Not a manufacturer: ${mfr.reason}`);
-            console.log(`    Type detected: ${mfr.companyType}`);
-            await supabase
-              .from("supplier_offerings")
-              .update({
-                scrape_status: "skipped",
-                internal_notes: `Auto-skipped: ${mfr.companyType} — ${mfr.reason}`,
-              })
-              .eq("id", supplier.id);
-            skipped.push({ name: supplier.company_name, reason: mfr.reason, type: mfr.companyType });
-            return;
-          }
-
-          if (mfr.companyType === "mixed") {
-            console.log(`  ⚠ Mixed company — extracting manufacturer products only`);
-            console.log(`    ${mfr.reason}`);
-          } else if (mfr.confidence < 0.4) {
-            console.log(`  ⚠ Cannot determine type (low confidence) — proceeding`);
-            console.log(`    ${mfr.reason}`);
-          } else {
-            console.log(`  ✓ Confirmed manufacturer: ${mfr.reason}`);
-          }
+          // ── Classification (homepage only — fast check) ────────────────────
+          const goOn = await classifyAndRoute(supplier, result.homepageMarkdown, crawlUrl, "firecrawl");
+          if (!goOn) return;
 
           // ── Products already extracted by pipeline ────────────────────────
           const products = result.products;
@@ -586,16 +616,12 @@ async function main(): Promise<void> {
           const contactInserted = await insertSupplierContacts(supplier.id, extractedContacts);
           console.log(`  ✓ Found ${extractedContacts.length} contact(s); inserted ${contactInserted}`);
 
-          const internalNote =
-            mfr.companyType === "mixed" ? `Mixed company: ${mfr.reason}` : undefined;
-
           await supabase
             .from("supplier_offerings")
             .update({
               scrape_status: "scraped",
               last_scraped_at: new Date().toISOString(),
               products_found: inserted,
-              ...(internalNote ? { internal_notes: internalNote } : {}),
             })
             .eq("id", supplier.id);
 
