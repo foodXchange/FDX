@@ -14,6 +14,7 @@ import ProductComparisonMatrix, { type ComparisonSupplier } from "@/components/a
 import SampleDispatchHub from "@/components/admin/SampleDispatchHub";
 import QaRegulatoryGateway from "@/components/admin/QaRegulatoryGateway";
 import PackagingArtworkStaging from "@/components/admin/PackagingArtworkStaging";
+import Stage7CommercialOrderHub from "@/components/admin/Stage7CommercialOrderHub";
 import type {
   CommercialOrderLifecycle,
   BuyerBriefApproval,
@@ -248,6 +249,15 @@ export default async function RequestDetailPage({ params }: PageProps) {
           buyerCompany={buyerCompany}
           productName={cleanedName || productName || "Product"}
           initialArtwork={packagingArtwork}
+        />
+
+        {/* ── Stage 7: Commercial Purchase Order & Ocean Container Logistics Tracker ── */}
+        <Stage7CommercialOrderHub
+          requestId={id}
+          buyerCompany={buyerCompany}
+          productName={cleanedName || productName || "Product"}
+          initialWorkflow={orderWorkflow}
+          matchedSuppliers={matchedSuppliersList}
         />
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
