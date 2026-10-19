@@ -5,6 +5,7 @@ import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { verifySession, COOKIE_NAME } from "@/lib/adminAuth";
 import { sendSupplierEmailSmart, getMatchRefTag } from "@/lib/email/gmailEngine";
 import { logEvent } from "@/lib/events/logEvent";
+import { createNotification } from "@/lib/notifications/createNotification";
 
 const SendOpportunityEmailSchema = z.object({
   matchId: z.string().uuid(),
@@ -102,6 +103,34 @@ export async function POST(req: NextRequest) {
       message_id: sendResult.messageId,
       subject: sendResult.subjectUsed || subject,
     });
+
+    // Create notification in unified Notification Hub
+    const isBuyer = recipientType === "buyer";
+    const refTag = getMatchRefTag(matchId);
+    await createNotification(
+      isBuyer ? "match_sent" : "follow_up",
+      isBuyer
+        ? `Retailer Pitch: ${targetSku || "Commercial Opportunity"}`
+        : `Factory RFQ: ${factoryName || "Supplier Parity Inquiry"}`,
+      `${isBuyer ? "Dispatched pitch proposal" : "Dispatched factory specs inquiry"} to ${to} (${sendResult.subjectUsed || subject})`,
+      {
+        match_id: matchId,
+        target_sku: targetSku,
+        recipient_type: recipientType,
+        to,
+        via: sendResult.via,
+        message_id: sendResult.messageId,
+        subject: sendResult.subjectUsed || subject,
+        body_text: bodyText,
+        factory_name: factoryName,
+        factory_country: factoryCountry,
+        retail_price: retailPrice,
+        margin_gain: marginGain,
+        ref_tag: refTag,
+        action_url: `/admin/opportunities?search=${encodeURIComponent(targetSku || "")}`,
+        priority: "normal",
+      }
+    );
 
     return NextResponse.json({
       ok: true,

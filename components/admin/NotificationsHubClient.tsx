@@ -3,13 +3,21 @@
 import { useCallback, useState } from "react";
 import Link from "next/link";
 import type { AdminNotification, NotificationType } from "@/lib/notifications/types";
-import { buildNotificationGmailLink, createGmailComposeUrl } from "@/lib/notifications/gmailHelper";
+import {
+  buildNotificationGmailLink,
+  buildGmailThreadUrl,
+  getMatchRefTag,
+} from "@/lib/notifications/gmailHelper";
 
 type Props = {
   initialNotifications: AdminNotification[];
   initialOperationalReminders: AdminNotification[];
   initialTotalCount: number;
   initialUnreadCount: number;
+  gmailConfig?: {
+    user: string | null;
+    senderName?: string | null;
+  } | null;
 };
 
 const TYPE_CONFIG: Record<
@@ -43,11 +51,23 @@ function formatDate(iso: string): string {
   }
 }
 
+function isHebrewText(text: string): boolean {
+  return /[\u0590-\u05FF]/.test(text);
+}
+
+function isEmailNotification(n: AdminNotification): boolean {
+  if (n.type === "match_reply" || n.type === "match_sent") return true;
+  if (n.type === "follow_up" && Boolean(n.data?.recipient_type || n.data?.to)) return true;
+  if (Boolean(n.data?.body_text || n.data?.via || n.data?.from_email)) return true;
+  return false;
+}
+
 export default function NotificationsHubClient({
   initialNotifications,
   initialOperationalReminders,
   initialTotalCount,
   initialUnreadCount,
+  gmailConfig,
 }: Props) {
   const [notifications, setNotifications] = useState(initialNotifications);
   const [operationalReminders] = useState(initialOperationalReminders);
@@ -56,12 +76,18 @@ export default function NotificationsHubClient({
 
   // Filter States
   const [searchQuery, setSearchQuery] = useState("");
-  const [typeFilter, setTypeFilter] = useState<string>("all");
+  const [activeTab, setActiveTab] = useState<"all" | "outreach" | "replies" | "leads" | "reminders">("all");
   const [statusFilter, setStatusFilter] = useState<"all" | "unread" | "read">("all");
   const [isLoading, setIsLoading] = useState(false);
 
-  // Inspector Modal
+  // Gmail IMAP Sync State
+  const [isSyncingGmail, setIsSyncingGmail] = useState(false);
+  const [syncBanner, setSyncBanner] = useState<{ message: string; type: "success" | "error" } | null>(null);
+
+  // Inspector Modals
   const [inspectItem, setInspectItem] = useState<AdminNotification | null>(null);
+  const [inspectedEmail, setInspectedEmail] = useState<AdminNotification | null>(null);
+  const [copiedEmailText, setCopiedEmailText] = useState(false);
 
   // New Reminder Modal
   const [showReminderModal, setShowReminderModal] = useState(false);
@@ -78,7 +104,7 @@ export default function NotificationsHubClient({
       const res = await fetch("/api/admin/notifications/list", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ limit: 50, include_operational: true }),
+        body: JSON.stringify({ limit: 80, include_operational: true }),
       });
       if (!res.ok) return;
       const json = await res.json();
@@ -88,6 +114,40 @@ export default function NotificationsHubClient({
       setIsLoading(false);
     }
   }, []);
+
+  async function handleSyncGmail() {
+    setIsSyncingGmail(true);
+    setSyncBanner(null);
+    try {
+      const res = await fetch("/api/admin/notifications/sync-gmail", {
+        method: "POST",
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) {
+        setSyncBanner({
+          type: "error",
+          message: data.error || "Gmail sync failed. Please check credentials or IMAP settings.",
+        });
+        return;
+      }
+
+      setSyncBanner({
+        type: "success",
+        message:
+          data.syncedCount > 0
+            ? `✓ Synced with Gmail! Processed ${data.syncedCount} new incoming supplier/buyer replies.`
+            : `✓ Gmail sync complete. Inbox is up to date (no pending unmatched replies found).`,
+      });
+      await refreshList();
+    } catch (err: any) {
+      setSyncBanner({
+        type: "error",
+        message: err?.message || "Failed to contact Gmail sync service.",
+      });
+    } finally {
+      setIsSyncingGmail(false);
+    }
+  }
 
   async function markRead(id: string) {
     setNotifications((prev) =>
@@ -164,10 +224,40 @@ export default function NotificationsHubClient({
   // Combined list for display
   const allItems = [...operationalReminders, ...notifications];
 
+  // Category counts
+  const outreachCount = allItems.filter(
+    (n) => n.type === "match_sent" || (n.type === "follow_up" && Boolean(n.data?.recipient_type))
+  ).length;
+
+  const repliesCount = allItems.filter(
+    (n) => n.type === "match_reply" || n.type === "response" || n.type === "match_message"
+  ).length;
+
+  const leadsCount = allItems.filter((n) => n.type === "lead" || n.type === "new_request").length;
+  const remindersCount = allItems.filter(
+    (n) => n.type === "reminder" || n.is_operational || (n.type === "follow_up" && !n.data?.recipient_type)
+  ).length;
+
   const filteredItems = allItems.filter((n) => {
+    // Status filter
     if (statusFilter === "unread" && n.read) return false;
     if (statusFilter === "read" && !n.read) return false;
-    if (typeFilter !== "all" && n.type !== typeFilter) return false;
+
+    // Tab filter
+    if (activeTab === "outreach") {
+      const isOutreach = n.type === "match_sent" || (n.type === "follow_up" && Boolean(n.data?.recipient_type));
+      if (!isOutreach) return false;
+    } else if (activeTab === "replies") {
+      const isReply = n.type === "match_reply" || n.type === "response" || n.type === "match_message";
+      if (!isReply) return false;
+    } else if (activeTab === "leads") {
+      if (n.type !== "lead" && n.type !== "new_request") return false;
+    } else if (activeTab === "reminders") {
+      const isRem = n.type === "reminder" || n.is_operational || (n.type === "follow_up" && !n.data?.recipient_type);
+      if (!isRem) return false;
+    }
+
+    // Search query
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
       const matchTitle = n.title.toLowerCase().includes(q);
@@ -178,37 +268,68 @@ export default function NotificationsHubClient({
     return true;
   });
 
-  const leadsCount = allItems.filter((n) => n.type === "lead").length;
-  const remindersCount = allItems.filter((n) => n.type === "reminder" || n.type === "follow_up" || n.is_operational).length;
-
   return (
     <div className="p-4 sm:p-6 max-w-7xl mx-auto space-y-6">
       {/* Top Banner / Breadcrumb */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2 text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">
             <Link href="/admin" className="hover:text-slate-600 transition-colors">Admin</Link>
             <span>/</span>
-            <span className="text-orange-600">Notification & Reminder Hub</span>
+            <span className="text-orange-600">Notification &amp; Outreach Hub</span>
           </div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-            Notification & Operational Reminders
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight flex items-center gap-2.5">
+            <span>🔔</span>
+            <span>Notifications &amp; Outreach Center</span>
           </h1>
           <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
-            Real-time feed of supplier updates, inbound buyer leads, and automated deal follow-up actions.
+            Centralized tracking for retailer pitches, factory RFQ inquiries, incoming Gmail replies, and operational follow-ups.
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        {/* Action Controls */}
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Gmail Status Pill */}
+          {gmailConfig?.user ? (
+            <div
+              className="px-3 py-1.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-semibold flex items-center gap-1.5 shadow-2xs"
+              title="Gmail SMTP connected for automated and 1-click outreach"
+            >
+              <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+              <span>Gmail SMTP: <strong className="font-bold">{gmailConfig.user}</strong></span>
+            </div>
+          ) : (
+            <div
+              className="px-3 py-1.5 rounded-xl bg-slate-100 border border-slate-200 text-slate-600 text-xs font-medium flex items-center gap-1.5 shadow-2xs"
+              title="Using Resend API fallback for outbound email dispatch"
+            >
+              <span>✉️ Resend Active (Gmail SMTP not linked)</span>
+            </div>
+          )}
+
+          {/* 1-Click Gmail Sync */}
+          <button
+            type="button"
+            onClick={handleSyncGmail}
+            disabled={isSyncingGmail}
+            className="px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-sm transition-colors flex items-center gap-1.5 disabled:opacity-50"
+            title="Scan Gmail IMAP for recent partner & factory replies"
+          >
+            <span className={isSyncingGmail ? "animate-spin" : ""}>🔄</span>
+            <span>{isSyncingGmail ? "Syncing Inbox..." : "Sync Gmail Inbox"}</span>
+          </button>
+
+          {/* Schedule Reminder Button */}
           <button
             type="button"
             onClick={() => setShowReminderModal(true)}
             className="px-3.5 py-2 rounded-xl bg-orange-600 hover:bg-orange-700 text-white text-xs font-bold shadow-sm transition-colors flex items-center gap-1.5"
           >
             <span>⏰</span>
-            <span>+ Schedule Reminder</span>
+            <span>+ Reminder</span>
           </button>
 
+          {/* Refresh List */}
           <button
             type="button"
             onClick={refreshList}
@@ -221,42 +342,109 @@ export default function NotificationsHubClient({
         </div>
       </div>
 
+      {/* Sync Status Feedback Toast */}
+      {syncBanner && (
+        <div
+          className={`px-4 py-3 rounded-2xl border text-xs font-medium flex items-center justify-between transition-all ${
+            syncBanner.type === "success"
+              ? "bg-emerald-50 border-emerald-200 text-emerald-900"
+              : "bg-rose-50 border-rose-200 text-rose-900"
+          }`}
+        >
+          <div className="flex items-center gap-2">
+            <span>{syncBanner.type === "success" ? "✓" : "⚠"}</span>
+            <span>{syncBanner.message}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setSyncBanner(null)}
+            className="text-xs font-bold opacity-60 hover:opacity-100"
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
       {/* KPI Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-        <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-2xs">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
+        <div
+          onClick={() => setActiveTab("all")}
+          className={`p-4 rounded-2xl border cursor-pointer transition-all ${
+            activeTab === "all"
+              ? "bg-white border-orange-500 shadow-md ring-2 ring-orange-100"
+              : "bg-white border-slate-200 hover:border-slate-300 shadow-2xs"
+          }`}
+        >
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Unread Alerts</span>
-            <span className="p-2 rounded-xl bg-orange-50 text-orange-600 text-base">🔔</span>
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Unread Alerts</span>
+            <span className="p-1.5 rounded-lg bg-orange-50 text-orange-600 text-sm">🔔</span>
           </div>
           <div className="mt-2 text-2xl font-black text-slate-900">{unreadCount}</div>
-          <p className="text-[11px] text-slate-400 mt-0.5">Requires admin attention</p>
+          <p className="text-[10px] text-slate-400 mt-0.5">Total unread feed</p>
         </div>
 
-        <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-2xs">
+        <div
+          onClick={() => setActiveTab("outreach")}
+          className={`p-4 rounded-2xl border cursor-pointer transition-all ${
+            activeTab === "outreach"
+              ? "bg-white border-indigo-500 shadow-md ring-2 ring-indigo-100"
+              : "bg-white border-slate-200 hover:border-slate-300 shadow-2xs"
+          }`}
+        >
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Follow-Up Reminders</span>
-            <span className="p-2 rounded-xl bg-rose-50 text-rose-600 text-base">⏰</span>
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Pitches &amp; RFQs</span>
+            <span className="p-1.5 rounded-lg bg-indigo-50 text-indigo-600 text-sm">✉️</span>
           </div>
-          <div className="mt-2 text-2xl font-black text-rose-600">{remindersCount}</div>
-          <p className="text-[11px] text-slate-400 mt-0.5">Supplier & deal email checkpoints</p>
+          <div className="mt-2 text-2xl font-black text-indigo-600">{outreachCount}</div>
+          <p className="text-[10px] text-slate-400 mt-0.5">Dispatched emails</p>
         </div>
 
-        <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-2xs">
+        <div
+          onClick={() => setActiveTab("replies")}
+          className={`p-4 rounded-2xl border cursor-pointer transition-all ${
+            activeTab === "replies"
+              ? "bg-white border-cyan-500 shadow-md ring-2 ring-cyan-100"
+              : "bg-white border-slate-200 hover:border-slate-300 shadow-2xs"
+          }`}
+        >
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Inbound Leads</span>
-            <span className="p-2 rounded-xl bg-amber-50 text-amber-600 text-base">⚡</span>
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Gmail Replies</span>
+            <span className="p-1.5 rounded-lg bg-cyan-50 text-cyan-600 text-sm">💬</span>
+          </div>
+          <div className="mt-2 text-2xl font-black text-cyan-600">{repliesCount}</div>
+          <p className="text-[10px] text-slate-400 mt-0.5">Partner responses</p>
+        </div>
+
+        <div
+          onClick={() => setActiveTab("leads")}
+          className={`p-4 rounded-2xl border cursor-pointer transition-all ${
+            activeTab === "leads"
+              ? "bg-white border-amber-500 shadow-md ring-2 ring-amber-100"
+              : "bg-white border-slate-200 hover:border-slate-300 shadow-2xs"
+          }`}
+        >
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Inbound Leads</span>
+            <span className="p-1.5 rounded-lg bg-amber-50 text-amber-600 text-sm">⚡</span>
           </div>
           <div className="mt-2 text-2xl font-black text-amber-600">{leadsCount}</div>
-          <p className="text-[11px] text-slate-400 mt-0.5">Verified buyers & requests</p>
+          <p className="text-[10px] text-slate-400 mt-0.5">Requests &amp; buyers</p>
         </div>
 
-        <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-2xs">
+        <div
+          onClick={() => setActiveTab("reminders")}
+          className={`p-4 rounded-2xl border cursor-pointer transition-all ${
+            activeTab === "reminders"
+              ? "bg-white border-rose-500 shadow-md ring-2 ring-rose-100"
+              : "bg-white border-slate-200 hover:border-slate-300 shadow-2xs"
+          }`}
+        >
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Total Feed Items</span>
-            <span className="p-2 rounded-xl bg-slate-100 text-slate-700 text-base">📋</span>
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Reminders</span>
+            <span className="p-1.5 rounded-lg bg-rose-50 text-rose-600 text-sm">⏰</span>
           </div>
-          <div className="mt-2 text-2xl font-black text-slate-900">{allItems.length}</div>
-          <p className="text-[11px] text-slate-400 mt-0.5">Active logs & operational alerts</p>
+          <div className="mt-2 text-2xl font-black text-rose-600">{remindersCount}</div>
+          <p className="text-[10px] text-slate-400 mt-0.5">Pending follow-ups</p>
         </div>
       </div>
 
@@ -271,7 +459,7 @@ export default function NotificationsHubClient({
               </h2>
             </div>
             <span className="text-xs font-bold text-orange-700">
-              {operationalReminders.length} Deals & Leads Ready
+              {operationalReminders.length} Deals &amp; Leads Ready
             </span>
           </div>
 
@@ -322,37 +510,47 @@ export default function NotificationsHubClient({
         </div>
       )}
 
-      {/* Filters & Control Bar */}
+      {/* Segmented Filter Pills & Control Bar */}
       <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-2xs space-y-3">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+        {/* Category Tabs */}
+        <div className="flex flex-wrap items-center gap-1.5 border-b border-slate-100 pb-3">
+          {[
+            { id: "all", label: `All Items (${allItems.length})` },
+            { id: "outreach", label: `✉️ Outreach & RFQs (${outreachCount})` },
+            { id: "replies", label: `💬 Gmail Replies (${repliesCount})` },
+            { id: "leads", label: `⚡ Inbound Leads (${leadsCount})` },
+            { id: "reminders", label: `⏰ Reminders (${remindersCount})` },
+          ].map((tab) => (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => setActiveTab(tab.id as typeof activeTab)}
+              className={`px-3 py-1.5 text-xs font-bold rounded-xl transition-all ${
+                activeTab === tab.id
+                  ? "bg-slate-900 text-white shadow-xs"
+                  : "bg-slate-50 text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Search & Read Filter */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 pt-1">
           {/* Search bar */}
           <div className="relative flex-1 max-w-md">
             <span className="absolute left-3.5 top-2.5 text-slate-400 text-sm">🔍</span>
             <input
               type="text"
-              placeholder="Search notifications by title, product, company, or email..."
+              placeholder="Search by SKU, subject, partner, or email address..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full pl-10 pr-4 py-2 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
             />
           </div>
 
-          {/* Type Select & Status Filter */}
-          <div className="flex flex-wrap items-center gap-2">
-            <select
-              value={typeFilter}
-              onChange={(e) => setTypeFilter(e.target.value)}
-              className="px-3 py-2 text-xs font-medium rounded-xl border border-slate-200 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-orange-500"
-            >
-              <option value="all">All Types</option>
-              <option value="reminder">Reminders (⏰)</option>
-              <option value="lead">Inbound Leads (⚡)</option>
-              <option value="match_sent">Match Deals (🎯)</option>
-              <option value="new_request">Sourcing Requests (📥)</option>
-              <option value="supplier_signup">Supplier Signups (🏭)</option>
-              <option value="system">System Alerts (⚙️)</option>
-            </select>
-
+          <div className="flex items-center gap-2">
             <div className="flex items-center rounded-xl border border-slate-200 p-0.5 bg-slate-50 text-xs">
               {(["all", "unread", "read"] as const).map((s) => (
                 <button
@@ -408,14 +606,14 @@ export default function NotificationsHubClient({
         )}
       </div>
 
-      {/* Main Notification List */}
+      {/* Main Notification & Email List */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-hidden">
         {filteredItems.length === 0 ? (
           <div className="p-12 text-center">
             <span className="text-4xl block mb-2">📬</span>
-            <p className="text-base font-bold text-slate-800">No notifications found</p>
+            <p className="text-base font-bold text-slate-800">No feed items found</p>
             <p className="text-xs text-slate-400 mt-1">
-              Try adjusting your search query or filter criteria.
+              Try adjusting your search query or switching category tabs.
             </p>
           </div>
         ) : (
@@ -423,18 +621,36 @@ export default function NotificationsHubClient({
             {filteredItems.map((n) => {
               const meta = TYPE_CONFIG[n.type] || TYPE_CONFIG.system;
               const isSelected = selectedIds.has(n.id);
+              const isEmail = isEmailNotification(n);
               const gmailUrl = buildNotificationGmailLink(n);
-              const hasEmail = Boolean(
-                (n.data?.contact_email as string) ||
-                (n.data?.email as string) ||
-                (n.message?.includes("@"))
-              );
+
+              // Thread deep link for existing email
+              const threadUrl = buildGmailThreadUrl({
+                matchId: (n.data?.match_id as string) || undefined,
+                supplierEmail:
+                  (n.data?.to as string) ||
+                  (n.data?.from_email as string) ||
+                  (n.data?.contact_email as string) ||
+                  undefined,
+                messageId: (n.data?.message_id as string) || undefined,
+              });
+
+              const refTag =
+                (n.data?.ref_tag as string) ||
+                (n.data?.match_id ? getMatchRefTag(String(n.data.match_id)) : null);
+
+              const recipientType = n.data?.recipient_type as string | undefined;
+              const via = n.data?.via as string | undefined;
+              const targetEmail =
+                (n.data?.to as string) ||
+                (n.data?.from_email as string) ||
+                (n.data?.contact_email as string);
 
               return (
                 <div
                   key={n.id}
                   className={`p-4 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-4 ${
-                    !n.read ? "bg-orange-50/25" : "hover:bg-slate-50/70"
+                    !n.read ? "bg-orange-50/20" : "hover:bg-slate-50/70"
                   }`}
                 >
                   <div className="flex items-start gap-3 flex-1 min-w-0">
@@ -464,12 +680,34 @@ export default function NotificationsHubClient({
 
                     {/* Notification Content */}
                     <div className="flex-1 min-w-0">
-                      <div className="flex flex-wrap items-center gap-2 mb-1">
-                        <span
-                          className={`px-2 py-0.5 text-[10px] font-bold rounded-full border ${meta.badgeClass}`}
-                        >
-                          {meta.label}
+                      <div className="flex flex-wrap items-center gap-1.5 mb-1">
+                        {/* Type Label */}
+                        <span className={`px-2 py-0.5 text-[10px] font-bold rounded-full border ${meta.badgeClass}`}>
+                          {recipientType === "buyer"
+                            ? "🎯 Retailer Pitch"
+                            : recipientType === "supplier"
+                            ? "🏭 Factory RFQ"
+                            : meta.label}
                         </span>
+
+                        {/* Delivery route pill */}
+                        {via === "gmail" && (
+                          <span className="px-1.5 py-0.5 text-[10px] font-bold rounded bg-emerald-50 text-emerald-700 border border-emerald-200">
+                            🟢 Gmail SMTP
+                          </span>
+                        )}
+                        {via === "resend" && (
+                          <span className="px-1.5 py-0.5 text-[10px] font-bold rounded bg-slate-100 text-slate-700 border border-slate-200">
+                            ✉️ Resend
+                          </span>
+                        )}
+
+                        {/* Ref tag */}
+                        {refTag && (
+                          <span className="px-1.5 py-0.5 text-[10px] font-mono font-bold rounded bg-slate-100 text-slate-700 border border-slate-200">
+                            [{refTag}]
+                          </span>
+                        )}
 
                         {n.priority === "urgent" && (
                           <span className="px-1.5 py-0.5 text-[10px] font-extrabold uppercase rounded bg-rose-600 text-white">
@@ -496,44 +734,68 @@ export default function NotificationsHubClient({
                         </p>
                       )}
 
-                      {/* Metadata tags */}
-                      {n.data && (
-                        <div className="flex flex-wrap items-center gap-2 mt-2">
-                          {Boolean(n.data.company_name) && (
-                            <span className="text-[11px] px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 font-medium">
-                              🏢 {String(n.data.company_name)}
-                            </span>
-                          )}
-                          {Boolean(n.data.contact_email) && (
-                            <span className="text-[11px] px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 font-medium">
-                              ✉️ {String(n.data.contact_email)}
-                            </span>
-                          )}
-                          {Boolean(n.data.due_date) && (
-                            <span className="text-[11px] px-2 py-0.5 rounded-md bg-rose-50 text-rose-700 border border-rose-200 font-bold">
-                              ⏰ Due: {formatDate(String(n.data.due_date))}
-                            </span>
-                          )}
-                        </div>
-                      )}
+                      {/* Detailed Meta Tags */}
+                      <div className="flex flex-wrap items-center gap-2 mt-2">
+                        {Boolean(targetEmail) && (
+                          <span className="text-[11px] px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 font-medium flex items-center gap-1">
+                            <span>{recipientType ? "To:" : "Contact:"}</span>
+                            <strong>{String(targetEmail)}</strong>
+                          </span>
+                        )}
+
+                        {Boolean(n.data?.target_sku) && (
+                          <span className="text-[11px] px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-700 border border-indigo-100 font-bold">
+                            🛒 {String(n.data?.target_sku)}
+                          </span>
+                        )}
+
+                        {Boolean(n.data?.margin_gain) && (
+                          <span className="text-[11px] px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-100 font-bold">
+                            📈 {String(n.data?.margin_gain)}
+                          </span>
+                        )}
+
+                        {Boolean(n.data?.factory_name) && (
+                          <span className="text-[11px] px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 font-medium">
+                            🏭 {String(n.data?.factory_name)}
+                          </span>
+                        )}
+
+                        {Boolean(n.data?.due_date) && (
+                          <span className="text-[11px] px-2 py-0.5 rounded-md bg-rose-50 text-rose-700 border border-rose-200 font-bold">
+                            ⏰ Due: {formatDate(String(n.data?.due_date))}
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
 
-                  {/* Actions Right Side */}
+                  {/* Right Actions */}
                   <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
-                    {/* 1-Click Gmail Follow-up */}
-                    {hasEmail && (
-                      <a
-                        href={gmailUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="px-3 py-1.5 text-xs font-bold rounded-xl border border-slate-200 bg-white hover:bg-orange-50 hover:text-orange-600 hover:border-orange-300 text-slate-700 shadow-2xs transition-colors flex items-center gap-1.5"
-                        title="Open Gmail with pre-filled follow-up email"
+                    {/* View Full Formatted Email Modal */}
+                    {isEmail && (
+                      <button
+                        type="button"
+                        onClick={() => setInspectedEmail(n)}
+                        className="px-2.5 py-1.5 text-xs font-bold rounded-xl border border-indigo-200 bg-indigo-50/70 text-indigo-700 hover:bg-indigo-100 transition-colors flex items-center gap-1 shadow-2xs"
+                        title="Read full formatted message & outreach details"
                       >
                         <span>✉️</span>
-                        <span>Gmail Follow-up</span>
-                      </a>
+                        <span>Read Email</span>
+                      </button>
                     )}
+
+                    {/* Open in Gmail Thread */}
+                    <a
+                      href={threadUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="px-2.5 py-1.5 text-xs font-semibold rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 shadow-2xs transition-colors flex items-center gap-1"
+                      title="Jump directly to this email/thread in Gmail"
+                    >
+                      <span>Gmail</span>
+                      <span>↗</span>
+                    </a>
 
                     {/* Direct Review Link */}
                     {n.action_url && (
@@ -546,16 +808,6 @@ export default function NotificationsHubClient({
                       </Link>
                     )}
 
-                    {/* Technical payload inspector */}
-                    <button
-                      type="button"
-                      onClick={() => setInspectItem(n)}
-                      className="p-1.5 rounded-lg border border-slate-200 text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
-                      title="Inspect metadata"
-                    >
-                      🔍
-                    </button>
-
                     {/* Mark read toggle */}
                     {!n.is_operational && !n.read && (
                       <button
@@ -567,6 +819,16 @@ export default function NotificationsHubClient({
                         ✓
                       </button>
                     )}
+
+                    {/* Technical payload inspector */}
+                    <button
+                      type="button"
+                      onClick={() => setInspectItem(n)}
+                      className="p-1.5 rounded-lg border border-slate-200 text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+                      title="Inspect metadata JSON"
+                    >
+                      🔍
+                    </button>
 
                     {/* Delete button */}
                     {!n.is_operational && (
@@ -587,7 +849,196 @@ export default function NotificationsHubClient({
         )}
       </div>
 
-      {/* Technical Inspector Modal */}
+      {/* FULL EMAIL INSPECTOR MODAL */}
+      {inspectedEmail && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-3xl border border-slate-200 max-w-2xl w-full p-6 shadow-2xl space-y-4 max-h-[90vh] flex flex-col">
+            {/* Modal Header */}
+            <div className="flex items-start justify-between border-b border-slate-100 pb-3 shrink-0">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <span className="px-2 py-0.5 text-[11px] font-bold rounded-full bg-indigo-100 text-indigo-800 border border-indigo-200">
+                    {inspectedEmail.data?.recipient_type === "buyer"
+                      ? "Retailer Pitch Proposal"
+                      : inspectedEmail.data?.recipient_type === "supplier"
+                      ? "Factory RFQ Dispatch"
+                      : inspectedEmail.type === "match_reply"
+                      ? "Partner Response"
+                      : "Email Outreach"}
+                  </span>
+
+                  {Boolean(inspectedEmail.data?.via) && (
+                    <span className="px-2 py-0.5 text-[11px] font-semibold rounded-md bg-emerald-50 text-emerald-800 border border-emerald-200">
+                      Via: {String(inspectedEmail.data?.via).toUpperCase()}
+                    </span>
+                  )}
+
+                  {Boolean(inspectedEmail.data?.ref_tag) && (
+                    <span className="px-2 py-0.5 text-[11px] font-mono font-bold rounded-md bg-slate-100 text-slate-700 border border-slate-200">
+                      [{String(inspectedEmail.data?.ref_tag)}]
+                    </span>
+                  )}
+                </div>
+
+                <h3 className="text-base sm:text-lg font-bold text-slate-900">
+                  {String(inspectedEmail.data?.subject || inspectedEmail.title)}
+                </h3>
+
+                <p className="text-xs text-slate-500">
+                  {inspectedEmail.data?.to ? (
+                    <>Recipient: <strong className="text-slate-800">{String(inspectedEmail.data.to)}</strong></>
+                  ) : inspectedEmail.data?.from_email ? (
+                    <>From: <strong className="text-slate-800">{String(inspectedEmail.data.from_email)}</strong></>
+                  ) : null}
+                  {" · "}
+                  <span>{formatDate(inspectedEmail.created_at)}</span>
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setInspectedEmail(null);
+                  setCopiedEmailText(false);
+                }}
+                className="text-slate-400 hover:text-slate-700 font-bold p-1"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Email Body Content */}
+            <div className="overflow-y-auto space-y-4 flex-1 pr-1">
+              {/* Commercial Intelligence Card if available */}
+              {(Boolean(inspectedEmail.data?.target_sku) ||
+                Boolean(inspectedEmail.data?.margin_gain) ||
+                Boolean(inspectedEmail.data?.factory_name)) && (
+                <div className="rounded-xl border border-orange-200 bg-orange-50/60 p-3.5 space-y-1.5 text-xs text-slate-700">
+                  <p className="font-bold uppercase tracking-wider text-[10px] text-orange-900">
+                    Commercial Opportunity Parameters
+                  </p>
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    {Boolean(inspectedEmail.data?.target_sku) && (
+                      <div>
+                        <span className="text-slate-500 block text-[11px]">Target Retail Line:</span>
+                        <span className="font-bold text-slate-900">{String(inspectedEmail.data?.target_sku)}</span>
+                      </div>
+                    )}
+                    {Boolean(inspectedEmail.data?.retail_price) && (
+                      <div>
+                        <span className="text-slate-500 block text-[11px]">Shelf Benchmark:</span>
+                        <span className="font-semibold text-slate-900">{String(inspectedEmail.data?.retail_price)}</span>
+                      </div>
+                    )}
+                    {Boolean(inspectedEmail.data?.factory_name) && (
+                      <div>
+                        <span className="text-slate-500 block text-[11px]">Factory Parity:</span>
+                        <span className="font-bold text-slate-900">
+                          {String(inspectedEmail.data?.factory_name)}{" "}
+                          {inspectedEmail.data?.factory_country ? `(${String(inspectedEmail.data?.factory_country)})` : ""}
+                        </span>
+                      </div>
+                    )}
+                    {Boolean(inspectedEmail.data?.margin_gain) && (
+                      <div>
+                        <span className="text-slate-500 block text-[11px]">Margin Spread:</span>
+                        <span className="font-bold text-emerald-600">{String(inspectedEmail.data?.margin_gain)}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Formatted Email Text */}
+              <div
+                dir={
+                  isHebrewText(String(inspectedEmail.data?.body_text || inspectedEmail.message || ""))
+                    ? "rtl"
+                    : "ltr"
+                }
+                className={`p-4 rounded-2xl border border-slate-200 bg-slate-50/60 font-sans text-xs sm:text-sm text-slate-800 leading-relaxed whitespace-pre-wrap select-text ${
+                  isHebrewText(String(inspectedEmail.data?.body_text || inspectedEmail.message || ""))
+                    ? "text-right"
+                    : "text-left"
+                }`}
+              >
+                {String(
+                  inspectedEmail.data?.body_text ||
+                  inspectedEmail.data?.raw_excerpt ||
+                  inspectedEmail.data?.snippet ||
+                  inspectedEmail.message ||
+                  "No content available"
+                )}
+              </div>
+            </div>
+
+            {/* Modal Footer Controls */}
+            <div className="pt-3 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2 shrink-0">
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const content = String(
+                      inspectedEmail.data?.body_text ||
+                      inspectedEmail.data?.raw_excerpt ||
+                      inspectedEmail.message ||
+                      ""
+                    );
+                    navigator.clipboard.writeText(content);
+                    setCopiedEmailText(true);
+                    setTimeout(() => setCopiedEmailText(false), 2000);
+                  }}
+                  className="px-3 py-1.5 text-xs font-semibold rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 transition-colors flex items-center gap-1"
+                >
+                  <span>{copiedEmailText ? "✓" : "📋"}</span>
+                  <span>{copiedEmailText ? "Copied!" : "Copy Body"}</span>
+                </button>
+
+                <a
+                  href={buildGmailThreadUrl({
+                    matchId: (inspectedEmail.data?.match_id as string) || undefined,
+                    supplierEmail:
+                      (inspectedEmail.data?.to as string) ||
+                      (inspectedEmail.data?.from_email as string) ||
+                      undefined,
+                    messageId: (inspectedEmail.data?.message_id as string) || undefined,
+                  })}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-3 py-1.5 text-xs font-bold rounded-xl border border-indigo-300 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 transition-colors flex items-center gap-1"
+                >
+                  <span>Open in Gmail</span>
+                  <span>↗</span>
+                </a>
+              </div>
+
+              <div className="flex items-center gap-2">
+                {inspectedEmail.action_url && (
+                  <Link
+                    href={inspectedEmail.action_url}
+                    className="px-3.5 py-1.5 text-xs font-bold rounded-xl bg-orange-600 hover:bg-orange-700 text-white shadow-xs transition-colors"
+                  >
+                    View Deal / Opportunity &rarr;
+                  </Link>
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setInspectedEmail(null);
+                    setCopiedEmailText(false);
+                  }}
+                  className="px-3.5 py-1.5 text-xs font-semibold rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-100"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Technical JSON Inspector Modal */}
       {inspectItem && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-2xl border border-slate-200 max-w-lg w-full p-6 shadow-2xl space-y-4">

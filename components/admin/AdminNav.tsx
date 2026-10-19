@@ -15,7 +15,7 @@ const sections: { title: string; links: NavItem[] }[] = [
     title: "Deal Operations",
     links: [
       { href: "/admin/pipeline", label: "Deal Pipeline", icon: "🎯" },
-      { href: "/admin/notifications", label: "Alerts & Reminders", icon: "🔔" },
+      { href: "/admin/notifications", label: "Notifications & Outreach", icon: "🔔" },
       { href: "/admin/requests", label: "Sourcing Requests", icon: "📥" },
       { href: "/admin/matches", label: "Match Engine", icon: "⚡" },
       { href: "/admin/opportunities", label: "Proactive Opportunities", icon: "💡", badge: "45" },

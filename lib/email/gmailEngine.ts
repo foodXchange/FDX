@@ -3,6 +3,9 @@ import { ImapFlow } from "imapflow";
 import { Resend } from "resend";
 import { GoogleGenAI } from "@google/genai";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { createNotification } from "@/lib/notifications/createNotification";
+export { getMatchRefTag, buildGmailThreadUrl } from "@/lib/notifications/gmailHelper";
+import { getMatchRefTag } from "@/lib/notifications/gmailHelper";
 
 export interface GmailCredentials {
   user: string;
@@ -67,38 +70,6 @@ export async function saveGmailCredentials(creds: GmailCredentials): Promise<voi
     },
     { onConflict: "batch_key" }
   );
-}
-
-export function getMatchRefTag(matchId: string): string {
-  return `FDX-${matchId.replace(/-/g, "").slice(0, 8).toUpperCase()}`;
-}
-
-export function buildGmailThreadUrl(opts: {
-  matchId?: string;
-  supplierEmail?: string | null;
-  messageId?: string | null;
-}): string {
-  if (opts.messageId) {
-    const cleanId = opts.messageId.replace(/^<|>$/g, "");
-    return `https://mail.google.com/mail/u/0/#search/${encodeURIComponent(
-      `rfc822msgid:${cleanId}`
-    )}`;
-  }
-  if (opts.matchId) {
-    const ref = getMatchRefTag(opts.matchId);
-    if (opts.supplierEmail) {
-      return `https://mail.google.com/mail/u/0/#search/${encodeURIComponent(
-        `(${opts.supplierEmail} OR ${ref})`
-      )}`;
-    }
-    return `https://mail.google.com/mail/u/0/#search/${encodeURIComponent(ref)}`;
-  }
-  if (opts.supplierEmail) {
-    return `https://mail.google.com/mail/u/0/#search/${encodeURIComponent(
-      opts.supplierEmail
-    )}`;
-  }
-  return "https://mail.google.com/mail/u/0/#inbox";
 }
 
 export interface SendGmailOptions {
@@ -417,6 +388,32 @@ export async function syncGmailInboxReplies(): Promise<{
       | null;
   }>;
 
+  // Also load contacted/active assortment opportunities
+  const { data: activeAssortmentMatches } = await supabaseAdmin
+    .from("assortment_matches")
+    .select(
+      `id, status, target_sku, created_at,
+       buyer:buyers(company_name, contact_email, contact_name),
+       supplier:suppliers(name, contact_email, country)`
+    )
+    .in("status", ["pitched", "reviewed", "accepted", "proposed"])
+    .limit(500);
+
+  const assortmentList = ((activeAssortmentMatches ?? []) as unknown) as Array<{
+    id: string;
+    status: string;
+    target_sku: string | null;
+    created_at: string;
+    buyer:
+      | { company_name: string | null; contact_email: string | null; contact_name: string | null }
+      | Array<{ company_name: string | null; contact_email: string | null; contact_name: string | null }>
+      | null;
+    supplier:
+      | { name: string | null; contact_email: string | null; country: string | null }
+      | Array<{ name: string | null; contact_email: string | null; country: string | null }>
+      | null;
+  }>;
+
   const refToMatch = new Map<string, (typeof matchesList)[number]>();
   const emailToMatch = new Map<string, (typeof matchesList)[number]>();
 
@@ -425,6 +422,22 @@ export async function syncGmailInboxReplies(): Promise<{
     const supObj = Array.isArray(m.supplier) ? m.supplier[0] : m.supplier;
     const em = supObj?.contact_email?.toLowerCase().trim();
     if (em) emailToMatch.set(em, m);
+  }
+
+  const refToAssortment = new Map<string, (typeof assortmentList)[number]>();
+  const emailToAssortment = new Map<
+    string,
+    { match: (typeof assortmentList)[number]; role: "buyer" | "supplier" }
+  >();
+
+  for (const a of assortmentList) {
+    refToAssortment.set(getMatchRefTag(a.id), a);
+    const buyerObj = Array.isArray(a.buyer) ? a.buyer[0] : a.buyer;
+    const supObj = Array.isArray(a.supplier) ? a.supplier[0] : a.supplier;
+    const buyerEmail = buyerObj?.contact_email?.toLowerCase().trim();
+    const supEmail = supObj?.contact_email?.toLowerCase().trim();
+    if (buyerEmail) emailToAssortment.set(buyerEmail, { match: a, role: "buyer" });
+    if (supEmail) emailToAssortment.set(supEmail, { match: a, role: "supplier" });
   }
 
   const client = new ImapFlow({
@@ -461,11 +474,18 @@ export async function syncGmailInboxReplies(): Promise<{
 
           const subj = env.subject ?? "";
           const refMatch = subj.match(/FDX-[A-F0-9]{8}/i);
+          const refTagStr = refMatch ? refMatch[0].toUpperCase() : null;
+
           const matchedRecord =
-            (refMatch ? refToMatch.get(refMatch[0].toUpperCase()) : undefined) ??
+            (refTagStr ? refToMatch.get(refTagStr) : undefined) ??
             emailToMatch.get(fromAddr);
 
-          if (!matchedRecord) continue;
+          const matchedAssortmentEntry =
+            (refTagStr && refToAssortment.has(refTagStr)
+              ? { match: refToAssortment.get(refTagStr)!, role: "supplier" as const }
+              : undefined) ?? emailToAssortment.get(fromAddr);
+
+          if (!matchedRecord && !matchedAssortmentEntry) continue;
 
           const msgDate = env.date
             ? new Date(env.date).toISOString()
@@ -490,93 +510,160 @@ export async function syncGmailInboxReplies(): Promise<{
             rawSnippet = `Reply received from ${fromAddr}: "${subj}"`;
           }
 
-          const existingRespondedAt = matchedRecord.supplier_responded_at;
-          const isNewer =
-            !existingRespondedAt ||
-            new Date(msgDate).getTime() >
-              new Date(existingRespondedAt).getTime();
-
-          if (isNewer || matchedRecord.status !== "responded") {
+          // Case A: Opportunity Assortment Match
+          if (matchedAssortmentEntry) {
+            const { match: aMatch, role } = matchedAssortmentEntry;
             const aiParsed = await parseSupplierReplyWithAI(rawSnippet, subj);
-            const prevQuote =
-              matchedRecord.match_breakdown &&
-              typeof matchedRecord.match_breakdown.supplier_quote === "object" &&
-              matchedRecord.match_breakdown.supplier_quote !== null
-                ? (matchedRecord.match_breakdown.supplier_quote as Record<
-                    string,
-                    unknown
-                  >)
-                : {};
+            const buyerObj = Array.isArray(aMatch.buyer) ? aMatch.buyer[0] : aMatch.buyer;
+            const supObj = Array.isArray(aMatch.supplier) ? aMatch.supplier[0] : aMatch.supplier;
+            const entityName =
+              role === "buyer"
+                ? buyerObj?.company_name || buyerObj?.contact_name || fromAddr
+                : supObj?.name || fromAddr;
 
-            const mergedQuote = {
-              ...prevQuote,
-              response_type: aiParsed.responseType,
-              indicative_price:
-                aiParsed.indicativePrice ?? prevQuote.indicative_price ?? null,
-              moq: aiParsed.moq ?? prevQuote.moq ?? null,
-              lead_time: aiParsed.leadTime ?? prevQuote.lead_time ?? null,
-              confirmed_certs:
-                aiParsed.confirmedCerts.length > 0
-                  ? aiParsed.confirmedCerts
-                  : (prevQuote.confirmed_certs as string[] | undefined) ?? [],
-              samples_available:
-                aiParsed.samplesAvailable ?? prevQuote.samples_available ?? null,
-              contact_email: fromAddr,
-              submitted_at: msgDate,
-            };
-
-            const termsLine = [
-              mergedQuote.indicative_price
-                ? `Price: ${String(mergedQuote.indicative_price)}`
-                : null,
-              mergedQuote.moq ? `MOQ: ${String(mergedQuote.moq)}` : null,
-              mergedQuote.lead_time
-                ? `Lead Time: ${String(mergedQuote.lead_time)}`
-                : null,
-            ]
-              .filter(Boolean)
-              .join(" · ");
-
-            const formattedSnippet = termsLine
-              ? `${aiParsed.englishSummary} (${termsLine})`
-              : aiParsed.englishSummary;
-
-            const updatedBreakdown = {
-              ...(matchedRecord.match_breakdown ?? {}),
-              last_reply_from: fromAddr,
-              last_reply_subject: subj,
-              last_reply_snippet: formattedSnippet.slice(0, 450),
-              last_reply_at: msgDate,
-              supplier_quote: mergedQuote,
-            };
+            const newStatus =
+              aiParsed.responseType === "declined"
+                ? "rejected"
+                : aiParsed.responseType === "accepted"
+                ? "accepted"
+                : aMatch.status;
 
             await supabaseAdmin
-              .from("sourcing_matches")
-              .update({
-                status:
-                  aiParsed.responseType === "declined" ? "rejected" : "responded",
-                supplier_response: aiParsed.responseType,
-                supplier_responded_at: msgDate,
-                responded_at: msgDate,
-                supplier_message: formattedSnippet.slice(0, 1000),
-                match_breakdown: updatedBreakdown,
-              })
-              .eq("id", matchedRecord.id);
+              .from("assortment_matches")
+              .update({ status: newStatus })
+              .eq("id", aMatch.id);
 
-            await supabaseAdmin.from("match_messages").insert({
-              match_id: matchedRecord.id,
-              sender_type: "supplier",
-              message: `[Gmail Reply from ${fromAddr}]\nSummary: ${formattedSnippet}\n\nRaw Excerpt:\n${rawSnippet.slice(0, 500)}`,
-            });
+            await createNotification(
+              "match_reply",
+              `💬 ${role === "buyer" ? "Retailer Reply" : "Factory Reply"}: ${entityName}`,
+              `Inbound response regarding ${aMatch.target_sku || "opportunity"}: ${aiParsed.englishSummary}`,
+              {
+                match_id: aMatch.id,
+                target_sku: aMatch.target_sku,
+                recipient_type: role,
+                company_name: entityName,
+                from_email: fromAddr,
+                subject: subj,
+                snippet: aiParsed.englishSummary,
+                raw_excerpt: rawSnippet.slice(0, 500),
+                action_url: `/admin/opportunities?search=${encodeURIComponent(aMatch.target_sku || "")}`,
+                priority: "urgent",
+              }
+            );
 
             syncedReplies.push({
-              matchId: matchedRecord.id,
-              supplierName: matchedRecord.company_name,
+              matchId: aMatch.id,
+              supplierName: entityName,
               fromEmail: fromAddr,
               subject: subj,
-              snippet: formattedSnippet,
+              snippet: aiParsed.englishSummary,
               receivedAt: msgDate,
             });
+            continue;
+          }
+
+          // Case B: Pipeline Sourcing Match
+          if (matchedRecord) {
+            const existingRespondedAt = matchedRecord.supplier_responded_at;
+            const isNewer =
+              !existingRespondedAt ||
+              new Date(msgDate).getTime() > new Date(existingRespondedAt).getTime();
+
+            if (isNewer || matchedRecord.status !== "responded") {
+              const aiParsed = await parseSupplierReplyWithAI(rawSnippet, subj);
+              const prevQuote =
+                matchedRecord.match_breakdown &&
+                typeof matchedRecord.match_breakdown.supplier_quote === "object" &&
+                matchedRecord.match_breakdown.supplier_quote !== null
+                  ? (matchedRecord.match_breakdown.supplier_quote as Record<string, unknown>)
+                  : {};
+
+              const mergedQuote = {
+                ...prevQuote,
+                response_type: aiParsed.responseType,
+                indicative_price:
+                  aiParsed.indicativePrice ?? prevQuote.indicative_price ?? null,
+                moq: aiParsed.moq ?? prevQuote.moq ?? null,
+                lead_time: aiParsed.leadTime ?? prevQuote.lead_time ?? null,
+                confirmed_certs:
+                  aiParsed.confirmedCerts.length > 0
+                    ? aiParsed.confirmedCerts
+                    : (prevQuote.confirmed_certs as string[] | undefined) ?? [],
+                samples_available:
+                  aiParsed.samplesAvailable ?? prevQuote.samples_available ?? null,
+                contact_email: fromAddr,
+                submitted_at: msgDate,
+              };
+
+              const termsLine = [
+                mergedQuote.indicative_price
+                  ? `Price: ${String(mergedQuote.indicative_price)}`
+                  : null,
+                mergedQuote.moq ? `MOQ: ${String(mergedQuote.moq)}` : null,
+                mergedQuote.lead_time
+                  ? `Lead Time: ${String(mergedQuote.lead_time)}`
+                  : null,
+              ]
+                .filter(Boolean)
+                .join(" · ");
+
+              const formattedSnippet = termsLine
+                ? `${aiParsed.englishSummary} (${termsLine})`
+                : aiParsed.englishSummary;
+
+              const updatedBreakdown = {
+                ...(matchedRecord.match_breakdown ?? {}),
+                last_reply_from: fromAddr,
+                last_reply_subject: subj,
+                last_reply_snippet: formattedSnippet.slice(0, 450),
+                last_reply_at: msgDate,
+                supplier_quote: mergedQuote,
+              };
+
+              await supabaseAdmin
+                .from("sourcing_matches")
+                .update({
+                  status:
+                    aiParsed.responseType === "declined" ? "rejected" : "responded",
+                  supplier_response: aiParsed.responseType,
+                  supplier_responded_at: msgDate,
+                  responded_at: msgDate,
+                  supplier_message: formattedSnippet.slice(0, 1000),
+                  match_breakdown: updatedBreakdown,
+                })
+                .eq("id", matchedRecord.id);
+
+              await supabaseAdmin.from("match_messages").insert({
+                match_id: matchedRecord.id,
+                sender_type: "supplier",
+                message: `[Gmail Reply from ${fromAddr}]\nSummary: ${formattedSnippet}\n\nRaw Excerpt:\n${rawSnippet.slice(0, 500)}`,
+              });
+
+              await createNotification(
+                "match_reply",
+                `💬 Supplier Reply: ${matchedRecord.company_name || fromAddr}`,
+                formattedSnippet,
+                {
+                  match_id: matchedRecord.id,
+                  company_name: matchedRecord.company_name,
+                  from_email: fromAddr,
+                  subject: subj,
+                  snippet: formattedSnippet,
+                  raw_excerpt: rawSnippet.slice(0, 500),
+                  action_url: `/admin/pipeline?matchId=${matchedRecord.id}`,
+                  priority: "urgent",
+                }
+              );
+
+              syncedReplies.push({
+                matchId: matchedRecord.id,
+                supplierName: matchedRecord.company_name,
+                fromEmail: fromAddr,
+                subject: subj,
+                snippet: formattedSnippet,
+                receivedAt: msgDate,
+              });
+            }
           }
         }
       }
@@ -601,3 +688,4 @@ export async function syncGmailInboxReplies(): Promise<{
     };
   }
 }
+

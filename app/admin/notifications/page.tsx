@@ -1,11 +1,12 @@
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import NotificationsHubClient from "@/components/admin/NotificationsHubClient";
 import type { AdminNotification } from "@/lib/notifications/types";
+import { getGmailCredentials } from "@/lib/email/gmailEngine";
 
 export const dynamic = "force-dynamic";
 
 export const metadata = {
-  title: "Notifications & Reminders | FoodXchange Admin",
+  title: "Notifications & Outreach Hub | FoodXchange Admin",
 };
 
 export default async function AdminNotificationsHubPage() {
@@ -17,13 +18,14 @@ export default async function AdminNotificationsHubPage() {
     { count: unreadCount },
     { data: highScoreMatches },
     { data: recentLeads },
+    gmailCreds,
   ] = await Promise.all([
     supabaseAdmin
       .from("admin_notifications")
       .select("*")
       .or(`expires_at.gt.${now},read.eq.false`)
       .order("created_at", { ascending: false })
-      .limit(60),
+      .limit(80),
     supabaseAdmin
       .from("admin_notifications")
       .select("*", { count: "exact", head: true })
@@ -45,6 +47,7 @@ export default async function AdminNotificationsHubPage() {
       .select("id, name, company, email, created_at, status")
       .order("created_at", { ascending: false })
       .limit(3),
+    getGmailCredentials(),
   ]);
 
   // Transform operational reminders
@@ -104,12 +107,12 @@ export default async function AdminNotificationsHubPage() {
   // Enrich notifications with action URLs
   const enrichedNotifications: AdminNotification[] = (notifications ?? []).map((n) => {
     let action_url = "/admin/pipeline";
-    if (n.type === "lead" || n.type === "new_request") {
+    if (n.data?.action_url && typeof n.data.action_url === "string") {
+      action_url = n.data.action_url;
+    } else if (n.type === "lead" || n.type === "new_request") {
       action_url = "/admin/sourcing-requests";
     } else if (n.type === "supplier_signup") {
       action_url = "/admin/suppliers";
-    } else if (n.data?.action_url && typeof n.data.action_url === "string") {
-      action_url = n.data.action_url;
     } else if (n.data?.match_id) {
       action_url = `/admin/pipeline?matchId=${n.data.match_id}`;
     }
@@ -117,7 +120,9 @@ export default async function AdminNotificationsHubPage() {
     return {
       ...n,
       action_url,
-      priority: (n.data?.priority as "normal" | "high" | "urgent") || (n.type === "lead" ? "high" : "normal"),
+      priority:
+        (n.data?.priority as "normal" | "high" | "urgent") ||
+        (n.type === "match_reply" || n.type === "lead" ? "high" : "normal"),
     };
   });
 
@@ -127,6 +132,11 @@ export default async function AdminNotificationsHubPage() {
       initialOperationalReminders={operationalReminders}
       initialTotalCount={(totalCount ?? 0) + operationalReminders.length}
       initialUnreadCount={(unreadCount ?? 0) + operationalReminders.length}
+      gmailConfig={
+        gmailCreds
+          ? { user: gmailCreds.user, senderName: gmailCreds.senderName }
+          : null
+      }
     />
   );
 }
