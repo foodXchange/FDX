@@ -1083,6 +1083,9 @@ export async function sendSupplierFollowUp(
   const specsSummary = specsParts.length > 0 ? specsParts.join(" · ") : "Standard export specifications, Kosher preferred";
 
   const refTag = getMatchRefTag(match.id);
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://fdx.trading";
+  const portalUrl = `${appUrl}/supplier-match/${match.id}`;
+
   const vars: Record<string, string> = {
     company_name: match.company_name ?? "Supplier Team",
     product_name: match.product_name ?? reqObj?.product_name ?? "food products",
@@ -1092,6 +1095,7 @@ export async function sendSupplierFollowUp(
     country: match.country ?? "",
     match_score: String(match.match_score ?? 100),
     ref_tag: refTag,
+    portal_url: portalUrl,
   };
 
   const templateObj = CHASER_TEMPLATES[round][language];

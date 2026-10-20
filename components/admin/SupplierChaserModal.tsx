@@ -56,6 +56,12 @@ export default function SupplierChaserModal({
   const [message, setMessage] = useState("");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successNotice, setSuccessNotice] = useState<string | null>(null);
+  const [copiedLink, setCopiedLink] = useState(false);
+
+  const portalUrl =
+    typeof window !== "undefined"
+      ? `${window.location.origin}/supplier-match/${match.id}`
+      : `https://fdx.trading/supplier-match/${match.id}`;
 
   // Sync templates when round, language, or channel changes
   useEffect(() => {
@@ -70,13 +76,14 @@ export default function SupplierChaserModal({
       country: match.country ?? "",
       match_score: String(match.match_score),
       ref_tag: refTag,
+      portal_url: portalUrl,
     };
 
     setSubject(renderTemplate(template.subject, vars));
     setMessage(
       renderTemplate(channel === "whatsapp" ? template.whatsAppText : template.body, vars)
     );
-  }, [round, language, channel, match, specsSummary]);
+  }, [round, language, channel, match, specsSummary, portalUrl]);
 
   if (!isOpen) return null;
 
@@ -88,6 +95,14 @@ export default function SupplierChaserModal({
   }> = Array.isArray(match.match_breakdown?.follow_ups)
     ? match.match_breakdown!.follow_ups
     : [];
+
+  const handleCopyLink = async () => {
+    try {
+      await navigator.clipboard.writeText(portalUrl);
+      setCopiedLink(true);
+      setTimeout(() => setCopiedLink(false), 2000);
+    } catch {}
+  };
 
   const handleSend = () => {
     setErrorMsg(null);
@@ -137,7 +152,15 @@ export default function SupplierChaserModal({
           <div>
             <div className="flex items-center gap-2">
               <span className="text-lg">
-                {language === "es" ? "🇪🇸" : language === "it" ? "🇮🇹" : "🇬🇧"}
+                {language === "es"
+                  ? "🇪🇸"
+                  : language === "it"
+                  ? "🇮🇹"
+                  : language === "fr"
+                  ? "🇫🇷"
+                  : language === "de"
+                  ? "🇩🇪"
+                  : "🇬🇧"}
               </span>
               <h3 className="text-base font-bold text-slate-900">
                 Supplier Chaser: {match.company_name}
@@ -153,7 +176,7 @@ export default function SupplierChaserModal({
           <button
             type="button"
             onClick={onClose}
-            className="w-8 h-8 rounded-full hover:bg-slate-200 text-slate-400 hover:text-slate-700 flex items-center justify-center text-sm font-bold transition"
+            className="w-8 h-8 rounded-full hover:bg-slate-200 text-slate-400 hover:text-slate-700 flex items-center justify-center text-sm font-bold transition cursor-pointer"
           >
             ✕
           </button>
@@ -187,6 +210,33 @@ export default function SupplierChaserModal({
             </div>
           </div>
 
+          {/* Quick Portal Action Bar */}
+          <div className="p-2.5 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between gap-2 flex-wrap">
+            <div className="flex items-center gap-1.5 truncate">
+              <span className="text-slate-400">🔗</span>
+              <span className="text-[11px] font-mono text-slate-600 truncate max-w-[280px]">
+                {portalUrl}
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={handleCopyLink}
+                className="text-[11px] font-bold text-slate-700 hover:text-slate-900 bg-white border border-slate-300 hover:border-slate-400 px-2.5 py-1 rounded-lg transition shadow-2xs cursor-pointer flex items-center gap-1"
+              >
+                <span>{copiedLink ? "✓ Copied!" : "Copy Portal Link"}</span>
+              </button>
+              <a
+                href={portalUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="text-[11px] font-bold text-orange-700 hover:text-orange-900 bg-orange-50 hover:bg-orange-100 border border-orange-200 px-2.5 py-1 rounded-lg transition cursor-pointer"
+              >
+                Preview Portal ↗
+              </a>
+            </div>
+          </div>
+
           {/* Controls: Round, Language, Channel */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             {/* Round Selector */}
@@ -206,7 +256,7 @@ export default function SupplierChaserModal({
                     key={opt.r}
                     type="button"
                     onClick={() => setRound(opt.r)}
-                    className={`text-left text-xs px-2.5 py-1.5 rounded-lg border transition ${
+                    className={`text-left text-xs px-2.5 py-1.5 rounded-lg border transition cursor-pointer ${
                       round === opt.r
                         ? "bg-orange-50 border-orange-400 font-bold text-orange-900 shadow-2xs"
                         : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
@@ -227,15 +277,17 @@ export default function SupplierChaserModal({
                 {(
                   [
                     { code: "en" as const, flag: "🇬🇧", name: "English" },
-                    { code: "es" as const, flag: "🇪🇸", name: "Spanish (España)" },
-                    { code: "it" as const, flag: "🇮🇹", name: "Italian (Italia)" },
+                    { code: "es" as const, flag: "🇪🇸", name: "Spanish (ES)" },
+                    { code: "it" as const, flag: "🇮🇹", name: "Italian (IT)" },
+                    { code: "fr" as const, flag: "🇫🇷", name: "French (FR)" },
+                    { code: "de" as const, flag: "🇩🇪", name: "German (DE)" },
                   ] as const
                 ).map((lang) => (
                   <button
                     key={lang.code}
                     type="button"
                     onClick={() => setLanguage(lang.code)}
-                    className={`text-left text-xs px-2.5 py-1.5 rounded-lg border flex items-center justify-between transition ${
+                    className={`text-left text-xs px-2.5 py-1 rounded-lg border flex items-center justify-between transition cursor-pointer ${
                       language === lang.code
                         ? "bg-blue-50 border-blue-400 font-bold text-blue-900 shadow-2xs"
                         : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
@@ -245,7 +297,7 @@ export default function SupplierChaserModal({
                       {lang.flag} {lang.name}
                     </span>
                     {detectSupplierLanguage(match.country) === lang.code && (
-                      <span className="text-[10px] font-semibold text-blue-600 bg-white px-1.5 py-0.2 rounded border border-blue-200">
+                      <span className="text-[9px] font-semibold text-blue-600 bg-white px-1 py-0.2 rounded border border-blue-200">
                         Auto
                       </span>
                     )}
@@ -263,16 +315,16 @@ export default function SupplierChaserModal({
                 <button
                   type="button"
                   onClick={() => setChannel("email")}
-                  className={`text-left text-xs px-2.5 py-1.5 rounded-lg border flex items-center gap-2 transition ${
+                  className={`text-left text-xs px-2.5 py-1.5 rounded-lg border flex items-center gap-2 transition cursor-pointer ${
                     channel === "email"
                       ? "bg-slate-900 border-slate-900 text-white font-bold"
                       : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
                   }`}
                 >
                   <span>📧</span>
-                  <div>
+                  <div className="truncate">
                     <p className="leading-tight">Direct Email</p>
-                    <p className="text-[10px] opacity-75">
+                    <p className="text-[10px] opacity-75 truncate">
                       {contact?.email ? contact.email : "No email on file"}
                     </p>
                   </div>
@@ -280,16 +332,16 @@ export default function SupplierChaserModal({
                 <button
                   type="button"
                   onClick={() => setChannel("whatsapp")}
-                  className={`text-left text-xs px-2.5 py-1.5 rounded-lg border flex items-center gap-2 transition ${
+                  className={`text-left text-xs px-2.5 py-1.5 rounded-lg border flex items-center gap-2 transition cursor-pointer ${
                     channel === "whatsapp"
                       ? "bg-green-600 border-green-600 text-white font-bold"
                       : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
                   }`}
                 >
                   <span>💬</span>
-                  <div>
+                  <div className="truncate">
                     <p className="leading-tight">WhatsApp Bump</p>
-                    <p className="text-[10px] opacity-75">
+                    <p className="text-[10px] opacity-75 truncate">
                       {contact?.phone ? contact.phone : "Direct web chat"}
                     </p>
                   </div>
@@ -320,7 +372,7 @@ export default function SupplierChaserModal({
                 {channel === "email" ? "Email Body (Threads into previous message)" : "WhatsApp Message"}
               </label>
               <span className="text-[10px] text-slate-400">
-                Variables auto-injected: Buyer Specs, Catalog Item & Ref Code
+                Variables auto-injected: Portal Link, Buyer Specs, & Ref Code
               </span>
             </div>
             <textarea
@@ -378,7 +430,7 @@ export default function SupplierChaserModal({
           <button
             type="button"
             onClick={onClose}
-            className="text-xs text-slate-500 hover:text-slate-800 font-semibold px-3 py-1.5 rounded-lg transition"
+            className="text-xs text-slate-500 hover:text-slate-800 font-semibold px-3 py-1.5 rounded-lg transition cursor-pointer"
           >
             Cancel
           </button>

@@ -1,16 +1,22 @@
 import { notFound } from "next/navigation";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { getMatchRefTag } from "@/lib/email/gmailEngine";
+import { detectSupplierLanguage } from "@/lib/outreach/chaserTemplates";
 import SupplierMatchQuoteForm from "@/components/supplier-match/SupplierMatchQuoteForm";
 
 export const dynamic = "force-dynamic";
 
 interface PageProps {
   params: Promise<{ id: string }>;
+  searchParams?: Promise<{ lang?: string }>;
 }
 
-export default async function SupplierMatchPortalPage({ params }: PageProps) {
+export default async function SupplierMatchPortalPage({
+  params,
+  searchParams,
+}: PageProps) {
   const { id: matchId } = await params;
+  const sParams = searchParams ? await searchParams : {};
 
   const { data: match, error } = await supabaseAdmin
     .from("sourcing_matches")
@@ -68,12 +74,16 @@ export default async function SupplierMatchPortalPage({ params }: PageProps) {
     ? (reqObj.certifications as string[])
     : [];
 
+  const autoLang = detectSupplierLanguage(supplierObj?.country_of_origin);
+  const queryLang = sParams.lang as "en" | "es" | "it" | "fr" | "de" | undefined;
+  const initialLang = queryLang || autoLang || "en";
+
   return (
-    <main className="min-h-screen bg-slate-50 py-10 px-4">
+    <main className="min-h-screen bg-slate-100/70 py-10 px-4">
       <div className="max-w-2xl mx-auto space-y-6">
         {/* Header Card */}
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-          <div className="bg-gradient-to-r from-slate-900 to-slate-800 px-6 py-5 text-white flex items-center justify-between flex-wrap gap-3">
+          <div className="bg-gradient-to-r from-slate-950 via-slate-900 to-slate-800 px-6 py-5 text-white flex items-center justify-between flex-wrap gap-3">
             <div>
               <div className="text-xs font-bold uppercase tracking-widest text-orange-400">
                 FoodXchange · Direct Sourcing Desk
@@ -82,38 +92,40 @@ export default async function SupplierMatchPortalPage({ params }: PageProps) {
                 Commercial Inquiry for {companyName}
               </h1>
             </div>
-            <span className="text-xs font-mono bg-white/10 border border-white/15 px-3 py-1 rounded-full text-slate-200">
-              Ref: {refTag}
-            </span>
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-mono bg-white/10 border border-white/15 px-3 py-1 rounded-full text-slate-200">
+                Ref: {refTag}
+              </span>
+            </div>
           </div>
 
           {/* Buyer Target Requirement Summary */}
           <div className="p-6 space-y-4">
-            <div className="flex flex-col sm:flex-row gap-4 items-start bg-orange-50/60 border border-orange-200/80 rounded-xl p-4">
+            <div className="flex flex-col sm:flex-row gap-4 items-start bg-orange-50/70 border border-orange-200/80 rounded-xl p-4">
               {benchmarkImageUrl && (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={benchmarkImageUrl}
                   alt="Buyer Benchmark Reference"
-                  className="w-24 h-24 rounded-xl object-cover border border-orange-200 bg-white shrink-0"
+                  className="w-24 h-24 rounded-xl object-cover border border-orange-200 bg-white shrink-0 shadow-2xs"
                 />
               )}
               <div className="space-y-1.5 flex-1">
                 <div className="text-[11px] font-bold uppercase tracking-wider text-orange-700">
-                  Buyer Target Requirement
+                  Target Buyer Requirement
                 </div>
                 <div className="text-base font-bold text-slate-900">
                   {reqObj?.product_name || matchedProductName}
                 </div>
                 <div className="text-xs text-slate-600">
-                  Matched with your catalog item:{" "}
+                  Matched with your catalog export line:{" "}
                   <strong className="text-slate-900">{matchedProductName}</strong>
                 </div>
 
                 <div className="flex flex-wrap gap-2 pt-1">
                   {benchmarkBrand && (
                     <span className="text-[11px] bg-white border border-orange-200 text-slate-700 px-2.5 py-0.5 rounded-full font-medium">
-                      Benchmark: <strong>{benchmarkBrand}</strong>
+                      Benchmark Profile: <strong>{benchmarkBrand}</strong>
                     </span>
                   )}
                   {(packagingSpec || reqObj?.volume_per_year) && (
@@ -145,15 +157,7 @@ export default async function SupplierMatchPortalPage({ params }: PageProps) {
         </div>
 
         {/* Interactive Quote & Availability Form */}
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
-          <h2 className="text-base font-bold text-slate-900 mb-1">
-            Submit Your Commercial Response (30 Seconds)
-          </h2>
-          <p className="text-xs text-slate-500 mb-5">
-            Confirm availability, share indicative export pricing & MOQ, or
-            propose your closest catalog equivalent.
-          </p>
-
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 sm:p-7">
           <SupplierMatchQuoteForm
             matchId={match.id}
             companyName={companyName}
@@ -161,6 +165,7 @@ export default async function SupplierMatchPortalPage({ params }: PageProps) {
             defaultEmail={supplierObj?.contact_email ?? ""}
             defaultPhone={supplierObj?.contact_phone ?? ""}
             existingResponse={match.supplier_response ?? null}
+            initialLanguage={initialLang as any}
           />
         </div>
       </div>

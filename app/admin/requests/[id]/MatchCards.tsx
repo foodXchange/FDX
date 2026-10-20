@@ -497,6 +497,15 @@ export default function MatchCards({ requestId, initialMatches, productName, com
               ⏰ Follow-up Due ({pendingFollowUpMatches.length})
             </button>
           )}
+          {pendingFollowUpMatches.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setBulkChaserOpen(true)}
+              className="text-xs font-bold px-3 py-1 rounded-lg bg-orange-600 hover:bg-orange-700 text-white transition flex items-center gap-1 shadow-xs cursor-pointer sm:ml-auto"
+            >
+              <span>⚡ Chase All Stalled ({pendingFollowUpMatches.length})</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -875,14 +884,31 @@ export default function MatchCards({ requestId, initialMatches, productName, com
                       </span>
                     )}
                   </p>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <a
+                      href={`/supplier-match/${match.id}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-300 px-2.5 py-1 rounded-lg transition flex items-center gap-1 cursor-pointer"
+                    >
+                      <span>🌐</span>
+                      <span>Portal ↗</span>
+                    </a>
+                    <button
+                      type="button"
+                      onClick={() => openCardQuoteModal(match)}
+                      className="text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-2.5 py-1 rounded-lg transition flex items-center gap-1 cursor-pointer"
+                    >
+                      <span>📝</span>
+                      <span>Record Quote</span>
+                    </button>
                     <button
                       type="button"
                       onClick={() => setChaserMatch(match)}
                       className="text-xs font-semibold text-orange-700 bg-orange-50 hover:bg-orange-100 border border-orange-200 px-2.5 py-1 rounded-lg transition flex items-center gap-1 cursor-pointer"
                     >
                       <span>📨</span>
-                      <span>Send Follow-Up Bump</span>
+                      <span>Send Bump</span>
                     </button>
                     {!isResponding && (
                       <button
@@ -892,7 +918,7 @@ export default function MatchCards({ requestId, initialMatches, productName, com
                         }
                         className="text-xs font-medium text-green-700 border border-green-200 hover:bg-green-50 px-2.5 py-1 rounded-lg transition-colors cursor-pointer"
                       >
-                        Mark as Responded
+                        Mark Responded
                       </button>
                     )}
                   </div>
@@ -961,15 +987,69 @@ export default function MatchCards({ requestId, initialMatches, productName, com
               </div>
             )}
 
-            {/* ── Responded state: show note ── */}
-            {s === "responded" && match.response_note && (
-              <div className="mt-4 border-t border-gray-100 pt-3">
-                <p className="text-xs text-gray-400 mb-1">
-                  Response {fmtDate(match.responded_at)}
-                </p>
-                <p className="text-xs text-gray-700 leading-relaxed bg-green-50 border border-green-100 rounded-lg p-3">
-                  {match.response_note}
-                </p>
+            {/* ── Responded state: show quote and note ── */}
+            {s === "responded" && (
+              <div className="mt-4 border-t border-gray-100 pt-3 space-y-2">
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                  <p className="text-xs font-bold text-emerald-800 flex items-center gap-1.5">
+                    <span>✅ Factory Quoted</span>
+                    {match.responded_at && (
+                      <span className="text-[11px] font-normal text-slate-400">
+                        ({fmtDate(match.responded_at)})
+                      </span>
+                    )}
+                  </p>
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => openCardQuoteModal(match)}
+                      className="text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-2.5 py-1 rounded-lg transition flex items-center gap-1 cursor-pointer"
+                    >
+                      <span>📝</span>
+                      <span>Edit Quote</span>
+                    </button>
+                    <a
+                      href={`/supplier-match/${match.id}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-300 px-2.5 py-1 rounded-lg transition flex items-center gap-1 cursor-pointer"
+                    >
+                      <span>🌐</span>
+                      <span>Portal ↗</span>
+                    </a>
+                  </div>
+                </div>
+
+                {Boolean((match.match_breakdown as any)?.quote?.unit_price) && (
+                  <div className="bg-emerald-50/70 border border-emerald-200 rounded-xl p-3 text-xs space-y-1">
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-emerald-950 text-sm">
+                        {(match.match_breakdown as any)!.quote.currency}{" "}
+                        {Number((match.match_breakdown as any)!.quote.unit_price).toFixed(2)}
+                      </span>
+                      <span className="text-[11px] font-semibold text-emerald-800 bg-white border border-emerald-200 px-2 py-0.5 rounded">
+                        {(match.match_breakdown as any)!.quote.incoterm || "CIF Ashdod"}
+                      </span>
+                    </div>
+                    <div className="flex flex-wrap gap-2 text-slate-600 text-[11px] pt-1">
+                      {(match.match_breakdown as any)!.quote.moq && (
+                        <span>MOQ: <strong>{(match.match_breakdown as any)!.quote.moq}</strong></span>
+                      )}
+                      {(match.match_breakdown as any)!.quote.lead_time_weeks && (
+                        <span>Lead Time: <strong>{(match.match_breakdown as any)!.quote.lead_time_weeks}w</strong></span>
+                      )}
+                      {(match.match_breakdown as any)!.quote.packaging_format && (
+                        <span>Pack: <strong>{(match.match_breakdown as any)!.quote.packaging_format}</strong></span>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {match.response_note && (
+                  <p className="text-xs text-gray-700 leading-relaxed bg-slate-50 border border-slate-200 rounded-lg p-3">
+                    {match.response_note}
+                  </p>
+                )}
               </div>
             )}
 
@@ -1212,6 +1292,43 @@ export default function MatchCards({ requestId, initialMatches, productName, com
             </div>
           </form>
         </div>
+      )}
+
+      {/* Supplier Follow-Up Chaser Modal */}
+      {chaserMatch && (
+        <SupplierChaserModal
+          isOpen={Boolean(chaserMatch)}
+          onClose={() => setChaserMatch(null)}
+          requestId={requestId}
+          match={chaserMatch}
+          contact={contactMap[chaserMatch.supplier_id] ?? { email: null, phone: null }}
+          specsSummary={
+            [
+              rfqRequestVars.volume ? `Qty: ${rfqRequestVars.volume}` : "",
+              rfqRequestVars.certifications ? `Certs: ${rfqRequestVars.certifications}` : "",
+              rfqRequestVars.request_description || "",
+            ]
+              .filter(Boolean)
+              .join(" · ") || "Standard export specifications, Kosher preferred"
+          }
+          onSuccess={() => {
+            startTransition(() => router.refresh());
+          }}
+        />
+      )}
+
+      {/* Bulk Chaser Modal for All Stalled Suppliers */}
+      {bulkChaserOpen && (
+        <BulkChaserModal
+          isOpen={bulkChaserOpen}
+          onClose={() => setBulkChaserOpen(false)}
+          requestId={requestId}
+          matches={pendingFollowUpMatches}
+          contactMap={contactMap}
+          onComplete={() => {
+            startTransition(() => router.refresh());
+          }}
+        />
       )}
     </div>
   );
