@@ -1427,3 +1427,157 @@ export async function updateOrderFinancialClearance(
 
   return { ok: true };
 }
+
+export interface ReleaseFactoryProductionInput {
+  requestId: string;
+  matchId?: string;
+  notes?: string;
+}
+
+export async function releaseFactoryProductionOrder(
+  input: ReleaseFactoryProductionInput
+): Promise<
+  | {
+      ok: true;
+      factoryWireAmount: number;
+      agentMarginRetained: number;
+      buyerAdvanceAmount: number;
+    }
+  | { ok: false; error: string }
+> {
+  const { requestId, matchId, notes } = input;
+  const adminEmail = getAdminEmail() || "admin@foodxchange.com";
+
+  const { data: req, error: fetchErr } = await supabaseAdmin
+    .from("sourcing_requests")
+    .select("id, company, product_name, ai_analysis")
+    .eq("id", requestId)
+    .single();
+
+  if (fetchErr || !req) {
+    return { ok: false, error: fetchErr?.message || "Request not found" };
+  }
+
+  const existingAi = (req.ai_analysis as Record<string, unknown> | null) ?? {};
+  const workflow = (existingAi.order_workflow as CommercialOrderLifecycle | null) ?? {
+    current_stage: "order_po_issued",
+  };
+  const fc = workflow.financial_clearance || {};
+
+  const totalUnits = fc.total_units || 24000;
+  const buyerUnitPrice = fc.buyer_unit_price || Number(workflow.agreed_unit_price) || 1.85;
+  const factoryUnitPrice = fc.factory_unit_price || 1.75;
+  const agentMarginUnit = fc.agent_margin_per_unit || Math.max(0, buyerUnitPrice - factoryUnitPrice);
+
+  const grossBuyerVal = fc.gross_buyer_contract_value || workflow.total_order_value || Math.round(totalUnits * buyerUnitPrice);
+  const factoryCost = fc.factory_contract_cost || Math.round(totalUnits * factoryUnitPrice);
+  const agentPool = fc.total_agent_brokerage_pool || (grossBuyerVal - factoryCost);
+
+  const buyerAdv = fc.advance_milestone_30?.buyer_wire_amount || Math.round(grossBuyerVal * 0.3);
+  const factoryAdv = fc.advance_milestone_30?.factory_wire_amount || Math.round(factoryCost * 0.3);
+  const agentAdv = fc.advance_milestone_30?.agent_retained_fee || Math.round(agentPool * 0.3);
+
+  const now = new Date().toISOString();
+
+  const updatedWorkflow: CommercialOrderLifecycle = {
+    ...workflow,
+    current_stage: "manufacturing",
+    production_status: "in_production",
+    production_milestones: {
+      ...(workflow.production_milestones || {}),
+      deposit_transferred: true,
+      raw_materials_procured: true,
+    },
+    financial_clearance: {
+      ...fc,
+      buyer_unit_price: buyerUnitPrice,
+      factory_unit_price: factoryUnitPrice,
+      agent_margin_per_unit: agentMarginUnit,
+      total_units: totalUnits,
+      gross_buyer_contract_value: grossBuyerVal,
+      factory_contract_cost: factoryCost,
+      total_agent_brokerage_pool: agentPool,
+      advance_milestone_30: {
+        ...(fc.advance_milestone_30 || {}),
+        status: "released_to_factory",
+        buyer_wire_amount: buyerAdv,
+        factory_wire_amount: factoryAdv,
+        agent_retained_fee: agentAdv,
+        wire_date: fc.advance_milestone_30?.wire_date || now.slice(0, 10),
+        notes: notes || fc.advance_milestone_30?.notes || "Advance 30% wire verified and authorized by Sourcing Desk.",
+      },
+      escrow_split_verified: true,
+      updated_at: now,
+      updated_by: adminEmail,
+    },
+    updated_at: now,
+    updated_by: adminEmail,
+  };
+
+  const { error: updateErr } = await supabaseAdmin
+    .from("sourcing_requests")
+    .update({
+      ai_analysis: {
+        ...existingAi,
+        order_workflow: updatedWorkflow,
+      },
+    })
+    .eq("id", requestId);
+
+  if (updateErr) {
+    console.error("releaseFactoryProductionOrder error:", updateErr);
+    return { ok: false, error: updateErr.message };
+  }
+
+  // Update match breakdown if matchId is supplied or found
+  if (matchId) {
+    const { data: mData } = await supabaseAdmin
+      .from("sourcing_matches")
+      .select("match_breakdown")
+      .eq("id", matchId)
+      .single();
+
+    const mBreakdown = (mData?.match_breakdown as Record<string, unknown> | null) ?? {};
+    await supabaseAdmin
+      .from("sourcing_matches")
+      .update({
+        match_breakdown: {
+          ...mBreakdown,
+          production_release: {
+            released_at: now,
+            released_by: adminEmail,
+            deposit_transferred: true,
+            factory_wire_amount: factoryAdv,
+            agent_retained_fee: agentAdv,
+          },
+        },
+      })
+      .eq("id", matchId);
+  }
+
+  await logAdminAction({
+    adminEmail,
+    action: "release_factory_production",
+    targetType: "sourcing_request",
+    targetId: requestId,
+    metadata: {
+      factory_wire: factoryAdv,
+      agent_fee_retained: agentAdv,
+      buyer_wire: buyerAdv,
+      po_number: updatedWorkflow.po_number,
+    },
+  });
+
+  try {
+    revalidatePath(`/admin/requests/${requestId}`);
+    revalidatePath("/admin/requests");
+    revalidatePath(`/track/${requestId}`);
+  } catch {}
+
+  return {
+    ok: true,
+    factoryWireAmount: factoryAdv,
+    agentMarginRetained: agentAdv,
+    buyerAdvanceAmount: buyerAdv,
+  };
+}

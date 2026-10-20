@@ -16,6 +16,7 @@ import {
   buyerSubmitWireTransfer,
 } from "@/app/track/actions";
 import BuyerPoModal from "./BuyerPoModal";
+import CommercialPoDocumentModal from "@/components/documents/CommercialPoDocumentModal";
 
 export interface BuyerPortalData {
   requestId: string;
@@ -82,6 +83,7 @@ export default function BuyerCollaborationPortal({ data }: Props) {
   // Commercial PO Placement state
   const [poOffer, setPoOffer] = useState<BuyerPortalData["offers"][0] | null>(null);
   const [activePoNumber, setActivePoNumber] = useState(data.orderWorkflow?.po_number || null);
+  const [showPoDocModal, setShowPoDocModal] = useState(false);
 
   const totalCalculated = data.orderWorkflow?.total_order_value || (fc?.gross_buyer_contract_value || 20880);
   const advanceAmount = fc?.advance_milestone_30?.buyer_wire_amount || (totalCalculated * 0.3);
@@ -1104,7 +1106,16 @@ export default function BuyerCollaborationPortal({ data }: Props) {
                   </p>
                 </div>
 
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <button
+                    type="button"
+                    onClick={() => setShowPoDocModal(true)}
+                    className="text-xs font-bold px-3 py-1.5 rounded-xl border border-slate-300 bg-white hover:bg-slate-50 text-slate-800 transition flex items-center gap-1.5 shadow-2xs cursor-pointer"
+                  >
+                    <span>📄</span>
+                    <span>{lang === "he" ? "הצג והורד הזמנת רכש רשמית (PDF)" : "Official PO & Proforma (PDF)"}</span>
+                  </button>
+
                   <span className={`text-xs font-bold px-3 py-1 rounded-full border flex items-center gap-1.5 ${
                     wireStatus === "released_to_factory"
                       ? "bg-emerald-100 text-emerald-800 border-emerald-300"
@@ -1518,6 +1529,29 @@ export default function BuyerCollaborationPortal({ data }: Props) {
             }}
           />
         )}
+
+        {/* ── Official B2B Commercial PO & Proforma Viewer Modal ── */}
+        <CommercialPoDocumentModal
+          isOpen={showPoDocModal}
+          onClose={() => setShowPoDocModal(false)}
+          poNumber={activePoNumber || data.orderWorkflow?.po_number || `FDX-PO-${data.requestId.slice(0, 6).toUpperCase()}`}
+          poDate={data.orderWorkflow?.po_date || new Date().toISOString().slice(0, 10)}
+          buyerCompany={data.buyerCompany}
+          buyerSignatory="Procurement & Sourcing Director"
+          buyerAddress={data.orderWorkflow?.buyer_warehouse_address || `${data.buyerCompany} Central Logistics Hub, Rishon LeZion, Israel`}
+          supplierName={data.orderWorkflow?.selected_supplier_name || (data.offers[0] ? `Producer ${data.offers[0].producerCode}` : "European Certified Food Producer")}
+          supplierCountry={data.offers[0]?.country || "European Union"}
+          productName={data.cleanedName || data.productName}
+          orderVolume={data.orderWorkflow?.order_volume || "24,000 Units (1 x 40ft HQ FCL)"}
+          unitPrice={data.orderWorkflow?.agreed_unit_price || data.offers[0]?.sellingPrice || 1.85}
+          currency={data.orderWorkflow?.currency || "EUR"}
+          totalOrderValue={totalCalculated}
+          incoterms={data.orderWorkflow?.incoterms || "CIF Ashdod Port (Incoterms 2020)"}
+          paymentTerms={data.orderWorkflow?.payment_terms || "30% Advance Deposit on PO signing, 70% against B/L copy & PSI report"}
+          certifications={data.certifications.length > 0 ? data.certifications : ["BRCGS Food Safety", "IFS", "Kosher"]}
+          packagingPreference={data.packagingPreference || "Retail Sealed Pack"}
+          targetWarehouse={data.orderWorkflow?.buyer_warehouse_address || `${data.buyerCompany} Central Distribution Center`}
+        />
       </main>
 
       {/* ── Floating Trade Agent Support ── */}

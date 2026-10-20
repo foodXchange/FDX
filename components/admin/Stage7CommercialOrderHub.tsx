@@ -6,6 +6,7 @@ import {
   type CommercialOrderLifecycle,
   type OrderWorkflowStage,
   updateRequestOrderWorkflow,
+  releaseFactoryProductionOrder,
 } from "@/app/admin/requests/actions";
 
 interface Props {
@@ -99,6 +100,46 @@ export default function Stage7CommercialOrderHub({
       }
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 2500);
+    });
+  }
+
+  function handleReleaseProduction() {
+    setSaveError(null);
+    setSaveSuccess(false);
+
+    startTransition(async () => {
+      const res = await releaseFactoryProductionOrder({
+        requestId,
+        matchId: workflow.selected_supplier_id || selectedDefaultSupplier?.id,
+        notes: "Verified via Stage 7 1-Click Production Release Desk.",
+      });
+
+      if (!res.ok) {
+        setSaveError(res.error);
+        return;
+      }
+
+      setWorkflow((w) => ({
+        ...w,
+        current_stage: "manufacturing",
+        production_status: "in_production",
+        production_milestones: {
+          ...(w.production_milestones || {}),
+          deposit_transferred: true,
+          raw_materials_procured: true,
+        },
+        financial_clearance: {
+          ...(w.financial_clearance || {}),
+          advance_milestone_30: {
+            ...(w.financial_clearance?.advance_milestone_30 || {}),
+            status: "released_to_factory",
+            factory_wire_amount: res.factoryWireAmount,
+            agent_retained_fee: res.agentMarginRetained,
+          },
+        },
+      }));
+      setSaveSuccess(true);
+      setTimeout(() => setSaveSuccess(false), 3000);
     });
   }
 
@@ -592,6 +633,53 @@ export default function Stage7CommercialOrderHub({
                     </div>
                   </div>
                 </div>
+
+                {/* 🚀 1-Click Production Release Callout */}
+                {fc.advance_milestone_30?.status === "wire_submitted_by_buyer" && (
+                  <div className="p-4 rounded-xl bg-gradient-to-r from-amber-500/10 via-orange-500/10 to-emerald-500/10 border-2 border-orange-400 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm animate-in fade-in">
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping" />
+                        <span className="text-xs font-black uppercase text-orange-950 tracking-wider">
+                          Action Required: Buyer 30% Wire Submitted (€{advBuyer.toLocaleString()})
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-700">
+                        Buyer uploaded SWIFT ref: <strong className="font-mono text-slate-900">{fc.advance_milestone_30?.swift_mt103_reference || "Attached Slip"}</strong> · Remitter Bank: <strong>{fc.advance_milestone_30?.remitter_bank || buyerCompany}</strong>.
+                      </p>
+                      <p className="text-[11px] text-slate-600">
+                        Click below to verify wire, lock broker margin (+€{advAgent.toLocaleString()}), and authorize European factory production.
+                      </p>
+                    </div>
+
+                    <button
+                      type="button"
+                      disabled={isPending}
+                      onClick={handleReleaseProduction}
+                      className="px-5 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs transition shadow-md flex items-center justify-center gap-2 shrink-0 cursor-pointer disabled:opacity-50"
+                    >
+                      <span>🚀</span>
+                      <span>{isPending ? "Processing..." : "Verify Wire & 1-Click Release Factory"}</span>
+                    </button>
+                  </div>
+                )}
+
+                {fc.advance_milestone_30?.status === "released_to_factory" && (
+                  <div className="p-3.5 rounded-xl bg-emerald-50 border border-emerald-300 flex items-center justify-between gap-3 text-xs">
+                    <div className="flex items-center gap-2.5">
+                      <span className="w-6 h-6 rounded-full bg-emerald-600 text-white flex items-center justify-center font-bold text-xs">✓</span>
+                      <div>
+                        <span className="font-bold text-emerald-950">Factory Production Authorized & Active</span>
+                        <div className="text-[11px] text-emerald-800">
+                          Factory wire (€{advFactory.toLocaleString()}) remitted · Retained agent margin: +€{advAgent.toLocaleString()} · PO: {workflow.po_number || "Active"}.
+                        </div>
+                      </div>
+                    </div>
+                    <span className="px-2.5 py-1 bg-emerald-100 text-emerald-800 font-bold rounded-lg border border-emerald-200 text-[10px]">
+                      Stage: In Production
+                    </span>
+                  </div>
+                )}
 
                 {/* Milestone 1: 30% Advance Deposit Box */}
                 <div className="p-4 rounded-xl bg-white border border-slate-200 shadow-2xs space-y-3">
