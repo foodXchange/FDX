@@ -16,6 +16,7 @@ import QaRegulatoryGateway from "@/components/admin/QaRegulatoryGateway";
 import PackagingArtworkStaging from "@/components/admin/PackagingArtworkStaging";
 import Stage7CommercialOrderHub from "@/components/admin/Stage7CommercialOrderHub";
 import InboundCorrespondenceHub from "@/components/admin/InboundCorrespondenceHub";
+import TradeDocumentSuiteButton from "@/components/admin/TradeDocumentSuiteButton";
 import type {
   CommercialOrderLifecycle,
   BuyerBriefApproval,
@@ -201,6 +202,35 @@ export default async function RequestDetailPage({ params }: PageProps) {
           </div>
 
           <div className="flex items-center gap-2">
+            <TradeDocumentSuiteButton
+              requestId={id}
+              productName={cleanedName || productName || "Product"}
+              cleanedName={cleanedName || productName || "Product"}
+              buyerCompany={buyerCompany}
+              benchmarkBrand={benchmarkBrand}
+              category={(request.category as string | null) ?? null}
+              packagingPreference={(request.packaging_preference as string | null) ?? null}
+              volumePerYear={(request.volume_per_year as string | null) ?? null}
+              certifications={certs}
+              imageUrl={imageUrls[0] ?? null}
+              sellerBrief={typeof aiAnalysis?.seller_brief === "string" ? aiAnalysis.seller_brief : null}
+              sampleProtocol={sampleDispatch}
+              orderWorkflow={orderWorkflow}
+              selectedSupplier={
+                comparisonSuppliers[0]
+                  ? {
+                      companyName: comparisonSuppliers[0].companyName,
+                      productName: comparisonSuppliers[0].productName,
+                      country: comparisonSuppliers[0].country,
+                      quotePrice: comparisonSuppliers[0].quote?.unit_price,
+                      currency: comparisonSuppliers[0].quote?.currency ?? "EUR",
+                      netWeight: comparisonSuppliers[0].quote?.net_weight,
+                      packagingFormat: comparisonSuppliers[0].quote?.packaging_format,
+                    }
+                  : null
+              }
+            />
+
             <Link
               href={`/track/${id}`}
               target="_blank"

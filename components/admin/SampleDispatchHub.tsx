@@ -5,6 +5,7 @@ import {
   type SampleDispatchProtocol,
   updateSampleDispatchProtocol,
 } from "@/app/admin/requests/actions";
+import TradeDocumentSuiteButton from "@/components/admin/TradeDocumentSuiteButton";
 
 export interface SampleSupplierOption {
   matchId: string;
@@ -671,6 +672,26 @@ FDX Commercial Sourcing Team
                     <span>✉️</span>
                     <span>Email to Factory</span>
                   </button>
+                  <TradeDocumentSuiteButton
+                    requestId={requestId}
+                    productName={productName}
+                    cleanedName={productName}
+                    buyerCompany={buyerCompany}
+                    defaultTab="customs"
+                    label="📄 Export Customs Proforma PDF"
+                    variant="primary"
+                    sampleProtocol={protocol}
+                    selectedSupplier={
+                      protocol.selected_supplier
+                        ? {
+                            companyName: protocol.selected_supplier.company_name || "",
+                            productName: protocol.selected_supplier.product_name || productName,
+                            country: "European Union",
+                          }
+                        : null
+                    }
+                    certifications={[]}
+                  />
                 </div>
               </div>
 
