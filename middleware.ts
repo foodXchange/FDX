@@ -26,7 +26,11 @@ export async function middleware(req: NextRequest) {
     }
     const cookie = req.cookies.get(COOKIE_NAME)?.value;
     if (!cookie || !(await verifySession(cookie))) {
-      return NextResponse.redirect(new URL("/admin/login", req.url));
+      const loginUrl = new URL("/admin/login", req.url);
+      if (pathname && pathname !== "/admin") {
+        loginUrl.searchParams.set("next", pathname);
+      }
+      return NextResponse.redirect(loginUrl);
     }
     return NextResponse.next();
   }

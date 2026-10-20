@@ -30,12 +30,12 @@ export default function Header() {
   return (
     <header className="sticky top-0 z-50 border-b border-nav-border bg-nav-bg/90 backdrop-blur-md text-white">
 
-      <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 sm:px-6">
+      <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 sm:px-6">
 
-        {/* ✅ LOGO — CLEAN FINAL VERSION */}
+        {/* ✅ LOGO */}
         <Link
           href="/"
-          className="flex items-center gap-3 hover:opacity-90 transition"
+          className="flex items-center gap-3 hover:opacity-90 transition shrink-0"
         >
           <Image
             src="/logo-dark.svg"
@@ -47,19 +47,19 @@ export default function Header() {
             className="h-7 w-auto object-contain"
           />
 
-          <span className="hidden lg:block text-xs text-slate-400 tracking-wide">
+          <span className="hidden xl:inline-block text-xs text-slate-400 tracking-wide">
             Strategic Sourcing
           </span>
         </Link>
 
-        {/* ✅ DESKTOP NAV */}
-        <nav className="hidden md:flex items-center gap-6">
+        {/* ✅ DESKTOP NAV (Visible on lg: 1024px+ to avoid crowding on 13" laptops & split screens) */}
+        <nav className="hidden lg:flex items-center gap-4 xl:gap-6">
 
           {navLinks.map((link) => (
             <Link
               key={link.href}
               href={link.href}
-              className={`text-sm font-medium transition ${
+              className={`text-sm font-medium transition whitespace-nowrap ${
                 isActive(link.href)
                   ? 'text-white border-b-2 border-orange-500 pb-1'
                   : 'text-slate-300 hover:text-orange-400'
@@ -69,11 +69,12 @@ export default function Header() {
             </Link>
           ))}
 
-          {/* ✅ CONTACT CTA */}
-          <Link href={contactHref}>
-            <button className="ml-4 bg-orange-500 hover:bg-orange-600 text-white px-5 py-2 rounded-md text-sm font-semibold transition shadow-sm">
-              Contact
-            </button>
+          {/* ✅ CONTACT LINK (Subtle ghost link to avoid dual-orange button conflict) */}
+          <Link
+            href={contactHref}
+            className="text-sm font-medium text-slate-300 hover:text-white px-3 py-1.5 rounded-md hover:bg-slate-800/60 transition whitespace-nowrap shrink-0"
+          >
+            Contact
           </Link>
 
           {/* ✅ SIGN IN / PORTAL ACCESS */}
@@ -81,10 +82,10 @@ export default function Header() {
 
         </nav>
 
-        {/* ✅ MOBILE MENU BUTTON */}
+        {/* ✅ MOBILE / TABLET MENU TOGGLE BUTTON (Visible below lg: 1024px) */}
         <button
           onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-          className="md:hidden p-2 hover:bg-slate-800 rounded transition"
+          className="lg:hidden p-2 text-slate-300 hover:text-white hover:bg-slate-800 rounded transition"
           aria-label="Toggle menu"
         >
           <svg
@@ -108,9 +109,9 @@ export default function Header() {
 
       </div>
 
-      {/* ✅ MOBILE NAV */}
+      {/* ✅ MOBILE / TABLET NAV (Below 1024px) */}
       {mobileMenuOpen && (
-        <nav className="md:hidden border-t border-nav-border bg-nav-bg px-4 py-4 space-y-3">
+        <nav className="lg:hidden border-t border-nav-border bg-nav-bg px-4 py-4 space-y-3">
 
           {navLinks.map((link) => (
             <Link
@@ -130,7 +131,7 @@ export default function Header() {
           <Link
             href={contactHref}
             onClick={() => setMobileMenuOpen(false)}
-            className="block text-center bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-md text-sm font-semibold"
+            className="block text-center bg-slate-800 hover:bg-slate-700 text-white px-4 py-2 rounded-md text-sm font-semibold border border-slate-700"
           >
             Contact
           </Link>

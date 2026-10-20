@@ -61,16 +61,16 @@ export function AuthNavDesktop() {
 
   if (state.status === "signed-in") {
     return (
-      <div className="ml-2 flex items-center gap-3">
+      <div className="ml-2 flex items-center gap-3 shrink-0">
         <Link
           href={state.portalHref}
-          className="text-sm font-medium text-slate-300 hover:text-orange-400 transition"
+          className="text-sm font-medium text-slate-300 hover:text-orange-400 transition whitespace-nowrap"
         >
           My Portal →
         </Link>
         <button
           onClick={() => signOutAndRedirect(router)}
-          className="border border-orange-500 text-orange-400 hover:bg-orange-500 hover:text-white px-4 py-2 rounded-md text-sm font-semibold transition"
+          className="border border-orange-500 text-orange-400 hover:bg-orange-500 hover:text-white px-3.5 py-1.5 rounded-md text-sm font-semibold transition whitespace-nowrap shrink-0 cursor-pointer"
         >
           Sign Out
         </button>
@@ -79,16 +79,16 @@ export function AuthNavDesktop() {
   }
 
   return (
-    <div className="ml-2 flex items-center gap-3">
+    <div className="ml-2 flex items-center gap-3 shrink-0">
       <Link
         href="/en/login"
-        className="text-sm text-slate-400 hover:text-white transition"
+        className="text-sm text-slate-400 hover:text-white transition whitespace-nowrap"
       >
         Sign in
       </Link>
       <Link
         href="/en/buyers"
-        className="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-md text-sm font-semibold transition"
+        className="bg-orange-500 hover:bg-orange-600 text-white px-3.5 py-1.5 rounded-md text-sm font-semibold transition whitespace-nowrap shrink-0 shadow-xs"
       >
         Get Matched →
       </Link>

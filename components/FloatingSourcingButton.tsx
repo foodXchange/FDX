@@ -3,7 +3,19 @@
 import { useState, useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
 
-const HIDDEN_ON = ["/sourcing", "/contact", "/buyers", "/start", "/signup"];
+const HIDDEN_ON = [
+  "/sourcing",
+  "/contact",
+  "/buyers",
+  "/start",
+  "/signup",
+  "/admin",
+  "/portal",
+  "/track",
+  "/customs",
+  "/factory",
+  "/supplier",
+];
 
 export default function FloatingSourcingButton() {
   const [visible, setVisible] = useState(false);

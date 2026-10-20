@@ -1,6 +1,6 @@
 'use client';
 import { Suspense, useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import Header from "@/components/Header";
 import Footer from "@/components/ui/Footer";
@@ -53,6 +53,9 @@ function AdminLoginContent() {
   const [cooldownRemaining, setCooldownRemaining] = useState(0);
 
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const nextParam = searchParams.get("next");
+  const redirectTarget = nextParam && nextParam.startsWith("/") ? nextParam : "/admin";
 
   useEffect(() => {
     try {
@@ -120,7 +123,7 @@ function AdminLoginContent() {
           localStorage.removeItem(LOCKOUT_KEY);
           localStorage.removeItem(ATTEMPTS_KEY);
         } catch {}
-        router.push("/admin/portfolio");
+        router.push(redirectTarget);
         return;
       }
 
@@ -237,4 +240,3 @@ export default function AdminLoginPage() {
     </Suspense>
   );
 }
-

@@ -133,7 +133,7 @@ export default function Footer() {
 
           {/* INTERNAL ACCESS LINK (DISCREET) */}
           <Link
-            href="/en/admin/upload"
+            href="/admin"
             className="text-slate-400 hover:text-slate-300 transition"
           >
             Internal
