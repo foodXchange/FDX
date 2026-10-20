@@ -3,6 +3,7 @@
 import React, { useState, useTransition } from "react";
 import ExportDocumentHandoverModal from "@/components/documents/ExportDocumentHandoverModal";
 import ErpAsnExportModal from "@/components/documents/ErpAsnExportModal";
+import TradeTooltip from "@/components/ui/TradeTooltip";
 import type { CommercialOrderLifecycle } from "@/app/admin/requests/actions";
 import { submitCustomsBrokerClearance } from "@/app/customs/actions";
 
@@ -324,7 +325,13 @@ export default function CustomsBrokerPortal({
 
             {/* 2. Bill of Lading */}
             <div className="p-3 rounded-2xl bg-slate-950 border border-slate-800 flex flex-col justify-between">
-              <span className="text-[10px] text-slate-500 font-semibold uppercase">שטר מטען ימי (B/L)</span>
+              <TradeTooltip
+                term="שטר מטען ימי (B/L)"
+                explanation="Clean Ocean Bill of Lading 3/3 - שטר המטען המקורי המקנה בעלות משפטית על המטען הנדרש להוצאת פקודת מסירה בנמל אשדוד."
+                category="customs"
+                dir="rtl"
+                className="text-[10px] text-slate-400 font-semibold uppercase"
+              />
               <div className="font-mono font-bold text-sm text-sky-400 my-1 truncate">
                 {activeBl}
               </div>
@@ -382,6 +389,12 @@ export default function CustomsBrokerPortal({
               <h2 className="text-lg font-bold text-white flex items-center gap-2">
                 <span>📁</span>
                 <span>תיק מסמכי שחרור מקוריים (6-Document Customs Package)</span>
+                <TradeTooltip
+                  term="חבילת 6 מסמכים"
+                  explanation="תיק המסמכים המלא הנדרש ע״י אגף המכס ושירות המזון: שטר מטען Clean B/L, חשבונית ספק, רשימת אריזה, EUR.1 (0% מכס), תעודת כשרות הרבנות, ותעודת בריאות מעבדה COA."
+                  category="customs"
+                  dir="rtl"
+                />
               </h2>
               <p className="text-xs text-slate-400 mt-0.5">
                 כל המסמכים המקוריים נבדקו, חתומים דיגיטלית ומאושרים להגשה למערכת ״שער עולמי״ של רשות המסים.

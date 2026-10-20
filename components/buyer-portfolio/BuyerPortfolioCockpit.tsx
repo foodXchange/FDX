@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { cloneOrderAsRepeatRun } from "@/app/track/actions";
 import ErpAsnExportModal from "@/components/documents/ErpAsnExportModal";
 import type { ErpAsnPayload } from "@/lib/documents/erpAsnGenerator";
+import TradeTooltip from "@/components/ui/TradeTooltip";
 
 // Self-contained SVG Icons for zero-dependency reliability
 function ShipIcon({ className = "w-4 h-4" }: { className?: string }) {
@@ -339,7 +340,13 @@ export default function BuyerPortfolioCockpit({
             </div>
             <div className="mt-3 flex items-baseline gap-2">
               <span className="text-3xl font-black text-white">{totalContainers}</span>
-              <span className="text-xs font-medium text-slate-400">TEU 40ft HC</span>
+              <TradeTooltip
+                term="TEU 40ft HC"
+                explanation="מכולת ענק של 40 רגל בגובה מוגדל (High Cube), המכילה 24 משטחי יורו (EPAL) ועד 24,000 יחידות מוצר."
+                category="shipping"
+                dir="rtl"
+                className="text-xs font-medium text-slate-400"
+              />
             </div>
             <div className="mt-2 text-xs text-slate-500 flex items-center gap-1.5">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
@@ -356,7 +363,13 @@ export default function BuyerPortfolioCockpit({
             </div>
             <div className="mt-3 flex items-baseline gap-2">
               <span className="text-3xl font-black text-white">{totalTonnage}</span>
-              <span className="text-xs font-medium text-emerald-400">טון מטרי (MT)</span>
+              <TradeTooltip
+                term="טון מטרי (MT)"
+                explanation="משקל מטען כולל במדד טון מטרי (1,000 ק״ג). משטחי יורו תקניים EPAL המתאימים לפריקה ברציפי המרלוג."
+                category="shipping"
+                dir="rtl"
+                className="text-xs font-medium text-emerald-400"
+              />
             </div>
             <div className="mt-2 text-xs text-slate-500">משטחי יורו תקניים (EPAL) ישירות למרלוג</div>
           </div>
@@ -370,7 +383,13 @@ export default function BuyerPortfolioCockpit({
             </div>
             <div className="mt-3 flex items-baseline gap-2">
               <span className="text-3xl font-black text-white">€{totalValueEur.toLocaleString()}</span>
-              <span className="text-xs font-medium text-amber-400">CIF Ashdod</span>
+              <TradeTooltip
+                term="CIF Ashdod"
+                explanation="תנאי מכר בינלאומיים (Cost, Insurance & Freight) הכוללים את עלות הסחורה, ביטוח ימי והובלה עד נמל אשדוד."
+                category="shipping"
+                dir="rtl"
+                className="text-xs font-medium text-amber-400"
+              />
             </div>
             <div className="mt-2 text-xs text-slate-500">100% הגנת שער והסכמי ביניים בנאמנות</div>
           </div>
@@ -384,7 +403,13 @@ export default function BuyerPortfolioCockpit({
             </div>
             <div className="mt-3 flex items-baseline gap-2">
               <span className="text-3xl font-black text-white">{completedCount}</span>
-              <span className="text-xs font-medium text-purple-400">תעודות GRN חתומות</span>
+              <TradeTooltip
+                term="תעודות GRN חתומות"
+                explanation="Goods Receipt Note - תעודת קבלת טובין רשמית חתומה ע״י מנהל המרלוג המאשרת קליטת מלאי במערכת ה-ERP."
+                category="quality"
+                dir="rtl"
+                className="text-xs font-medium text-purple-400"
+              />
             </div>
             <div className="mt-2 text-xs text-slate-500">זמינות להזמנה חוזרת מיידית (1-Click)</div>
           </div>

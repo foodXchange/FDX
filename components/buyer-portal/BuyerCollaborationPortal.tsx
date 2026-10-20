@@ -23,6 +23,9 @@ import ExportDocumentHandoverModal from "@/components/documents/ExportDocumentHa
 import GoodsReceiptDocumentModal from "@/components/documents/GoodsReceiptDocumentModal";
 import MaritimeVesselTracker from "@/components/shipping/MaritimeVesselTracker";
 import BuyerActionConciergeBanner, { type BuyerConciergeAction } from "./BuyerActionConciergeBanner";
+import BuyerJourneyProgressRibbon from "./BuyerJourneyProgressRibbon";
+import BuyerStickyMobileActionDock from "./BuyerStickyMobileActionDock";
+import TradeTooltip from "@/components/ui/TradeTooltip";
 
 export interface BuyerPortalData {
   requestId: string;
@@ -310,6 +313,10 @@ export default function BuyerCollaborationPortal({ data }: Props) {
 
   // Project Tag
   const projectRef = `[FDX-REQ-${data.requestId.slice(0, 8).toUpperCase()}]`;
+
+  // Active Container & Logistics state
+  const activeContainerNumber = data.orderWorkflow?.container_number || "MSKU-9481029";
+  const isMaritime = Boolean(data.orderWorkflow?.vessel_name || data.orderWorkflow?.bill_of_lading || data.orderWorkflow?.container_number);
 
   // Dynamic Concierge Next Best Action
   const getConciergeAction = (): BuyerConciergeAction => {
@@ -666,6 +673,26 @@ export default function BuyerCollaborationPortal({ data }: Props) {
       <main className="max-w-5xl mx-auto px-4 py-8 flex-1 w-full text-xs space-y-6">
         {/* ── Smart Concierge Next Best Action Banner ── */}
         <BuyerActionConciergeBanner action={conciergeAction} lang={lang} />
+
+        {/* ── Visual 5-Stage Supply Chain Stepper Ribbon ── */}
+        <BuyerJourneyProgressRibbon
+          currentStageNumber={
+            isDelivered
+              ? 5
+              : data.orderWorkflow?.customs_status === "customs_broker_clearing" || data.orderWorkflow?.current_stage === "customs_warehouse"
+              ? 4
+              : isMaritime || data.orderWorkflow?.current_stage === "shipping_customs_warehouse"
+              ? 3
+              : activePoNumber && wireStatus !== "pending_buyer_wire"
+              ? 2
+              : 1
+          }
+          poNumber={activePoNumber || "PO-FDX-DRAFT"}
+          containerNumber={activeContainerNumber}
+          customsDeclaration={data.orderWorkflow?.customs_declaration_number || undefined}
+          grnNumber={grnNumber || undefined}
+          lang={lang}
+        />
 
         {/* ── TAB 1: Specification Brief Sign-Off ── */}
         {activeTab === "overview" && (
@@ -2154,6 +2181,13 @@ export default function BuyerCollaborationPortal({ data }: Props) {
           inspectionNotes={grnNotes}
         />
       </main>
+
+      {/* ── Sticky Mobile Next Action Dock ── */}
+      <BuyerStickyMobileActionDock
+        action={conciergeAction}
+        productName={data.cleanedName}
+        lang={lang}
+      />
 
       {/* ── Floating Trade Agent Support ── */}
       <footer className="bg-white border-t border-slate-200 py-4 px-4 sticky bottom-0 z-20 shadow-md">
