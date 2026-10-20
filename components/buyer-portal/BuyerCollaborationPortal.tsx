@@ -22,6 +22,7 @@ import CommercialPoDocumentModal from "@/components/documents/CommercialPoDocume
 import ExportDocumentHandoverModal from "@/components/documents/ExportDocumentHandoverModal";
 import GoodsReceiptDocumentModal from "@/components/documents/GoodsReceiptDocumentModal";
 import MaritimeVesselTracker from "@/components/shipping/MaritimeVesselTracker";
+import BuyerActionConciergeBanner, { type BuyerConciergeAction } from "./BuyerActionConciergeBanner";
 
 export interface BuyerPortalData {
   requestId: string;
@@ -310,6 +311,143 @@ export default function BuyerCollaborationPortal({ data }: Props) {
   // Project Tag
   const projectRef = `[FDX-REQ-${data.requestId.slice(0, 8).toUpperCase()}]`;
 
+  // Dynamic Concierge Next Best Action
+  const getConciergeAction = (): BuyerConciergeAction => {
+    if (!briefApproved) {
+      return {
+        stageNumber: 1,
+        badgeLabel: lang === "he" ? "שלב 1: אישור מפרט" : "Step 1: Brief Sign-Off",
+        badgeColor: "bg-amber-500/20 text-amber-300 border-amber-500/30",
+        title: lang === "he" ? "אישור בריף ומפרט המוצר המבוקש" : "Approve Product Sourcing Specification",
+        description: lang === "he"
+          ? "נא לאשר את מאפייני המוצר, הכשרות והאריזה על מנת שהסוכן ינעל את ההצעות הסופיות מול היצרנים האירופאיים."
+          : "Please verify and sign off on technical specs, kosher supervision, and packaging preference.",
+        buttonText: lang === "he" ? "צפה בבריף ואשר" : "Review & Sign Brief",
+        buttonIcon: "📋",
+        buttonActionType: "switch_tab",
+        onButtonClick: () => setActiveTab("overview"),
+      };
+    }
+
+    if (activePoNumber && wireStatus === "pending_buyer_wire") {
+      return {
+        stageNumber: 2,
+        badgeLabel: lang === "he" ? "שלב 2: תשלום מקדמה" : "Step 2: Advance Deposit",
+        badgeColor: "bg-rose-500/20 text-rose-300 border-rose-500/30",
+        title: lang === "he" ? "העברת מקדמת 30% להפעלת הייצור במפעל" : "Remit 30% Production Advance Deposit",
+        description: lang === "he"
+          ? `הסכם PO נחתם בהצלחה. יש להזין אסמכתאת העברה בנקאית (€${advanceAmount.toLocaleString()}) לחשבון הנאמנות להפעלת קו הייצור באירופה.`
+          : `PO signed. Please submit SWIFT MT103 wire confirmation (€${advanceAmount.toLocaleString()}) to release factory bottling.`,
+        buttonText: lang === "he" ? "הזן אסמכתאת העברה (SWIFT)" : "Submit Wire Receipt",
+        buttonIcon: "💳",
+        buttonActionType: "open_modal",
+        onButtonClick: () => {
+          setSelectedMilestone("advance_30");
+          setShowWireModal(true);
+        },
+      };
+    }
+
+    if (sampleDelivered && !sensorySubmitted) {
+      return {
+        stageNumber: 3,
+        badgeLabel: lang === "he" ? "שלב 3: בדיקה סנסורית" : "Step 3: Tasting Evaluation",
+        badgeColor: "bg-purple-500/20 text-purple-300 border-purple-500/30",
+        title: lang === "he" ? "דוגמאות המפעל נמסרו למשרדכם! נא למלא משוב טעימה" : "Factory Samples Delivered! Complete Sensory Tasting",
+        description: lang === "he"
+          ? "ערכת הדוגמאות נמסרה ע״י DHL. דרגו טעם, מרקם, צבע וארומה לצורך אישור סופי או התאמת מתכון מול המפעל."
+          : "Samples delivered by DHL. Record taste, texture, and aroma ratings to finalize recipe calibration.",
+        buttonText: lang === "he" ? "מלא כרטיס בדיקה סנסורית" : "Fill Tasting Scorecard",
+        buttonIcon: "🍷",
+        buttonActionType: "switch_tab",
+        onButtonClick: () => setActiveTab("samples"),
+      };
+    }
+
+    if (sensorySubmitted && !packagingApproved) {
+      return {
+        stageNumber: 4,
+        badgeLabel: lang === "he" ? "שלב 4: אישור גרפיקה" : "Step 4: Label Approval",
+        badgeColor: "bg-blue-500/20 text-blue-300 border-blue-500/30",
+        title: lang === "he" ? "אישור עיצוב גרפי ותווית עברית למותג פרטי" : "Approve Hebrew Private Label Artwork",
+        description: lang === "he"
+          ? "מפרט התווית בעברית (טבלת סימון תזונתי, אלרגנים, אישור כשרות) מוכן לאישור סופי לפני הדפסה במפעל."
+          : "Hebrew nutritional & allergen label layout prepared according to MOH standards. Sign off to begin printing.",
+        buttonText: lang === "he" ? "אשר תווית להדפסה" : "Approve Artwork",
+        buttonIcon: "🎨",
+        buttonActionType: "switch_tab",
+        onButtonClick: () => setActiveTab("packaging"),
+      };
+    }
+
+    if (balanceStatus === "pending_buyer_wire") {
+      return {
+        stageNumber: 5,
+        badgeLabel: lang === "he" ? "שלב 5: יתרת 70% כנגד שטר מטען" : "Step 5: Balance Against B/L",
+        badgeColor: "bg-indigo-500/20 text-indigo-300 border-indigo-500/30",
+        title: lang === "he" ? "המכולה שטה בים התיכון - העברת יתרת 70% כנגד B/L" : "Ocean Transit: Remit 70% Balance Against Clean B/L",
+        description: lang === "he"
+          ? `המכולה בהפלגה לאשדוד. שטר מטען ימי Clean B/L 3/3 הונפק. הזן אסמכתת יתרה (€${balanceAmount.toLocaleString()}) לשחרור מסמכי המקור לעמיל המכס.`
+          : `Vessel underway to Ashdod Pier 21. Original Clean B/L issued. Submit balance wire (€${balanceAmount.toLocaleString()}) to release customs documents.`,
+        buttonText: lang === "he" ? "הזן אסמכתאת יתרת 70%" : "Submit Balance Wire",
+        buttonIcon: "💳",
+        buttonActionType: "open_modal",
+        onButtonClick: () => {
+          setSelectedMilestone("balance_70");
+          setShowWireModal(true);
+        },
+      };
+    }
+
+    if (!isDelivered && data.orderWorkflow?.customs_status === "customs_broker_clearing") {
+      return {
+        stageNumber: 6,
+        badgeLabel: lang === "he" ? "שלב 6: שחרור מכס אשדוד" : "Step 6: Customs Clearance",
+        badgeColor: "bg-cyan-500/20 text-cyan-300 border-cyan-500/30",
+        title: lang === "he" ? "המכולה בנמל אשדוד רציף 21 - בהליך שחרור מכס מהיר" : "Container Docked at Ashdod Pier 21 - Green Lane Clearance",
+        description: lang === "he"
+          ? "עמיל המכס קיבל את תיק 6 המסמכים המלאים ומפיק רשימון יבוא במסלול הירוק. פקודת מסירה תועבר למוביל."
+          : "Customs broker received complete 6-document bundle and is submitting declaration via Shaar Olami green lane.",
+        buttonText: lang === "he" ? "כניסה לתיק מסמכי המכס" : "View Customs Portal",
+        buttonIcon: "📑",
+        buttonActionType: "link",
+        targetLink: `/customs/${data.requestId}`,
+      };
+    }
+
+    if (!isDelivered) {
+      return {
+        stageNumber: 7,
+        badgeLabel: lang === "he" ? "שלב 7: קליטה במרלוג" : "Step 7: Dock Acceptance",
+        badgeColor: "bg-amber-500/20 text-amber-300 border-amber-500/30",
+        title: lang === "he" ? "המכולה ברציף המרלוג - אשר תעודת קבלת טובין (GRN)" : "Container at Warehouse Dock - Sign Goods Receipt Note (GRN)",
+        description: lang === "he"
+          ? "משאית ההובלה הגיעה למחסן לפריקה. מנהל המרלוג מתבקש לאשר קליטת 24 משטחים ובדיקת שרשרת קור."
+          : "Truck arrived at central warehouse dock. Warehouse officer sign-off required for 24 Euro-pallets.",
+        buttonText: lang === "he" ? "אישור קליטת משטחים (GRN)" : "Sign Goods Receipt Note",
+        buttonIcon: "📦",
+        buttonActionType: "open_modal",
+        onButtonClick: () => setShowGrnDocModal(true),
+      };
+    }
+
+    return {
+      stageNumber: 8,
+      badgeLabel: lang === "he" ? "הושלם בהצלחה" : "100% Delivered",
+      badgeColor: "bg-emerald-500/20 text-emerald-300 border-emerald-500/30",
+      title: lang === "he" ? "עסקת היבוא הושלמה בהצלחה! 24 משטחים נקלטו במלאי המרלוג" : "Import Container Deal Completed! 24 Pallets Ingested into ERP",
+      description: lang === "he"
+        ? "תעודת קבלה רשמית (GRN) חתומה. ניתן להוריד מנשר Priority ERP או לבצע הזמנה חוזרת בקליק אחד."
+        : "Official GRN signed & verified. Export Priority/SAP ASN or launch a 1-click repeat order run.",
+      buttonText: lang === "he" ? "ניהול מכולות והזמנה חוזרת (Repeat Run)" : "View Portfolio & Re-Order",
+      buttonIcon: "🔁",
+      buttonActionType: "link",
+      targetLink: "/track",
+    };
+  };
+
+  const conciergeAction = getConciergeAction();
+
   return (
     <div
       dir={isRtl ? "rtl" : "ltr"}
@@ -525,7 +663,10 @@ export default function BuyerCollaborationPortal({ data }: Props) {
       </div>
 
       {/* ── Main Content Area ── */}
-      <main className="max-w-5xl mx-auto px-4 py-8 flex-1 w-full text-xs">
+      <main className="max-w-5xl mx-auto px-4 py-8 flex-1 w-full text-xs space-y-6">
+        {/* ── Smart Concierge Next Best Action Banner ── */}
+        <BuyerActionConciergeBanner action={conciergeAction} lang={lang} />
+
         {/* ── TAB 1: Specification Brief Sign-Off ── */}
         {activeTab === "overview" && (
           <div className="space-y-6">
