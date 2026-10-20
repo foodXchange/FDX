@@ -1,4 +1,5 @@
 import { GoogleGenAI } from "@google/genai";
+import { GEMINI_MODEL } from "@/lib/ai/models";
 
 interface PerplexityResult {
   content: string;
@@ -27,7 +28,7 @@ export async function researchSupplier(
         `Check their official website, LinkedIn, Europages, Kompass, and food trade directories.`;
 
       const response = await ai.models.generateContent({
-        model: "gemini-3.8-flash",
+        model: GEMINI_MODEL,
         contents: prompt,
         config: {
           systemInstruction:

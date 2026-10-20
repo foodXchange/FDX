@@ -16,6 +16,7 @@ import {
 import { embedBatch } from "@/lib/ai/embed";
 import { mapScraperCategoryToCanonicalId } from "@/lib/pip/resolveCategoryId";
 import { isBlockedOrEmptyContent } from "@/lib/scraper/cleanContent";
+import { GEMINI_MODEL } from "@/lib/ai/models";
 
 export const dynamic = "force-dynamic";
 
@@ -321,7 +322,7 @@ export async function GET(req: NextRequest) {
           const { GoogleGenAI } = await import("@google/genai");
           const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
           await ai.models.generateContent({
-            model: "gemini-3.8-flash",
+            model: GEMINI_MODEL,
             contents: "ping",
           });
         } catch (err: any) {
@@ -333,9 +334,13 @@ export async function GET(req: NextRequest) {
             msg.includes("organization_on_hold")
           ) {
             const isSpendCap = msg.includes("spending cap") || msg.includes("monthly spending cap");
-            const breakerNotice = isSpendCap
-              ? "⚡ CIRCUIT BREAKER: Monthly spending cap reached on Google AI Studio (or newly upgraded billing is still propagating). Please check or raise your Spend Cap at https://ai.studio/billing (or wait 5-15m for Google billing sync). Pausing scraper safely — no suppliers were modified."
-              : "⚡ CIRCUIT BREAKER: AI Prepayment credits are depleted (HTTP 402). Pausing scraper safely — no suppliers were modified or crawled. Top up at https://ai.studio/projects.";
+            const isFreeQuota = msg.includes("free_tier_requests") || msg.includes("GenerateRequestsPerDay");
+            let breakerNotice = "⚡ CIRCUIT BREAKER: AI Prepayment credits are depleted (HTTP 402). Pausing scraper safely — no suppliers were modified or crawled. Top up at https://ai.studio/projects.";
+            if (isSpendCap) {
+              breakerNotice = "⚡ CIRCUIT BREAKER: Monthly spending cap reached on Google AI Studio (or newly upgraded billing is still propagating). Please check or raise your Spend Cap at https://ai.studio/billing (or wait 5-15m for Google billing sync). Pausing scraper safely — no suppliers were modified.";
+            } else if (isFreeQuota) {
+              breakerNotice = `⚡ CIRCUIT BREAKER: Gemini Free Tier daily limit reached for model ${GEMINI_MODEL}. Pausing scraper safely — no suppliers were modified.`;
+            }
             send({
               type: "error",
               message: breakerNotice,
@@ -761,9 +766,13 @@ export async function GET(req: NextRequest) {
 
             if (isCircuitBreaker) {
               const isSpendCap = msg.includes("spending cap") || msg.includes("monthly spending cap");
-              const breakerNotice = isSpendCap
-                ? "  ⚡ CIRCUIT BREAKER TRIPPED: Google Gemini monthly spending cap reached. Check or raise your Spend Cap at https://ai.studio/billing. Pausing scraper safely — remaining suppliers retained as pending."
-                : "  ⚡ CIRCUIT BREAKER TRIPPED: Google AI Studio prepayment credits depleted (HTTP 402). Pausing scraper safely — remaining suppliers retained as pending.";
+              const isFreeQuota = msg.includes("free_tier_requests") || msg.includes("GenerateRequestsPerDay");
+              let breakerNotice = "  ⚡ CIRCUIT BREAKER TRIPPED: Google AI Studio prepayment credits depleted (HTTP 402). Pausing scraper safely — remaining suppliers retained as pending.";
+              if (isSpendCap) {
+                breakerNotice = "  ⚡ CIRCUIT BREAKER TRIPPED: Google Gemini monthly spending cap reached. Check or raise your Spend Cap at https://ai.studio/billing. Pausing scraper safely — remaining suppliers retained as pending.";
+              } else if (isFreeQuota) {
+                breakerNotice = `  ⚡ CIRCUIT BREAKER TRIPPED: Gemini Free Tier daily limit reached for model ${GEMINI_MODEL}. Pausing scraper safely — remaining suppliers retained as pending.`;
+              }
               send({
                 type: "error",
                 message: breakerNotice,

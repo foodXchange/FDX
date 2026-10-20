@@ -1,11 +1,12 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { GEMINI_MODEL } from "@/lib/ai/models";
 
 export const dynamic = "force-dynamic";
 
 let lastGeminiCheck: { isTripped: boolean; reason: string | null; checkedAt: number } = {
-  isTripped: true,
-  reason: "Google AI Studio prepayment credit is depleted (HTTP 402 RESOURCE_EXHAUSTED).",
+  isTripped: false,
+  reason: null,
   checkedAt: 0,
 };
 
@@ -58,7 +59,7 @@ export async function GET() {
         const { GoogleGenAI } = await import("@google/genai");
         const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
         await ai.models.generateContent({
-          model: "gemini-3.8-flash",
+          model: GEMINI_MODEL,
           contents: "ping",
         });
         lastGeminiCheck = { isTripped: false, reason: null, checkedAt: Date.now() };
@@ -66,11 +67,16 @@ export async function GET() {
         const msg = err?.message || String(err);
         if (msg.includes("402") || msg.includes("RESOURCE_EXHAUSTED") || msg.includes("depleted")) {
           const isSpendCap = msg.includes("spending cap") || msg.includes("monthly spending cap");
+          const isFreeQuota = msg.includes("free_tier_requests") || msg.includes("GenerateRequestsPerDay");
+          let reason = "Google AI Studio prepayment credit is depleted (HTTP 402 RESOURCE_EXHAUSTED). Please top up balance at https://ai.studio/projects.";
+          if (isSpendCap) {
+            reason = "Google Gemini monthly spending cap reached (or billing propagation pending). Adjust spend cap at https://ai.studio/billing.";
+          } else if (isFreeQuota) {
+            reason = `Google AI Studio Free Tier daily quota reached for model ${GEMINI_MODEL}.`;
+          }
           lastGeminiCheck = {
             isTripped: true,
-            reason: isSpendCap
-              ? "Google Gemini monthly spending cap reached (or billing propagation pending). Adjust spend cap at https://ai.studio/billing."
-              : "Google AI Studio prepayment credit is depleted (HTTP 402 RESOURCE_EXHAUSTED). Please top up balance at https://ai.studio/projects.",
+            reason,
             checkedAt: Date.now(),
           };
         } else {
@@ -109,7 +115,7 @@ export async function GET() {
           name: "Google Gemini",
           configured: hasGemini,
           status: circuitBreakerTripped ? "circuit_breaker_active" : "operational",
-          model: "gemini-3.8-flash",
+          model: GEMINI_MODEL,
           note: circuitBreakerTripped ? (circuitBreakerReason || "Quota depleted") : "Ready",
         },
         anthropic: {

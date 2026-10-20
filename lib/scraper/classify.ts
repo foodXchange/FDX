@@ -1,6 +1,7 @@
 import { GoogleGenAI } from "@google/genai";
 import Anthropic from "@anthropic-ai/sdk";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { GEMINI_MODEL } from "../ai/models";
 import {
   BUYER_ROLES,
   isBusinessRole,
@@ -125,7 +126,7 @@ async function callModel(prompt: string): Promise<string> {
   if (gemini) {
     try {
       const response = await gemini.models.generateContent({
-        model: "gemini-3.8-flash",
+        model: GEMINI_MODEL,
         contents: prompt,
         config: { systemInstruction: SYSTEM_PROMPT, responseMimeType: "application/json" },
       });

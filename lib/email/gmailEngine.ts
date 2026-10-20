@@ -2,6 +2,7 @@ import nodemailer from "nodemailer";
 import { ImapFlow } from "imapflow";
 import { Resend } from "resend";
 import { GoogleGenAI } from "@google/genai";
+import { GEMINI_MODEL } from "@/lib/ai/models";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { createNotification } from "@/lib/notifications/createNotification";
 export { getMatchRefTag, buildGmailThreadUrl } from "@/lib/notifications/gmailHelper";
@@ -300,7 +301,7 @@ Return ONLY valid JSON with this exact shape:
 }`;
 
     const res = await ai.models.generateContent({
-      model: "gemini-3.8-flash",
+      model: GEMINI_MODEL,
       contents: prompt,
       config: {
         responseMimeType: "application/json",

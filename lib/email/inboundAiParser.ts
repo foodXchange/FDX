@@ -1,4 +1,5 @@
 import { GoogleGenAI } from "@google/genai";
+import { GEMINI_MODEL } from "@/lib/ai/models";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { logAdminAction } from "@/lib/auditLog";
 import { revalidatePath } from "next/cache";
@@ -131,7 +132,7 @@ Return ONLY valid JSON matching this exact structure:
 }`;
 
     const res = await ai.models.generateContent({
-      model: "gemini-3.8-flash",
+      model: GEMINI_MODEL,
       contents: prompt,
       config: {
         responseMimeType: "application/json",

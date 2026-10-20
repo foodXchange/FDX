@@ -1,6 +1,7 @@
 import { GoogleGenAI } from "@google/genai";
 import Anthropic from "@anthropic-ai/sdk";
 import { cleanScrapedContent } from "./cleanContent";
+import { GEMINI_MODEL } from "@/lib/ai/models";
 
 export interface ExtractedFactory {
   factory_name: string;
@@ -142,7 +143,7 @@ export async function detectManufacturerType(
 
     if (gemini) {
       const response = await gemini.models.generateContent({
-        model: "gemini-3.8-flash",
+        model: GEMINI_MODEL,
         contents: userPrompt,
         config: {
           systemInstruction:
@@ -322,7 +323,7 @@ export async function extractProducts(
 
     if (gemini) {
       const response = await gemini.models.generateContent({
-        model: "gemini-3.8-flash",
+        model: GEMINI_MODEL,
         contents: userPrompt,
         config: {
           systemInstruction: EXTRACT_SYSTEM_PROMPT,
@@ -446,7 +447,7 @@ export async function extractSupplierProfile(
 
     if (gemini) {
       const response = await gemini.models.generateContent({
-        model: "gemini-3.8-flash",
+        model: GEMINI_MODEL,
         contents: userPrompt,
         config: {
           systemInstruction:
@@ -639,7 +640,7 @@ export async function extractSupplierFull(
   if (gemini) {
     try {
       const response = await gemini.models.generateContent({
-        model: "gemini-3.8-flash",
+        model: GEMINI_MODEL,
         contents: prompt,
         config: {
           systemInstruction: "Extract structured B2B food products and company profile. Output JSON only.",

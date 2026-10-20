@@ -1,5 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { GoogleGenAI } from "@google/genai";
+import { GEMINI_MODEL } from "./models";
 import { z } from "zod";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import buildImageExtractionPrompt from "@/lib/ai/imageExtractionPrompt";
@@ -112,7 +113,7 @@ export async function extractImage(opts: {
         try {
           const ai = new GoogleGenAI({ apiKey: geminiKey });
           const response = await ai.models.generateContent({
-            model: "gemini-3.8-flash",
+            model: GEMINI_MODEL,
             contents: [
               {
                 role: "user",

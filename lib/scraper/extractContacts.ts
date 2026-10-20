@@ -1,6 +1,7 @@
 import { GoogleGenAI } from "@google/genai";
 import Anthropic from "@anthropic-ai/sdk";
 import type { ContactPage } from "./firecrawlPipeline";
+import { GEMINI_MODEL } from "@/lib/ai/models";
 
 export interface ExtractedContact {
   name?: string | null;
@@ -62,7 +63,7 @@ async function extractFromPage(
 
     if (gemini) {
       const response = await gemini.models.generateContent({
-        model: "gemini-3.8-flash",
+        model: GEMINI_MODEL,
         contents: userPrompt,
         config: {
           systemInstruction:

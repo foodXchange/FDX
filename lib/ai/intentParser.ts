@@ -1,5 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { GoogleGenAI } from "@google/genai";
+import { GEMINI_MODEL } from "./models";
 import { IntentSchema, EMPTY_INTENT } from "@/lib/ai/intentSchema";
 import type { IntentResult } from "@/lib/ai/intentSchema";
 import { parseIntent as parseIntentV1 } from "@/lib/matching/heuristicIntentParser";
@@ -51,7 +52,7 @@ Buyer request: ${text}`;
 async function geminiParser(text: string): Promise<IntentResult> {
   const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
   const response = await ai.models.generateContent({
-    model: "gemini-3.8-flash",
+    model: GEMINI_MODEL,
     contents: `${SYSTEM_PROMPT}\n\n${buildUserMessage(text)}`,
     config: {
       temperature: 0.1,
