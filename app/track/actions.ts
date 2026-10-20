@@ -759,3 +759,194 @@ export async function buyerSignWarehouseGoodsReceipt(
     };
   }
 }
+
+export interface CloneRepeatOrderInput {
+  sourceRequestId: string;
+  orderVolume?: string;
+  targetWarehouseDate?: string;
+  specialInstructions?: string;
+  buyerOfficerName?: string;
+}
+
+export interface CloneRepeatOrderResult {
+  ok: boolean;
+  newRequestId?: string;
+  poNumber?: string;
+  message?: string;
+  error?: string;
+}
+
+/**
+ * Clones a verified order into a new repeat container run, preserving specs,
+ * certifications, incoterms, and approved factory supplier match.
+ */
+export async function cloneOrderAsRepeatRun(
+  input: CloneRepeatOrderInput
+): Promise<CloneRepeatOrderResult> {
+  try {
+    if (!input.sourceRequestId) {
+      return { ok: false, error: "Missing source request ID" };
+    }
+
+    // 1. Fetch source request
+    const { data: source, error: sourceErr } = await supabaseAdmin
+      .from("sourcing_requests")
+      .select("*")
+      .eq("id", input.sourceRequestId)
+      .maybeSingle();
+
+    if (sourceErr || !source) {
+      return { ok: false, error: sourceErr?.message || "Source request not found" };
+    }
+
+    // 2. Fetch top approved or existing match
+    const { data: matches } = await supabaseAdmin
+      .from("sourcing_matches")
+      .select("*")
+      .eq("request_id", input.sourceRequestId)
+      .order("match_score", { ascending: false })
+      .limit(3);
+
+    const approvedMatch = matches?.find((m) => m.status === "approved") || matches?.[0];
+
+    const ai = (source.ai_analysis ?? {}) as Record<string, unknown>;
+    const sourceWf = (ai.order_workflow ?? null) as CommercialOrderLifecycle | null;
+
+    // 3. Generate new PO Number & Unique ID
+    const yearSuffix = new Date().getFullYear().toString().slice(-2);
+    const month = (new Date().getMonth() + 1).toString().padStart(2, "0");
+    const randomCode = Math.floor(1000 + Math.random() * 9000);
+    const poNumber = `PO-FDX-${yearSuffix}${month}-${randomCode}`;
+    const newId = crypto.randomUUID();
+
+    const volume =
+      input.orderVolume?.trim() ||
+      sourceWf?.order_volume ||
+      source.volume_per_year ||
+      "1 x 40ft HC (24,000 units / 24 Euro-pallets)";
+
+    const buyerName = source.company || source.name || "Retail Buyer";
+    const officer = input.buyerOfficerName?.trim() || source.name || "Procurement Director";
+
+    // 4. Formulate repeat order workflow with reset execution state but retained commercial terms
+    const newAiAnalysis = {
+      ...ai,
+      cloned_from: {
+        requestId: input.sourceRequestId,
+        clonedAt: new Date().toISOString(),
+        clonedBy: officer,
+        originalPoNumber: sourceWf?.po_number || null,
+      },
+      repeat_order_type: "recurring_container_run",
+      special_instructions: input.specialInstructions?.trim() || null,
+      target_delivery_date: input.targetWarehouseDate?.trim() || null,
+      order_workflow: {
+        po_number: poNumber,
+        po_date: new Date().toISOString(),
+        current_stage: "order_po_issued",
+        agreed_product_name: source.product_name || "Food Product",
+        selected_supplier_name: sourceWf?.selected_supplier_name || approvedMatch?.company_name || "Approved European Manufacturer",
+        order_volume: volume,
+        total_order_value: sourceWf?.total_order_value || 44400,
+        production_status: "queued",
+        financial_clearance: {
+          advance_milestone_30: {
+            status: "pending_buyer_wire",
+            buyer_wire_amount: sourceWf?.financial_clearance?.advance_milestone_30?.buyer_wire_amount || 13320,
+            factory_wire_amount: sourceWf?.financial_clearance?.advance_milestone_30?.factory_wire_amount || 11640,
+            agent_commission_amount: sourceWf?.financial_clearance?.advance_milestone_30?.agent_commission_amount || 1680,
+          },
+          balance_milestone_70: {
+            status: "pending_buyer_wire",
+            buyer_wire_amount: sourceWf?.financial_clearance?.balance_milestone_70?.buyer_wire_amount || 31080,
+            factory_wire_amount: sourceWf?.financial_clearance?.balance_milestone_70?.factory_wire_amount || 27160,
+            agent_commission_amount: sourceWf?.financial_clearance?.balance_milestone_70?.agent_commission_amount || 3920,
+          },
+          total_agent_brokerage_pool: sourceWf?.financial_clearance?.total_agent_brokerage_pool || 5600,
+        },
+      } as CommercialOrderLifecycle,
+    };
+
+    // 5. Insert new sourcing request
+    const { error: insErr } = await supabaseAdmin.from("sourcing_requests").insert({
+      id: newId,
+      name: source.name,
+      company: source.company,
+      email: source.email,
+      whatsapp: source.whatsapp,
+      product_name: source.product_name,
+      category: source.category,
+      formats: source.formats,
+      certifications: source.certifications,
+      volume_per_year: volume,
+      target_market: source.target_market || "Israel",
+      kosher_required: source.kosher_required,
+      kosher_type: source.kosher_type,
+      passover_kosher: source.passover_kosher,
+      packaging_preference: source.packaging_preference,
+      status: "active",
+      ai_analysis: newAiAnalysis,
+      internal_notes: `[Repeat Order Run] Cloned from request #${input.sourceRequestId.slice(0, 8)} on ${new Date().toLocaleDateString("he-IL")}. Target Delivery: ${input.targetWarehouseDate || "Standard Cycle"}. Special Instructions: ${input.specialInstructions || "None"}`,
+    });
+
+    if (insErr) {
+      return { ok: false, error: insErr.message };
+    }
+
+    // 6. Clone supplier match if available
+    if (approvedMatch) {
+      await supabaseAdmin.from("sourcing_matches").insert({
+        request_id: newId,
+        supplier_id: approvedMatch.supplier_id,
+        company_name: approvedMatch.company_name,
+        product_name: approvedMatch.product_name || source.product_name,
+        country: approvedMatch.country,
+        match_score: 98,
+        status: "approved",
+        match_summary: `Direct repeat container run contract established with ${approvedMatch.company_name}. Technical specs, kosher supervision, and private label artwork aligned with baseline order.`,
+      });
+    }
+
+    // 7. Internal Notification for Broker Trading Desk
+    await createNotification(
+      "response",
+      `🔁 Repeat Container Order Placed: #${poNumber}`,
+      `[${buyerName}] triggered a 1-click repeat order for ${source.product_name} (${volume}). Baseline PO cloned with verified European supplier!`,
+      { requestId: newId }
+    );
+
+    // 8. Audit Log
+    await logAdminAction({
+      adminEmail: "buyer-portal@repeat-run",
+      action: "buyer_clone_repeat_order",
+      targetType: "sourcing_request",
+      targetId: newId,
+      metadata: {
+        source_request_id: input.sourceRequestId,
+        po_number: poNumber,
+        volume,
+        buyer: buyerName,
+      },
+    });
+
+    try {
+      revalidatePath("/track");
+      revalidatePath(`/track/${newId}`);
+      revalidatePath("/admin/requests");
+      revalidatePath("/admin/finance");
+    } catch {}
+
+    return {
+      ok: true,
+      newRequestId: newId,
+      poNumber,
+      message: `ההזמנה החוזרת נוצרה בהצלחה! מספר הזמנה: ${poNumber}`,
+    };
+  } catch (err: unknown) {
+    console.error("cloneOrderAsRepeatRun error:", err);
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "Failed to clone repeat order",
+    };
+  }
+}

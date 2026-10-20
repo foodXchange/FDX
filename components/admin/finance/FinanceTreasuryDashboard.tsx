@@ -261,6 +261,13 @@ export default function FinanceTreasuryDashboard({ deals, metrics }: Props) {
         </div>
 
         <div className="flex items-center gap-2.5">
+          <Link
+            href="/track"
+            className="text-xs font-bold px-3.5 py-2 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-xl transition flex items-center gap-2 border border-blue-200"
+          >
+            <span>🚢</span>
+            <span>Retail Container Portfolio (/track)</span>
+          </Link>
           <button
             type="button"
             onClick={handleExportCsv}

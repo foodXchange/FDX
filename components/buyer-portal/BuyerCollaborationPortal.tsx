@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import type {
   BuyerBriefApproval,
   SampleDispatchProtocol,
@@ -332,6 +333,14 @@ export default function BuyerCollaborationPortal({ data }: Props) {
           </div>
 
           <div className="flex items-center gap-2">
+            <Link
+              href="/track"
+              className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs text-slate-300 border border-slate-700 transition"
+              title={lang === "he" ? "מעבר לתיק כל המכולות וההזמנות של הרשת" : "View corporate multi-container portfolio"}
+            >
+              <span>📁</span>
+              <span>{lang === "he" ? "תיק מכולות הרשת" : "Buyer Portfolio"}</span>
+            </Link>
             <span className="hidden sm:inline-block font-mono text-[11px] text-slate-400 bg-slate-800 px-2 py-0.5 rounded border border-slate-700">
               {projectRef}
             </span>
