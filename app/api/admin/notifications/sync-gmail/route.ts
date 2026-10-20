@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { verifySession, COOKIE_NAME } from "@/lib/adminAuth";
-import { syncGmailInboxReplies } from "@/lib/email/gmailEngine";
+import { pollAndSyncInboundEmails } from "@/lib/email/imapPoller";
 
 export const dynamic = "force-dynamic";
 
@@ -13,7 +13,7 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const result = await syncGmailInboxReplies();
+    const result = await pollAndSyncInboundEmails();
     if (!result.ok) {
       return NextResponse.json(
         { ok: false, error: result.error || "Failed to sync Gmail inbox" },
@@ -24,11 +24,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       ok: true,
       syncedCount: result.syncedCount,
-      replies: result.replies,
+      scannedCount: result.scannedCount,
+      replies: result.syncedReplies,
+      durationMs: result.durationMs,
     });
-  } catch (err: any) {
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Internal sync error";
     return NextResponse.json(
-      { ok: false, error: err?.message || "Internal sync error" },
+      { ok: false, error: message },
       { status: 500 }
     );
   }

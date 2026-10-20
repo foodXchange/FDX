@@ -67,7 +67,7 @@ Export Sales Director`
       if (!res.ok) {
         throw new Error(data.error || "Failed to sync Gmail");
       }
-      setSyncStatus(`Sync complete! Found ${data.syncedCount || 0} matching supplier replies.`);
+      setSyncStatus(`Sync complete! Scanned ${data.scannedCount || 0} messages in ${Math.round((data.durationMs || 0) / 100) / 10}s. Found ${data.syncedCount || 0} matching supplier replies.`);
       startTransition(() => router.refresh());
       setTimeout(() => setSyncStatus(null), 5000);
     } catch (err: any) {
@@ -151,12 +151,16 @@ Export Sales Director`
       {/* ── Header ── */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-800">
         <div>
-          <div className="flex items-center gap-2 mb-1">
+          <div className="flex items-center gap-2 mb-1 flex-wrap">
             <span className="text-xs font-bold uppercase tracking-wider text-cyan-400 bg-cyan-950/80 px-2.5 py-0.5 rounded-md border border-cyan-800">
               ⚡ AI Automation Hub
             </span>
             <span className="font-mono text-xs font-semibold text-slate-400 bg-slate-800 px-2 py-0.5 rounded border border-slate-700">
               {projectTag}
+            </span>
+            <span className="text-[10px] font-bold text-emerald-400 bg-emerald-950/70 border border-emerald-700/80 px-2 py-0.5 rounded-full flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+              <span>Zero-Touch Poller: Active (10m interval)</span>
             </span>
           </div>
           <h2 className="text-base font-bold text-white flex items-center gap-2">
