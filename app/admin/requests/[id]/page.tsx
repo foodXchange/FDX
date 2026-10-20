@@ -17,6 +17,7 @@ import PackagingArtworkStaging from "@/components/admin/PackagingArtworkStaging"
 import Stage7CommercialOrderHub from "@/components/admin/Stage7CommercialOrderHub";
 import InboundCorrespondenceHub from "@/components/admin/InboundCorrespondenceHub";
 import TradeDocumentSuiteButton from "@/components/admin/TradeDocumentSuiteButton";
+import TripartiteQuickDispatchCard from "@/components/admin/TripartiteQuickDispatchCard";
 import type {
   CommercialOrderLifecycle,
   BuyerBriefApproval,
@@ -232,6 +233,13 @@ export default async function RequestDetailPage({ params }: PageProps) {
             />
 
             <Link
+              href="/admin/finance"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-800 hover:bg-emerald-100 text-xs font-bold transition shadow-2xs"
+            >
+              <span>💰 Broker Treasury & P&L</span>
+            </Link>
+
+            <Link
               href={`/track/${id}`}
               target="_blank"
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-50 border border-indigo-200 text-indigo-700 hover:bg-indigo-100 text-xs font-bold transition shadow-2xs"
@@ -244,6 +252,26 @@ export default async function RequestDetailPage({ params }: PageProps) {
       </div>
 
       <div className="max-w-6xl mx-auto px-6 py-8">
+        {/* ── Tripartite 1-Click Communications Desk ── */}
+        <TripartiteQuickDispatchCard
+          requestId={id}
+          poNumber={orderWorkflow?.po_number || `FDX-PO-${id.slice(0, 6).toUpperCase()}`}
+          buyerCompany={buyerCompany}
+          buyerContact={request.name || undefined}
+          buyerPhone={request.phone || undefined}
+          supplierName={orderWorkflow?.selected_supplier_name || matchedSuppliersList[0]?.company_name || "European Certified Food Factory"}
+          supplierCountry={matchedSuppliersList[0]?.country || "European Union"}
+          productName={cleanedName || productName || "Food Product"}
+          orderVolume={orderWorkflow?.order_volume || "24,000 Units (1 x 40ft HQ FCL)"}
+          containerNumber={orderWorkflow?.container_number || undefined}
+          billOfLading={orderWorkflow?.bill_of_lading || undefined}
+          vesselName={orderWorkflow?.vessel_name || undefined}
+          etaPort={orderWorkflow?.eta_port || undefined}
+          stageName={orderWorkflow?.current_stage ? orderWorkflow.current_stage.replace(/_/g, " ").toUpperCase() : "Active Sourcing"}
+          buyerPortalUrl={`https://foodxchange.com/track/${id}`}
+          supplierPortalUrl={matchedSuppliersList[0]?.id ? `https://foodxchange.com/supplier-match/${matchedSuppliersList[0].id}` : undefined}
+        />
+
         {/* ── 7-Stage Order & Logistics Workflow Tracker ── */}
         <OrderWorkflowTracker
           requestId={id}
