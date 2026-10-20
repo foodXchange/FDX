@@ -1,5 +1,9 @@
 "use server";
 
+import { createNotification } from "@/lib/notifications/createNotification";
+import { logAdminAction } from "@/lib/auditLog";
+import type { CommercialOrderLifecycle } from "@/app/admin/requests/actions";
+
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { revalidatePath } from "next/cache";
 import type {
@@ -239,5 +243,120 @@ export async function buyerApprovePackaging(
     return { ok: true };
   } catch (err: unknown) {
     return { ok: false, error: err instanceof Error ? err.message : "Failed to record artwork approval" };
+  }
+}
+
+export interface BuyerSubmitWireInput {
+  milestone: "advance_30" | "balance_70";
+  swift_reference: string;
+  remitter_bank: string;
+  wire_amount: number;
+  wire_date?: string;
+  wire_slip_url?: string;
+  notes?: string;
+  remitter_name?: string;
+}
+
+export async function buyerSubmitWireTransfer(
+  requestId: string,
+  input: BuyerSubmitWireInput
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  try {
+    const { data: req, error: fetchErr } = await supabaseAdmin
+      .from("sourcing_requests")
+      .select("id, company, product_name, ai_analysis")
+      .eq("id", requestId)
+      .single();
+
+    if (fetchErr || !req) {
+      return { ok: false, error: fetchErr?.message || "Request not found" };
+    }
+
+    const ai = (req.ai_analysis as Record<string, unknown> | null) ?? {};
+    const existingWorkflow = (ai.order_workflow as CommercialOrderLifecycle | null) ?? {
+      current_stage: "order_po_issued",
+    };
+    const fc = existingWorkflow.financial_clearance || {};
+
+    const now = new Date().toISOString();
+    const wireDate = input.wire_date || now.slice(0, 10);
+
+    const updatedWorkflow: CommercialOrderLifecycle = {
+      ...existingWorkflow,
+      production_milestones: {
+        ...(existingWorkflow.production_milestones || {}),
+        deposit_transferred: true,
+      },
+      financial_clearance: {
+        ...fc,
+        advance_milestone_30: {
+          ...(fc.advance_milestone_30 || {}),
+          status: "wire_submitted_by_buyer",
+          swift_mt103_reference: input.swift_reference,
+          remitter_bank: input.remitter_bank,
+          wire_date: wireDate,
+          wire_slip_url: input.wire_slip_url,
+          notes: input.notes || "Wire slip submitted by buyer via Portal.",
+        },
+        updated_at: now,
+        updated_by: input.remitter_name || req.company || "Buyer Portal",
+      },
+      updated_at: now,
+      updated_by: "Buyer Portal (Verified)",
+    };
+
+    const { error: updateErr } = await supabaseAdmin
+      .from("sourcing_requests")
+      .update({
+        ai_analysis: {
+          ...ai,
+          order_workflow: updatedWorkflow,
+        },
+      })
+      .eq("id", requestId);
+
+    if (updateErr) {
+      return { ok: false, error: updateErr.message };
+    }
+
+    // Fire instant high-priority admin alert
+    const buyerName = req.company || "Buyer";
+    await createNotification(
+      "match_reply",
+      `💰 Buyer Wire Transferred: €${Number(input.wire_amount).toLocaleString()}`,
+      `[${buyerName}] submitted 30% advance deposit wire (SWIFT Ref: ${input.swift_reference}). Ready for settlement clearance and factory release.`,
+      {
+        requestId,
+        milestone: input.milestone,
+        swiftRef: input.swift_reference,
+        remitterBank: input.remitter_bank,
+        amount: input.wire_amount,
+        action_url: `/admin/requests/${requestId}`,
+        priority: "urgent",
+      }
+    );
+
+    await logAdminAction({
+      adminEmail: "buyer-portal@system",
+      action: "buyer_submit_wire_transfer",
+      targetType: "sourcing_request",
+      targetId: requestId,
+      metadata: {
+        milestone: input.milestone,
+        swift_ref: input.swift_reference,
+        amount: input.wire_amount,
+        remitter_bank: input.remitter_bank,
+      },
+    });
+
+    revalidatePath(`/track/${requestId}`);
+    revalidatePath(`/admin/requests/${requestId}`);
+    revalidatePath(`/admin/requests`);
+    return { ok: true };
+  } catch (err: unknown) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "Failed to record wire transfer",
+    };
   }
 }

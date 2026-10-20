@@ -13,6 +13,7 @@ import {
   buyerApproveBrief,
   buyerSubmitSensoryEvaluation,
   buyerApprovePackaging,
+  buyerSubmitWireTransfer,
 } from "@/app/track/actions";
 
 export interface BuyerPortalData {
@@ -53,7 +54,7 @@ interface Props {
   data: BuyerPortalData;
 }
 
-type TabKey = "overview" | "offers" | "samples" | "packaging" | "logistics";
+type TabKey = "overview" | "offers" | "samples" | "packaging" | "settlement" | "logistics";
 
 export default function BuyerCollaborationPortal({ data }: Props) {
   const [lang, setLang] = useState<"he" | "en">("he");
@@ -64,6 +65,57 @@ export default function BuyerCollaborationPortal({ data }: Props) {
   const [briefApproved, setBriefApproved] = useState(data.briefApproval?.status === "approved");
   const [briefNotes, setBriefNotes] = useState(data.briefApproval?.notes || "");
   const [briefActionMsg, setBriefActionMsg] = useState<string | null>(null);
+
+  // Wire Transfer & Settlement state
+  const fc = data.orderWorkflow?.financial_clearance;
+  const initialWireStatus = fc?.advance_milestone_30?.status || "pending_buyer_wire";
+  const [wireStatus, setWireStatus] = useState(initialWireStatus);
+  const [swiftRef, setSwiftRef] = useState(fc?.advance_milestone_30?.swift_mt103_reference || "");
+  const [remitterBank, setRemitterBank] = useState(fc?.advance_milestone_30?.remitter_bank || "Bank Leumi");
+  const [wireDate, setWireDate] = useState(fc?.advance_milestone_30?.wire_date || new Date().toISOString().slice(0, 10));
+  const [wireNotes, setWireNotes] = useState(fc?.advance_milestone_30?.notes || "");
+  const [wireActionMsg, setWireActionMsg] = useState<string | null>(null);
+  const [showWireModal, setShowWireModal] = useState(false);
+  const [copiedBankField, setCopiedBankField] = useState<string | null>(null);
+
+  const totalCalculated = data.orderWorkflow?.total_order_value || (fc?.gross_buyer_contract_value || 20880);
+  const advanceAmount = fc?.advance_milestone_30?.buyer_wire_amount || (totalCalculated * 0.3);
+  const balanceAmount = fc?.balance_milestone_70?.buyer_wire_amount || (totalCalculated * 0.7);
+
+  const copyBankField = (text: string, fieldName: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedBankField(fieldName);
+    setTimeout(() => setCopiedBankField(null), 2000);
+  };
+
+  const handleWireSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!swiftRef.trim()) return;
+
+    startTransition(async () => {
+      const res = await buyerSubmitWireTransfer(data.requestId, {
+        milestone: "advance_30",
+        swift_reference: swiftRef.trim(),
+        remitter_bank: remitterBank.trim(),
+        wire_amount: advanceAmount,
+        wire_date: wireDate,
+        notes: wireNotes,
+        remitter_name: data.buyerCompany,
+      });
+
+      if (res.ok) {
+        setWireStatus("wire_submitted_by_buyer");
+        setWireActionMsg(
+          lang === "he"
+            ? "✓ אסמכתאת ההעברה הבנקאית נקלטה בהצלחה! מחלקת הסליקה בודקת את פרטי ההעברה לקראת הפעלת הייצור במפעל."
+            : "✓ Bank wire receipt successfully submitted! The settlement desk is verifying funds to release factory production."
+        );
+        setShowWireModal(false);
+        setTimeout(() => setWireActionMsg(null), 6000);
+      }
+    });
+  };
+
 
   // Tasting Scorecard State
   const existingSensory = data.sampleDispatch?.sensory_evaluation;
@@ -321,6 +373,21 @@ export default function BuyerCollaborationPortal({ data }: Props) {
             <span>🎨</span>
             <span>{lang === "he" ? "גרפיקה ומותג פרטי" : "Private Label Artwork"}</span>
             {packagingApproved && <span className="text-emerald-600">✓</span>}
+          </button>
+
+          <button
+            onClick={() => setActiveTab("settlement")}
+            className={`py-3 px-3 rounded-lg border-b-2 transition whitespace-nowrap flex items-center gap-1.5 ${
+              activeTab === "settlement"
+                ? "border-orange-600 text-orange-600 font-bold bg-orange-50/50"
+                : "border-transparent text-slate-600 hover:text-slate-900"
+            }`}
+          >
+            <span>💳</span>
+            <span>{lang === "he" ? "הזמנה ומקדמת ייצור (30%)" : "Commercial Order & Deposit"}</span>
+            {(wireStatus === "wire_submitted_by_buyer" || wireStatus === "released_to_factory" || wireStatus === "cleared_in_escrow") && (
+              <span className="text-emerald-600 font-bold">✓</span>
+            )}
           </button>
 
           <button
@@ -999,7 +1066,342 @@ export default function BuyerCollaborationPortal({ data }: Props) {
           </div>
         )}
 
-        {/* ── TAB 5: Ocean Freight & Container Logistics ── */}
+        {/* ── TAB 4.5: Commercial Order & Deposit Settlement ── */}
+        {activeTab === "settlement" && (
+          <div className="space-y-6">
+            {wireActionMsg && (
+              <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 font-semibold text-xs animate-in fade-in">
+                {wireActionMsg}
+              </div>
+            )}
+
+            <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-xs space-y-6">
+              {/* Header */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100">
+                <div>
+                  <h3 className="text-base font-bold text-slate-900">
+                    {lang === "he" ? "הזמנה מסחרית ומקדמת ייצור (30%)" : "Commercial Purchase Order & Deposit Settlement"}
+                  </h3>
+                  <p className="text-slate-500 text-xs mt-0.5">
+                    {lang === "he"
+                      ? "הסדרת מקדמת הייצור (30%) כנגד הזמנת רכש מסחרית להפעלת קו הביקבוק והדפסת התוויות במפעל."
+                      : "Settle the 30% advance deposit to commence bottling line production and approved private label printing."}
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <span className={`text-xs font-bold px-3 py-1 rounded-full border flex items-center gap-1.5 ${
+                    wireStatus === "released_to_factory"
+                      ? "bg-emerald-100 text-emerald-800 border-emerald-300"
+                      : wireStatus === "cleared_in_escrow"
+                      ? "bg-blue-100 text-blue-800 border-blue-300"
+                      : wireStatus === "wire_submitted_by_buyer"
+                      ? "bg-amber-100 text-amber-800 border-amber-300"
+                      : "bg-slate-100 text-slate-700 border-slate-300"
+                  }`}>
+                    <span className="w-2 h-2 rounded-full bg-current animate-pulse" />
+                    <span>
+                      {wireStatus === "released_to_factory"
+                        ? lang === "he" ? "ייצור פעיל במפעל ✓" : "Production Active ✓"
+                        : wireStatus === "cleared_in_escrow"
+                        ? lang === "he" ? "התשלום נקלט בנאמנות" : "Cleared in Escrow"
+                        : wireStatus === "wire_submitted_by_buyer"
+                        ? lang === "he" ? "אסמכתא בבדיקה" : "Wire In Review"
+                        : lang === "he" ? "ממתין להעברה בנקאית" : "Awaiting Wire"}
+                    </span>
+                  </span>
+                </div>
+              </div>
+
+              {/* Order Commercial Financial Summary */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200">
+                  <div className="text-[11px] font-semibold text-slate-500 uppercase">
+                    {lang === "he" ? "שווי הזמנה כולל" : "Total Contract Value"}
+                  </div>
+                  <div className="text-base font-black text-slate-900 mt-1">
+                    {data.orderWorkflow?.currency || "EUR"} {totalCalculated.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </div>
+                  <div className="text-[11px] text-slate-500 mt-0.5">
+                    {data.orderWorkflow?.order_volume || "24,000 Units (1 x 40ft HQ FCL)"}
+                  </div>
+                </div>
+
+                <div className="p-3.5 rounded-xl bg-amber-50/70 border border-amber-200">
+                  <div className="text-[11px] font-semibold text-amber-800 uppercase">
+                    {lang === "he" ? "מקדמה נדרשת להפעלת ייצור (30%)" : "30% Advance Deposit Due"}
+                  </div>
+                  <div className="text-base font-black text-amber-950 mt-1">
+                    {data.orderWorkflow?.currency || "EUR"} {advanceAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </div>
+                  <div className="text-[11px] text-amber-700 mt-0.5 font-medium">
+                    {lang === "he" ? "תנאי פתיחת ייצור והדפסה" : "Commences bottling & printing"}
+                  </div>
+                </div>
+
+                <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200">
+                  <div className="text-[11px] font-semibold text-slate-500 uppercase">
+                    {lang === "he" ? "יתרה כנגד שטר מטען (70%)" : "70% Balance on B/L"}
+                  </div>
+                  <div className="text-base font-black text-slate-900 mt-1">
+                    {data.orderWorkflow?.currency || "EUR"} {balanceAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </div>
+                  <div className="text-[11px] text-slate-500 mt-0.5">
+                    {lang === "he" ? "כנגד שטר מטען ימי ודוח בדיקה" : "Against Clean B/L Copy & PSI"}
+                  </div>
+                </div>
+              </div>
+
+              {/* Status Banner */}
+              {wireStatus === "wire_submitted_by_buyer" && (
+                <div className="p-4 rounded-xl bg-amber-50 border border-amber-300 flex items-start gap-3">
+                  <span className="text-xl">⏳</span>
+                  <div>
+                    <h4 className="font-bold text-amber-950 text-xs">
+                      {lang === "he" ? "אסמכתאת ההעברה נמסרה בהצלחה" : "Bank Wire Confirmation Submitted"}
+                    </h4>
+                    <p className="text-[11px] text-amber-800 mt-0.5 leading-relaxed">
+                      {lang === "he"
+                        ? `אסמכתא ${swiftRef} מבנק ${remitterBank} נמצאת באימות סופי מול דסק הסליקה הבינלאומי. עם אישור הקליטה, קו הייצור במפעל יופעל מיידית.`
+                        : `Wire confirmation ${swiftRef} from ${remitterBank} is being verified by our settlement desk. Factory production line is scheduled.`}
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {wireStatus === "released_to_factory" && (
+                <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-300 flex items-start gap-3">
+                  <span className="text-xl">🎉</span>
+                  <div>
+                    <h4 className="font-bold text-emerald-950 text-xs">
+                      {lang === "he" ? "התשלום אושר · הייצור המסחרי פעיל" : "Deposit Cleared · Commercial Production Running"}
+                    </h4>
+                    <p className="text-[11px] text-emerald-800 mt-0.5 leading-relaxed">
+                      {lang === "he"
+                        ? "מקדמת הייצור הועברה למפעל. המוצר נמצא בהליך מילוי וביקבוק. עם העמסת המכולה, יונפק שטר מטען ימי ומספר מעקב בטאב השילוח הימי."
+                        : "The 30% advance is released to the European factory. Once production finishes and the container is sealed, live vessel tracking activates in Tab 5."}
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Designated International Settlement Banking Coordinates */}
+              <div className="border border-slate-200 rounded-xl overflow-hidden">
+                <div className="bg-slate-900 text-white px-4 py-2.5 flex items-center justify-between">
+                  <span className="font-bold text-xs uppercase tracking-wider">
+                    {lang === "he" ? "פרטי חשבון בנק רשמי להעברה (SWIFT / IBAN)" : "Designated International Settlement Banking Coordinates"}
+                  </span>
+                  <span className="text-[11px] text-amber-400 font-mono">
+                    PO: {data.orderWorkflow?.po_number || "PO-FDX-01"}
+                  </span>
+                </div>
+
+                <div className="divide-y divide-slate-100 bg-white">
+                  <div className="p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <div>
+                      <span className="text-[10px] font-bold text-slate-400 uppercase">
+                        {lang === "he" ? "שם המוטב" : "Beneficiary Name"}
+                      </span>
+                      <p className="font-bold text-slate-900 font-mono text-xs">
+                        FoodXchange Trade Ltd - Client Settlement Account
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 bg-slate-50/50">
+                    <div>
+                      <span className="text-[10px] font-bold text-slate-400 uppercase">
+                        IBAN (International Bank Account Number)
+                      </span>
+                      <p className="font-bold text-slate-950 font-mono text-sm tracking-wider">
+                        ES76 2100 0418 4502 0005 1294
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => copyBankField("ES7621000418450200051294", "iban")}
+                      className="text-xs font-semibold px-2.5 py-1 rounded bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 transition"
+                    >
+                      {copiedBankField === "iban" ? "✓ הועתק!" : lang === "he" ? "העתק IBAN" : "Copy IBAN"}
+                    </button>
+                  </div>
+
+                  <div className="p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <div>
+                      <span className="text-[10px] font-bold text-slate-400 uppercase">
+                        SWIFT / BIC Code
+                      </span>
+                      <p className="font-bold text-indigo-700 font-mono text-xs">
+                        CAIXESBBXXX
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => copyBankField("CAIXESBBXXX", "swift")}
+                      className="text-xs font-semibold px-2.5 py-1 rounded bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 transition"
+                    >
+                      {copiedBankField === "swift" ? "✓ הועתק!" : lang === "he" ? "העתק SWIFT" : "Copy SWIFT"}
+                    </button>
+                  </div>
+
+                  <div className="p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 bg-amber-50/40">
+                    <div>
+                      <span className="text-[10px] font-bold text-amber-800 uppercase">
+                        {lang === "he" ? "הערה מחייבת בהעברה (Field 70)" : "Mandatory Payment Reference (Field 70)"}
+                      </span>
+                      <p className="font-bold text-amber-950 font-mono text-xs">
+                        [FDX-REQ-{data.requestId.slice(0, 8).toUpperCase()}] ADV-30
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => copyBankField(`[FDX-REQ-${data.requestId.slice(0, 8).toUpperCase()}] ADV-30`, "memo")}
+                      className="text-xs font-semibold px-2.5 py-1 rounded bg-white hover:bg-amber-100 border border-amber-300 text-amber-900 transition"
+                    >
+                      {copiedBankField === "memo" ? "✓ הועתק!" : lang === "he" ? "העתק הערה" : "Copy Reference"}
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowWireModal(true)}
+                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 text-xs font-bold px-5 py-2.5 rounded-xl bg-orange-600 hover:bg-orange-700 text-white transition shadow-xs cursor-pointer"
+                >
+                  <span>📤</span>
+                  <span>
+                    {wireStatus === "wire_submitted_by_buyer"
+                      ? lang === "he" ? "עדכון אסמכתאת העברה" : "Update Wire Receipt"
+                      : lang === "he" ? "העלאת אסמכתאת העברה בנקאית" : "Submit Bank Wire Receipt"}
+                  </span>
+                </button>
+
+                <div className="text-slate-400 text-[11px] text-center sm:text-left">
+                  {lang === "he"
+                    ? "✓ מוגן בהסכם בלעדיות ומניעת עקיפה (ICC NCNDA 758)"
+                    : "✓ Protected under ICC NCNDA 758 Tripartite Working Agreement"}
+                </div>
+              </div>
+            </div>
+
+            {/* Wire Submission Modal */}
+            {showWireModal && (
+              <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+                <form
+                  onSubmit={handleWireSubmit}
+                  className="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-lg w-full overflow-hidden animate-in fade-in zoom-in-95 duration-150"
+                >
+                  <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/80">
+                    <div className="flex items-center gap-2">
+                      <span className="text-lg">🏦</span>
+                      <h3 className="text-sm font-bold text-slate-900">
+                        {lang === "he" ? "הגשת אסמכתאת העברה בנקאית (30%)" : "Submit Bank Wire Transfer Receipt"}
+                      </h3>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setShowWireModal(false)}
+                      className="w-7 h-7 rounded-full hover:bg-slate-200 text-slate-400 hover:text-slate-700 flex items-center justify-center text-sm font-bold transition cursor-pointer"
+                    >
+                      ✕
+                    </button>
+                  </div>
+
+                  <div className="p-6 space-y-4 text-xs">
+                    <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-950 font-medium">
+                      {lang === "he" ? "סכום ההעברה:" : "Transfer Amount:"}{" "}
+                      <strong className="text-emerald-900 text-sm">
+                        {data.orderWorkflow?.currency || "EUR"} {advanceAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </strong>
+                    </div>
+
+                    <div>
+                      <label className="block font-bold text-slate-700 uppercase tracking-wider text-[10px] mb-1">
+                        {lang === "he" ? "מספר אסמכתא / SWIFT MT103 Ref" : "SWIFT Reference / Transaction ID"} *
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={swiftRef}
+                        onChange={(e) => setSwiftRef(e.target.value)}
+                        placeholder="SWIFT-IL-9481920"
+                        className="w-full border border-slate-200 rounded-lg p-2.5 font-mono font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-orange-500"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block font-bold text-slate-700 uppercase tracking-wider text-[10px] mb-1">
+                          {lang === "he" ? "הבנק המעביר" : "Remitter Bank"} *
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          value={remitterBank}
+                          onChange={(e) => setRemitterBank(e.target.value)}
+                          placeholder="Bank Leumi / Bank Hapoalim"
+                          className="w-full border border-slate-200 rounded-lg p-2.5 text-slate-800 focus:outline-none focus:ring-2 focus:ring-orange-500"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block font-bold text-slate-700 uppercase tracking-wider text-[10px] mb-1">
+                          {lang === "he" ? "תאריך ביצוע" : "Transfer Date"} *
+                        </label>
+                        <input
+                          type="date"
+                          required
+                          value={wireDate}
+                          onChange={(e) => setWireDate(e.target.value)}
+                          className="w-full border border-slate-200 rounded-lg p-2.5 font-mono text-slate-800 focus:outline-none focus:ring-2 focus:ring-orange-500"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block font-bold text-slate-700 uppercase tracking-wider text-[10px] mb-1">
+                        {lang === "he" ? "הערות להעברה (אופציונלי)" : "Notes / Slip Details (Optional)"}
+                      </label>
+                      <textarea
+                        rows={2}
+                        value={wireNotes}
+                        onChange={(e) => setWireNotes(e.target.value)}
+                        placeholder={lang === "he" ? "הועבר מחשבון החברה הראשי..." : "Transferred from treasury account..."}
+                        className="w-full border border-slate-200 rounded-lg p-2.5 text-slate-800 focus:outline-none focus:ring-2 focus:ring-orange-500"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="px-6 py-3.5 border-t border-slate-100 bg-slate-50 flex items-center justify-between">
+                    <button
+                      type="button"
+                      onClick={() => setShowWireModal(false)}
+                      className="text-xs text-slate-500 hover:text-slate-800 font-semibold px-3 py-1.5 rounded-lg transition"
+                    >
+                      {lang === "he" ? "ביטול" : "Cancel"}
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={isPending}
+                      className="inline-flex items-center gap-1.5 text-xs font-bold text-white bg-orange-600 hover:bg-orange-700 disabled:opacity-50 px-4 py-2 rounded-xl transition shadow-xs cursor-pointer"
+                    >
+                      {isPending ? (
+                        <span>{lang === "he" ? "קולט אסמכתא…" : "Submitting…"}</span>
+                      ) : (
+                        <span>{lang === "he" ? "אישור והגשת אסמכתא" : "Confirm & Submit Slip"}</span>
+                      )}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            )}
+          </div>
+        )}
+
+                {/* ── TAB 5: Ocean Freight & Container Logistics ── */}
         {activeTab === "logistics" && (
           <div className="space-y-6">
             <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-xs">
