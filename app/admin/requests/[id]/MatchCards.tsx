@@ -8,6 +8,9 @@ import { getPipelineStatus } from "@/lib/matches/pipelineStatus";
 import { sleep, waLink } from "@/lib/outreach/waLink";
 import RfqComposerModal, { type RfqRequestVars, type RfqTemplateRow } from "@/components/admin/RfqComposerModal";
 import { recordSupplierQuote, type SupplierQuotePayload } from "@/app/admin/requests/actions";
+import SupplierChaserModal from "@/components/admin/SupplierChaserModal";
+import BulkChaserModal from "@/components/admin/BulkChaserModal";
+import { evaluateFollowUpUrgency } from "@/lib/outreach/chaserTemplates";
 
 interface Props {
   requestId: string;
@@ -108,6 +111,8 @@ export default function MatchCards({ requestId, initialMatches, productName, com
   } | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [rfqOpen, setRfqOpen] = useState(false);
+  const [bulkChaserOpen, setBulkChaserOpen] = useState(false);
+  const [chaserMatch, setChaserMatch] = useState<LocalMatch | null>(null);
 
   // New Workflow States: 65%+ Filtering, Bulk Follow-up, and Quote Capture
   const [filterTab, setFilterTab] = useState<"all" | "top_tier" | "quoted" | "pending_followup">("all");
@@ -611,6 +616,27 @@ export default function MatchCards({ requestId, initialMatches, productName, com
                   </button>
                 )}
 
+                {/* sent / rfq_sent: Chaser button */}
+                {(s === "sent" || s === "rfq_sent") && (
+                  <button
+                    type="button"
+                    onClick={() => setChaserMatch(match)}
+                    className={`text-xs font-semibold px-2.5 py-1.5 rounded-lg border transition-colors flex items-center gap-1.5 cursor-pointer ${
+                      evaluateFollowUpUrgency(match).isDue
+                        ? "bg-amber-500 text-white hover:bg-amber-600 border-amber-600 shadow-2xs"
+                        : "bg-amber-50 text-amber-900 border-amber-200 hover:bg-amber-100"
+                    }`}
+                    title="Send follow-up bump / chaser email or WhatsApp"
+                  >
+                    <span>⚡</span>
+                    <span>
+                      {evaluateFollowUpUrgency(match).isDue
+                        ? `Follow-Up Due (${evaluateFollowUpUrgency(match).daysElapsed}d)`
+                        : "Follow-Up"}
+                    </span>
+                  </button>
+                )}
+
                 {/* new / pending: approve + reject */}
                 {(s === "pending" || s === "new") && (
                   <div className="flex items-center gap-2">
@@ -837,27 +863,60 @@ export default function MatchCards({ requestId, initialMatches, productName, com
               </div>
             )}
 
-            {/* ── Sent state: timestamp + mark responded ── */}
-            {s === "sent" && (
+            {/* ── Sent state: timestamp + follow-up history + mark responded ── */}
+            {(s === "sent" || s === "rfq_sent") && (
               <div className="mt-4 border-t border-gray-100 pt-3 space-y-3">
-                <p className="text-xs text-gray-400">
-                  Sent {fmtDate(match.sent_at)}
-                  {match.sent_via && (
-                    <span className="ml-1 text-gray-400">
-                      {SENT_VIA_ICON[match.sent_via] ?? ""} via {match.sent_via}
-                    </span>
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                  <p className="text-xs text-gray-400">
+                    Sent {fmtDate(match.sent_at)}
+                    {match.sent_via && (
+                      <span className="ml-1 text-gray-400">
+                        {SENT_VIA_ICON[match.sent_via] ?? ""} via {match.sent_via}
+                      </span>
+                    )}
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setChaserMatch(match)}
+                      className="text-xs font-semibold text-orange-700 bg-orange-50 hover:bg-orange-100 border border-orange-200 px-2.5 py-1 rounded-lg transition flex items-center gap-1 cursor-pointer"
+                    >
+                      <span>📨</span>
+                      <span>Send Follow-Up Bump</span>
+                    </button>
+                    {!isResponding && (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setRespondingIds((st) => new Set([...st, match.id]))
+                        }
+                        className="text-xs font-medium text-green-700 border border-green-200 hover:bg-green-50 px-2.5 py-1 rounded-lg transition-colors cursor-pointer"
+                      >
+                        Mark as Responded
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Follow-up audit history pills */}
+                {Array.isArray((match.match_breakdown as any)?.follow_ups) &&
+                  (match.match_breakdown as any)!.follow_ups.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5 bg-slate-50 border border-slate-100 rounded-lg p-2">
+                      <span className="text-[10px] font-bold text-slate-500 uppercase">
+                        Chasers Sent ({(match.match_breakdown as any)!.follow_ups.length}):
+                      </span>
+                      {(match.match_breakdown as any)!.follow_ups.map((fu: any, fuIdx: number) => (
+                        <span
+                          key={fuIdx}
+                          className="text-[10px] bg-white border border-slate-200 text-slate-700 px-2 py-0.5 rounded shadow-2xs font-medium"
+                        >
+                          {fu.channel === "email" ? "📧" : "💬"} R{fu.round} ({fu.language?.toUpperCase()}) · {new Date(fu.date).toLocaleDateString("en-GB")}
+                        </span>
+                      ))}
+                    </div>
                   )}
-                </p>
-                {!isResponding ? (
-                  <button
-                    onClick={() =>
-                      setRespondingIds((s) => new Set([...s, match.id]))
-                    }
-                    className="text-xs font-medium text-green-700 border border-green-200 hover:bg-green-50 px-3 py-1.5 rounded-lg transition-colors"
-                  >
-                    Mark as Responded
-                  </button>
-                ) : (
+
+                {isResponding && (
                   <div className="space-y-2">
                     <textarea
                       className="w-full text-xs border border-gray-200 rounded-lg p-2.5 resize-none focus:outline-none focus:ring-2 focus:ring-green-400"
@@ -874,8 +933,8 @@ export default function MatchCards({ requestId, initialMatches, productName, com
                           patchMatch(match.id, "respond", {
                             response_note: responseNotes[match.id] ?? "",
                           });
-                          setRespondingIds((s) => {
-                            const next = new Set(s);
+                          setRespondingIds((st) => {
+                            const next = new Set(st);
                             next.delete(match.id);
                             return next;
                           });
@@ -886,8 +945,8 @@ export default function MatchCards({ requestId, initialMatches, productName, com
                       </button>
                       <button
                         onClick={() =>
-                          setRespondingIds((s) => {
-                            const next = new Set(s);
+                          setRespondingIds((st) => {
+                            const next = new Set(st);
                             next.delete(match.id);
                             return next;
                           })

@@ -8,6 +8,24 @@ import { buildPipV1 } from "@/lib/pip/buildPipV1";
 import { resolveCategoryId } from "@/lib/pip/resolveCategoryId";
 import { groupImages } from "@/lib/pip/groupImages";
 import { runMatchV3 } from "@/lib/matching/runMatchV3";
+import {
+  getSupplierContactEmail,
+  getSupplierContactPhone,
+} from "@/lib/email/supplierOutreach";
+import {
+  sendSupplierEmailSmart,
+  getMatchRefTag,
+} from "@/lib/email/gmailEngine";
+import { renderTemplate } from "@/lib/outreach/renderTemplate";
+import { waLink } from "@/lib/outreach/waLink";
+import {
+  CHASER_TEMPLATES,
+  detectSupplierLanguage,
+  evaluateFollowUpUrgency,
+  type ChaserLanguage,
+  type ChaserRound,
+} from "@/lib/outreach/chaserTemplates";
+
 
 export async function updateRequestStatus(
   id: string,
@@ -945,4 +963,366 @@ export async function updatePackagingArtworkWorkflow(
   } catch {}
 
   return { ok: true };
+}
+
+
+// ==========================================
+// AUTOMATED SUPPLIER FOLLOW-UP & CHASER QUEUE
+// ==========================================
+
+export interface SendSupplierFollowUpInput {
+  matchId: string;
+  requestId: string;
+  channel: "email" | "whatsapp";
+  language?: ChaserLanguage;
+  round?: ChaserRound;
+  customSubject?: string;
+  customMessage?: string;
+}
+
+export interface SendSupplierFollowUpResult {
+  ok: boolean;
+  error?: string;
+  channel: "email" | "whatsapp";
+  round: ChaserRound;
+  language: ChaserLanguage;
+  waUrl?: string;
+  subject?: string;
+  via?: "gmail" | "resend" | "whatsapp";
+}
+
+export async function sendSupplierFollowUp(
+  input: SendSupplierFollowUpInput
+): Promise<SendSupplierFollowUpResult> {
+  const { matchId, requestId, channel, customSubject, customMessage } = input;
+
+  const { data: match, error: matchErr } = await supabaseAdmin
+    .from("sourcing_matches")
+    .select(`
+      id, request_id, supplier_id, status, product_name, company_name, country, match_score, sent_at, match_breakdown,
+      request:sourcing_requests(id, product_name, category, kosher_type, certifications, volume_per_year, packaging_preference, message, ai_analysis)
+    `)
+    .eq("id", matchId)
+    .single();
+
+  if (matchErr || !match) {
+    return {
+      ok: false,
+      error: matchErr?.message || "Match not found",
+      channel,
+      round: input.round ?? 1,
+      language: input.language ?? "en",
+    };
+  }
+
+  const assessment = evaluateFollowUpUrgency(match as any);
+  const round: ChaserRound = input.round ?? assessment.recommendedRound ?? 1;
+  const language: ChaserLanguage = input.language ?? detectSupplierLanguage(match.country);
+
+  const rawReq = Array.isArray(match.request) ? match.request[0] : match.request;
+  const reqImages = await supabaseAdmin
+    .from("request_images")
+    .select("url")
+    .eq("request_id", requestId)
+    .order("created_at", { ascending: true })
+    .limit(1);
+
+  const reqObj = rawReq
+    ? {
+        id: rawReq.id,
+        product_name: rawReq.product_name,
+        category: rawReq.category,
+        kosher: rawReq.kosher_type,
+        certifications: rawReq.certifications,
+        quantity: rawReq.volume_per_year,
+        unit: rawReq.packaging_preference,
+        notes: rawReq.message,
+        reference_image_urls: reqImages.data?.map((i) => i.url) ?? null,
+      }
+    : null;
+
+  const specsParts: string[] = [];
+  if (reqObj?.kosher && reqObj.kosher !== "none") specsParts.push(`Kosher (${reqObj.kosher})`);
+  if (reqObj?.certifications && reqObj.certifications.length > 0) {
+    specsParts.push(reqObj.certifications.join(", "));
+  }
+  if (reqObj?.quantity) specsParts.push(`Qty: ${reqObj.quantity} ${reqObj.unit ?? ""}`.trim());
+  const specsSummary = specsParts.length > 0 ? specsParts.join(" · ") : "Standard export specifications, Kosher preferred";
+
+  const refTag = getMatchRefTag(match.id);
+  const vars: Record<string, string> = {
+    company_name: match.company_name ?? "Supplier Team",
+    product_name: match.product_name ?? reqObj?.product_name ?? "food products",
+    buyer_product: reqObj?.product_name ?? match.product_name ?? "food item",
+    category: reqObj?.category ?? "Food & Beverage",
+    specs_summary: specsSummary,
+    country: match.country ?? "",
+    match_score: String(match.match_score ?? 100),
+    ref_tag: refTag,
+  };
+
+  const templateObj = CHASER_TEMPLATES[round][language];
+  const renderedSubject = customSubject?.trim() || renderTemplate(templateObj.subject, vars);
+  const renderedBody =
+    customMessage?.trim() ||
+    renderTemplate(channel === "whatsapp" ? templateObj.whatsAppText : templateObj.body, vars);
+
+  const prevBreakdown = (match.match_breakdown as Record<string, unknown> | null) ?? {};
+  const prevFollowUps = Array.isArray(prevBreakdown.follow_ups) ? prevBreakdown.follow_ups : [];
+  const prevCount = typeof prevBreakdown.followup_count === "number" ? prevBreakdown.followup_count : prevFollowUps.length;
+  const now = new Date().toISOString();
+
+  if (channel === "whatsapp") {
+    const contactPhone = await getSupplierContactPhone(match.supplier_id);
+    const waUrl = waLink(contactPhone, renderedBody);
+
+    const updatedFollowUps = [
+      ...prevFollowUps,
+      {
+        date: now,
+        channel: "whatsapp",
+        round,
+        language,
+        recipient: contactPhone,
+        notes: renderedBody.slice(0, 100),
+      },
+    ];
+
+    const updatedBreakdown = {
+      ...prevBreakdown,
+      follow_ups: updatedFollowUps,
+      follow_up_count: prevCount + 1,
+      followup_count: prevCount + 1,
+      last_follow_up_at: now,
+      last_outreach_at: now,
+    };
+
+    await supabaseAdmin
+      .from("sourcing_matches")
+      .update({
+        match_breakdown: updatedBreakdown,
+        sent_at: now,
+        sent_via: "whatsapp",
+      })
+      .eq("id", match.id);
+
+    await supabaseAdmin.from("match_messages").insert({
+      match_id: match.id,
+      sender_type: "admin",
+      message: `[Follow-Up Round ${round} via WHATSAPP (${language.toUpperCase()}) → ${contactPhone ?? match.company_name}]
+
+${renderedBody}`,
+    });
+
+    try {
+      revalidatePath(`/admin/requests/${requestId}`);
+      revalidatePath("/admin/requests");
+    } catch {}
+
+    return {
+      ok: true,
+      channel: "whatsapp",
+      round,
+      language,
+      waUrl,
+      via: "whatsapp",
+    };
+  }
+
+  // Email channel
+  const contactEmail = await getSupplierContactEmail(match.supplier_id);
+  if (!contactEmail) {
+    return {
+      ok: false,
+      error: "No contact email on file for this supplier. Please update supplier contact or use WhatsApp.",
+      channel: "email",
+      round,
+      language,
+    };
+  }
+
+  const prevMessageId = typeof prevBreakdown.gmail_message_id === "string" ? prevBreakdown.gmail_message_id : null;
+  const prevBody = typeof prevBreakdown.last_outreach_body === "string" ? prevBreakdown.last_outreach_body : null;
+
+  const sendResult = await sendSupplierEmailSmart({
+    matchId: match.id,
+    to: contactEmail,
+    subject: renderedSubject,
+    bodyText: renderedBody,
+    isFollowUp: true,
+    previousMessageId: prevMessageId,
+    previousSentAt: match.sent_at,
+    previousBodyText: prevBody,
+  });
+
+  if (!sendResult.success) {
+    return {
+      ok: false,
+      error: sendResult.error || "Failed to send follow-up email",
+      channel: "email",
+      round,
+      language,
+    };
+  }
+
+  const updatedFollowUps = [
+    ...prevFollowUps,
+    {
+      date: now,
+      channel: "email",
+      round,
+      language,
+      subject: sendResult.subjectUsed ?? renderedSubject,
+      messageId: sendResult.messageId,
+      recipient: contactEmail,
+      via: sendResult.via,
+    },
+  ];
+
+  const updatedBreakdown = {
+    ...prevBreakdown,
+    follow_ups: updatedFollowUps,
+    follow_up_count: prevCount + 1,
+    followup_count: prevCount + 1,
+    last_follow_up_at: now,
+    last_outreach_at: now,
+    last_outreach_email: contactEmail,
+    last_outreach_body: renderedBody,
+    gmail_message_id: sendResult.messageId ?? prevBreakdown.gmail_message_id,
+    gmail_subject: sendResult.subjectUsed ?? renderedSubject,
+  };
+
+  await supabaseAdmin
+    .from("sourcing_matches")
+    .update({
+      match_breakdown: updatedBreakdown,
+      sent_at: now,
+      sent_via: "email",
+    })
+    .eq("id", match.id);
+
+  await supabaseAdmin.from("match_messages").insert({
+    match_id: match.id,
+    sender_type: "admin",
+    message: `[Follow-Up Round ${round} via EMAIL (${language.toUpperCase()}) → ${contactEmail}]
+Subject: ${sendResult.subjectUsed ?? renderedSubject}
+
+${renderedBody}`,
+  });
+
+  await logAdminAction({
+    adminEmail: getAdminEmail(),
+    action: "send_supplier_followup",
+    targetType: "sourcing_match",
+    targetId: match.id,
+    metadata: {
+      round,
+      language,
+      via: sendResult.via,
+      to: contactEmail,
+    },
+  });
+
+  try {
+    revalidatePath(`/admin/requests/${requestId}`);
+    revalidatePath("/admin/requests");
+  } catch {}
+
+  return {
+    ok: true,
+    channel: "email",
+    round,
+    language,
+    subject: sendResult.subjectUsed ?? renderedSubject,
+    via: sendResult.via,
+  };
+}
+
+export interface SendBulkSupplierFollowUpsInput {
+  requestId: string;
+  matchIds: string[];
+  preferredLanguage?: "auto" | ChaserLanguage;
+  preferredRound?: "auto" | ChaserRound;
+}
+
+export interface SendBulkSupplierFollowUpsResult {
+  ok: boolean;
+  sent: number;
+  failed: number;
+  results: Array<{
+    matchId: string;
+    companyName: string | null;
+    success: boolean;
+    error?: string;
+    via?: "gmail" | "resend" | "whatsapp";
+    language: ChaserLanguage;
+    round: ChaserRound;
+  }>;
+}
+
+export async function sendBulkSupplierFollowUps(
+  input: SendBulkSupplierFollowUpsInput
+): Promise<SendBulkSupplierFollowUpsResult> {
+  const { requestId, matchIds, preferredLanguage = "auto", preferredRound = "auto" } = input;
+  const results: SendBulkSupplierFollowUpsResult["results"] = [];
+
+  for (const matchId of matchIds) {
+    try {
+      const { data: match } = await supabaseAdmin
+        .from("sourcing_matches")
+        .select("company_name, country, status, sent_at, match_breakdown")
+        .eq("id", matchId)
+        .maybeSingle();
+
+      const assessment = evaluateFollowUpUrgency((match as any) ?? { status: "sent" });
+      const targetRound: ChaserRound =
+        preferredRound === "auto" ? assessment.recommendedRound || 1 : preferredRound;
+      const targetLang: ChaserLanguage =
+        preferredLanguage === "auto"
+          ? detectSupplierLanguage(match?.country)
+          : preferredLanguage;
+
+      const res = await sendSupplierFollowUp({
+        matchId,
+        requestId,
+        channel: "email",
+        round: targetRound,
+        language: targetLang,
+      });
+
+      results.push({
+        matchId,
+        companyName: match?.company_name ?? null,
+        success: res.ok,
+        error: res.error,
+        via: res.via,
+        language: res.language,
+        round: res.round,
+      });
+    } catch (err: unknown) {
+      results.push({
+        matchId,
+        companyName: null,
+        success: false,
+        error: err instanceof Error ? err.message : "Follow-up error",
+        language: "en",
+        round: 1,
+      });
+    }
+  }
+
+  const sent = results.filter((r) => r.success).length;
+  const failed = results.length - sent;
+
+  try {
+    revalidatePath(`/admin/requests/${requestId}`);
+    revalidatePath("/admin/requests");
+  } catch {}
+
+  return {
+    ok: true,
+    sent,
+    failed,
+    results,
+  };
 }
