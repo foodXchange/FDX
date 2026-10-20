@@ -2,11 +2,13 @@
 
 import { useState, useTransition } from "react";
 import TradeDocumentSuiteModal, { type DocTab } from "@/components/admin/TradeDocumentSuiteModal";
+import ExportDocumentHandoverModal from "@/components/documents/ExportDocumentHandoverModal";
 import {
   type CommercialOrderLifecycle,
   type OrderWorkflowStage,
   updateRequestOrderWorkflow,
   releaseFactoryProductionOrder,
+  releaseFinalBalanceAndDocs,
 } from "@/app/admin/requests/actions";
 
 interface Props {
@@ -34,6 +36,7 @@ export default function Stage7CommercialOrderHub({
     "po" | "financial_clearance" | "manufacturing" | "shipping" | "customs_warehouse"
   >("po");
   const [docModalTab, setDocModalTab] = useState<DocTab | null>(null);
+  const [showCustomsDocModal, setShowCustomsDocModal] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -143,6 +146,42 @@ export default function Stage7CommercialOrderHub({
     });
   }
 
+  function handleReleaseBalance() {
+    setSaveError(null);
+    setSaveSuccess(false);
+
+    startTransition(async () => {
+      const res = await releaseFinalBalanceAndDocs({
+        requestId,
+        matchId: workflow.selected_supplier_id || selectedDefaultSupplier?.id,
+        notes: "Verified via Stage 7 1-Click Final Balance & Customs Release Desk.",
+      });
+
+      if (!res.ok) {
+        setSaveError(res.error);
+        return;
+      }
+
+      setWorkflow((w) => ({
+        ...w,
+        current_stage: "customs_warehouse",
+        customs_status: "customs_broker_clearing",
+        delivery_status: "at_port",
+        financial_clearance: {
+          ...(w.financial_clearance || {}),
+          balance_milestone_70: {
+            ...(w.financial_clearance?.balance_milestone_70 || {}),
+            status: "released_to_factory",
+            factory_wire_amount: res.factoryBalancePaid,
+            agent_retained_fee: res.agentFinalCommission,
+          },
+        },
+      }));
+      setSaveSuccess(true);
+      setTimeout(() => setSaveSuccess(false), 3000);
+    });
+  }
+
   function getStatusBadge() {
     switch (workflow.delivery_status) {
       case "arrived_at_warehouse":
@@ -209,6 +248,14 @@ export default function Stage7CommercialOrderHub({
           >
             <span>📄</span>
             <span>Preview Official PO</span>
+          </button>
+
+          <button
+            onClick={() => setShowCustomsDocModal(true)}
+            className="text-xs font-bold px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-900 border border-blue-200 rounded-xl transition cursor-pointer shadow-2xs flex items-center gap-1.5"
+          >
+            <span>📑</span>
+            <span>Customs Package</span>
           </button>
 
           <button
@@ -849,6 +896,53 @@ export default function Stage7CommercialOrderHub({
                     </div>
                   </div>
                 </div>
+
+                {/* 🚀 1-Click 70% Balance Release Callout */}
+                {fc.balance_milestone_70?.status === "wire_submitted_by_buyer" && (
+                  <div className="p-4 rounded-xl bg-gradient-to-r from-blue-500/10 via-indigo-500/10 to-emerald-500/10 border-2 border-indigo-400 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm animate-in fade-in">
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <span className="w-2.5 h-2.5 rounded-full bg-indigo-500 animate-ping" />
+                        <span className="text-xs font-black uppercase text-indigo-950 tracking-wider">
+                          Action Required: Buyer 70% Final Balance Wire Submitted (€{balBuyer.toLocaleString()})
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-700">
+                        Buyer uploaded SWIFT ref: <strong className="font-mono text-slate-900">{fc.balance_milestone_70?.swift_mt103_reference || "Attached Slip"}</strong> · Remitter Bank: <strong>{fc.balance_milestone_70?.remitter_bank || buyerCompany}</strong>.
+                      </p>
+                      <p className="text-[11px] text-slate-600">
+                        Click below to verify wire, lock final commission (+€{balAgent.toLocaleString()}), and authorize release of original 3/3 B/L, EUR.1, and Kosher certificates to the customs broker.
+                      </p>
+                    </div>
+
+                    <button
+                      type="button"
+                      disabled={isPending}
+                      onClick={handleReleaseBalance}
+                      className="px-5 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs transition shadow-md flex items-center justify-center gap-2 shrink-0 cursor-pointer disabled:opacity-50"
+                    >
+                      <span>🚀</span>
+                      <span>{isPending ? "Processing..." : "Verify 70% Wire & Release Customs Docs"}</span>
+                    </button>
+                  </div>
+                )}
+
+                {fc.balance_milestone_70?.status === "released_to_factory" && (
+                  <div className="p-3.5 rounded-xl bg-emerald-50 border border-emerald-300 flex items-center justify-between gap-3 text-xs">
+                    <div className="flex items-center gap-2.5">
+                      <span className="w-6 h-6 rounded-full bg-emerald-600 text-white flex items-center justify-center font-bold text-xs">🏆</span>
+                      <div>
+                        <span className="font-bold text-emerald-950">Full Deal Settled · Original Export Package Released to Customs</span>
+                        <div className="text-[11px] text-emerald-800">
+                          Factory balance (€{balFactory.toLocaleString()}) settled · Full Broker Margin Locked: +€{(advAgent + balAgent).toLocaleString()} · Declaration: {workflow.customs_declaration_number || "Active"}.
+                        </div>
+                      </div>
+                    </div>
+                    <span className="px-2.5 py-1 bg-emerald-100 text-emerald-800 font-bold rounded-lg border border-emerald-200 text-[10px]">
+                      Deal Complete ✓
+                    </span>
+                  </div>
+                )}
 
                 {/* Milestone 2: 70% Final Balance Box */}
                 <div className="p-4 rounded-xl bg-white border border-slate-200 shadow-2xs space-y-3">
@@ -1497,7 +1591,48 @@ export default function Stage7CommercialOrderHub({
         </div>
       )}
 
+      {/* ── Trade Document Suite Modal (PO, Wire Advice, NCNDA) ── */}
+      {docModalTab && (
+        <TradeDocumentSuiteModal
+          requestId={requestId}
+          productName={productName}
+          cleanedName={workflow.agreed_product_name || productName}
+          buyerCompany={buyerCompany}
+          certifications={["BRCGS", "IFS", "Kosher"]}
+          initialTab={docModalTab}
+          orderWorkflow={workflow}
+          selectedSupplier={
+            selectedDefaultSupplier
+              ? {
+                  companyName: selectedDefaultSupplier.company_name,
+                  productName: selectedDefaultSupplier.product_name,
+                  country: selectedDefaultSupplier.country,
+                  quotePrice: Number(workflow.agreed_unit_price) || 0.82,
+                  currency: workflow.currency || "EUR",
+                }
+              : null
+          }
+          onClose={() => setDocModalTab(null)}
+        />
+      )}
 
+      {/* ── Official Customs & Export Document Handover Modal ── */}
+      <ExportDocumentHandoverModal
+        isOpen={showCustomsDocModal}
+        onClose={() => setShowCustomsDocModal(false)}
+        requestId={requestId}
+        poNumber={workflow.po_number || `FDX-PO-${requestId.slice(0, 6).toUpperCase()}`}
+        buyerCompany={buyerCompany}
+        supplierName={workflow.selected_supplier_name || selectedDefaultSupplier?.company_name || "European Certified Food Factory"}
+        productName={workflow.agreed_product_name || productName}
+        containerNumber={workflow.container_number || undefined}
+        billOfLading={workflow.bill_of_lading || undefined}
+        shippingLine={workflow.shipping_line || undefined}
+        vesselName={workflow.vessel_name || undefined}
+        customsDeclaration={workflow.customs_declaration_number || undefined}
+        etaPort={workflow.eta_port || undefined}
+        isBalanceCleared={workflow.financial_clearance?.balance_milestone_70?.status === "released_to_factory"}
+      />
     </div>
   );
 }

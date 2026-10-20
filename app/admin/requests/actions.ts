@@ -1581,3 +1581,152 @@ export async function releaseFactoryProductionOrder(
     buyerAdvanceAmount: buyerAdv,
   };
 }
+
+export interface ReleaseFinalBalanceInput {
+  requestId: string;
+  matchId?: string;
+  notes?: string;
+  customsDeclarationNumber?: string;
+}
+
+export async function releaseFinalBalanceAndDocs(
+  input: ReleaseFinalBalanceInput
+): Promise<
+  | {
+      ok: true;
+      factoryBalancePaid: number;
+      agentFinalCommission: number;
+      totalBrokerageEarned: number;
+    }
+  | { ok: false; error: string }
+> {
+  const { requestId, matchId, notes, customsDeclarationNumber } = input;
+  const adminEmail = getAdminEmail() || "admin@foodxchange.com";
+
+  const { data: req, error: fetchErr } = await supabaseAdmin
+    .from("sourcing_requests")
+    .select("id, company, product_name, ai_analysis")
+    .eq("id", requestId)
+    .single();
+
+  if (fetchErr || !req) {
+    return { ok: false, error: fetchErr?.message || "Request not found" };
+  }
+
+  const existingAi = (req.ai_analysis as Record<string, unknown> | null) ?? {};
+  const workflow = (existingAi.order_workflow as CommercialOrderLifecycle | null) ?? {
+    current_stage: "manufacturing",
+  };
+  const fc = workflow.financial_clearance || {};
+
+  const totalUnits = fc.total_units || 24000;
+  const buyerUnitPrice = fc.buyer_unit_price || Number(workflow.agreed_unit_price) || 1.85;
+  const factoryUnitPrice = fc.factory_unit_price || 1.75;
+  const agentMarginUnit = fc.agent_margin_per_unit || Math.max(0, buyerUnitPrice - factoryUnitPrice);
+
+  const grossBuyerVal = fc.gross_buyer_contract_value || workflow.total_order_value || Math.round(totalUnits * buyerUnitPrice);
+  const factoryCost = fc.factory_contract_cost || Math.round(totalUnits * factoryUnitPrice);
+  const agentPool = fc.total_agent_brokerage_pool || (grossBuyerVal - factoryCost);
+
+  // 70% Balances
+  const buyerBal = fc.balance_milestone_70?.buyer_wire_amount || Math.round(grossBuyerVal * 0.7);
+  const factoryBal = fc.balance_milestone_70?.factory_wire_amount || Math.round(factoryCost * 0.7);
+  const agentBal = fc.balance_milestone_70?.agent_retained_fee || Math.round(agentPool * 0.7);
+
+  const now = new Date().toISOString();
+  const customsDec = customsDeclarationNumber || workflow.customs_declaration_number || `CUSTOMS-IL-${requestId.slice(0, 6).toUpperCase()}`;
+
+  const updatedWorkflow: CommercialOrderLifecycle = {
+    ...workflow,
+    current_stage: "customs_warehouse",
+    customs_status: "customs_broker_clearing",
+    delivery_status: "at_port",
+    customs_declaration_number: customsDec,
+    financial_clearance: {
+      ...fc,
+      balance_milestone_70: {
+        ...(fc.balance_milestone_70 || {}),
+        status: "released_to_factory",
+        buyer_wire_amount: buyerBal,
+        factory_wire_amount: factoryBal,
+        agent_retained_fee: agentBal,
+        wire_date: fc.balance_milestone_70?.wire_date || now.slice(0, 10),
+        notes: notes || fc.balance_milestone_70?.notes || "Final 70% balance verified; original shipping docs released to customs broker.",
+      },
+      escrow_split_verified: true,
+      updated_at: now,
+      updated_by: adminEmail,
+    },
+    updated_at: now,
+    updated_by: adminEmail,
+  };
+
+  const { error: updateErr } = await supabaseAdmin
+    .from("sourcing_requests")
+    .update({
+      ai_analysis: {
+        ...existingAi,
+        order_workflow: updatedWorkflow,
+      },
+    })
+    .eq("id", requestId);
+
+  if (updateErr) {
+    console.error("releaseFinalBalanceAndDocs error:", updateErr);
+    return { ok: false, error: updateErr.message };
+  }
+
+  // Update match breakdown
+  if (matchId) {
+    const { data: mData } = await supabaseAdmin
+      .from("sourcing_matches")
+      .select("match_breakdown")
+      .eq("id", matchId)
+      .single();
+
+    const mBreakdown = (mData?.match_breakdown as Record<string, unknown> | null) ?? {};
+    await supabaseAdmin
+      .from("sourcing_matches")
+      .update({
+        match_breakdown: {
+          ...mBreakdown,
+          final_settlement: {
+            released_at: now,
+            released_by: adminEmail,
+            factory_balance_amount: factoryBal,
+            agent_final_fee: agentBal,
+            deal_fully_settled: true,
+          },
+        },
+      })
+      .eq("id", matchId);
+  }
+
+  const advFee = fc.advance_milestone_30?.agent_retained_fee || Math.round(agentPool * 0.3);
+
+  await logAdminAction({
+    adminEmail,
+    action: "release_final_balance_and_docs",
+    targetType: "sourcing_request",
+    targetId: requestId,
+    metadata: {
+      factory_balance_paid: factoryBal,
+      agent_final_commission: agentBal,
+      total_broker_commission: advFee + agentBal,
+      customs_declaration: customsDec,
+    },
+  });
+
+  try {
+    revalidatePath(`/admin/requests/${requestId}`);
+    revalidatePath("/admin/requests");
+    revalidatePath(`/track/${requestId}`);
+  } catch {}
+
+  return {
+    ok: true,
+    factoryBalancePaid: factoryBal,
+    agentFinalCommission: agentBal,
+    totalBrokerageEarned: advFee + agentBal,
+  };
+}

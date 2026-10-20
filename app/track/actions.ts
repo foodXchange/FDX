@@ -286,24 +286,43 @@ export async function buyerSubmitWireTransfer(
 
     const now = new Date().toISOString();
     const wireDate = input.wire_date || now.slice(0, 10);
+    const isBalance70 = input.milestone === "balance_70";
 
     const updatedWorkflow: CommercialOrderLifecycle = {
       ...existingWorkflow,
       production_milestones: {
         ...(existingWorkflow.production_milestones || {}),
-        deposit_transferred: true,
+        deposit_transferred: isBalance70
+          ? (existingWorkflow.production_milestones?.deposit_transferred ?? true)
+          : true,
       },
       financial_clearance: {
         ...fc,
-        advance_milestone_30: {
-          ...(fc.advance_milestone_30 || {}),
-          status: "wire_submitted_by_buyer",
-          swift_mt103_reference: input.swift_reference,
-          remitter_bank: input.remitter_bank,
-          wire_date: wireDate,
-          wire_slip_url: input.wire_slip_url,
-          notes: input.notes || "Wire slip submitted by buyer via Portal.",
-        },
+        ...(isBalance70
+          ? {
+              balance_milestone_70: {
+                ...(fc.balance_milestone_70 || {}),
+                status: "wire_submitted_by_buyer",
+                swift_mt103_reference: input.swift_reference,
+                remitter_bank: input.remitter_bank,
+                wire_date: wireDate,
+                wire_slip_url: input.wire_slip_url,
+                buyer_wire_amount: input.wire_amount,
+                notes: input.notes || "70% balance wire slip submitted by buyer against B/L.",
+              },
+            }
+          : {
+              advance_milestone_30: {
+                ...(fc.advance_milestone_30 || {}),
+                status: "wire_submitted_by_buyer",
+                swift_mt103_reference: input.swift_reference,
+                remitter_bank: input.remitter_bank,
+                wire_date: wireDate,
+                wire_slip_url: input.wire_slip_url,
+                buyer_wire_amount: input.wire_amount,
+                notes: input.notes || "30% advance wire slip submitted by buyer via Portal.",
+              },
+            }),
         updated_at: now,
         updated_by: input.remitter_name || req.company || "Buyer Portal",
       },
@@ -329,10 +348,11 @@ export async function buyerSubmitWireTransfer(
     const buyerName = req.company || "Buyer";
     await createNotification(
       "match_reply",
-      `💰 Buyer Wire Transferred: €${Number(input.wire_amount).toLocaleString()}`,
-      `[${buyerName}] submitted 30% advance deposit wire (SWIFT Ref: ${input.swift_reference}). Ready for settlement clearance and factory release.`,
+      `💰 Buyer ${isBalance70 ? "70% Balance" : "30% Advance"} Wire: €${Number(input.wire_amount).toLocaleString()}`,
+      `[${buyerName}] submitted ${isBalance70 ? "70% final balance wire against B/L" : "30% advance deposit wire"} (SWIFT Ref: ${input.swift_reference}). Ready for settlement clearance and document release.`,
       {
         requestId,
+        category: "financial_clearance",
         milestone: input.milestone,
         swiftRef: input.swift_reference,
         remitterBank: input.remitter_bank,

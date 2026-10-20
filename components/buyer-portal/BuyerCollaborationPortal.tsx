@@ -17,6 +17,7 @@ import {
 } from "@/app/track/actions";
 import BuyerPoModal from "./BuyerPoModal";
 import CommercialPoDocumentModal from "@/components/documents/CommercialPoDocumentModal";
+import ExportDocumentHandoverModal from "@/components/documents/ExportDocumentHandoverModal";
 
 export interface BuyerPortalData {
   requestId: string;
@@ -71,11 +72,33 @@ export default function BuyerCollaborationPortal({ data }: Props) {
   // Wire Transfer & Settlement state
   const fc = data.orderWorkflow?.financial_clearance;
   const initialWireStatus = fc?.advance_milestone_30?.status || "pending_buyer_wire";
+  const initialBalanceStatus = fc?.balance_milestone_70?.status || "pending_buyer_wire";
+
   const [wireStatus, setWireStatus] = useState(initialWireStatus);
-  const [swiftRef, setSwiftRef] = useState(fc?.advance_milestone_30?.swift_mt103_reference || "");
-  const [remitterBank, setRemitterBank] = useState(fc?.advance_milestone_30?.remitter_bank || "Bank Leumi");
-  const [wireDate, setWireDate] = useState(fc?.advance_milestone_30?.wire_date || new Date().toISOString().slice(0, 10));
-  const [wireNotes, setWireNotes] = useState(fc?.advance_milestone_30?.notes || "");
+  const [balanceStatus, setBalanceStatus] = useState(initialBalanceStatus);
+  const [selectedMilestone, setSelectedMilestone] = useState<"advance_30" | "balance_70">(
+    initialWireStatus === "released_to_factory" ? "balance_70" : "advance_30"
+  );
+  const [swiftRef, setSwiftRef] = useState(
+    (initialWireStatus === "released_to_factory"
+      ? fc?.balance_milestone_70?.swift_mt103_reference
+      : fc?.advance_milestone_30?.swift_mt103_reference) || ""
+  );
+  const [remitterBank, setRemitterBank] = useState(
+    (initialWireStatus === "released_to_factory"
+      ? fc?.balance_milestone_70?.remitter_bank
+      : fc?.advance_milestone_30?.remitter_bank) || "Bank Leumi"
+  );
+  const [wireDate, setWireDate] = useState(
+    (initialWireStatus === "released_to_factory"
+      ? fc?.balance_milestone_70?.wire_date
+      : fc?.advance_milestone_30?.wire_date) || new Date().toISOString().slice(0, 10)
+  );
+  const [wireNotes, setWireNotes] = useState(
+    (initialWireStatus === "released_to_factory"
+      ? fc?.balance_milestone_70?.notes
+      : fc?.advance_milestone_30?.notes) || ""
+  );
   const [wireActionMsg, setWireActionMsg] = useState<string | null>(null);
   const [showWireModal, setShowWireModal] = useState(false);
   const [copiedBankField, setCopiedBankField] = useState<string | null>(null);
@@ -84,6 +107,7 @@ export default function BuyerCollaborationPortal({ data }: Props) {
   const [poOffer, setPoOffer] = useState<BuyerPortalData["offers"][0] | null>(null);
   const [activePoNumber, setActivePoNumber] = useState(data.orderWorkflow?.po_number || null);
   const [showPoDocModal, setShowPoDocModal] = useState(false);
+  const [showDocsModal, setShowDocsModal] = useState(false);
 
   const totalCalculated = data.orderWorkflow?.total_order_value || (fc?.gross_buyer_contract_value || 20880);
   const advanceAmount = fc?.advance_milestone_30?.buyer_wire_amount || (totalCalculated * 0.3);
@@ -99,24 +123,36 @@ export default function BuyerCollaborationPortal({ data }: Props) {
     e.preventDefault();
     if (!swiftRef.trim()) return;
 
+    const isBalance = selectedMilestone === "balance_70";
+    const amount = isBalance ? balanceAmount : advanceAmount;
+
     startTransition(async () => {
       const res = await buyerSubmitWireTransfer(data.requestId, {
-        milestone: "advance_30",
+        milestone: selectedMilestone,
         swift_reference: swiftRef.trim(),
         remitter_bank: remitterBank.trim(),
-        wire_amount: advanceAmount,
+        wire_amount: amount,
         wire_date: wireDate,
         notes: wireNotes,
         remitter_name: data.buyerCompany,
       });
 
       if (res.ok) {
-        setWireStatus("wire_submitted_by_buyer");
-        setWireActionMsg(
-          lang === "he"
-            ? "✓ אסמכתאת ההעברה הבנקאית נקלטה בהצלחה! מחלקת הסליקה בודקת את פרטי ההעברה לקראת הפעלת הייצור במפעל."
-            : "✓ Bank wire receipt successfully submitted! The settlement desk is verifying funds to release factory production."
-        );
+        if (isBalance) {
+          setBalanceStatus("wire_submitted_by_buyer");
+          setWireActionMsg(
+            lang === "he"
+              ? "✓ אסמכתאת תשלום יתרת 70% כנגד שטר מטען נקלטה בהצלחה! עם אישור הקליטה, מסמכי המקור ישוחררו לעמיל המכס בנמל אשדוד."
+              : "✓ 70% balance wire confirmation received! Original shipping documents will be released to customs broker."
+          );
+        } else {
+          setWireStatus("wire_submitted_by_buyer");
+          setWireActionMsg(
+            lang === "he"
+              ? "✓ אסמכתאת ההעברה הבנקאית נקלטה בהצלחה! מחלקת הסליקה בודקת את פרטי ההעברה לקראת הפעלת הייצור במפעל."
+              : "✓ Bank wire receipt successfully submitted! The settlement desk is verifying funds to release factory production."
+          );
+        }
         setShowWireModal(false);
         setTimeout(() => setWireActionMsg(null), 6000);
       }
@@ -1116,6 +1152,15 @@ export default function BuyerCollaborationPortal({ data }: Props) {
                     <span>{lang === "he" ? "הצג והורד הזמנת רכש רשמית (PDF)" : "Official PO & Proforma (PDF)"}</span>
                   </button>
 
+                  <button
+                    type="button"
+                    onClick={() => setShowDocsModal(true)}
+                    className="text-xs font-bold px-3 py-1.5 rounded-xl border border-blue-300 bg-blue-50/60 hover:bg-blue-100 text-blue-900 transition flex items-center gap-1.5 shadow-2xs cursor-pointer"
+                  >
+                    <span>📑</span>
+                    <span>{lang === "he" ? "תיק מסמכי מכס ושילוח" : "Customs Package (B/L, EUR.1)"}</span>
+                  </button>
+
                   <span className={`text-xs font-bold px-3 py-1 rounded-full border flex items-center gap-1.5 ${
                     wireStatus === "released_to_factory"
                       ? "bg-emerald-100 text-emerald-800 border-emerald-300"
@@ -1208,6 +1253,100 @@ export default function BuyerCollaborationPortal({ data }: Props) {
                         : "The 30% advance is released to the European factory. Once production finishes and the container is sealed, live vessel tracking activates in Tab 5."}
                     </p>
                   </div>
+                </div>
+              )}
+
+              {/* ── 70% Final Balance Milestone Box (When 30% cleared) ── */}
+              {wireStatus === "released_to_factory" && (
+                <div className="p-5 rounded-2xl border-2 border-indigo-200 bg-gradient-to-r from-indigo-50/50 via-white to-blue-50/40 shadow-xs space-y-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-indigo-100 pb-3">
+                    <div className="flex items-center gap-2.5">
+                      <span className="w-6 h-6 rounded-full bg-indigo-600 text-white flex items-center justify-center font-bold text-xs">
+                        2
+                      </span>
+                      <div>
+                        <h4 className="font-bold text-slate-900 text-sm">
+                          {lang === "he" ? "שלב ב': תשלום יתרת 70% כנגד שטר מטען ימי ודוח בדיקה" : "Milestone 2: 70% Balance on Clean Ocean B/L & PSI"}
+                        </h4>
+                        <p className="text-[11px] text-slate-500">
+                          {lang === "he"
+                            ? "שחרור מקורי של שטרי המטען ותעודת מקור EUR.1 לעמיל המכס בנמל אשדוד מותנה בסליקת היתרה."
+                            : "Release of original 3/3 B/L and EUR.1 customs certificate to Ashdod port broker upon wire settlement."}
+                        </p>
+                      </div>
+                    </div>
+
+                    <span className={`text-xs font-bold px-3 py-1 rounded-full border ${
+                      balanceStatus === "released_to_factory"
+                        ? "bg-emerald-100 text-emerald-800 border-emerald-300"
+                        : balanceStatus === "wire_submitted_by_buyer"
+                        ? "bg-amber-100 text-amber-800 border-amber-300"
+                        : "bg-slate-100 text-slate-700 border-slate-300"
+                    }`}>
+                      {balanceStatus === "released_to_factory"
+                        ? lang === "he" ? "העסקה הושלמה ✓" : "Fully Settled ✓"
+                        : balanceStatus === "wire_submitted_by_buyer"
+                        ? lang === "he" ? "אסמכתאת 70% בבדיקה" : "70% Wire In Review"
+                        : lang === "he" ? "ממתין לתשלום יתרה" : "70% Balance Due"}
+                    </span>
+                  </div>
+
+                  {balanceStatus === "wire_submitted_by_buyer" && (
+                    <div className="p-3.5 rounded-xl bg-amber-50 border border-amber-300 flex items-start gap-3">
+                      <span className="text-xl">⏳</span>
+                      <div>
+                        <h5 className="font-bold text-amber-950 text-xs">
+                          {lang === "he" ? "אסמכתאת תשלום היתרה (70%) נקלטה בהצלחה" : "70% Balance Wire Submitted"}
+                        </h5>
+                        <p className="text-[11px] text-amber-800 mt-0.5">
+                          {lang === "he"
+                            ? "דסק הסליקה מאמת את ההעברה. עם אישורה, מסמכי המקור ישוחררו אוטומטית לעמיל המכס לצורך שחרור המכולה בנמל אשדוד."
+                            : "Our settlement desk is verifying funds. Once cleared, original documents are delivered to the customs broker."}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {balanceStatus === "released_to_factory" && (
+                    <div className="p-3.5 rounded-xl bg-emerald-50 border border-emerald-300 flex items-start gap-3">
+                      <span className="text-xl">🏆</span>
+                      <div>
+                        <h5 className="font-bold text-emerald-950 text-xs">
+                          {lang === "he" ? "הסליקה הושלמה במלואה · המכולה שוחררה למסירה" : "Deal Fully Settled · Customs Release Authorized"}
+                        </h5>
+                        <p className="text-[11px] text-emerald-800 mt-0.5">
+                          {lang === "he"
+                            ? "כל תשלומי העסקה הוסדרו במלואם. תיק מסמכי המקור (B/L, EUR.1, כשרות) נמסר לעמיל המכס. המכולה בדרכה למחסן המרכזי."
+                            : "Full deal financial clearance completed. Original shipping package handed over to Ashdod customs broker."}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {balanceStatus !== "released_to_factory" && balanceStatus !== "wire_submitted_by_buyer" && (
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 bg-white rounded-xl border border-indigo-100">
+                      <div>
+                        <span className="text-[10px] font-bold text-indigo-700 uppercase">
+                          {lang === "he" ? "סכום יתרה לתשלום (70%):" : "Balance Due (70%):"}
+                        </span>
+                        <div className="text-lg font-black text-slate-900 font-mono">
+                          {data.orderWorkflow?.currency || "EUR"} {balanceAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedMilestone("balance_70");
+                          setShowWireModal(true);
+                        }}
+                        className="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs transition shadow-xs flex items-center justify-center gap-2 cursor-pointer"
+                      >
+                        <span>📤</span>
+                        <span>{lang === "he" ? "העבר יתרת 70% והעלה אסמכתא" : "Submit 70% Balance Wire Slip"}</span>
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -1324,7 +1463,9 @@ export default function BuyerCollaborationPortal({ data }: Props) {
                     <div className="flex items-center gap-2">
                       <span className="text-lg">🏦</span>
                       <h3 className="text-sm font-bold text-slate-900">
-                        {lang === "he" ? "הגשת אסמכתאת העברה בנקאית (30%)" : "Submit Bank Wire Transfer Receipt"}
+                        {selectedMilestone === "balance_70"
+                          ? lang === "he" ? "הגשת אסמכתאת תשלום יתרה (70%)" : "Submit 70% Final Balance Wire"
+                          : lang === "he" ? "הגשת אסמכתאת מקדמת ייצור (30%)" : "Submit 30% Advance Wire"}
                       </h3>
                     </div>
                     <button
@@ -1337,11 +1478,37 @@ export default function BuyerCollaborationPortal({ data }: Props) {
                   </div>
 
                   <div className="p-6 space-y-4 text-xs">
-                    <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-950 font-medium">
-                      {lang === "he" ? "סכום ההעברה:" : "Transfer Amount:"}{" "}
-                      <strong className="text-emerald-900 text-sm">
-                        {data.orderWorkflow?.currency || "EUR"} {advanceAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                      </strong>
+                    <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-950 font-medium flex items-center justify-between">
+                      <div>
+                        <span className="text-slate-600 block text-[11px]">
+                          {selectedMilestone === "balance_70"
+                            ? lang === "he" ? "תשלום יתרה כנגד שטר מטען (70%):" : "Final Balance Amount (70%):"
+                            : lang === "he" ? "מקדמת פתיחת ייצור והדפסה (30%):" : "Production Advance Deposit (30%):"}
+                        </span>
+                        <strong className="text-emerald-900 text-base font-black font-mono">
+                          {data.orderWorkflow?.currency || "EUR"}{" "}
+                          {(selectedMilestone === "balance_70" ? balanceAmount : advanceAmount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </strong>
+                      </div>
+
+                      {wireStatus === "released_to_factory" && (
+                        <div className="flex items-center gap-1 bg-white p-1 rounded-lg border border-emerald-300 text-[10px]">
+                          <button
+                            type="button"
+                            onClick={() => setSelectedMilestone("advance_30")}
+                            className={`px-2 py-0.5 rounded font-bold transition ${selectedMilestone === "advance_30" ? "bg-emerald-700 text-white" : "text-slate-600"}`}
+                          >
+                            30%
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setSelectedMilestone("balance_70")}
+                            className={`px-2 py-0.5 rounded font-bold transition ${selectedMilestone === "balance_70" ? "bg-indigo-700 text-white" : "text-slate-600"}`}
+                          >
+                            70%
+                          </button>
+                        </div>
+                      )}
                     </div>
 
                     <div>
@@ -1551,6 +1718,24 @@ export default function BuyerCollaborationPortal({ data }: Props) {
           certifications={data.certifications.length > 0 ? data.certifications : ["BRCGS Food Safety", "IFS", "Kosher"]}
           packagingPreference={data.packagingPreference || "Retail Sealed Pack"}
           targetWarehouse={data.orderWorkflow?.buyer_warehouse_address || `${data.buyerCompany} Central Distribution Center`}
+        />
+
+        {/* ── Official Customs & Export Document Handover Modal ── */}
+        <ExportDocumentHandoverModal
+          isOpen={showDocsModal}
+          onClose={() => setShowDocsModal(false)}
+          requestId={data.requestId}
+          poNumber={activePoNumber || data.orderWorkflow?.po_number || `FDX-PO-${data.requestId.slice(0, 6).toUpperCase()}`}
+          buyerCompany={data.buyerCompany}
+          supplierName={data.orderWorkflow?.selected_supplier_name || (data.offers[0] ? `Producer ${data.offers[0].producerCode}` : "European Certified Food Producer")}
+          productName={data.cleanedName || data.productName}
+          containerNumber={data.orderWorkflow?.container_number || "MSKU-9481029"}
+          billOfLading={data.orderWorkflow?.bill_of_lading || "MSCUVAL881920"}
+          shippingLine={data.orderWorkflow?.shipping_line || "MSC (Mediterranean Shipping Company)"}
+          vesselName={data.orderWorkflow?.vessel_name || "MSC LEANNE"}
+          customsDeclaration={data.orderWorkflow?.customs_declaration_number || undefined}
+          etaPort={data.orderWorkflow?.eta_port || undefined}
+          isBalanceCleared={balanceStatus === "released_to_factory"}
         />
       </main>
 
