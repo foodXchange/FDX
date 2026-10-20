@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import TradeDocumentSuiteModal, { type DocTab } from "@/components/admin/TradeDocumentSuiteModal";
 import ExportDocumentHandoverModal from "@/components/documents/ExportDocumentHandoverModal";
+import GoodsReceiptDocumentModal from "@/components/documents/GoodsReceiptDocumentModal";
 import MaritimeVesselTracker from "@/components/shipping/MaritimeVesselTracker";
 import {
   type CommercialOrderLifecycle,
@@ -38,6 +39,7 @@ export default function Stage7CommercialOrderHub({
   >("po");
   const [docModalTab, setDocModalTab] = useState<DocTab | null>(null);
   const [showCustomsDocModal, setShowCustomsDocModal] = useState(false);
+  const [showGrnModal, setShowGrnModal] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -1607,27 +1609,41 @@ export default function Stage7CommercialOrderHub({
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between pt-2">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2">
                   <p className="text-[11px] text-emerald-800">
                     Signing off marks the sourcing order as 100% completed, goods received into buyer ERP, and container released back to ocean shipping carrier.
                   </p>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const updated: CommercialOrderLifecycle = {
-                        ...workflow,
-                        delivery_status: "arrived_at_warehouse",
-                        customs_status: "customs_cleared",
-                        arrived_at: new Date().toISOString(),
-                        goods_accepted_by: workflow.goods_accepted_by || `${buyerCompany} Warehouse Logistics`,
-                      };
-                      setWorkflow(updated);
-                      handleSave(updated);
-                    }}
-                    className="text-xs font-bold px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl transition cursor-pointer shadow-md shrink-0 ml-4 flex items-center gap-1.5"
-                  >
-                    <span>🏁 Sign Off Warehouse Acceptance</span>
-                  </button>
+                  <div className="flex items-center gap-2 shrink-0">
+                    {workflow.delivery_status === "arrived_at_warehouse" && (
+                      <button
+                        type="button"
+                        onClick={() => setShowGrnModal(true)}
+                        className="text-xs font-bold px-3.5 py-2 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl transition cursor-pointer shadow-xs flex items-center gap-1.5"
+                      >
+                        <span>📄</span>
+                        <span>View Official GRN PDF</span>
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const updated: CommercialOrderLifecycle = {
+                          ...workflow,
+                          current_stage: "completed",
+                          delivery_status: "arrived_at_warehouse",
+                          customs_status: "customs_cleared",
+                          arrived_at: new Date().toISOString(),
+                          goods_accepted_by: workflow.goods_accepted_by || `${buyerCompany} Warehouse Logistics`,
+                        };
+                        setWorkflow(updated);
+                        handleSave(updated);
+                      }}
+                      className="text-xs font-bold px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl transition cursor-pointer shadow-md flex items-center gap-1.5"
+                    >
+                      <span>🏁</span>
+                      <span>Sign Off Warehouse Acceptance</span>
+                    </button>
+                  </div>
                 </div>
               </div>
 
@@ -1700,6 +1716,31 @@ export default function Stage7CommercialOrderHub({
         customsDeclaration={workflow.customs_declaration_number || undefined}
         etaPort={workflow.eta_port || undefined}
         isBalanceCleared={workflow.financial_clearance?.balance_milestone_70?.status === "released_to_factory"}
+      />
+
+      {/* ── Official Goods Receipt Note (GRN) Document Viewer Modal ── */}
+      <GoodsReceiptDocumentModal
+        isOpen={showGrnModal}
+        onClose={() => setShowGrnModal(false)}
+        grnNumber={`GRN-IL-2604-${requestId.slice(0, 5).toUpperCase()}`}
+        grnDate={workflow.arrived_at || new Date().toISOString().slice(0, 10)}
+        poNumber={workflow.po_number || `FDX-PO-${requestId.slice(0, 6).toUpperCase()}`}
+        poDate={workflow.po_date || new Date().toISOString().slice(0, 10)}
+        buyerCompany={buyerCompany}
+        buyerAddress={workflow.buyer_warehouse_address || `${buyerCompany} Central Logistics Hub`}
+        receivingOfficer={workflow.goods_accepted_by || "Avi Mizrahi (Logistics Hub Manager)"}
+        receivingDockBay="Bay 04 - Sorek Logistics Hub"
+        truckLicensePlate="IL-98-410-29"
+        supplierName={workflow.selected_supplier_name || "European Certified Food Factory"}
+        productName={workflow.agreed_product_name || productName}
+        orderVolume={workflow.order_volume || "24,000 Units (1 x 40ft HQ FCL)"}
+        containerNumber={workflow.container_number || "MSKU-9481029"}
+        billOfLading={workflow.bill_of_lading || "MSCUVAL881920"}
+        vesselName={workflow.vessel_name || "MSC LEANNE / Voyage 2604E"}
+        shippingLine={workflow.shipping_line || "MSC (Mediterranean Shipping Company)"}
+        customsDeclarationNumber={workflow.customs_declaration_number || "IL-2604-881920"}
+        warehousePalletCount={workflow.warehouse_pallet_count || 24}
+        inspectionNotes={workflow.logistics_notes || "All pallets inspected and accepted into ERP inventory."}
       />
     </div>
   );

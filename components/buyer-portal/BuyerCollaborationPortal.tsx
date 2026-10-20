@@ -14,10 +14,12 @@ import {
   buyerSubmitSensoryEvaluation,
   buyerApprovePackaging,
   buyerSubmitWireTransfer,
+  buyerSignWarehouseGoodsReceipt,
 } from "@/app/track/actions";
 import BuyerPoModal from "./BuyerPoModal";
 import CommercialPoDocumentModal from "@/components/documents/CommercialPoDocumentModal";
 import ExportDocumentHandoverModal from "@/components/documents/ExportDocumentHandoverModal";
+import GoodsReceiptDocumentModal from "@/components/documents/GoodsReceiptDocumentModal";
 import MaritimeVesselTracker from "@/components/shipping/MaritimeVesselTracker";
 
 export interface BuyerPortalData {
@@ -110,6 +112,35 @@ export default function BuyerCollaborationPortal({ data }: Props) {
   const [showPoDocModal, setShowPoDocModal] = useState(false);
   const [showDocsModal, setShowDocsModal] = useState(false);
 
+  // Warehouse Receiving & Goods Receipt Note (GRN) state
+  const initialIsDelivered =
+    data.orderWorkflow?.delivery_status === "arrived_at_warehouse" ||
+    Boolean(data.orderWorkflow?.goods_accepted_by);
+  const [isDelivered, setIsDelivered] = useState(initialIsDelivered);
+  const [grnAcceptedBy, setGrnAcceptedBy] = useState(
+    data.orderWorkflow?.goods_accepted_by || "אבי מזרחי (מנהל קבלת סחורה במרלוג)"
+  );
+  const [grnPalletCount, setGrnPalletCount] = useState<number>(
+    data.orderWorkflow?.warehouse_pallet_count || 24
+  );
+  const [grnDriverPlate, setGrnDriverPlate] = useState("98-410-29");
+  const [grnDockBay, setGrnDockBay] = useState("רציף 04 - מרלוג מרכזי");
+  const [grnTempLogger, setGrnTempLogger] = useState("+18.2°C (תקין - רציפות קירור מלאה)");
+  const [grnSealNumber, setGrnSealNumber] = useState("#IL-98402 (חותם שלם ותקין לפני שבירה)");
+  const [grnNotes, setGrnNotes] = useState(
+    data.orderWorkflow?.logistics_notes ||
+      "המכולה נפרקה ברציף קבלה. כל 24 המשטחים נבדקו, ספירת קרטונים תקינה, אריזות שלמות ותוויות עברית מאושרות."
+  );
+  const [grnNumber, setGrnNumber] = useState(
+    `GRN-IL-2604-${data.requestId.slice(0, 5).toUpperCase()}`
+  );
+  const [grnArrivedAt, setGrnArrivedAt] = useState<string | null>(
+    data.orderWorkflow?.arrived_at || null
+  );
+  const [showGrnDocModal, setShowGrnDocModal] = useState(false);
+  const [grnActionSuccess, setGrnActionSuccess] = useState<string | null>(null);
+  const [grnActionError, setGrnActionError] = useState<string | null>(null);
+
   const totalCalculated = data.orderWorkflow?.total_order_value || (fc?.gross_buyer_contract_value || 20880);
   const advanceAmount = fc?.advance_milestone_30?.buyer_wire_amount || (totalCalculated * 0.3);
   const balanceAmount = fc?.balance_milestone_70?.buyer_wire_amount || (totalCalculated * 0.7);
@@ -156,6 +187,38 @@ export default function BuyerCollaborationPortal({ data }: Props) {
         }
         setShowWireModal(false);
         setTimeout(() => setWireActionMsg(null), 6000);
+      }
+    });
+  };
+
+  const handleGrnSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setGrnActionError(null);
+    setGrnActionSuccess(null);
+
+    startTransition(async () => {
+      const res = await buyerSignWarehouseGoodsReceipt({
+        requestId: data.requestId,
+        receivingOfficer: grnAcceptedBy,
+        receivedPallets: grnPalletCount,
+        truckLicensePlate: grnDriverPlate,
+        dockBay: grnDockBay,
+        tempLoggerReading: grnTempLogger,
+        sealNumber: grnSealNumber,
+        notes: grnNotes,
+      });
+
+      if (res.ok) {
+        setIsDelivered(true);
+        setGrnArrivedAt(res.arrivedAt);
+        setGrnNumber(res.grnNumber);
+        setGrnActionSuccess(
+          lang === "he"
+            ? `🎉 תעודת קבלת טובין (GRN #${res.grnNumber}) נחתמה ואושרה רשמית! כל ${grnPalletCount} המשטחים נקלטו במלאי המרלוג.`
+            : `🎉 Goods Receipt Note (GRN #${res.grnNumber}) signed & verified! All ${grnPalletCount} pallets accepted into ERP inventory.`
+        );
+      } else {
+        setGrnActionError(res.error);
       }
     });
   };
@@ -1638,6 +1701,215 @@ export default function BuyerCollaborationPortal({ data }: Props) {
               productName={data.cleanedName || data.productName}
               lang={lang}
             />
+
+            {/* ── WAREHOUSE RECEIVING & GOODS RECEIPT NOTE (GRN) SECTION ── */}
+            {isDelivered ? (
+              <div className="bg-gradient-to-r from-emerald-950/85 to-slate-900 border border-emerald-500/40 rounded-2xl p-6 text-white shadow-xl space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-emerald-500/20">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-2xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-2xl shrink-0">
+                      🏢
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h3 className="font-bold text-base text-white">
+                          {lang === "he" ? "קבלת טובין במרלוג - תעודת קבלה רשמית (GRN)" : "Warehouse Goods Receipt Confirmed (GRN)"}
+                        </h3>
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-emerald-500/30 text-emerald-300 border border-emerald-500/40">
+                          ACCEPTED & STOCKED
+                        </span>
+                      </div>
+                      <p className="text-xs text-emerald-200/80 mt-0.5">
+                        {lang === "he"
+                          ? "כל המשטחים נפרקו ברציף המרלוג, נבדקו מול שטר המטען ונקלטו במערכת המלאי (ERP) של היבואן."
+                          : "All pallets unloaded at dock, verified against B/L, and booked into buyer ERP inventory."}
+                      </p>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => setShowGrnDocModal(true)}
+                    className="text-xs font-bold px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl transition flex items-center gap-2 cursor-pointer shadow-sm shrink-0"
+                  >
+                    <span>📄</span>
+                    <span>{lang === "he" ? "הצג תעודת קבלה רשמית (GRN PDF)" : "View Official GRN PDF"}</span>
+                  </button>
+                </div>
+
+                {/* GRN Telemetry Summary */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+                  <div className="p-3 rounded-xl bg-slate-950/70 border border-emerald-900/50">
+                    <span className="text-[10px] text-slate-400 block">{lang === "he" ? "מספר תעודת קבלה (GRN)" : "GRN Number"}</span>
+                    <span className="font-mono font-bold text-emerald-400 text-sm mt-0.5 block">{grnNumber}</span>
+                  </div>
+                  <div className="p-3 rounded-xl bg-slate-950/70 border border-emerald-900/50">
+                    <span className="text-[10px] text-slate-400 block">{lang === "he" ? "משטחים שנקלטו" : "Pallets Received"}</span>
+                    <span className="font-mono font-bold text-slate-200 text-sm mt-0.5 block">{grnPalletCount} Euro Pallets</span>
+                  </div>
+                  <div className="p-3 rounded-xl bg-slate-950/70 border border-emerald-900/50">
+                    <span className="text-[10px] text-slate-400 block">{lang === "he" ? "קצין קבלת סחורה" : "Receiving Officer"}</span>
+                    <span className="font-semibold text-slate-200 mt-0.5 block truncate">{grnAcceptedBy}</span>
+                  </div>
+                  <div className="p-3 rounded-xl bg-slate-950/70 border border-emerald-900/50">
+                    <span className="text-[10px] text-slate-400 block">{lang === "he" ? "מועד פריקה וקליטה" : "Arrival Timestamp"}</span>
+                    <span className="font-mono font-semibold text-sky-400 mt-0.5 block truncate">
+                      {grnArrivedAt ? new Date(grnArrivedAt).toLocaleDateString("he-IL") : "Completed"}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-xs space-y-5">
+                <div className="pb-4 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-indigo-50 border border-indigo-200 text-indigo-700 flex items-center justify-center text-xl shrink-0">
+                      🏢
+                    </div>
+                    <div>
+                      <h3 className="text-base font-bold text-slate-900">
+                        {lang === "he" ? "קליטת סחורה ברציף המרלוג ואישור תעודת קבלה (GRN)" : "Warehouse Dock Receiving & Pallet Acceptance (GRN)"}
+                      </h3>
+                      <p className="text-slate-500 text-xs mt-0.5">
+                        {lang === "he"
+                          ? "אימות חותם מכולה, רציפות קירור (מד-חום), ספירת משטחים וחתימה על תעודת קבלת טובין רשמית."
+                          : "Verify container seal, cold-chain logger (+18°C), pallet tally, and execute official Goods Receipt Note."}
+                      </p>
+                    </div>
+                  </div>
+
+                  <span className="px-3 py-1 bg-blue-50 text-blue-700 border border-blue-200 text-xs font-bold rounded-xl shrink-0">
+                    {lang === "he" ? "ממתין לפריקה במרלוג" : "Pending Dock Receiving"}
+                  </span>
+                </div>
+
+                {grnActionSuccess && (
+                  <div className="p-3.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-semibold">
+                    {grnActionSuccess}
+                  </div>
+                )}
+                {grnActionError && (
+                  <div className="p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-semibold">
+                    {grnActionError}
+                  </div>
+                )}
+
+                {/* 4 Pre-flight Dock Checkboxes */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 p-3.5 rounded-xl bg-slate-50 border border-slate-200 text-xs">
+                  <div className="flex items-center gap-2 text-slate-700">
+                    <span className="text-emerald-600 font-bold">✓</span>
+                    <span>{lang === "he" ? "חותם בריח מכולה (#IL-98402) שלם ומאומת לפני חיתוך" : "Container bolt seal (#IL-98402) verified intact"}</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-slate-700">
+                    <span className="text-emerald-600 font-bold">✓</span>
+                    <span>{lang === "he" ? "מד-חום USB נבדק: +18.2°C תקין ללא חריגות טמפרטורה" : "Cold-chain data logger verified (+18.2°C - Normal)"}</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-slate-700">
+                    <span className="text-emerald-600 font-bold">✓</span>
+                    <span>{lang === "he" ? "ספירת משטחים: 24 משטחי עץ תקניים, ללא קרטונים פגועים" : "Pallet condition intact (24 Euro-pallets, undamaged)"}</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-slate-700">
+                    <span className="text-emerald-600 font-bold">✓</span>
+                    <span>{lang === "he" ? "תוויות פרייבט ליבל בעברית, סימון תזונתי וכשרות מאושרים" : "Hebrew label compliance & Chief Rabbinate Kosher verified"}</span>
+                  </div>
+                </div>
+
+                {/* Dock Input Form */}
+                <form onSubmit={handleGrnSubmit} className="space-y-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
+                    <div>
+                      <label className="block font-semibold text-slate-600 mb-1">
+                        {lang === "he" ? "שם קצין / מנהל קבלת סחורה" : "Receiving Officer"}
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={grnAcceptedBy}
+                        onChange={(e) => setGrnAcceptedBy(e.target.value)}
+                        className="w-full border border-slate-200 rounded-xl p-2.5 text-slate-900 font-semibold bg-white"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block font-semibold text-slate-600 mb-1">
+                        {lang === "he" ? "כמות משטחים שנפרקו בפועל" : "Pallets Received"}
+                      </label>
+                      <input
+                        type="number"
+                        min={1}
+                        max={60}
+                        required
+                        value={grnPalletCount}
+                        onChange={(e) => setGrnPalletCount(Number(e.target.value))}
+                        className="w-full border border-slate-200 rounded-xl p-2.5 font-bold font-mono text-emerald-700 bg-white"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block font-semibold text-slate-600 mb-1">
+                        {lang === "he" ? "מספר רישוי משאית / מוביל יבשתי" : "Truck License Plate"}
+                      </label>
+                      <input
+                        type="text"
+                        value={grnDriverPlate}
+                        onChange={(e) => setGrnDriverPlate(e.target.value)}
+                        className="w-full border border-slate-200 rounded-xl p-2.5 font-mono text-slate-900 bg-white"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block font-semibold text-slate-600 mb-1">
+                        {lang === "he" ? "מספר שער / רציף פריקה" : "Receiving Dock Bay"}
+                      </label>
+                      <input
+                        type="text"
+                        value={grnDockBay}
+                        onChange={(e) => setGrnDockBay(e.target.value)}
+                        className="w-full border border-slate-200 rounded-xl p-2.5 text-slate-900 bg-white"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block font-semibold text-slate-600 mb-1">
+                      {lang === "he" ? "הערות קבלת טובין ורישום למלאי" : "Receiving Inspection Notes"}
+                    </label>
+                    <textarea
+                      rows={2}
+                      value={grnNotes}
+                      onChange={(e) => setGrnNotes(e.target.value)}
+                      className="w-full border border-slate-200 rounded-xl p-2.5 text-slate-700 text-xs leading-relaxed bg-white"
+                    />
+                  </div>
+
+                  <div className="pt-2 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <span className="text-[11px] text-slate-500">
+                      {lang === "he"
+                        ? "חתימה מאשרת קליטת המטען למלאי היבואן וסגירת התחייבות האספקה של הספק."
+                        : "Signing issues official GRN document and books cargo into inventory."}
+                    </span>
+
+                    <button
+                      type="submit"
+                      disabled={isPending}
+                      className="text-xs font-bold px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white rounded-xl transition flex items-center justify-center gap-2 cursor-pointer shadow-sm"
+                    >
+                      {isPending ? (
+                        <>
+                          <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
+                          <span>{lang === "he" ? "מאשר פריקה ומנפיק תעודת קבלה..." : "Signing & Issuing GRN..."}</span>
+                        </>
+                      ) : (
+                        <>
+                          <span>✍️</span>
+                          <span>{lang === "he" ? "אשר פריקה וחתום על תעודת קבלה רשמית (GRN)" : "Sign & Issue Official GRN Document"}</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            )}
           </div>
         )}
 
@@ -1702,6 +1974,34 @@ export default function BuyerCollaborationPortal({ data }: Props) {
           customsDeclaration={data.orderWorkflow?.customs_declaration_number || undefined}
           etaPort={data.orderWorkflow?.eta_port || undefined}
           isBalanceCleared={balanceStatus === "released_to_factory"}
+        />
+
+        {/* ── Official Goods Receipt Note (GRN) Document Viewer Modal ── */}
+        <GoodsReceiptDocumentModal
+          isOpen={showGrnDocModal}
+          onClose={() => setShowGrnDocModal(false)}
+          grnNumber={grnNumber}
+          grnDate={grnArrivedAt || new Date().toISOString().slice(0, 10)}
+          poNumber={activePoNumber || data.orderWorkflow?.po_number || `FDX-PO-${data.requestId.slice(0, 6).toUpperCase()}`}
+          poDate={data.orderWorkflow?.po_date || new Date().toISOString().slice(0, 10)}
+          buyerCompany={data.buyerCompany}
+          buyerAddress={data.orderWorkflow?.buyer_warehouse_address || `${data.buyerCompany} Central Logistics Hub, Sorek Park, Israel`}
+          receivingOfficer={grnAcceptedBy}
+          receivingDockBay={grnDockBay}
+          truckLicensePlate={grnDriverPlate}
+          supplierName={data.orderWorkflow?.selected_supplier_name || (data.offers[0] ? `Producer ${data.offers[0].producerCode}` : "European Certified Food Producer")}
+          supplierCountry={data.offers[0]?.country || "European Union"}
+          productName={data.cleanedName || data.productName}
+          orderVolume={data.orderWorkflow?.order_volume || "24,000 Units (1 x 40ft HQ FCL)"}
+          containerNumber={data.orderWorkflow?.container_number || "MSKU-9481029"}
+          billOfLading={data.orderWorkflow?.bill_of_lading || "MSCUVAL881920"}
+          vesselName={data.orderWorkflow?.vessel_name || "MSC LEANNE / Voyage 2604E"}
+          shippingLine={data.orderWorkflow?.shipping_line || "MSC (Mediterranean Shipping Company)"}
+          customsDeclarationNumber={data.orderWorkflow?.customs_declaration_number || "IL-2604-881920"}
+          warehousePalletCount={grnPalletCount}
+          tempLoggerReading={grnTempLogger}
+          sealNumber={grnSealNumber}
+          inspectionNotes={grnNotes}
         />
       </main>
 

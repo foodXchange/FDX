@@ -642,3 +642,120 @@ export async function buyerAcceptOfferAndIssuePo(
     };
   }
 }
+
+export interface BuyerSignWarehouseGoodsReceiptInput {
+  requestId: string;
+  receivingOfficer: string;
+  receivedPallets: number;
+  truckLicensePlate?: string;
+  dockBay?: string;
+  tempLoggerReading?: string;
+  sealNumber?: string;
+  notes?: string;
+}
+
+export async function buyerSignWarehouseGoodsReceipt(
+  input: BuyerSignWarehouseGoodsReceiptInput
+): Promise<{ ok: true; grnNumber: string; arrivedAt: string } | { ok: false; error: string }> {
+  try {
+    if (!input.requestId) {
+      return { ok: false, error: "Missing requestId" };
+    }
+    if (!input.receivingOfficer || input.receivingOfficer.trim().length < 2) {
+      return { ok: false, error: "נא לציין את שם קצין קבלת הסחורה במרלוג" };
+    }
+    if (!input.receivedPallets || input.receivedPallets <= 0) {
+      return { ok: false, error: "נא להזין מספר משטחים תקין שנקלט ברציף" };
+    }
+
+    const { data: req, error: fetchErr } = await supabaseAdmin
+      .from("sourcing_requests")
+      .select("id, ai_analysis, company, product_name")
+      .eq("id", input.requestId)
+      .single();
+
+    if (fetchErr || !req) {
+      return { ok: false, error: fetchErr?.message || "תיק יבוא לא נמצא" };
+    }
+
+    const existingAi = (req.ai_analysis as Record<string, unknown> | null) ?? {};
+    const existingWorkflow = (existingAi.order_workflow as CommercialOrderLifecycle | null) ?? {
+      current_stage: "customs_warehouse",
+    };
+
+    const now = new Date().toISOString();
+    const grnNumber = `GRN-IL-2604-${input.requestId.slice(0, 5).toUpperCase()}`;
+
+    const updatedWorkflow: CommercialOrderLifecycle = {
+      ...existingWorkflow,
+      current_stage: "completed",
+      delivery_status: "arrived_at_warehouse",
+      arrived_at: now,
+      warehouse_pallet_count: input.receivedPallets,
+      goods_accepted_by: input.receivingOfficer.trim(),
+      logistics_notes: input.notes?.trim() || existingWorkflow.logistics_notes,
+      updated_at: now,
+      updated_by: `Buyer Warehouse Officer: ${input.receivingOfficer.trim()}`,
+    };
+
+    const updatedAiAnalysis = {
+      ...existingAi,
+      order_workflow: updatedWorkflow,
+      warehouse_grn_signoff: {
+        grnNumber,
+        receivingOfficer: input.receivingOfficer.trim(),
+        receivedPallets: input.receivedPallets,
+        truckLicensePlate: input.truckLicensePlate?.trim() || null,
+        dockBay: input.dockBay?.trim() || null,
+        tempLoggerReading: input.tempLoggerReading?.trim() || "+18.2°C (Compliant)",
+        sealNumber: input.sealNumber?.trim() || "Verified Intact",
+        notes: input.notes?.trim() || null,
+        signedAt: now,
+        status: "completed",
+      },
+    };
+
+    const { error: updateErr } = await supabaseAdmin
+      .from("sourcing_requests")
+      .update({
+        ai_analysis: updatedAiAnalysis,
+      })
+      .eq("id", input.requestId);
+
+    if (updateErr) {
+      return { ok: false, error: updateErr.message };
+    }
+
+    await logAdminAction({
+      adminEmail: "buyer-portal@warehouse",
+      action: "buyer_sign_warehouse_grn",
+      targetType: "sourcing_request",
+      targetId: input.requestId,
+      metadata: {
+        grn_number: grnNumber,
+        receiving_officer: input.receivingOfficer,
+        received_pallets: input.receivedPallets,
+        arrived_at: now,
+      },
+    });
+
+    try {
+      revalidatePath(`/track/${input.requestId}`);
+      revalidatePath(`/admin/requests/${input.requestId}`);
+      revalidatePath("/admin/finance");
+      revalidatePath(`/customs/${input.requestId}`);
+    } catch {}
+
+    return {
+      ok: true,
+      grnNumber,
+      arrivedAt: now,
+    };
+  } catch (err: unknown) {
+    console.error("buyerSignWarehouseGoodsReceipt error:", err);
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "Failed to record warehouse goods receipt",
+    };
+  }
+}

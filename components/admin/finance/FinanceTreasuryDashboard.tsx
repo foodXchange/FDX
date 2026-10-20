@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import CommercialPoDocumentModal from "@/components/documents/CommercialPoDocumentModal";
 import ExportDocumentHandoverModal from "@/components/documents/ExportDocumentHandoverModal";
+import GoodsReceiptDocumentModal from "@/components/documents/GoodsReceiptDocumentModal";
 import MaritimeVesselTracker from "@/components/shipping/MaritimeVesselTracker";
 
 export interface DealFinancialRecord {
@@ -87,6 +88,7 @@ export default function FinanceTreasuryDashboard({ deals, metrics }: Props) {
   const [activePoDeal, setActivePoDeal] = useState<DealFinancialRecord | null>(null);
   const [activeCustomsDeal, setActiveCustomsDeal] = useState<DealFinancialRecord | null>(null);
   const [activeVesselDeal, setActiveVesselDeal] = useState<DealFinancialRecord | null>(null);
+  const [activeGrnDeal, setActiveGrnDeal] = useState<DealFinancialRecord | null>(null);
   const [waModalDeal, setWaModalDeal] = useState<DealFinancialRecord | null>(null);
   const [waRecipient, setWaRecipient] = useState<"buyer" | "factory" | "customs">("buyer");
   const [copiedLink, setCopiedLink] = useState<string | null>(null);
@@ -559,6 +561,15 @@ export default function FinanceTreasuryDashboard({ deals, metrics }: Props) {
                             <span>Customs Portal ↗</span>
                           </a>
 
+                          <button
+                            type="button"
+                            onClick={() => setActiveGrnDeal(deal)}
+                            className="text-[11px] font-bold px-2 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-900 border border-emerald-200 rounded-lg transition flex items-center justify-center gap-1 cursor-pointer"
+                          >
+                            <span>🏁</span>
+                            <span>Goods Receipt (GRN)</span>
+                          </button>
+
                           <div className="grid grid-cols-2 gap-1 pt-0.5">
                             <a
                               href={`https://api.whatsapp.com/send?text=${getBuyerWaText(deal)}`}
@@ -683,6 +694,33 @@ export default function FinanceTreasuryDashboard({ deals, metrics }: Props) {
             </div>
           </div>
         </div>
+      )}
+
+      {/* ── Official Goods Receipt Note (GRN) Document Viewer Modal ── */}
+      {activeGrnDeal && (
+        <GoodsReceiptDocumentModal
+          isOpen={Boolean(activeGrnDeal)}
+          onClose={() => setActiveGrnDeal(null)}
+          grnNumber={`GRN-IL-2604-${activeGrnDeal.requestId.slice(0, 5).toUpperCase()}`}
+          grnDate={activeGrnDeal.poDate}
+          poNumber={activeGrnDeal.poNumber}
+          poDate={activeGrnDeal.poDate}
+          buyerCompany={activeGrnDeal.buyerCompany}
+          buyerAddress={`${activeGrnDeal.buyerCompany} Central Logistics Hub, Sorek Park, Israel`}
+          receivingOfficer="Avi Mizrahi (Warehouse Logistics Manager)"
+          receivingDockBay="Bay 04 - Sorek Logistics Hub"
+          truckLicensePlate="IL-98-410-29"
+          supplierName={activeGrnDeal.supplierName}
+          supplierCountry={activeGrnDeal.supplierCountry}
+          productName={activeGrnDeal.productName}
+          orderVolume={activeGrnDeal.orderVolume}
+          containerNumber={activeGrnDeal.shipping.container || "MSKU-9481029"}
+          billOfLading={activeGrnDeal.shipping.bl || "MSCUVAL881920"}
+          vesselName={activeGrnDeal.shipping.vessel || "MSC LEANNE / Voyage 2604E"}
+          shippingLine={activeGrnDeal.shipping.line || "MSC (Mediterranean Shipping Company)"}
+          customsDeclarationNumber={activeGrnDeal.shipping.customsDeclaration || "IL-2604-881920"}
+          warehousePalletCount={24}
+        />
       )}
     </div>
   );
