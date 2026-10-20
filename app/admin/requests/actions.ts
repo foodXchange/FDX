@@ -286,6 +286,38 @@ export type OrderWorkflowStage =
   | "order_po_issued"
   | "shipping_customs_warehouse";
 
+export interface FinancialMilestoneWire {
+  status?: "pending_buyer_wire" | "wire_submitted_by_buyer" | "cleared_in_escrow" | "released_to_factory";
+  buyer_wire_amount?: number;
+  agent_commission_amount?: number;
+  factory_wire_amount?: number;
+  swift_mt103_reference?: string;
+  uetr_reference?: string;
+  remitter_bank?: string;
+  beneficiary_bank?: string;
+  wire_date?: string;
+  cleared_date?: string;
+  wire_slip_url?: string;
+  notes?: string;
+}
+
+export interface FinancialClearanceLifecycle {
+  buyer_unit_price?: number;
+  factory_unit_price?: number;
+  agent_margin_per_unit?: number;
+  total_units?: number;
+  gross_buyer_contract_value?: number;
+  factory_contract_cost?: number;
+  total_agent_brokerage_pool?: number;
+  advance_milestone_30?: FinancialMilestoneWire;
+  balance_milestone_70?: FinancialMilestoneWire;
+  ncnda_signed?: boolean;
+  ncnda_signed_at?: string;
+  escrow_split_verified?: boolean;
+  updated_at?: string;
+  updated_by?: string;
+}
+
 export interface CommercialOrderLifecycle {
   current_stage: OrderWorkflowStage;
   selected_supplier_id?: string | null;
@@ -325,6 +357,7 @@ export interface CommercialOrderLifecycle {
   warehouse_pallet_count?: number | null;
   goods_accepted_by?: string | null;
   logistics_notes?: string | null;
+  financial_clearance?: FinancialClearanceLifecycle;
   updated_at?: string;
   updated_by?: string;
 }
@@ -1325,4 +1358,68 @@ export async function sendBulkSupplierFollowUps(
     failed,
     results,
   };
+}
+
+export async function updateOrderFinancialClearance(
+  requestId: string,
+  financial: FinancialClearanceLifecycle
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const { data: req, error: fetchErr } = await supabaseAdmin
+    .from("sourcing_requests")
+    .select("ai_analysis, company, product_name")
+    .eq("id", requestId)
+    .single();
+
+  if (fetchErr || !req) {
+    return { ok: false, error: fetchErr?.message || "Request not found" };
+  }
+
+  const existingAiAnalysis = (req.ai_analysis as Record<string, unknown> | null) ?? {};
+  const existingOrderWorkflow =
+    typeof existingAiAnalysis.order_workflow === "object" && existingAiAnalysis.order_workflow !== null
+      ? (existingAiAnalysis.order_workflow as Record<string, unknown>)
+      : {};
+
+  const updatedAiAnalysis = {
+    ...existingAiAnalysis,
+    order_workflow: {
+      ...existingOrderWorkflow,
+      financial_clearance: {
+        ...financial,
+        updated_at: new Date().toISOString(),
+        updated_by: getAdminEmail() || "admin",
+      },
+      updated_at: new Date().toISOString(),
+      updated_by: getAdminEmail() || "admin",
+    },
+  };
+
+  const { error: updateErr } = await supabaseAdmin
+    .from("sourcing_requests")
+    .update({ ai_analysis: updatedAiAnalysis })
+    .eq("id", requestId);
+
+  if (updateErr) {
+    console.error("updateOrderFinancialClearance error:", updateErr);
+    return { ok: false, error: updateErr.message };
+  }
+
+  await logAdminAction({
+    adminEmail: getAdminEmail(),
+    action: "update_order_financial_clearance",
+    targetType: "sourcing_request",
+    targetId: requestId,
+    metadata: {
+      buyer_total: financial.gross_buyer_contract_value,
+      agent_pool: financial.total_agent_brokerage_pool,
+      advance_status: financial.advance_milestone_30?.status,
+    },
+  });
+
+  try {
+    revalidatePath(`/admin/requests/${requestId}`);
+    revalidatePath("/admin/requests");
+  } catch {}
+
+  return { ok: true };
 }

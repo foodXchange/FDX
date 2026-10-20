@@ -8,7 +8,7 @@ import TradeDocumentSuiteModal, {
 interface Props extends Omit<TradeDocumentSuiteProps, "onClose"> {
   label?: string;
   className?: string;
-  defaultTab?: "brief" | "customs" | "po";
+  defaultTab?: "brief" | "customs" | "po" | "wire_advice" | "ncnda";
   variant?: "primary" | "secondary" | "outline";
 }
 

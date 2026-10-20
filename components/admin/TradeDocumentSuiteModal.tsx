@@ -19,7 +19,7 @@ export interface TradeDocumentSuiteProps {
   certifications: string[];
   imageUrl?: string | null;
   sellerBrief?: string | null;
-  initialTab?: "brief" | "customs" | "po";
+  initialTab?: "brief" | "customs" | "po" | "wire_advice" | "ncnda";
   sampleProtocol?: SampleDispatchProtocol | null;
   orderWorkflow?: CommercialOrderLifecycle | null;
   selectedSupplier?: {
@@ -34,7 +34,7 @@ export interface TradeDocumentSuiteProps {
   onClose: () => void;
 }
 
-type DocTab = "brief" | "customs" | "po";
+export type DocTab = "brief" | "customs" | "po" | "wire_advice" | "ncnda";
 
 export default function TradeDocumentSuiteModal({
   requestId,
@@ -182,7 +182,34 @@ export default function TradeDocumentSuiteModal({
             }`}
           >
             <span>📑</span>
-            <span>3. Commercial Export Purchase Order</span>
+            <span>3. Commercial Purchase Order</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab("wire_advice")}
+            className={`py-3 px-4 border-b-2 transition-all flex items-center gap-2 whitespace-nowrap ${
+              activeTab === "wire_advice"
+                ? "border-indigo-600 text-indigo-600 font-bold bg-white"
+                : "border-transparent text-slate-600 hover:text-slate-900"
+            }`}
+          >
+            <span>🏦</span>
+            <span>4. Bank Wire Advice (30% Deposit)</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab("ncnda")}
+            className={`py-3 px-4 border-b-2 transition-all flex items-center gap-2 whitespace-nowrap ${
+              activeTab === "ncnda"
+                ? "border-indigo-600 text-indigo-600 font-bold bg-white"
+                : "border-transparent text-slate-600 hover:text-slate-900"
+            }`}
+          >
+            <span>🛡️</span>
+            <span>5. ICC NCNDA 758 Agreement</span>
+            <span className="text-[10px] bg-emerald-100 text-emerald-800 px-1.5 py-0.2 rounded font-bold">
+              IMFPA
+            </span>
           </button>
         </div>
 
@@ -589,6 +616,293 @@ export default function TradeDocumentSuiteModal({
               </div>
             </div>
           )}
+
+          {/* ══════════════════════════════════════════════════════════════════════
+              DOCUMENT 4: BANK WIRE TRANSFER ADVICE & SWIFT INSTRUCTION
+          ══════════════════════════════════════════════════════════════════════ */}
+          {activeTab === "wire_advice" && (
+            <div className="space-y-6 max-w-3xl mx-auto text-slate-900 font-sans">
+              {/* Header Letterhead */}
+              <div className="flex items-start justify-between border-b-2 border-slate-900 pb-4">
+                <div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="font-black text-xl tracking-tight text-slate-900">
+                      FOODXCHANGE TRADE LTD
+                    </span>
+                    <span className="text-[10px] font-bold bg-indigo-700 text-white px-2 py-0.5 rounded">
+                      SWIFT ADVICE
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-600 font-medium">
+                    Commercial Settlement & International Treasury Division
+                  </p>
+                  <p className="text-[10px] text-slate-400 mt-0.5">
+                    Tel Aviv · Barcelona · Bologna · settlements@foodxchange.com
+                  </p>
+                </div>
+
+                <div className="text-right">
+                  <div className="text-[10px] uppercase font-bold text-slate-500">Document Ref:</div>
+                  <div className="font-mono font-bold text-sm text-slate-900 mt-0.5">
+                    WIRE-ADV-{requestId.slice(0, 8).toUpperCase()}
+                  </div>
+                  <div className="text-[10px] text-slate-500 mt-0.5">
+                    Date: {new Date().toLocaleDateString("en-GB")}
+                  </div>
+                </div>
+              </div>
+
+              {/* Title Banner */}
+              <div className="text-center py-2 bg-slate-50 border border-slate-200 rounded-lg">
+                <h1 className="text-base font-black tracking-wide uppercase text-slate-900">
+                  Commercial Bank Wire Transfer Advice
+                </h1>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Official SWIFT Settlement Instruction for Purchase Order: <strong>{poRef}</strong>
+                </p>
+              </div>
+
+              {/* Addressed To & Remittance Summary */}
+              <div className="grid grid-cols-2 gap-4 text-xs">
+                <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
+                  <div className="text-[10px] uppercase font-bold text-slate-400">Payer / Remitter:</div>
+                  <div className="font-bold text-slate-900 text-sm">{buyerCompany}</div>
+                  <div className="text-slate-600">Treasury & International Accounts Payable</div>
+                  <div className="text-slate-500 text-[11px]">Israel</div>
+                </div>
+
+                <div className="p-3.5 rounded-xl bg-emerald-50/70 border border-emerald-200 space-y-1">
+                  <div className="text-[10px] uppercase font-bold text-emerald-700">Required Remittance (30% Advance):</div>
+                  <div className="font-black text-emerald-950 text-base">
+                    {currency} {((totalValue * 0.3)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </div>
+                  <div className="text-[11px] text-emerald-800">
+                    Total Contract: {currency} {totalValue.toLocaleString()} · Balance (70%): {currency} {(totalValue * 0.7).toLocaleString()}
+                  </div>
+                </div>
+              </div>
+
+              {/* Official Beneficiary Banking Coordinates Table */}
+              <div className="border border-slate-300 rounded-xl overflow-hidden shadow-2xs">
+                <div className="bg-slate-900 text-white px-4 py-2 text-xs font-bold uppercase tracking-wider">
+                  Designated International Beneficiary Banking Coordinates
+                </div>
+                <table className="w-full text-xs">
+                  <tbody className="divide-y divide-slate-200">
+                    <tr className="bg-slate-50/60">
+                      <td className="px-4 py-2.5 font-bold text-slate-600 w-1/3">Beneficiary Account Name:</td>
+                      <td className="px-4 py-2.5 font-mono font-bold text-slate-900">
+                        FoodXchange Trade Ltd - Client Settlement Account
+                      </td>
+                    </tr>
+                    <tr>
+                      <td className="px-4 py-2.5 font-bold text-slate-600">Beneficiary Bank:</td>
+                      <td className="px-4 py-2.5 font-semibold text-slate-900">
+                        CaixaBank S.A. (Commercial Branch Barcelona)
+                      </td>
+                    </tr>
+                    <tr className="bg-slate-50/60">
+                      <td className="px-4 py-2.5 font-bold text-slate-600">IBAN (International Bank Account Number):</td>
+                      <td className="px-4 py-2.5 font-mono font-bold text-slate-950 text-sm tracking-wider">
+                        ES76 2100 0418 4502 0005 1294
+                      </td>
+                    </tr>
+                    <tr>
+                      <td className="px-4 py-2.5 font-bold text-slate-600">SWIFT / BIC Code:</td>
+                      <td className="px-4 py-2.5 font-mono font-bold text-indigo-700">
+                        CAIXESBBXXX
+                      </td>
+                    </tr>
+                    <tr className="bg-slate-50/60">
+                      <td className="px-4 py-2.5 font-bold text-slate-600">Bank Physical Address:</td>
+                      <td className="px-4 py-2.5 text-slate-700">
+                        Avinguda Diagonal 621, 08028 Barcelona, Spain
+                      </td>
+                    </tr>
+                    <tr>
+                      <td className="px-4 py-2.5 font-bold text-slate-600">Correspondent Bank (EUR Clearing):</td>
+                      <td className="px-4 py-2.5 text-slate-700 font-mono">
+                        Deutsche Bank AG, Frankfurt (SWIFT: DEUTDEFF)
+                      </td>
+                    </tr>
+                    <tr className="bg-amber-50/60 border-t-2 border-amber-300">
+                      <td className="px-4 py-2.5 font-bold text-amber-900">Mandatory Remittance Memo (Field 70):</td>
+                      <td className="px-4 py-2.5 font-mono font-bold text-amber-950">
+                        ADV-30-{requestId.slice(0, 8).toUpperCase()} / PO-{poRef}
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Terms of Release */}
+              <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 text-xs space-y-2">
+                <div className="font-bold text-slate-900 uppercase text-[10px] tracking-wider">
+                  Payment Protocol & Production Commencement Terms:
+                </div>
+                <div className="text-slate-600 leading-relaxed space-y-1 text-[11px]">
+                  <p>
+                    1. <strong>Production Allocation:</strong> Factory production run, raw ingredient allocation, and approved packaging printing will commence within 48 business hours of receipt of the SWIFT MT103 confirmation slip.
+                  </p>
+                  <p>
+                    2. <strong>70% Final Balance:</strong> Remitted prior to release of original Bills of Lading upon presentation of the Clean On-Board Ocean Bill of Lading copy and satisfactory Pre-Shipment Inspection (PSI) Certificate.
+                  </p>
+                  <p>
+                    3. <strong>Bank Charges:</strong> All remitting bank charges outside the European Union shall be borne by the Remitter (OUR condition).
+                  </p>
+                </div>
+              </div>
+
+              {/* Sign-off */}
+              <div className="pt-6 grid grid-cols-2 gap-8 border-t border-slate-200 text-xs">
+                <div>
+                  <div className="text-slate-400 text-[10px] uppercase font-bold">Authorized Treasury Officer:</div>
+                  <div className="font-bold text-slate-900 mt-1">FoodXchange Trade Settlement Desk</div>
+                  <div className="text-slate-500 text-[10px]">Commercial Accounts Department</div>
+                  <div className="h-10 border-b border-dashed border-slate-400 mt-2" />
+                </div>
+                <div>
+                  <div className="text-slate-400 text-[10px] uppercase font-bold">Remittance Acknowledgment (Buyer):</div>
+                  <div className="font-bold text-slate-900 mt-1">{buyerCompany}</div>
+                  <div className="text-slate-500 text-[10px]">Chief Financial Officer / Accounts Payable</div>
+                  <div className="h-10 border-b border-dashed border-slate-400 mt-2" />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ══════════════════════════════════════════════════════════════════════
+              DOCUMENT 5: ICC NCNDA 758 TRIPARTITE COMMISSION & WORKING AGREEMENT
+          ══════════════════════════════════════════════════════════════════════ */}
+          {activeTab === "ncnda" && (
+            <div className="space-y-6 max-w-3xl mx-auto text-slate-900 font-sans">
+              {/* Header Letterhead */}
+              <div className="flex items-start justify-between border-b-2 border-slate-900 pb-4">
+                <div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="font-black text-xl tracking-tight text-slate-900">
+                      INTERNATIONAL CHAMBER OF COMMERCE (ICC)
+                    </span>
+                    <span className="text-[10px] font-bold bg-amber-600 text-white px-2 py-0.5 rounded">
+                      ICC 758
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-600 font-medium">
+                    Standard Non-Circumvention, Non-Disclosure & Working Agreement (NCNDA)
+                  </p>
+                  <p className="text-[10px] text-slate-400 mt-0.5">
+                    Incorporating Irrevocable Master Fee Protection Agreement (IMFPA)
+                  </p>
+                </div>
+
+                <div className="text-right">
+                  <div className="text-[10px] uppercase font-bold text-slate-500">Agreement Ref:</div>
+                  <div className="font-mono font-bold text-sm text-slate-900 mt-0.5">
+                    NCNDA-FDX-{requestId.slice(0, 8).toUpperCase()}
+                  </div>
+                  <div className="text-[10px] text-slate-500 mt-0.5">
+                    Valid for: 24 Calendar Months
+                  </div>
+                </div>
+              </div>
+
+              {/* Title Banner */}
+              <div className="text-center py-2 bg-slate-50 border border-slate-200 rounded-lg">
+                <h1 className="text-sm font-black tracking-wide uppercase text-slate-900">
+                  Tripartite Non-Circumvention & Fee Protection Agreement
+                </h1>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Subject to ICC Publication No. 758 · Regarding Sourcing Project: <strong>{cleanedName}</strong>
+                </p>
+              </div>
+
+              {/* The Three Contracting Parties */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+                <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
+                  <div className="text-[10px] uppercase font-bold text-indigo-700">Party A (The Facilitator / Agent):</div>
+                  <div className="font-bold text-slate-900">FoodXchange Trade Ltd</div>
+                  <div className="text-slate-500 text-[11px]">International Trade Desk & Sourcing Broker</div>
+                  <div className="text-slate-400 text-[10px]">Ref: {projectTag}</div>
+                </div>
+
+                <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
+                  <div className="text-[10px] uppercase font-bold text-slate-700">Party B (The Buyer):</div>
+                  <div className="font-bold text-slate-900">{buyerCompany}</div>
+                  <div className="text-slate-500 text-[11px]">Authorized Food Importer & Distributor</div>
+                  <div className="text-slate-400 text-[10px]">Territory: Israel / Middle East</div>
+                </div>
+
+                <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
+                  <div className="text-[10px] uppercase font-bold text-slate-700">Party C (The Supplier):</div>
+                  <div className="font-bold text-slate-900">{supplierName}</div>
+                  <div className="text-slate-500 text-[11px]">Primary Certified Manufacturer</div>
+                  <div className="text-slate-400 text-[10px]">{supplierCountry}</div>
+                </div>
+              </div>
+
+              {/* Legal Articles */}
+              <div className="p-4 rounded-xl border border-slate-200 bg-white space-y-3 text-xs leading-relaxed text-slate-700">
+                <div>
+                  <h4 className="font-bold text-slate-900 text-xs mb-1">
+                    Article 1: Non-Circumvention & Exclusivity of Introduction
+                  </h4>
+                  <p className="text-[11px] leading-relaxed">
+                    The undersigned Buyer (Party B) and Supplier (Party C) mutually and severally covenant and agree that neither party shall, directly or indirectly, attempt to circumvent, avoid, or bypass Party A (FoodXchange Trade Ltd) in any commercial transaction, negotiation, supply agreement, or correspondence involving the product line <strong>{cleanedName}</strong> and any related catalog SKUs introduced by Party A.
+                  </p>
+                </div>
+
+                <div>
+                  <h4 className="font-bold text-slate-900 text-xs mb-1">
+                    Article 2: Term of Protection (24 Calendar Months)
+                  </h4>
+                  <p className="text-[11px] leading-relaxed">
+                    This Agreement shall remain in full force and legally binding effect for a period of <strong>twenty-four (24) calendar months</strong> from the date of initial execution, and shall automatically extend to apply to all subsequent re-orders, contract roll-overs, renewals, container volume expansions, or subsidiary agreements deriving from this business relationship.
+                  </p>
+                </div>
+
+                <div>
+                  <h4 className="font-bold text-slate-900 text-xs mb-1">
+                    Article 3: Irrevocable Master Fee Protection Agreement (IMFPA)
+                  </h4>
+                  <p className="text-[11px] leading-relaxed">
+                    The Buyer and Supplier hereby irrevocably instruct their respective banks and corporate treasuries that the Facilitator's agreed agency spread (+EUR 0.05 / unit or 5% of commercial invoice value) is fully protected and shall be settled upon clearance of each contractual payment milestone (30% advance deposit and 70% shipping balance). Neither party shall delay, withhold, or dispute the commission due upon satisfactory fulfillment of the agreed delivery terms.
+                  </p>
+                </div>
+
+                <div>
+                  <h4 className="font-bold text-slate-900 text-xs mb-1">
+                    Article 4: Governing Law & Jurisdiction
+                  </h4>
+                  <p className="text-[11px] leading-relaxed">
+                    This Agreement shall be governed by and interpreted under the rules and international trade customs of the <strong>International Chamber of Commerce (ICC, Paris)</strong>. Any unresolved dispute shall be settled under ICC Commercial Arbitration Rules.
+                  </p>
+                </div>
+              </div>
+
+              {/* Tripartite Signatures */}
+              <div className="pt-6 grid grid-cols-3 gap-6 border-t border-slate-200 text-xs">
+                <div>
+                  <div className="text-slate-400 text-[10px] uppercase font-bold">Party A (Facilitator):</div>
+                  <div className="font-bold text-slate-900 mt-1">FoodXchange Trade Ltd</div>
+                  <div className="text-slate-500 text-[10px]">Managing Director / Broker</div>
+                  <div className="h-10 border-b border-dashed border-slate-400 mt-2" />
+                </div>
+                <div>
+                  <div className="text-slate-400 text-[10px] uppercase font-bold">Party B (Buyer):</div>
+                  <div className="font-bold text-slate-900 mt-1">{buyerCompany}</div>
+                  <div className="text-slate-500 text-[10px]">Authorized Purchasing Director</div>
+                  <div className="h-10 border-b border-dashed border-slate-400 mt-2" />
+                </div>
+                <div>
+                  <div className="text-slate-400 text-[10px] uppercase font-bold">Party C (Supplier):</div>
+                  <div className="font-bold text-slate-900 mt-1">{supplierName}</div>
+                  <div className="text-slate-500 text-[10px]">Managing Director / Export Sales</div>
+                  <div className="h-10 border-b border-dashed border-slate-400 mt-2" />
+                </div>
+              </div>
+            </div>
+          )}
+
         </div>
       </div>
     </div>

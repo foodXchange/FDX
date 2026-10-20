@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import TradeDocumentSuiteModal, { type DocTab } from "@/components/admin/TradeDocumentSuiteModal";
 import {
   type CommercialOrderLifecycle,
   type OrderWorkflowStage,
@@ -29,9 +30,9 @@ export default function Stage7CommercialOrderHub({
 }: Props) {
   const [isOpen, setIsOpen] = useState(true);
   const [activeTab, setActiveTab] = useState<
-    "po" | "manufacturing" | "shipping" | "customs_warehouse"
+    "po" | "financial_clearance" | "manufacturing" | "shipping" | "customs_warehouse"
   >("po");
-  const [showPoModal, setShowPoModal] = useState(false);
+  const [docModalTab, setDocModalTab] = useState<DocTab | null>(null);
   const [isPending, startTransition] = useTransition();
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -162,7 +163,7 @@ export default function Stage7CommercialOrderHub({
 
         <div className="flex items-center gap-2">
           <button
-            onClick={() => setShowPoModal(true)}
+            onClick={() => setDocModalTab("po")}
             className="text-xs font-bold px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl transition cursor-pointer shadow-xs flex items-center gap-1.5"
           >
             <span>📄</span>
@@ -198,6 +199,31 @@ export default function Stage7CommercialOrderHub({
             </button>
 
             <button
+              onClick={() => setActiveTab("financial_clearance")}
+              className={`text-xs font-bold pb-2.5 px-3 border-b-2 transition flex items-center gap-1.5 cursor-pointer whitespace-nowrap ${
+                activeTab === "financial_clearance"
+                  ? "border-rose-600 text-rose-700"
+                  : "border-transparent text-slate-500 hover:text-slate-800"
+              }`}
+            >
+              <span>💳</span>
+              <span>2. Financial Clearance & Split</span>
+              <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
+                workflow.financial_clearance?.advance_milestone_30?.status === "released_to_factory"
+                  ? "bg-emerald-100 text-emerald-800"
+                  : workflow.financial_clearance?.advance_milestone_30?.status === "cleared_in_escrow"
+                  ? "bg-blue-100 text-blue-800"
+                  : "bg-amber-100 text-amber-800"
+              }`}>
+                {workflow.financial_clearance?.advance_milestone_30?.status === "released_to_factory"
+                  ? "30% Released ✓"
+                  : workflow.financial_clearance?.advance_milestone_30?.status === "cleared_in_escrow"
+                  ? "Cleared In Escrow"
+                  : "30% Pending"}
+              </span>
+            </button>
+
+            <button
               onClick={() => setActiveTab("manufacturing")}
               className={`text-xs font-bold pb-2.5 px-3 border-b-2 transition flex items-center gap-1.5 cursor-pointer whitespace-nowrap ${
                 activeTab === "manufacturing"
@@ -206,7 +232,7 @@ export default function Stage7CommercialOrderHub({
               }`}
             >
               <span>🏭</span>
-              <span>2. Manufacturing Milestones</span>
+              <span>3. Manufacturing Milestones</span>
               <span className="text-[10px] bg-rose-50 text-rose-800 px-1.5 py-0.2 rounded-full font-bold">
                 {Object.values(workflow.production_milestones || {}).filter(Boolean).length}/5
               </span>
@@ -221,7 +247,7 @@ export default function Stage7CommercialOrderHub({
               }`}
             >
               <span>🚢</span>
-              <span>3. Ocean Container & Vessel</span>
+              <span>4. Ocean Container & Vessel</span>
               {workflow.container_number && (
                 <span className="text-[10px] bg-blue-100 text-blue-800 px-1.5 py-0.2 rounded-full font-mono">
                   {workflow.container_number}
@@ -238,7 +264,7 @@ export default function Stage7CommercialOrderHub({
               }`}
             >
               <span>🛃</span>
-              <span>4. Customs & Warehouse Landing</span>
+              <span>5. Customs & Warehouse Landing</span>
               {workflow.delivery_status === "arrived_at_warehouse" && (
                 <span className="text-[10px] bg-emerald-100 text-emerald-800 px-1.5 py-0.2 rounded-full font-bold">
                   Landed ✓
@@ -408,10 +434,409 @@ export default function Stage7CommercialOrderHub({
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
-                    onClick={() => setShowPoModal(true)}
+                    onClick={() => setDocModalTab("po")}
                     className="text-xs font-bold px-4 py-2 bg-slate-900 text-white rounded-xl hover:bg-slate-800 transition flex items-center gap-1.5 cursor-pointer"
                   >
                     <span>📄 View Formal PO Document</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      handleSave();
+                      setActiveTab("financial_clearance");
+                    }}
+                    className="text-xs font-semibold px-4 py-2 bg-rose-600 text-white rounded-xl hover:bg-rose-700 transition flex items-center gap-1.5 cursor-pointer shadow-xs"
+                  >
+                    <span>Proceed to Financial Clearance →</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          
+          {/* TAB 2: FINANCIAL CLEARANCE & ESCROW DEPOSIT SPLIT */}
+          {activeTab === "financial_clearance" && (() => {
+            const fc = workflow.financial_clearance || {
+              buyer_unit_price: Number(workflow.agreed_unit_price) || 0.87,
+              factory_unit_price: 0.82,
+              agent_margin_per_unit: 0.05,
+              total_units: quantityNum,
+              gross_buyer_contract_value: (Number(workflow.agreed_unit_price) || 0.87) * quantityNum,
+              factory_contract_cost: 0.82 * quantityNum,
+              total_agent_brokerage_pool: 0.05 * quantityNum,
+              advance_milestone_30: {
+                status: "pending_buyer_wire",
+                buyer_wire_amount: ((Number(workflow.agreed_unit_price) || 0.87) * quantityNum) * 0.3,
+                agent_commission_amount: (0.05 * quantityNum) * 0.3,
+                factory_wire_amount: (0.82 * quantityNum) * 0.3,
+                swift_mt103_reference: `SWIFT-IL-${requestId.slice(0, 6).toUpperCase()}-ADV`,
+                uetr_reference: `e8f9b201-49b2-4d7a-${requestId.slice(0, 8)}`,
+                remitter_bank: "Bank Leumi Le-Israel",
+                beneficiary_bank: "CaixaBank Barcelona (IBAN: ES76 2100 0418 4502 0005 1294)",
+                wire_date: new Date().toISOString().slice(0, 10),
+                notes: "30% Advance deposit required to commence packaging foil printing and bottling run.",
+              },
+              balance_milestone_70: {
+                status: "pending_buyer_wire",
+                buyer_wire_amount: ((Number(workflow.agreed_unit_price) || 0.87) * quantityNum) * 0.7,
+                agent_commission_amount: (0.05 * quantityNum) * 0.7,
+                factory_wire_amount: (0.82 * quantityNum) * 0.7,
+                swift_mt103_reference: `SWIFT-IL-${requestId.slice(0, 6).toUpperCase()}-BAL`,
+                remitter_bank: "Bank Leumi Le-Israel",
+                beneficiary_bank: "CaixaBank Barcelona",
+                notes: "70% Balance payable upon presentation of Clean Ocean Bill of Lading (B/L) copy.",
+              },
+              ncnda_signed: true,
+              ncnda_signed_at: new Date().toISOString(),
+              escrow_split_verified: true,
+            };
+
+            const buyerTotal = fc.gross_buyer_contract_value || totalCalculated;
+            const factoryTotal = fc.factory_contract_cost || (buyerTotal * 0.94);
+            const agentPool = fc.total_agent_brokerage_pool || (buyerTotal - factoryTotal);
+
+            const advBuyer = fc.advance_milestone_30?.buyer_wire_amount || buyerTotal * 0.3;
+            const advAgent = fc.advance_milestone_30?.agent_commission_amount || agentPool * 0.3;
+            const advFactory = fc.advance_milestone_30?.factory_wire_amount || factoryTotal * 0.3;
+
+            const balBuyer = fc.balance_milestone_70?.buyer_wire_amount || buyerTotal * 0.7;
+            const balAgent = fc.balance_milestone_70?.agent_commission_amount || agentPool * 0.7;
+            const balFactory = fc.balance_milestone_70?.factory_wire_amount || factoryTotal * 0.7;
+
+            return (
+              <div className="space-y-4 animate-in fade-in duration-150 text-xs">
+                {/* Status Callout Banner */}
+                <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-indigo-950 text-white rounded-xl p-4 shadow-sm border border-slate-800 flex items-center justify-between gap-4 flex-wrap">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-bold text-amber-400 uppercase tracking-wider">
+                        Financial Clearance & Deposit Split
+                      </span>
+                      <span className="text-[10px] bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-bold px-2 py-0.5 rounded-full">
+                        ICC NCNDA 758 Protected
+                      </span>
+                    </div>
+                    <p className="text-slate-300 text-xs">
+                      Enforce strict milestone financial separation: Buyer funds the 30% advance $\rightarrow$ Agent secures spread $\rightarrow$ Factory receives net production advance.
+                    </p>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setDocModalTab("wire_advice")}
+                      className="text-xs font-bold px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl transition flex items-center gap-1.5 shadow-xs cursor-pointer"
+                    >
+                      <span>📄</span>
+                      <span>Bank Wire Advice (PDF)</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setDocModalTab("ncnda")}
+                      className="text-xs font-bold px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-600 rounded-xl transition flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <span>🛡️</span>
+                      <span>ICC NCNDA 758 Agreement</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* 3-Column Financial Matrix Card */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  {/* Gross Buyer Contract */}
+                  <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-1.5">
+                    <div className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                      1. Buyer Commercial Contract
+                    </div>
+                    <div className="text-base font-black text-slate-900">
+                      {workflow.currency || "EUR"} {buyerTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </div>
+                    <p className="text-[11px] text-slate-600">
+                      Price: <strong>{workflow.currency || "EUR"} {Number(fc.buyer_unit_price || 0.87).toFixed(2)}</strong> / unit · {quantityNum.toLocaleString()} units
+                    </p>
+                    <div className="text-[10px] text-slate-400 pt-1 border-t border-slate-200">
+                      Payer: {buyerCompany}
+                    </div>
+                  </div>
+
+                  {/* Factory Contract Cost */}
+                  <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-1.5">
+                    <div className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                      2. Factory Production Cost
+                    </div>
+                    <div className="text-base font-black text-slate-900">
+                      {workflow.currency || "EUR"} {factoryTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </div>
+                    <p className="text-[11px] text-slate-600">
+                      Baseline: <strong>{workflow.currency || "EUR"} {Number(fc.factory_unit_price || 0.82).toFixed(2)}</strong> / unit · EXW/CIF
+                    </p>
+                    <div className="text-[10px] text-slate-400 pt-1 border-t border-slate-200">
+                      Beneficiary: {workflow.selected_supplier_name || "Factory"}
+                    </div>
+                  </div>
+
+                  {/* Agent Net Brokerage Spread Pool */}
+                  <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 space-y-1.5">
+                    <div className="text-[10px] font-bold uppercase tracking-wider text-emerald-800">
+                      3. Agent Net Brokerage Pool
+                    </div>
+                    <div className="text-base font-black text-emerald-950">
+                      +{workflow.currency || "EUR"} {agentPool.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </div>
+                    <p className="text-[11px] text-emerald-800 font-semibold">
+                      Agency Spread: <strong>+{workflow.currency || "EUR"} {Number(fc.agent_margin_per_unit || 0.05).toFixed(2)} / unit</strong> (+6.1%)
+                    </p>
+                    <div className="text-[10px] text-emerald-700 pt-1 border-t border-emerald-200 font-medium">
+                      ✓ Protected under Irrevocable Fee Agreement
+                    </div>
+                  </div>
+                </div>
+
+                {/* Milestone 1: 30% Advance Deposit Box */}
+                <div className="p-4 rounded-xl bg-white border border-slate-200 shadow-2xs space-y-3">
+                  <div className="flex items-center justify-between gap-3 border-b border-slate-100 pb-2.5 flex-wrap">
+                    <div className="flex items-center gap-2">
+                      <span className="w-5 h-5 rounded-full bg-amber-500 text-white flex items-center justify-center font-bold text-xs">
+                        1
+                      </span>
+                      <h4 className="font-bold text-slate-900 text-xs">
+                        Milestone 1: 30% Production Advance Deposit (Production Trigger)
+                      </h4>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <label className="text-[10px] font-semibold text-slate-500 uppercase">Wire Status:</label>
+                      <select
+                        value={fc.advance_milestone_30?.status || "pending_buyer_wire"}
+                        onChange={(e) => {
+                          const newStatus = e.target.value as any;
+                          setWorkflow((w) => ({
+                            ...w,
+                            financial_clearance: {
+                              ...fc,
+                              advance_milestone_30: {
+                                ...(fc.advance_milestone_30 || {}),
+                                status: newStatus,
+                              },
+                            },
+                          }));
+                        }}
+                        className="text-xs font-bold border border-slate-200 rounded-lg px-2.5 py-1 bg-white text-slate-800"
+                      >
+                        <option value="pending_buyer_wire">⏳ Pending Buyer Wire</option>
+                        <option value="wire_submitted_by_buyer">📤 Wire Sent by Buyer (Slip Attached)</option>
+                        <option value="cleared_in_escrow">🏦 Funds Cleared in Settlement Account</option>
+                        <option value="released_to_factory">🚀 30% Production Advance Released to Factory</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* 3-Step Advance Money Split Flow */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5 p-3 bg-slate-50 border border-slate-200 rounded-xl">
+                    <div className="p-2.5 bg-white rounded-lg border border-slate-200 text-center">
+                      <p className="text-[10px] uppercase font-bold text-slate-400">Buyer Inflow (30%)</p>
+                      <p className="text-sm font-black text-slate-900 mt-0.5">
+                        {workflow.currency || "EUR"} {advBuyer.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </p>
+                      <p className="text-[10px] text-slate-500">From: {buyerCompany}</p>
+                    </div>
+
+                    <div className="p-2.5 bg-emerald-50 rounded-lg border border-emerald-200 text-center">
+                      <p className="text-[10px] uppercase font-bold text-emerald-700">Agent Retention (30%)</p>
+                      <p className="text-sm font-black text-emerald-950 mt-0.5">
+                        +{workflow.currency || "EUR"} {advAgent.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </p>
+                      <p className="text-[10px] text-emerald-800">Advance Broker Fee</p>
+                    </div>
+
+                    <div className="p-2.5 bg-white rounded-lg border border-slate-200 text-center">
+                      <p className="text-[10px] uppercase font-bold text-slate-400">Net Factory Wire (30%)</p>
+                      <p className="text-sm font-black text-slate-900 mt-0.5">
+                        {workflow.currency || "EUR"} {advFactory.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </p>
+                      <p className="text-[10px] text-slate-500">To: {workflow.selected_supplier_name || "Factory"}</p>
+                    </div>
+                  </div>
+
+                  {/* Wire Banking Details Form */}
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-3 text-xs pt-1">
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">
+                        SWIFT MT103 / UETR Ref
+                      </label>
+                      <input
+                        type="text"
+                        value={fc.advance_milestone_30?.swift_mt103_reference || ""}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setWorkflow((w) => ({
+                            ...w,
+                            financial_clearance: {
+                              ...fc,
+                              advance_milestone_30: {
+                                ...(fc.advance_milestone_30 || {}),
+                                swift_mt103_reference: val,
+                              },
+                            },
+                          }));
+                        }}
+                        placeholder="SWIFT-IL-9481920"
+                        className="w-full border border-slate-200 rounded-lg p-2 font-mono font-bold text-slate-900 bg-white"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">
+                        Remitter Bank (Buyer)
+                      </label>
+                      <input
+                        type="text"
+                        value={fc.advance_milestone_30?.remitter_bank || ""}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setWorkflow((w) => ({
+                            ...w,
+                            financial_clearance: {
+                              ...fc,
+                              advance_milestone_30: {
+                                ...(fc.advance_milestone_30 || {}),
+                                remitter_bank: val,
+                              },
+                            },
+                          }));
+                        }}
+                        placeholder="Bank Leumi Le-Israel"
+                        className="w-full border border-slate-200 rounded-lg p-2 text-slate-800 bg-white"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">
+                        Beneficiary IBAN / Bank
+                      </label>
+                      <input
+                        type="text"
+                        value={fc.advance_milestone_30?.beneficiary_bank || ""}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setWorkflow((w) => ({
+                            ...w,
+                            financial_clearance: {
+                              ...fc,
+                              advance_milestone_30: {
+                                ...(fc.advance_milestone_30 || {}),
+                                beneficiary_bank: val,
+                              },
+                            },
+                          }));
+                        }}
+                        placeholder="CaixaBank ES76 2100..."
+                        className="w-full border border-slate-200 rounded-lg p-2 font-mono text-slate-800 bg-white"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">
+                        Wire Transfer Date
+                      </label>
+                      <input
+                        type="date"
+                        value={fc.advance_milestone_30?.wire_date || ""}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setWorkflow((w) => ({
+                            ...w,
+                            financial_clearance: {
+                              ...fc,
+                              advance_milestone_30: {
+                                ...(fc.advance_milestone_30 || {}),
+                                wire_date: val,
+                              },
+                            },
+                          }));
+                        }}
+                        className="w-full border border-slate-200 rounded-lg p-2 font-mono text-slate-800 bg-white"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Milestone 2: 70% Final Balance Box */}
+                <div className="p-4 rounded-xl bg-white border border-slate-200 shadow-2xs space-y-3">
+                  <div className="flex items-center justify-between gap-3 border-b border-slate-100 pb-2.5 flex-wrap">
+                    <div className="flex items-center gap-2">
+                      <span className="w-5 h-5 rounded-full bg-slate-800 text-white flex items-center justify-center font-bold text-xs">
+                        2
+                      </span>
+                      <h4 className="font-bold text-slate-900 text-xs">
+                        Milestone 2: 70% Final Balance (Released against Clean Ocean B/L Copy & PSI)
+                      </h4>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <label className="text-[10px] font-semibold text-slate-500 uppercase">Balance Status:</label>
+                      <select
+                        value={fc.balance_milestone_70?.status || "pending_buyer_wire"}
+                        onChange={(e) => {
+                          const newStatus = e.target.value as any;
+                          setWorkflow((w) => ({
+                            ...w,
+                            financial_clearance: {
+                              ...fc,
+                              balance_milestone_70: {
+                                ...(fc.balance_milestone_70 || {}),
+                                status: newStatus,
+                              },
+                            },
+                          }));
+                        }}
+                        className="text-xs font-bold border border-slate-200 rounded-lg px-2.5 py-1 bg-white text-slate-800"
+                      >
+                        <option value="pending_buyer_wire">⏳ Pending B/L Presentation & Buyer Wire</option>
+                        <option value="wire_submitted_by_buyer">📤 Buyer Wire Submitted</option>
+                        <option value="cleared_in_escrow">🏦 Cleared in Escrow Account</option>
+                        <option value="released_to_factory">🎉 Full Deal Fully Settled (70% Released)</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* 3-Step Balance Money Split Flow */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5 p-3 bg-slate-50 border border-slate-200 rounded-xl">
+                    <div className="p-2.5 bg-white rounded-lg border border-slate-200 text-center">
+                      <p className="text-[10px] uppercase font-bold text-slate-400">Buyer Inflow (70%)</p>
+                      <p className="text-sm font-black text-slate-900 mt-0.5">
+                        {workflow.currency || "EUR"} {balBuyer.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </p>
+                      <p className="text-[10px] text-slate-500">Upon B/L Endorsement</p>
+                    </div>
+
+                    <div className="p-2.5 bg-emerald-50 rounded-lg border border-emerald-200 text-center">
+                      <p className="text-[10px] uppercase font-bold text-emerald-700">Agent Final Fee (70%)</p>
+                      <p className="text-sm font-black text-emerald-950 mt-0.5">
+                        +{workflow.currency || "EUR"} {balAgent.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </p>
+                      <p className="text-[10px] text-emerald-800">Final Broker Commission</p>
+                    </div>
+
+                    <div className="p-2.5 bg-white rounded-lg border border-slate-200 text-center">
+                      <p className="text-[10px] uppercase font-bold text-slate-400">Net Factory Balance (70%)</p>
+                      <p className="text-sm font-black text-slate-900 mt-0.5">
+                        {workflow.currency || "EUR"} {balFactory.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </p>
+                      <p className="text-[10px] text-slate-500">To: {workflow.selected_supplier_name || "Factory"}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Footer Controls */}
+                <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
+                  <button
+                    type="button"
+                    onClick={() => handleSave()}
+                    className="text-xs font-semibold px-4 py-2 bg-slate-800 text-white rounded-xl hover:bg-slate-900 transition cursor-pointer"
+                  >
+                    Save Financial Clearance Settings
                   </button>
                   <button
                     type="button"
@@ -425,8 +850,8 @@ export default function Stage7CommercialOrderHub({
                   </button>
                 </div>
               </div>
-            </div>
-          )}
+            );
+          })()}
 
           {/* TAB 2: MANUFACTURING MILESTONES */}
           {activeTab === "manufacturing" && (
@@ -984,165 +1409,7 @@ export default function Stage7CommercialOrderHub({
         </div>
       )}
 
-      {/* ── Official Purchase Order Document Modal ── */}
-      {showPoModal && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-3xl w-full max-h-[90vh] overflow-y-auto animate-in fade-in zoom-in-95 duration-150">
-            {/* Modal Controls Bar */}
-            <div className="px-6 py-3 border-b border-slate-200 flex items-center justify-between bg-slate-50 sticky top-0 z-10 print:hidden">
-              <span className="text-xs font-bold text-slate-700">Official Commercial Purchase Order</span>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => window.print()}
-                  className="text-xs font-bold px-3 py-1.5 bg-slate-900 text-white hover:bg-slate-800 rounded-lg transition cursor-pointer"
-                >
-                  🖨️ Print / Save as PDF
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setShowPoModal(false)}
-                  className="text-xs font-bold w-7 h-7 rounded-full hover:bg-slate-200 text-slate-500 flex items-center justify-center cursor-pointer"
-                >
-                  ✕
-                </button>
-              </div>
-            </div>
 
-            {/* Official PO Document Body */}
-            <div className="p-8 text-slate-900 font-sans space-y-6">
-              {/* Document Header */}
-              <div className="flex justify-between items-start border-b-2 border-slate-900 pb-5">
-                <div>
-                  <h1 className="text-2xl font-black tracking-tight text-slate-900">
-                    FOODXCHANGE COMMERCIAL
-                  </h1>
-                  <p className="text-xs text-slate-500 uppercase tracking-widest mt-0.5">
-                    Official Commercial Purchase Order
-                  </p>
-                  <p className="text-xs text-slate-600 mt-2">
-                    Operated by FDX.TRADING Platform<br />
-                    B2B Private Label & Global Food Sourcing
-                  </p>
-                </div>
-                <div className="text-right">
-                  <span className="text-lg font-mono font-black text-rose-600">
-                    {workflow.po_number || "PO-FDX-DRAFT"}
-                  </span>
-                  <p className="text-xs text-slate-500 mt-1">
-                    Date: <span className="font-mono">{workflow.po_date || new Date().toISOString().slice(0, 10)}</span>
-                  </p>
-                  <p className="text-xs text-slate-500">
-                    Incoterm: <span className="font-bold text-slate-800">{workflow.incoterms || "CIF Ashdod"}</span>
-                  </p>
-                </div>
-              </div>
-
-              {/* Parties: Buyer & Supplier */}
-              <div className="grid grid-cols-2 gap-8 text-xs">
-                <div className="border border-slate-200 rounded-xl p-4 bg-slate-50">
-                  <span className="font-bold text-slate-500 uppercase text-[10px] block mb-1">
-                    BUYER / IMPORTER OF RECORD:
-                  </span>
-                  <p className="font-bold text-base text-slate-900">{buyerCompany}</p>
-                  <p className="text-slate-600 mt-1">
-                    Delivery Warehouse:<br />
-                    {workflow.buyer_warehouse_address || "Central Retail Logistics Hub, Israel"}
-                  </p>
-                </div>
-
-                <div className="border border-slate-200 rounded-xl p-4 bg-slate-50">
-                  <span className="font-bold text-slate-500 uppercase text-[10px] block mb-1">
-                    SUPPLIER / MANUFACTURER:
-                  </span>
-                  <p className="font-bold text-base text-slate-900">
-                    {workflow.selected_supplier_name || "Authorized Factory Partner"}
-                  </p>
-                  <p className="text-slate-600 mt-1">
-                    Port of Loading: {workflow.port_of_origin || "Valencia Port, Spain"}<br />
-                    Shipping Line: {workflow.shipping_line || "MSC"}
-                  </p>
-                </div>
-              </div>
-
-              {/* Itemized Line Items Table */}
-              <div className="border border-slate-200 rounded-xl overflow-hidden">
-                <table className="w-full text-left text-xs">
-                  <thead className="bg-slate-900 text-white font-semibold">
-                    <tr>
-                      <th className="p-3">#</th>
-                      <th className="p-3">Item Description</th>
-                      <th className="p-3">Packaging / Specs</th>
-                      <th className="p-3 text-right">Order Quantity</th>
-                      <th className="p-3 text-right">Unit Price</th>
-                      <th className="p-3 text-right">Total Amount</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-200">
-                    <tr>
-                      <td className="p-3 font-mono">01</td>
-                      <td className="p-3 font-bold text-slate-900">
-                        {productName} (Private Label Line)
-                      </td>
-                      <td className="p-3 text-slate-600">
-                        Retail Pack, Food Grade, Kosher Certified
-                      </td>
-                      <td className="p-3 text-right font-mono font-semibold">
-                        {workflow.order_volume || "24,000 Units"}
-                      </td>
-                      <td className="p-3 text-right font-mono font-semibold">
-                        {workflow.currency || "EUR"} {unitPriceNum.toFixed(2)}
-                      </td>
-                      <td className="p-3 text-right font-mono font-bold text-slate-900">
-                        {workflow.currency || "EUR"} {totalCalculated.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                      </td>
-                    </tr>
-                  </tbody>
-                  <tfoot className="bg-slate-50 font-bold border-t border-slate-200">
-                    <tr>
-                      <td colSpan={5} className="p-3 text-right uppercase text-slate-600">
-                        Total Commercial Contract Value ({workflow.incoterms}):
-                      </td>
-                      <td className="p-3 text-right text-base text-rose-600 font-mono">
-                        {workflow.currency || "EUR"} {totalCalculated.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                      </td>
-                    </tr>
-                  </tfoot>
-                </table>
-              </div>
-
-              {/* Commercial Terms & Instructions */}
-              <div className="text-xs text-slate-600 space-y-2 border-t border-slate-100 pt-4">
-                <p>
-                  <strong>Payment Terms:</strong> {workflow.payment_terms || "30% Advance Deposit on signing, 70% against B/L copy & Inspection report."}
-                </p>
-                <p>
-                  <strong>Special Packaging & Labeling Mandate:</strong> Products must strictly follow the approved Stage 6 Private Label master with Hebrew nutritional facts panel per Israel Standard 1145 and registered EAN-13 barcode.
-                </p>
-              </div>
-
-              {/* Signature Blocks */}
-              <div className="grid grid-cols-2 gap-12 pt-8 text-xs border-t border-slate-200">
-                <div>
-                  <p className="font-bold text-slate-900 uppercase">Authorized Buyer Signature:</p>
-                  <div className="h-14 border-b border-slate-300 mt-2 flex items-end pb-1 font-mono text-[11px] text-slate-400">
-                    Digitally countersigned by {buyerCompany}
-                  </div>
-                  <p className="text-[10px] text-slate-400 mt-1">Date: {workflow.po_date}</p>
-                </div>
-
-                <div>
-                  <p className="font-bold text-slate-900 uppercase">Supplier Acceptance & Seal:</p>
-                  <div className="h-14 border-b border-slate-300 mt-2 flex items-end pb-1 font-mono text-[11px] text-slate-400">
-                    Accepted by {workflow.selected_supplier_name}
-                  </div>
-                  <p className="text-[10px] text-slate-400 mt-1">Date: {workflow.po_date}</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
