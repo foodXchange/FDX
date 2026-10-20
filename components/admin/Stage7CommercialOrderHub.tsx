@@ -1498,6 +1498,52 @@ export default function Stage7CommercialOrderHub({
                 </div>
               </div>
 
+              {/* ── ISRAELI CUSTOMS BROKER HANDOVER PORTAL LINK BOX ── */}
+              <div className="p-4 rounded-xl bg-gradient-to-r from-blue-50 to-indigo-50/60 border border-blue-200 text-blue-900 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-blue-600/10 border border-blue-500/30 flex items-center justify-center text-xl shrink-0">
+                    🇮🇱
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-sm text-slate-900">
+                        Dedicated Israeli Customs Broker Portal (Shaar Olami Desk)
+                      </span>
+                      <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-blue-100 text-blue-800 border border-blue-200">
+                        Ashdod Port (Pier 21)
+                      </span>
+                    </div>
+                    <p className="text-slate-600 text-xs mt-0.5 leading-relaxed">
+                      Share this token-free guest portal with your Ashdod customs clearing agent (Amit, Fritz, DSV) to inspect the 6-document customs pack and log the Israeli customs entry declaration.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 shrink-0">
+                  <a
+                    href={`/customs/${requestId}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs font-bold px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl transition flex items-center gap-1.5 shadow-xs"
+                  >
+                    <span>Open Desk</span>
+                    <span className="text-[10px]">↗</span>
+                  </a>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const url = `${window.location.origin}/customs/${requestId}`;
+                      navigator.clipboard.writeText(url);
+                      alert("Customs broker portal URL copied to clipboard:\n" + url);
+                    }}
+                    className="text-xs font-semibold px-3 py-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 rounded-xl transition cursor-pointer shadow-2xs"
+                  >
+                    Copy Link
+                  </button>
+                </div>
+              </div>
+
               <div>
                 <label className="block font-semibold text-slate-600 uppercase mb-1">
                   Buyer Central Warehouse Address

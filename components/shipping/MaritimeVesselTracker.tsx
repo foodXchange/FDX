@@ -193,6 +193,7 @@ function calculateShipTelemetry(t: number) {
 }
 
 export default function MaritimeVesselTracker({
+  requestId,
   orderStage = "manufacturing",
   containerNumber = "MSKU-9481029",
   billOfLading = "MSCUVAL881920",
@@ -812,8 +813,18 @@ export default function MaritimeVesselTracker({
             <div className="flex items-center gap-2">
               <span className="text-base">🇮🇱</span>
               <div>
-                <span className="text-slate-200 font-semibold block">
-                  {isHe ? "מכס ישראל (מערכת שער עולמי)" : "Israel Customs (Shaar Olami)"}
+                <span className="text-slate-200 font-semibold flex items-center gap-1.5">
+                  <span>{isHe ? "מכס ישראל (מערכת שער עולמי)" : "Israel Customs (Shaar Olami)"}</span>
+                  {requestId && (
+                    <a
+                      href={`/customs/${requestId}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-[10px] text-sky-400 hover:text-sky-300 underline font-normal"
+                    >
+                      {isHe ? "תיק שחרור מכס ↗" : "Customs Desk ↗"}
+                    </a>
+                  )}
                 </span>
                 <span className="text-slate-500 text-[10px]">
                   {customsStatus === "customs_cleared"

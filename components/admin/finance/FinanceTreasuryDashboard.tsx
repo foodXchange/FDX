@@ -226,7 +226,7 @@ export default function FinanceTreasuryDashboard({ deals, metrics }: Props) {
 
   const getCustomsWaText = (d: DealFinancialRecord) => {
     return encodeURIComponent(
-      `שלום לעמיל המכס (Customs Broker),\nמצורף עדכון עבור שחרור מכולה ימית בנמל אשדוד:\nיבואן רשמי: ${d.buyerCompany}\nספק: ${d.supplierName} (${d.supplierCountry})\nמספר מכולה: ${d.shipping.container || "טרם הוזן"}\nשטר מטען (B/L): ${d.shipping.bl || "טרם הוזן"}\nצפי הגעה לאשדוד: ${d.shipping.eta || "במעקב"}\nתיק מסמכים הכולל תעודת מקור EUR.1 (פטור 0%), כשרות ו-COA מוכן להעברה.`
+      `שלום לעמיל המכס (Customs Broker),\nמצורף עדכון עבור שחרור מכולה ימית בנמל אשדוד:\nיבואן רשמי: ${d.buyerCompany}\nספק: ${d.supplierName} (${d.supplierCountry})\nמספר מכולה: ${d.shipping.container || "טרם הוזן"}\nשטר מטען (B/L): ${d.shipping.bl || "טרם הוזן"}\nצפי הגעה לאשדוד: ${d.shipping.eta || "במעקב"}\nתיק מסמכים הכולל תעודת מקור EUR.1 (פטור 0%), כשרות ו-COA מוכן להורדה בקישור הישיר הבא:\n${typeof window !== "undefined" ? window.location.origin : "https://foodxchange.com"}/customs/${d.requestId}`
     );
   };
 
@@ -548,6 +548,16 @@ export default function FinanceTreasuryDashboard({ deals, metrics }: Props) {
                             <span>📑</span>
                             <span>Customs Package</span>
                           </button>
+
+                          <a
+                            href={`/customs/${deal.requestId}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-[11px] font-bold px-2 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-900 border border-indigo-200 rounded-lg transition flex items-center justify-center gap-1"
+                          >
+                            <span>🇮🇱</span>
+                            <span>Customs Portal ↗</span>
+                          </a>
 
                           <div className="grid grid-cols-2 gap-1 pt-0.5">
                             <a
