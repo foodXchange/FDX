@@ -7,6 +7,7 @@ import ExportDocumentHandoverModal from "@/components/documents/ExportDocumentHa
 import GoodsReceiptDocumentModal from "@/components/documents/GoodsReceiptDocumentModal";
 import MaritimeVesselTracker from "@/components/shipping/MaritimeVesselTracker";
 import TripartiteDispatchCockpit from "@/components/admin/TripartiteDispatchCockpit";
+import TreasuryFxHedgingRadar from "@/components/admin/finance/TreasuryFxHedgingRadar";
 
 export interface DealFinancialRecord {
   requestId: string;
@@ -338,6 +339,13 @@ export default function FinanceTreasuryDashboard({ deals, metrics }: Props) {
           </div>
         </div>
       </div>
+
+      {/* ── EUR/ILS FX Exposure & Hedging Radar ── */}
+      <TreasuryFxHedgingRadar
+        totalGmvEur={metrics.totalGmvEur}
+        totalBrokerCommissionEur={metrics.totalBrokerCommissionEur}
+        pendingBalanceEur={metrics.inTransitBalanceEur}
+      />
 
       {/* ── Filters & Search Bar ── */}
       <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-2xs flex flex-col md:flex-row md:items-center justify-between gap-3">

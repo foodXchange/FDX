@@ -2,6 +2,7 @@
 
 import React, { useState, useTransition } from "react";
 import ExportDocumentHandoverModal from "@/components/documents/ExportDocumentHandoverModal";
+import ErpAsnExportModal from "@/components/documents/ErpAsnExportModal";
 import type { CommercialOrderLifecycle } from "@/app/admin/requests/actions";
 import { submitCustomsBrokerClearance } from "@/app/customs/actions";
 
@@ -82,6 +83,7 @@ export default function CustomsBrokerPortal({
   const [isPending, startTransition] = useTransition();
   const [actionSuccessMsg, setActionSuccessMsg] = useState<string | null>(null);
   const [actionErrorMsg, setActionErrorMsg] = useState<string | null>(null);
+  const [showAsnModal, setShowAsnModal] = useState<boolean>(false);
 
   const activeContainer = workflow?.container_number || "MSKU-9481029";
   const activeBl = workflow?.bill_of_lading || "MSCUVAL881920";
@@ -386,14 +388,24 @@ export default function CustomsBrokerPortal({
               </p>
             </div>
 
-            <button
-              type="button"
-              onClick={() => setShowDocModal(true)}
-              className="text-xs font-bold px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-xl transition flex items-center gap-2 cursor-pointer shadow-sm shrink-0"
-            >
-              <span>📥</span>
-              <span>הורד את כל המסמכים (ZIP / PDF)</span>
-            </button>
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={() => setShowAsnModal(true)}
+                className="text-xs font-bold px-3.5 py-2 bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 border border-indigo-500/30 rounded-xl transition flex items-center gap-1.5 cursor-pointer shadow-sm"
+              >
+                <span>📦</span>
+                <span>מנשר מרלוג (Priority ASN)</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowDocModal(true)}
+                className="text-xs font-bold px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-xl transition flex items-center gap-2 cursor-pointer shadow-sm"
+              >
+                <span>📥</span>
+                <span>הורד את כל המסמכים (ZIP / PDF)</span>
+              </button>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -629,6 +641,32 @@ export default function CustomsBrokerPortal({
         vesselName={activeVessel}
         etaPort={workflow?.eta_port || undefined}
         isBalanceCleared={true}
+      />
+
+      {/* ── ERP INBOUND ASN EXPORT MODAL ── */}
+      <ErpAsnExportModal
+        isOpen={showAsnModal}
+        onClose={() => setShowAsnModal(false)}
+        data={{
+          poNumber: activePo,
+          poDate: poDate || new Date().toISOString().slice(0, 10),
+          buyerCompany,
+          supplierFactory: supplierName,
+          originCountry: supplierCountry,
+          productName,
+          hebrewName: productName,
+          containerNumber: activeContainer,
+          billOfLading: activeBl,
+          customsDeclarationNumber: customsDeclarationNumber || undefined,
+          palletCount: 24,
+          totalUnits: 24000,
+          unitsPerPallet: 1000,
+          netWeightKgPerUnit: 0.4,
+          grossWeightKgPerUnit: 0.44,
+          storageTemp: "+18.2°C Dry Ambient",
+          dockBay: "Bay 04",
+          licensePlate: "84-912-33",
+        }}
       />
     </div>
   );

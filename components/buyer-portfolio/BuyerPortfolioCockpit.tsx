@@ -4,6 +4,8 @@ import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { cloneOrderAsRepeatRun } from "@/app/track/actions";
+import ErpAsnExportModal from "@/components/documents/ErpAsnExportModal";
+import type { ErpAsnPayload } from "@/lib/documents/erpAsnGenerator";
 
 // Self-contained SVG Icons for zero-dependency reliability
 function ShipIcon({ className = "w-4 h-4" }: { className?: string }) {
@@ -190,6 +192,32 @@ export default function BuyerPortfolioCockpit({
   const [reorderSuccessMsg, setReorderSuccessMsg] = useState<{ msg: string; newId: string } | null>(null);
   const [reorderError, setReorderError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+
+  // ERP ASN Export state
+  const [activeAsnData, setActiveAsnData] = useState<ErpAsnPayload | null>(null);
+
+  const openAsnModal = (item: BuyerPortfolioItem) => {
+    setActiveAsnData({
+      poNumber: item.poNumber,
+      poDate: item.createdAt?.split("T")[0] || new Date().toISOString().split("T")[0],
+      buyerCompany: item.buyerCompany,
+      supplierFactory: item.supplierFactory,
+      originCountry: item.originCountry,
+      productName: item.productName,
+      hebrewName: item.hebrewName,
+      containerNumber: item.containerNumber || "MEDU-7829104",
+      billOfLading: item.billOfLading || "MEDUGVA260401",
+      customsDeclarationNumber: item.customsDeclaration,
+      palletCount: item.palletCount || 24,
+      totalUnits: item.unitCount || 24000,
+      unitsPerPallet: Math.round((item.unitCount || 24000) / (item.palletCount || 24)),
+      netWeightKgPerUnit: 0.4,
+      grossWeightKgPerUnit: 0.44,
+      storageTemp: item.temperature || "+18.2°C Dry Ambient",
+      batchNumber: `LOT-${item.originCountry.slice(0, 2).toUpperCase()}-2604`,
+      expiryDate: "31/12/2027",
+    });
+  };
 
   // Filter items
   const filteredItems = initialItems.filter((item) => {
@@ -638,6 +666,16 @@ export default function BuyerPortfolioCockpit({
                             GRN #{item.grnNumber}
                           </span>
                         )}
+
+                        {/* Inbound ERP ASN Generator */}
+                        <button
+                          type="button"
+                          onClick={() => openAsnModal(item)}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-300 border border-indigo-500/20 transition-all cursor-pointer"
+                        >
+                          <PackageIcon className="w-3.5 h-3.5 text-indigo-400" />
+                          מנשר מרלוג (Priority / SAP ASN)
+                        </button>
                       </div>
 
                       {/* 1-Click Repeat Order Button */}
@@ -832,6 +870,14 @@ export default function BuyerPortfolioCockpit({
             )}
           </div>
         </div>
+      )}
+      {/* ERP Inbound ASN Export Modal */}
+      {activeAsnData && (
+        <ErpAsnExportModal
+          isOpen={Boolean(activeAsnData)}
+          onClose={() => setActiveAsnData(null)}
+          data={activeAsnData}
+        />
       )}
     </div>
   );
