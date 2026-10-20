@@ -65,9 +65,12 @@ export async function GET() {
       } catch (err: any) {
         const msg = err?.message || String(err);
         if (msg.includes("402") || msg.includes("RESOURCE_EXHAUSTED") || msg.includes("depleted")) {
+          const isSpendCap = msg.includes("spending cap") || msg.includes("monthly spending cap");
           lastGeminiCheck = {
             isTripped: true,
-            reason: "Google AI Studio prepayment credit is depleted (HTTP 402 RESOURCE_EXHAUSTED). Please top up balance at https://ai.studio/projects.",
+            reason: isSpendCap
+              ? "Google Gemini monthly spending cap reached (or billing propagation pending). Adjust spend cap at https://ai.studio/billing."
+              : "Google AI Studio prepayment credit is depleted (HTTP 402 RESOURCE_EXHAUSTED). Please top up balance at https://ai.studio/projects.",
             checkedAt: Date.now(),
           };
         } else {

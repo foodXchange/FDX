@@ -332,9 +332,13 @@ export async function GET(req: NextRequest) {
             msg.includes("prepayment credits are depleted") ||
             msg.includes("organization_on_hold")
           ) {
+            const isSpendCap = msg.includes("spending cap") || msg.includes("monthly spending cap");
+            const breakerNotice = isSpendCap
+              ? "⚡ CIRCUIT BREAKER: Monthly spending cap reached on Google AI Studio (or newly upgraded billing is still propagating). Please check or raise your Spend Cap at https://ai.studio/billing (or wait 5-15m for Google billing sync). Pausing scraper safely — no suppliers were modified."
+              : "⚡ CIRCUIT BREAKER: AI Prepayment credits are depleted (HTTP 402). Pausing scraper safely — no suppliers were modified or crawled. Top up at https://ai.studio/projects.";
             send({
               type: "error",
-              message: `⚡ CIRCUIT BREAKER: AI Prepayment credits are depleted (HTTP 402). Pausing scraper safely — no suppliers were modified or crawled. Top up at https://ai.studio/projects.`,
+              message: breakerNotice,
             });
             send({ type: "done" });
             controller.close();
@@ -756,9 +760,13 @@ export async function GET(req: NextRequest) {
               msg.includes("organization_on_hold");
 
             if (isCircuitBreaker) {
+              const isSpendCap = msg.includes("spending cap") || msg.includes("monthly spending cap");
+              const breakerNotice = isSpendCap
+                ? "  ⚡ CIRCUIT BREAKER TRIPPED: Google Gemini monthly spending cap reached. Check or raise your Spend Cap at https://ai.studio/billing. Pausing scraper safely — remaining suppliers retained as pending."
+                : "  ⚡ CIRCUIT BREAKER TRIPPED: Google AI Studio prepayment credits depleted (HTTP 402). Pausing scraper safely — remaining suppliers retained as pending.";
               send({
                 type: "error",
-                message: `  ⚡ CIRCUIT BREAKER TRIPPED: Google AI Studio prepayment credits depleted (HTTP 402). Pausing scraper safely — remaining suppliers retained as pending.`,
+                message: breakerNotice,
               });
               // Retain current supplier as pending — do NOT mark failed!
               break;
