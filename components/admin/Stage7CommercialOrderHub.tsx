@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import TradeDocumentSuiteModal, { type DocTab } from "@/components/admin/TradeDocumentSuiteModal";
 import ExportDocumentHandoverModal from "@/components/documents/ExportDocumentHandoverModal";
+import MaritimeVesselTracker from "@/components/shipping/MaritimeVesselTracker";
 import {
   type CommercialOrderLifecycle,
   type OrderWorkflowStage,
@@ -1376,6 +1377,27 @@ export default function Stage7CommercialOrderHub({
                     }
                   />
                 </div>
+              </div>
+
+              {/* Live AIS Maritime Route & Vessel Telemetry */}
+              <div className="pt-2">
+                <MaritimeVesselTracker
+                  requestId={requestId}
+                  orderStage={workflow.current_stage || "manufacturing"}
+                  containerNumber={workflow.container_number}
+                  billOfLading={workflow.bill_of_lading}
+                  shippingLine={workflow.shipping_line}
+                  vesselName={workflow.vessel_name}
+                  portOfOrigin={workflow.port_of_origin}
+                  portOfDestination={workflow.port_of_destination}
+                  etd={workflow.etd}
+                  etaPort={workflow.eta_port}
+                  customsStatus={workflow.customs_status}
+                  deliveryStatus={workflow.delivery_status}
+                  buyerWarehouseAddress={workflow.buyer_warehouse_address}
+                  productName={workflow.agreed_product_name || productName}
+                  lang="en"
+                />
               </div>
 
               <div className="pt-3 border-t border-slate-100 flex items-center justify-between">

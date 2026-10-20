@@ -115,7 +115,7 @@ export default async function AdminFinancePage() {
         "European Certified Food Producer",
       supplierCountry:
         supplierObj?.country_of_origin ||
-        awardedMatch?.country ||
+        ((awardedMatch as Record<string, unknown>)?.country as string | undefined) ||
         "Spain / Italy (EU)",
       supplierEmail: supplierObj?.contact_email || undefined,
       supplierPhone: supplierObj?.contact_phone || undefined,

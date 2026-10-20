@@ -76,7 +76,10 @@ const STAGE_MAP: Record<OrderWorkflowStage, 1 | 2 | 3 | 4 | 5 | 6 | 7> = {
   buyer_pitched: 3,
   commercial_negotiation: 4,
   order_po_issued: 7,
+  manufacturing: 7,
   shipping_customs_warehouse: 7,
+  customs_warehouse: 7,
+  completed: 7,
 };
 
 export function deriveAgentProjectStage(req: RequestRow): AgentProjectStageInfo {

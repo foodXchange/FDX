@@ -284,12 +284,16 @@ export type OrderWorkflowStage =
   | "buyer_pitched"
   | "commercial_negotiation"
   | "order_po_issued"
-  | "shipping_customs_warehouse";
+  | "manufacturing"
+  | "shipping_customs_warehouse"
+  | "customs_warehouse"
+  | "completed";
 
 export interface FinancialMilestoneWire {
   status?: "pending_buyer_wire" | "wire_submitted_by_buyer" | "cleared_in_escrow" | "released_to_factory" | "pending_bl_copy";
   buyer_wire_amount?: number;
   agent_commission_amount?: number;
+  agent_retained_fee?: number;
   factory_wire_amount?: number;
   swift_mt103_reference?: string;
   uetr_reference?: string;

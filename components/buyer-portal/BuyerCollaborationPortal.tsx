@@ -18,6 +18,7 @@ import {
 import BuyerPoModal from "./BuyerPoModal";
 import CommercialPoDocumentModal from "@/components/documents/CommercialPoDocumentModal";
 import ExportDocumentHandoverModal from "@/components/documents/ExportDocumentHandoverModal";
+import MaritimeVesselTracker from "@/components/shipping/MaritimeVesselTracker";
 
 export interface BuyerPortalData {
   requestId: string;
@@ -1597,81 +1598,46 @@ export default function BuyerCollaborationPortal({ data }: Props) {
                 {/* ── TAB 5: Ocean Freight & Container Logistics ── */}
         {activeTab === "logistics" && (
           <div className="space-y-6">
-            <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-xs">
-              <div className="pb-4 border-b border-slate-100">
-                <h3 className="text-base font-bold text-slate-900">
-                  {lang === "he" ? "מעקב שילוח ימי ולוגיסטיקת מכולה" : "Ocean Freight & Container Tracking"}
-                </h3>
-                <p className="text-slate-500 text-xs mt-0.5">
-                  {lang === "he"
-                    ? "מעקב ישיר על תנועת המכולה מנמל המוצא ועד לכניסה למחסן ההפצה שלכם."
-                    : "Live shipping line vessel tracking from origin port to destination warehouse."}
-                </p>
+            {!data.orderWorkflow?.container_number && (
+              <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-900 text-xs flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2.5">
+                  <span className="text-xl">🚢</span>
+                  <div>
+                    <span className="font-bold block">
+                      {lang === "he"
+                        ? "נתיב שילוח ימי מתוכנן (Valencia / Genoa → Ashdod Port)"
+                        : "Scheduled Maritime Route (Valencia / Genoa → Ashdod Port)"}
+                    </span>
+                    <span className="text-amber-700 text-[11px]">
+                      {lang === "he"
+                        ? "פרטי המכולה, שטר המטען (B/L) וחיבור AIS ישיר יופעלו אוטומטית עם סיום הייצור והעמסת המטען בנמל המוצא."
+                        : "Container ID, Ocean B/L, and live satellite AIS tracking activate once goods finish manufacturing and gate-in at origin port."}
+                    </span>
+                  </div>
+                </div>
+                <span className="text-[10px] font-bold px-2.5 py-1 bg-amber-200/60 rounded-md text-amber-900 shrink-0">
+                  {lang === "he" ? "הדמיית נתיב מתוכנן" : "Planned Route"}
+                </span>
               </div>
+            )}
 
-              {data.orderWorkflow?.container_number ? (
-                <div className="my-6 space-y-4">
-                  <div className="p-4 rounded-xl bg-slate-900 text-white flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                    <div>
-                      <div className="text-[11px] text-slate-400 font-semibold uppercase">
-                        {data.orderWorkflow.shipping_line || "MSC / ZIM"} · {lang === "he" ? "מספר מכולה" : "Container ID"}
-                      </div>
-                      <div className="text-xl font-mono font-bold text-emerald-400 mt-0.5">
-                        {data.orderWorkflow.container_number}
-                      </div>
-                      <div className="text-slate-300 text-xs mt-1">
-                        {lang === "he" ? "אונייה:" : "Vessel:"} {data.orderWorkflow.vessel_name || "Ocean Carrier"} · {lang === "he" ? "שטר מטען ימי:" : "B/L:"} {data.orderWorkflow.bill_of_lading || "B/L Issued"}
-                      </div>
-                    </div>
-
-                    <div className="text-right sm:border-l sm:border-slate-800 sm:pl-6">
-                      <div className="text-[11px] text-slate-400">
-                        {lang === "he" ? "זמן הגעה משוער (ETA)" : "Estimated Port Arrival"}
-                      </div>
-                      <div className="text-lg font-bold text-amber-300 mt-0.5">
-                        {data.orderWorkflow.eta_port || (lang === "he" ? "בעדכון" : "Pending ETA")}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Port Milestones */}
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                    <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
-                      <div className="font-bold text-slate-900">{lang === "he" ? "1. נמל מוצא" : "1. Origin Port"}</div>
-                      <div className="text-[11px] text-slate-500 mt-0.5">
-                        {data.orderWorkflow.port_of_origin || "Valencia Port"}
-                      </div>
-                    </div>
-
-                    <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
-                      <div className="font-bold text-slate-900">{lang === "he" ? "2. שחרור מכס בישראל" : "2. Customs Clearance"}</div>
-                      <div className="text-[11px] text-slate-500 mt-0.5">
-                        {data.orderWorkflow.customs_status || (lang === "he" ? "ממתין לעגינה" : "Awaiting Berth")}
-                      </div>
-                    </div>
-
-                    <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
-                      <div className="font-bold text-slate-900">{lang === "he" ? "3. מחסן יעד הקונה" : "3. Buyer Warehouse"}</div>
-                      <div className="text-[11px] text-slate-500 mt-0.5">
-                        {data.orderWorkflow.buyer_warehouse_address || (lang === "he" ? "מחסן מרכזי" : "Main Warehouse")}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <div className="my-8 p-6 rounded-xl bg-slate-50 border border-dashed border-slate-300 text-center text-slate-500">
-                  <span className="text-2xl">🚢</span>
-                  <p className="mt-2 font-bold text-slate-800 text-sm">
-                    {lang === "he" ? "השילוח הימי יופעל לאחר סיום ייצור ההזמנה" : "Ocean container will be assigned upon production"}
-                  </p>
-                  <p className="text-xs text-slate-400 mt-1 max-w-md mx-auto">
-                    {lang === "he"
-                      ? "לאחר אישור הדוגמאות והאריזה, יונפק שטר מטען ימי ומספר מכולה למעקב חי בזמן אמת."
-                      : "Container number, vessel tracking, and bill of lading will activate once goods are loaded."}
-                  </p>
-                </div>
-              )}
-            </div>
+            <MaritimeVesselTracker
+              requestId={data.requestId}
+              orderStage={data.orderWorkflow?.current_stage || "manufacturing"}
+              containerNumber={data.orderWorkflow?.container_number || "MSKU-9481029"}
+              billOfLading={data.orderWorkflow?.bill_of_lading || "MSCUVAL881920"}
+              shippingLine={data.orderWorkflow?.shipping_line || "MSC (Mediterranean Shipping Company)"}
+              vesselName={data.orderWorkflow?.vessel_name || "MSC LEANNE"}
+              portOfOrigin={data.orderWorkflow?.port_of_origin || "Valencia Port, Spain"}
+              portOfDestination={data.orderWorkflow?.port_of_destination || "Ashdod Port, Israel"}
+              etd={data.orderWorkflow?.etd}
+              etaPort={data.orderWorkflow?.eta_port}
+              customsStatus={data.orderWorkflow?.customs_status}
+              deliveryStatus={data.orderWorkflow?.delivery_status}
+              buyerWarehouseAddress={data.orderWorkflow?.buyer_warehouse_address}
+              productName={data.cleanedName || data.productName}
+              lang={lang}
+            />
           </div>
         )}
 

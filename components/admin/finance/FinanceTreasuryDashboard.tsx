@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import CommercialPoDocumentModal from "@/components/documents/CommercialPoDocumentModal";
 import ExportDocumentHandoverModal from "@/components/documents/ExportDocumentHandoverModal";
+import MaritimeVesselTracker from "@/components/shipping/MaritimeVesselTracker";
 
 export interface DealFinancialRecord {
   requestId: string;
@@ -85,6 +86,7 @@ export default function FinanceTreasuryDashboard({ deals, metrics }: Props) {
   const [searchQuery, setSearchQuery] = useState("");
   const [activePoDeal, setActivePoDeal] = useState<DealFinancialRecord | null>(null);
   const [activeCustomsDeal, setActiveCustomsDeal] = useState<DealFinancialRecord | null>(null);
+  const [activeVesselDeal, setActiveVesselDeal] = useState<DealFinancialRecord | null>(null);
   const [waModalDeal, setWaModalDeal] = useState<DealFinancialRecord | null>(null);
   const [waRecipient, setWaRecipient] = useState<"buyer" | "factory" | "customs">("buyer");
   const [copiedLink, setCopiedLink] = useState<string | null>(null);
@@ -500,9 +502,14 @@ export default function FinanceTreasuryDashboard({ deals, metrics }: Props) {
                       </td>
 
                       {/* 7. Maritime Logistics */}
-                      <td className="p-3.5 border-r border-slate-100 align-top space-y-1">
-                        <div className="font-mono text-slate-900 font-bold text-[11px]">
-                          {deal.shipping.container || "Container Queued"}
+                      <td
+                        onClick={() => setActiveVesselDeal(deal)}
+                        className="p-3.5 border-r border-slate-100 align-top space-y-1 hover:bg-sky-50/50 cursor-pointer transition group"
+                        title="Click to view Live AIS Maritime Route Map"
+                      >
+                        <div className="font-mono text-slate-900 group-hover:text-sky-700 font-bold text-[11px] flex items-center justify-between">
+                          <span>{deal.shipping.container || "Container Queued"}</span>
+                          <span className="text-[10px] text-sky-600 opacity-0 group-hover:opacity-100 transition">🗺️</span>
                         </div>
                         <div className="text-[10px] text-slate-500">
                           B/L: <span className="font-mono">{deal.shipping.bl || "Pending"}</span>
@@ -515,6 +522,15 @@ export default function FinanceTreasuryDashboard({ deals, metrics }: Props) {
                       {/* 8. Quick Actions */}
                       <td className="p-3.5 align-top">
                         <div className="flex flex-col gap-1.5 items-stretch min-w-[130px]">
+                          <button
+                            type="button"
+                            onClick={() => setActiveVesselDeal(deal)}
+                            className="text-[11px] font-bold px-2 py-1 bg-sky-50 hover:bg-sky-100 text-sky-900 border border-sky-200 rounded-lg transition flex items-center justify-center gap-1 cursor-pointer"
+                          >
+                            <span>🚢</span>
+                            <span>Live AIS Map</span>
+                          </button>
+
                           <button
                             type="button"
                             onClick={() => setActivePoDeal(deal)}
@@ -608,6 +624,55 @@ export default function FinanceTreasuryDashboard({ deals, metrics }: Props) {
           etaPort={activeCustomsDeal.shipping.eta || undefined}
           isBalanceCleared={activeCustomsDeal.balanceMilestone.status === "released_to_factory"}
         />
+      )}
+
+      {/* ── AIS Live Vessel Route Inspection Modal ── */}
+      {activeVesselDeal && (
+        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 overflow-y-auto">
+          <div className="relative w-full max-w-5xl bg-slate-950 rounded-3xl border border-slate-800 shadow-2xl overflow-hidden my-auto">
+            <div className="p-4 sm:p-5 bg-slate-900 border-b border-slate-800 flex items-center justify-between">
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xl">🚢</span>
+                  <h3 className="font-bold text-white text-base">
+                    Live AIS Maritime Route Desk · {activeVesselDeal.poNumber}
+                  </h3>
+                  <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-sky-500/20 text-sky-300 border border-sky-500/30">
+                    {activeVesselDeal.shipping.vessel || "MSC LEANNE"}
+                  </span>
+                </div>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Buyer: <strong className="text-slate-200">{activeVesselDeal.buyerCompany}</strong> · Supplier: <strong className="text-slate-200">{activeVesselDeal.supplierName}</strong> ({activeVesselDeal.supplierCountry})
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setActiveVesselDeal(null)}
+                className="w-8 h-8 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white flex items-center justify-center transition cursor-pointer text-sm"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="p-3 sm:p-5 max-h-[80vh] overflow-y-auto">
+              <MaritimeVesselTracker
+                requestId={activeVesselDeal.requestId}
+                orderStage="manufacturing"
+                containerNumber={activeVesselDeal.shipping.container || "MSKU-9481029"}
+                billOfLading={activeVesselDeal.shipping.bl || "MSCUVAL881920"}
+                shippingLine={activeVesselDeal.shipping.line || "MSC (Mediterranean Shipping Company)"}
+                vesselName={activeVesselDeal.shipping.vessel || "MSC LEANNE"}
+                portOfOrigin="Valencia Port, Spain"
+                portOfDestination="Ashdod Port, Israel"
+                etd={activeVesselDeal.shipping.etd}
+                etaPort={activeVesselDeal.shipping.eta}
+                productName={activeVesselDeal.productName}
+                lang="en"
+              />
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
