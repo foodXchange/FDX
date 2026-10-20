@@ -18,13 +18,15 @@ import Stage7CommercialOrderHub from "@/components/admin/Stage7CommercialOrderHu
 import InboundCorrespondenceHub from "@/components/admin/InboundCorrespondenceHub";
 import TradeDocumentSuiteButton from "@/components/admin/TradeDocumentSuiteButton";
 import TripartiteQuickDispatchCard from "@/components/admin/TripartiteQuickDispatchCard";
-import type {
-  CommercialOrderLifecycle,
-  BuyerBriefApproval,
-  SampleDispatchProtocol,
-  QaRegulatoryDossier,
-  PackagingArtworkWorkflow,
-  AgentQuotationMargin,
+import TripartiteDispatchCockpit from "@/components/admin/TripartiteDispatchCockpit";
+import {
+  type CommercialOrderLifecycle,
+  type BuyerBriefApproval,
+  type SampleDispatchProtocol,
+  type QaRegulatoryDossier,
+  type PackagingArtworkWorkflow,
+  type AgentQuotationMargin,
+  dispatchTripartiteNotificationAction,
 } from "@/app/admin/requests/actions";
 
 export const metadata: Metadata = { title: "Request Detail | Admin" };
@@ -251,25 +253,36 @@ export default async function RequestDetailPage({ params }: PageProps) {
         </div>
       </div>
 
-      <div className="max-w-6xl mx-auto px-6 py-8">
-        {/* ── Tripartite 1-Click Communications Desk ── */}
-        <TripartiteQuickDispatchCard
+      <div className="max-w-6xl mx-auto px-6 py-8 space-y-6">
+        {/* ── Automated Tripartite Dispatch & Event Cockpit ── */}
+        <TripartiteDispatchCockpit
           requestId={id}
           poNumber={orderWorkflow?.po_number || `FDX-PO-${id.slice(0, 6).toUpperCase()}`}
           buyerCompany={buyerCompany}
           buyerContact={request.name || undefined}
           buyerPhone={request.phone || undefined}
+          buyerEmail={request.email || undefined}
           supplierName={orderWorkflow?.selected_supplier_name || matchedSuppliersList[0]?.company_name || "European Certified Food Factory"}
           supplierCountry={matchedSuppliersList[0]?.country || "European Union"}
           productName={cleanedName || productName || "Food Product"}
           orderVolume={orderWorkflow?.order_volume || "24,000 Units (1 x 40ft HQ FCL)"}
+          totalOrderValueEur={orderWorkflow?.total_order_value || undefined}
           containerNumber={orderWorkflow?.container_number || undefined}
           billOfLading={orderWorkflow?.bill_of_lading || undefined}
           vesselName={orderWorkflow?.vessel_name || undefined}
+          shippingLine={orderWorkflow?.shipping_line || undefined}
           etaPort={orderWorkflow?.eta_port || undefined}
-          stageName={orderWorkflow?.current_stage ? orderWorkflow.current_stage.replace(/_/g, " ").toUpperCase() : "Active Sourcing"}
-          buyerPortalUrl={`https://foodxchange.com/track/${id}`}
-          supplierPortalUrl={matchedSuppliersList[0]?.id ? `https://foodxchange.com/supplier-match/${matchedSuppliersList[0].id}` : undefined}
+          customsDeclarationNumber={orderWorkflow?.customs_declaration_number || undefined}
+          currentStage={orderWorkflow?.current_stage || "manufacturing"}
+          initialLogs={(aiAnalysis?.tripartite_notification_logs as any) || []}
+          onTriggerDispatch={async (eventType, channel) => {
+            "use server";
+            return await dispatchTripartiteNotificationAction({
+              requestId: id,
+              eventType,
+              channel,
+            });
+          }}
         />
 
         {/* ── 7-Stage Order & Logistics Workflow Tracker ── */}

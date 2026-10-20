@@ -19,6 +19,11 @@ import {
 import { renderTemplate } from "@/lib/outreach/renderTemplate";
 import { waLink } from "@/lib/outreach/waLink";
 import {
+  type TripartiteEventType,
+  type TripartiteEventPayload,
+  dispatchTripartiteEvent,
+} from "@/lib/notifications/tripartiteDispatchEngine";
+import {
   CHASER_TEMPLATES,
   detectSupplierLanguage,
   evaluateFollowUpUrgency,
@@ -1733,4 +1738,83 @@ export async function releaseFinalBalanceAndDocs(
     agentFinalCommission: agentBal,
     totalBrokerageEarned: advFee + agentBal,
   };
+}
+
+export interface DispatchTripartiteNotificationInput {
+  requestId: string;
+  eventType: TripartiteEventType;
+  channel?: "whatsapp" | "email" | "both";
+  manualNotes?: string;
+}
+
+export async function dispatchTripartiteNotificationAction(
+  input: DispatchTripartiteNotificationInput
+): Promise<{ ok: boolean; message: string; whatsappUrl?: string }> {
+  try {
+    const { data: req, error: reqErr } = await supabaseAdmin
+      .from("sourcing_requests")
+      .select("*")
+      .eq("id", input.requestId)
+      .single();
+
+    if (reqErr || !req) {
+      return { ok: false, message: reqErr?.message || "Sourcing request not found" };
+    }
+
+    const { data: matches } = await supabaseAdmin
+      .from("sourcing_matches")
+      .select("id, company_name, country, status")
+      .eq("request_id", input.requestId)
+      .order("match_score", { ascending: false })
+      .limit(3);
+
+    const match = matches?.find((m) => m.status === "approved" || m.status === "contacted") || matches?.[0];
+
+    const ai = (req.ai_analysis ?? {}) as Record<string, unknown>;
+    const wf = (ai.order_workflow as CommercialOrderLifecycle | null) ?? null;
+    const fc = wf?.financial_clearance;
+
+    const payload: TripartiteEventPayload = {
+      requestId: input.requestId,
+      eventType: input.eventType,
+      poNumber: wf?.po_number || `FDX-PO-${input.requestId.slice(0, 6).toUpperCase()}`,
+      buyerCompany: req.company || req.name || "Israeli Retail Supermarket",
+      buyerContact: req.name || undefined,
+      buyerEmail: req.email || undefined,
+      buyerPhone: req.phone || undefined,
+      supplierName: wf?.selected_supplier_name || match?.company_name || "European Food Factory",
+      supplierCountry: match?.country || "Spain / Italy (EU)",
+      productName: wf?.agreed_product_name || req.product_name || "Food Product",
+      orderVolume: wf?.order_volume || "24,000 Units (1 x 40ft HQ FCL)",
+      totalOrderValueEur: wf?.total_order_value || fc?.gross_buyer_contract_value || 44400,
+      advance30Eur: fc?.advance_milestone_30?.buyer_wire_amount || 13320,
+      balance70Eur: fc?.balance_milestone_70?.buyer_wire_amount || 31080,
+      containerNumber: wf?.container_number || undefined,
+      billOfLading: wf?.bill_of_lading || undefined,
+      vesselName: wf?.vessel_name || undefined,
+      shippingLine: wf?.shipping_line || undefined,
+      etaPort: wf?.eta_port || undefined,
+      customsDeclarationNumber: wf?.customs_declaration_number || undefined,
+      warehousePalletCount: wf?.warehouse_pallet_count || 24,
+      receivingOfficer: wf?.goods_accepted_by || undefined,
+    };
+
+    const res = await dispatchTripartiteEvent(payload, input.channel || "both");
+
+    try {
+      revalidatePath(`/admin/requests/${input.requestId}`);
+      revalidatePath("/admin/finance");
+      revalidatePath(`/track/${input.requestId}`);
+      revalidatePath(`/customs/${input.requestId}`);
+    } catch {}
+
+    return {
+      ok: res.ok,
+      message: res.message,
+      whatsappUrl: res.ok ? res.whatsappUrl : undefined,
+    };
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    return { ok: false, message: `Notification action failed: ${msg}` };
+  }
 }

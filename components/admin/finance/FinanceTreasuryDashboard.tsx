@@ -6,6 +6,7 @@ import CommercialPoDocumentModal from "@/components/documents/CommercialPoDocume
 import ExportDocumentHandoverModal from "@/components/documents/ExportDocumentHandoverModal";
 import GoodsReceiptDocumentModal from "@/components/documents/GoodsReceiptDocumentModal";
 import MaritimeVesselTracker from "@/components/shipping/MaritimeVesselTracker";
+import TripartiteDispatchCockpit from "@/components/admin/TripartiteDispatchCockpit";
 
 export interface DealFinancialRecord {
   requestId: string;
@@ -89,6 +90,7 @@ export default function FinanceTreasuryDashboard({ deals, metrics }: Props) {
   const [activeCustomsDeal, setActiveCustomsDeal] = useState<DealFinancialRecord | null>(null);
   const [activeVesselDeal, setActiveVesselDeal] = useState<DealFinancialRecord | null>(null);
   const [activeGrnDeal, setActiveGrnDeal] = useState<DealFinancialRecord | null>(null);
+  const [activeCockpitDeal, setActiveCockpitDeal] = useState<DealFinancialRecord | null>(null);
   const [waModalDeal, setWaModalDeal] = useState<DealFinancialRecord | null>(null);
   const [waRecipient, setWaRecipient] = useState<"buyer" | "factory" | "customs">("buyer");
   const [copiedLink, setCopiedLink] = useState<string | null>(null);
@@ -570,6 +572,15 @@ export default function FinanceTreasuryDashboard({ deals, metrics }: Props) {
                             <span>Goods Receipt (GRN)</span>
                           </button>
 
+                          <button
+                            type="button"
+                            onClick={() => setActiveCockpitDeal(deal)}
+                            className="text-[11px] font-bold px-2 py-1 bg-purple-50 hover:bg-purple-100 text-purple-900 border border-purple-200 rounded-lg transition flex items-center justify-center gap-1 cursor-pointer"
+                          >
+                            <span>📡</span>
+                            <span>Dispatch Radar</span>
+                          </button>
+
                           <div className="grid grid-cols-2 gap-1 pt-0.5">
                             <a
                               href={`https://api.whatsapp.com/send?text=${getBuyerWaText(deal)}`}
@@ -721,6 +732,62 @@ export default function FinanceTreasuryDashboard({ deals, metrics }: Props) {
           customsDeclarationNumber={activeGrnDeal.shipping.customsDeclaration || "IL-2604-881920"}
           warehousePalletCount={24}
         />
+      )}
+
+      {/* ── Tripartite Automated Dispatch Cockpit Modal ── */}
+      {activeCockpitDeal && (
+        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 overflow-y-auto">
+          <div className="relative w-full max-w-5xl bg-white rounded-3xl shadow-2xl border border-slate-200 overflow-hidden my-auto max-h-[90vh] flex flex-col">
+            <div className="p-4 sm:p-5 bg-slate-900 text-white flex items-center justify-between shrink-0">
+              <div className="flex items-center gap-2.5">
+                <span className="text-xl">📡</span>
+                <div>
+                  <h3 className="font-bold text-white text-base">
+                    Automated Tripartite Dispatch Desk · {activeCockpitDeal.poNumber}
+                  </h3>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    {activeCockpitDeal.buyerCompany} ↔ {activeCockpitDeal.supplierName} ({activeCockpitDeal.supplierCountry})
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setActiveCockpitDeal(null)}
+                className="w-8 h-8 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white flex items-center justify-center transition cursor-pointer text-sm"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="p-4 sm:p-6 overflow-y-auto">
+              <TripartiteDispatchCockpit
+                requestId={activeCockpitDeal.requestId}
+                poNumber={activeCockpitDeal.poNumber}
+                buyerCompany={activeCockpitDeal.buyerCompany}
+                buyerContact={activeCockpitDeal.buyerContact}
+                buyerPhone={activeCockpitDeal.buyerPhone}
+                buyerEmail={activeCockpitDeal.buyerEmail}
+                supplierName={activeCockpitDeal.supplierName}
+                supplierCountry={activeCockpitDeal.supplierCountry}
+                supplierEmail={activeCockpitDeal.supplierEmail}
+                supplierPhone={activeCockpitDeal.supplierPhone}
+                productName={activeCockpitDeal.productName}
+                orderVolume={activeCockpitDeal.orderVolume}
+                totalOrderValueEur={activeCockpitDeal.grossContractValue}
+                advance30Eur={activeCockpitDeal.advanceMilestone.buyerAmount}
+                balance70Eur={activeCockpitDeal.balanceMilestone.buyerAmount}
+                containerNumber={activeCockpitDeal.shipping.container || "MSKU-9481029"}
+                billOfLading={activeCockpitDeal.shipping.bl || "MSCUVAL881920"}
+                vesselName={activeCockpitDeal.shipping.vessel || "MSC LEANNE"}
+                shippingLine={activeCockpitDeal.shipping.line || "MSC"}
+                etaPort={activeCockpitDeal.shipping.eta}
+                customsDeclarationNumber={activeCockpitDeal.shipping.customsDeclaration}
+                warehousePalletCount={24}
+              />
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
