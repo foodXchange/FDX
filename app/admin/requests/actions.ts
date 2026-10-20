@@ -287,7 +287,7 @@ export type OrderWorkflowStage =
   | "shipping_customs_warehouse";
 
 export interface FinancialMilestoneWire {
-  status?: "pending_buyer_wire" | "wire_submitted_by_buyer" | "cleared_in_escrow" | "released_to_factory";
+  status?: "pending_buyer_wire" | "wire_submitted_by_buyer" | "cleared_in_escrow" | "released_to_factory" | "pending_bl_copy";
   buyer_wire_amount?: number;
   agent_commission_amount?: number;
   factory_wire_amount?: number;

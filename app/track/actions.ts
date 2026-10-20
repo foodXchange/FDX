@@ -49,9 +49,11 @@ export async function buyerApproveBrief(
       return { ok: false, error: updateErr.message };
     }
 
-    revalidatePath(`/track/${requestId}`);
-    revalidatePath(`/admin/requests/${requestId}`);
-    revalidatePath(`/admin/requests`);
+    try {
+      revalidatePath(`/track/${requestId}`);
+      revalidatePath(`/admin/requests/${requestId}`);
+      revalidatePath(`/admin/requests`);
+    } catch {}
     return { ok: true };
   } catch (err: unknown) {
     return { ok: false, error: err instanceof Error ? err.message : "Failed to approve brief" };
@@ -146,9 +148,11 @@ export async function buyerSubmitSensoryEvaluation(
       return { ok: false, error: updateErr.message };
     }
 
-    revalidatePath(`/track/${requestId}`);
-    revalidatePath(`/admin/requests/${requestId}`);
-    revalidatePath(`/admin/requests`);
+    try {
+      revalidatePath(`/track/${requestId}`);
+      revalidatePath(`/admin/requests/${requestId}`);
+      revalidatePath(`/admin/requests`);
+    } catch {}
     return { ok: true };
   } catch (err: unknown) {
     return { ok: false, error: err instanceof Error ? err.message : "Failed to record tasting evaluation" };
@@ -237,9 +241,11 @@ export async function buyerApprovePackaging(
       return { ok: false, error: updateErr.message };
     }
 
-    revalidatePath(`/track/${requestId}`);
-    revalidatePath(`/admin/requests/${requestId}`);
-    revalidatePath(`/admin/requests`);
+    try {
+      revalidatePath(`/track/${requestId}`);
+      revalidatePath(`/admin/requests/${requestId}`);
+      revalidatePath(`/admin/requests`);
+    } catch {}
     return { ok: true };
   } catch (err: unknown) {
     return { ok: false, error: err instanceof Error ? err.message : "Failed to record artwork approval" };
@@ -349,14 +355,270 @@ export async function buyerSubmitWireTransfer(
       },
     });
 
-    revalidatePath(`/track/${requestId}`);
-    revalidatePath(`/admin/requests/${requestId}`);
-    revalidatePath(`/admin/requests`);
+    try {
+      revalidatePath(`/track/${requestId}`);
+      revalidatePath(`/admin/requests/${requestId}`);
+      revalidatePath(`/admin/requests`);
+    } catch {}
     return { ok: true };
   } catch (err: unknown) {
     return {
       ok: false,
       error: err instanceof Error ? err.message : "Failed to record wire transfer",
+    };
+  }
+}
+
+export interface BuyerAcceptOfferAndIssuePoInput {
+  requestId: string;
+  matchId: string;
+  producerCode: string;
+  quantityUnits: number;
+  buyerPoNumber?: string;
+  destinationWarehouse?: string;
+  contactName: string;
+  contactEmail?: string;
+  contactPhone?: string;
+  specialInstructions?: string;
+}
+
+export async function buyerAcceptOfferAndIssuePo(
+  input: BuyerAcceptOfferAndIssuePoInput
+): Promise<
+  | {
+      ok: true;
+      poNumber: string;
+      totalValueEur: number;
+      advanceDueEur: number;
+      balanceDueEur: number;
+    }
+  | { ok: false; error: string }
+> {
+  try {
+    const { requestId, matchId, quantityUnits } = input;
+    if (!requestId || !matchId || !quantityUnits || quantityUnits <= 0) {
+      return { ok: false, error: "Invalid order parameters" };
+    }
+
+    // 1. Fetch Request & Match in parallel
+    const [reqRes, matchRes] = await Promise.all([
+      supabaseAdmin
+        .from("sourcing_requests")
+        .select("id, name, company, product_name, ai_analysis")
+        .eq("id", requestId)
+        .single(),
+      supabaseAdmin
+        .from("sourcing_matches")
+        .select("id, supplier_id, company_name, product_name, country, match_breakdown")
+        .eq("id", matchId)
+        .single(),
+    ]);
+
+    if (reqRes.error || !reqRes.data) {
+      return { ok: false, error: reqRes.error?.message || "Request not found" };
+    }
+    if (matchRes.error || !matchRes.data) {
+      return { ok: false, error: matchRes.error?.message || "Supplier offer not found" };
+    }
+
+    const req = reqRes.data;
+    const match = matchRes.data;
+
+    const breakdown = (match.match_breakdown ?? {}) as Record<string, unknown>;
+    const quote = (breakdown.quote ?? {}) as Record<string, unknown>;
+    const agentMargin = (breakdown.agent_margin ?? null) as Record<string, unknown> | null;
+
+    // 2. Financial calculation
+    const rawFactoryCost = typeof quote.unit_price === "number" ? quote.unit_price : 1.75;
+    let sellingPrice: number;
+
+    if (agentMargin && typeof agentMargin.buyer_quoted_price === "number") {
+      sellingPrice = agentMargin.buyer_quoted_price;
+    } else {
+      sellingPrice = Number((rawFactoryCost + 0.1).toFixed(2)); // Standard 10 cent / unit agent spread
+    }
+
+    const currency = typeof quote.currency === "string" ? quote.currency : "EUR";
+    const incoterm = typeof quote.incoterm === "string" ? quote.incoterm : "CIF Ashdod Port (Israel)";
+
+    const totalBuyerContractEur = Number((sellingPrice * quantityUnits).toFixed(2));
+    const totalFactoryCostEur = Number((rawFactoryCost * quantityUnits).toFixed(2));
+    const totalBrokerPoolEur = Number((totalBuyerContractEur - totalFactoryCostEur).toFixed(2));
+
+    const advance30Eur = Number((totalBuyerContractEur * 0.3).toFixed(2));
+    const balance70Eur = Number((totalBuyerContractEur * 0.7).toFixed(2));
+    const factoryAdvance30Eur = Number((totalFactoryCostEur * 0.3).toFixed(2));
+    const brokerAdvanceFeeEur = Number((advance30Eur - factoryAdvance30Eur).toFixed(2));
+
+    const now = new Date().toISOString();
+    const poNumber =
+      input.buyerPoNumber?.trim() ||
+      `FDX-PO-${new Date().getFullYear()}-${match.id.slice(0, 6).toUpperCase()}`;
+
+    // 3. Assemble CommercialOrderLifecycle
+    const ai = (req.ai_analysis as Record<string, unknown> | null) ?? {};
+    const existingWorkflow = (ai.order_workflow as CommercialOrderLifecycle | null) ?? {
+      current_stage: "order_po_issued",
+    };
+
+    const updatedWorkflow: CommercialOrderLifecycle = {
+      ...existingWorkflow,
+      current_stage: "order_po_issued",
+      selected_supplier_id: match.supplier_id,
+      selected_supplier_name: match.company_name,
+      agreed_product_name: match.product_name || req.product_name,
+      agreed_unit_price: `${sellingPrice.toFixed(2)} ${currency}`,
+      currency,
+      order_volume: `${quantityUnits.toLocaleString()} units (${incoterm})`,
+      total_order_value: totalBuyerContractEur,
+      incoterms: incoterm,
+      payment_terms: "30% Advance Wire, 70% against B/L copy",
+      po_number: poNumber,
+      po_date: now.slice(0, 10),
+      production_status: "queued",
+      port_of_origin:
+        match.country === "Spain"
+          ? "Valencia, Spain"
+          : match.country === "Italy"
+          ? "Genova / Salerno, Italy"
+          : "European Main Port",
+      port_of_destination: "Ashdod Port, Israel",
+      buyer_warehouse_address:
+        input.destinationWarehouse || `${req.company || req.name || "Buyer"} Central Logistics Warehouse`,
+      production_milestones: {
+        ...(existingWorkflow.production_milestones || {}),
+        deposit_transferred: false,
+        raw_materials_procured: false,
+        bottling_completed: false,
+        psi_inspection_passed: false,
+        container_loaded: false,
+      },
+      financial_clearance: {
+        buyer_unit_price: sellingPrice,
+        factory_unit_price: rawFactoryCost,
+        agent_margin_per_unit: Number((sellingPrice - rawFactoryCost).toFixed(2)),
+        total_units: quantityUnits,
+        gross_buyer_contract_value: totalBuyerContractEur,
+        factory_contract_cost: totalFactoryCostEur,
+        total_agent_brokerage_pool: totalBrokerPoolEur,
+        advance_milestone_30: {
+          buyer_wire_amount: advance30Eur,
+          factory_wire_amount: factoryAdvance30Eur,
+          agent_commission_amount: brokerAdvanceFeeEur,
+          status: "pending_buyer_wire",
+        },
+        balance_milestone_70: {
+          buyer_wire_amount: balance70Eur,
+          factory_wire_amount: Number((totalFactoryCostEur * 0.7).toFixed(2)),
+          agent_commission_amount: Number((totalBrokerPoolEur * 0.7).toFixed(2)),
+          status: "pending_bl_copy",
+        },
+        escrow_split_verified: false,
+        updated_at: now,
+        updated_by: `Buyer Portal (${input.contactName || "Authorized Procurement"})`,
+      },
+      updated_at: now,
+      updated_by: "Buyer Portal (Verified PO Issuance)",
+    };
+
+    // 4. Update sourcing_requests (stage is tracked in order_workflow.current_stage)
+    const { error: updateReqErr } = await supabaseAdmin
+      .from("sourcing_requests")
+      .update({
+        ai_analysis: {
+          ...ai,
+          order_workflow: updatedWorkflow,
+        },
+      })
+      .eq("id", requestId);
+
+    if (updateReqErr) {
+      console.error("buyerAcceptOfferAndIssuePo request update error:", updateReqErr);
+      return { ok: false, error: updateReqErr.message };
+    }
+
+    // 5. Update sourcing_matches with order awarded metadata
+    const updatedMatchBreakdown = {
+      ...breakdown,
+      order_awarded: {
+        po_number: poNumber,
+        quantity_units: quantityUnits,
+        contract_value_eur: totalBuyerContractEur,
+        selling_price_eur: sellingPrice,
+        factory_cost_eur: rawFactoryCost,
+        awarded_at: now,
+        authorized_by: input.contactName,
+      },
+    };
+
+    await supabaseAdmin
+      .from("sourcing_matches")
+      .update({
+        status: "approved",
+        match_breakdown: updatedMatchBreakdown,
+      })
+      .eq("id", matchId);
+
+    // 6. Record in match_messages
+    const buyerName = req.company || req.name || "Buyer";
+    await supabaseAdmin.from("match_messages").insert({
+      match_id: matchId,
+      sender_type: "buyer",
+      message: `[Commercial PO Issued · Deal Won]\nBuyer ${buyerName} officially accepted the commercial offer and issued PO #${poNumber} for ${quantityUnits.toLocaleString()} units.\nTotal Contract Value: €${totalBuyerContractEur.toLocaleString()} (${incoterm})\n30% Advance Deposit Due: €${advance30Eur.toLocaleString()}\nAuthorized by: ${input.contactName}${input.contactPhone ? ` · ${input.contactPhone}` : ""}`,
+    });
+
+    // 7. Fire urgent admin notification
+    await createNotification(
+      "response",
+      `🎉 DEAL WON: Commercial PO #${poNumber} Issued!`,
+      `[${buyerName}] accepted ${match.company_name} offer for ${quantityUnits.toLocaleString()} units of ${match.product_name}. Contract: €${totalBuyerContractEur.toLocaleString()} (Broker Spread: +€${totalBrokerPoolEur.toLocaleString()}). Ready for 30% wire clearance.`,
+      {
+        requestId,
+        matchId,
+        poNumber,
+        totalValue: totalBuyerContractEur,
+        advanceDue: advance30Eur,
+        brokerSpread: totalBrokerPoolEur,
+        action_url: `/admin/requests/${requestId}`,
+        priority: "urgent",
+      }
+    );
+
+    // 8. Log audit trail
+    await logAdminAction({
+      adminEmail: "buyer-portal@system",
+      action: "buyer_accept_offer_and_issue_po",
+      targetType: "sourcing_request",
+      targetId: requestId,
+      metadata: {
+        po_number: poNumber,
+        match_id: matchId,
+        supplier_name: match.company_name,
+        quantity_units: quantityUnits,
+        total_contract_eur: totalBuyerContractEur,
+        broker_spread_eur: totalBrokerPoolEur,
+        advance_30_eur: advance30Eur,
+      },
+    });
+
+    try {
+      revalidatePath(`/track/${requestId}`);
+      revalidatePath(`/admin/requests/${requestId}`);
+      revalidatePath(`/admin/requests`);
+    } catch {}
+
+    return {
+      ok: true,
+      poNumber,
+      totalValueEur: totalBuyerContractEur,
+      advanceDueEur: advance30Eur,
+      balanceDueEur: balance70Eur,
+    };
+  } catch (err: unknown) {
+    console.error("buyerAcceptOfferAndIssuePo error:", err);
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "Failed to record purchase order",
     };
   }
 }

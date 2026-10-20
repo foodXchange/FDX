@@ -15,6 +15,7 @@ import {
   buyerApprovePackaging,
   buyerSubmitWireTransfer,
 } from "@/app/track/actions";
+import BuyerPoModal from "./BuyerPoModal";
 
 export interface BuyerPortalData {
   requestId: string;
@@ -77,6 +78,10 @@ export default function BuyerCollaborationPortal({ data }: Props) {
   const [wireActionMsg, setWireActionMsg] = useState<string | null>(null);
   const [showWireModal, setShowWireModal] = useState(false);
   const [copiedBankField, setCopiedBankField] = useState<string | null>(null);
+
+  // Commercial PO Placement state
+  const [poOffer, setPoOffer] = useState<BuyerPortalData["offers"][0] | null>(null);
+  const [activePoNumber, setActivePoNumber] = useState(data.orderWorkflow?.po_number || null);
 
   const totalCalculated = data.orderWorkflow?.total_order_value || (fc?.gross_buyer_contract_value || 20880);
   const advanceAmount = fc?.advance_milestone_30?.buyer_wire_amount || (totalCalculated * 0.3);
@@ -300,7 +305,11 @@ export default function BuyerCollaborationPortal({ data }: Props) {
               </div>
               <div className="text-sm font-bold text-amber-300 mt-0.5 flex items-center gap-1.5">
                 <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
-                {awbNumber
+                {activePoNumber
+                  ? lang === "he"
+                    ? `הזמנת רכש מסחרית פעילה (${activePoNumber})`
+                    : `Commercial PO Active (${activePoNumber})`
+                  : awbNumber
                   ? lang === "he"
                     ? "שילוח דוגמאות בבלדרות אווירית"
                     : "Courier Sample Evaluation"
@@ -646,15 +655,21 @@ export default function BuyerCollaborationPortal({ data }: Props) {
                     </div>
 
                     {/* Action */}
-                    <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
-                      <span className="text-[11px] text-slate-400">
-                        {lang === "he" ? "דוגמאות מוכנות לשילוח" : "Samples ready for dispatch"}
-                      </span>
+                    <div className="pt-3 border-t border-slate-100 flex items-center justify-between gap-2 flex-wrap">
                       <button
+                        type="button"
                         onClick={() => setActiveTab("samples")}
-                        className="px-3.5 py-1.5 rounded-lg bg-slate-900 text-white font-bold hover:bg-slate-800 text-xs shadow-2xs"
+                        className="px-3 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-semibold text-xs transition cursor-pointer"
                       >
-                        {lang === "he" ? "שילוח דוגמאות ב-DHL ←" : "Request DHL Sample →"}
+                        {lang === "he" ? "📦 בקש דוגמאות ב-DHL" : "📦 Request DHL Sample"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setPoOffer(offer)}
+                        className="px-3.5 py-1.5 rounded-lg bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-700 hover:to-amber-700 text-white font-bold text-xs shadow-xs transition cursor-pointer flex items-center gap-1.5"
+                      >
+                        <span>🎯</span>
+                        <span>{lang === "he" ? "בחר והוצא הזמנה (PO) ←" : "Accept & Issue Commercial PO →"}</span>
                       </button>
                     </div>
                   </div>
@@ -1480,6 +1495,28 @@ export default function BuyerCollaborationPortal({ data }: Props) {
               )}
             </div>
           </div>
+        )}
+
+        {/* ── Commercial Purchase Order Issuance Modal ── */}
+        {poOffer && (
+          <BuyerPoModal
+            isOpen={Boolean(poOffer)}
+            onClose={() => setPoOffer(null)}
+            requestId={data.requestId}
+            buyerCompany={data.buyerCompany}
+            offer={poOffer}
+            lang={lang}
+            onSuccess={(poNumber, totalValue, advanceDue) => {
+              setPoOffer(null);
+              setActivePoNumber(poNumber);
+              setActiveTab("settlement");
+              setWireActionMsg(
+                lang === "he"
+                  ? `🎉 הזמנת רכש מסחרית #${poNumber} הופקה ונחתמה בהצלחה (שווי חוזה: €${totalValue.toLocaleString()})! נא להסדיר את מקדמת ה-30% (€${advanceDue.toLocaleString()}) למטה להפעלת קו הייצור במפעל.`
+                  : `🎉 Commercial PO #${poNumber} signed & issued successfully (Total: €${totalValue.toLocaleString()})! Please settle the 30% advance deposit (€${advanceDue.toLocaleString()}) below.`
+              );
+            }}
+          />
         )}
       </main>
 
