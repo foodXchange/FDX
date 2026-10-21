@@ -5,6 +5,7 @@ import type { SupplierMatch } from "./types";
 import MatchPipelineBadge from "./MatchPipelineBadge";
 import MatchDetailsPanel from "./MatchDetailsPanel";
 import RequestInfoModal from "./RequestInfoModal";
+import SampleRequestModal from "./SampleRequestModal";
 import ProductImage from "@/components/ProductImage";
 import { countryToFlag } from "@/lib/admin/countryFlag";
 import { getInitials } from "@/lib/admin/avatarPalette";
@@ -62,6 +63,8 @@ export default function BuyerMatchCard({ match }: { match: BuyerMatch }) {
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [infoModalOpen, setInfoModalOpen] = useState(false);
   const [interested, setInterested] = useState(!!match.buyer_interest);
+  const [sampleModalOpen, setSampleModalOpen] = useState(false);
+  const [sampleRequested, setSampleRequested] = useState(!!(match.match_breakdown as Record<string, unknown> | null)?.sample_request);
   const [sendingInterest, setSendingInterest] = useState(false);
   const [interestError, setInterestError] = useState<string | null>(null);
   const [confirmInterest, setConfirmInterest] = useState(false);
@@ -230,15 +233,28 @@ export default function BuyerMatchCard({ match }: { match: BuyerMatch }) {
         <div className="mt-4 pt-3 border-t border-white/10 flex items-center gap-2 flex-wrap">
           <button
             type="button"
+            onClick={() => setSampleModalOpen(true)}
+            className={`text-sm font-bold px-4 py-2 rounded-lg transition flex items-center gap-1.5 shadow-md ${
+              sampleRequested
+                ? "bg-emerald-600/20 text-emerald-300 border border-emerald-500/30"
+                : "bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white shadow-orange-500/20 cursor-pointer"
+            }`}
+          >
+            <span>🥄</span>
+            <span>{sampleRequested ? "Samples Requested ✓" : "Request Tasting Samples"}</span>
+          </button>
+
+          <button
+            type="button"
             onClick={() => setConfirmInterest((v) => !v)}
             disabled={interested}
             className={`text-sm font-medium px-4 py-2 rounded-lg transition disabled:opacity-70 ${
               interested
                 ? "bg-green-500/10 text-green-300 cursor-default"
-                : "bg-orange-500 hover:bg-orange-600 text-white"
+                : "bg-white/10 hover:bg-white/15 text-white"
             }`}
           >
-            {interested ? "Interest sent ✓ We'll be in touch within 24 hours." : "I'm interested in this supplier →"}
+            {interested ? "Interest Sent ✓" : "Introduce Factory →"}
           </button>
 
           {!messagingDisabled && (
@@ -387,6 +403,19 @@ export default function BuyerMatchCard({ match }: { match: BuyerMatch }) {
         <MatchDetailsPanel match={match} viewerRole="buyer" onClose={() => setDetailsOpen(false)} />
       )}
       {infoModalOpen && <RequestInfoModal matchId={match.id} onClose={() => setInfoModalOpen(false)} />}
+      {sampleModalOpen && (
+        <SampleRequestModal
+          matchId={match.id}
+          factoryName={companyName}
+          productName={match.product_name || product?.product_name || "Food Product"}
+          isOpen={true}
+          onClose={() => setSampleModalOpen(false)}
+          onSuccess={() => {
+            setSampleRequested(true);
+            setInterested(true);
+          }}
+        />
+      )}
     </>
   );
 }

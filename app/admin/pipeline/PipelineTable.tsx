@@ -10,6 +10,7 @@ import {
   getNextActionLabel,
 } from "./stage";
 import { bulkUpdateMatchStage } from "./actions";
+import BulkRfqDispatchModal from "./BulkRfqDispatchModal";
 
 export type PipelineRow = {
   id: string;
@@ -78,6 +79,7 @@ export default function PipelineTable({
   const router = useRouter();
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkBusy, setBulkBusy] = useState(false);
+  const [dispatchModalOpen, setDispatchModalOpen] = useState(false);
 
   const allSelected = rows.length > 0 && selectedIds.size === rows.length;
 
@@ -135,7 +137,16 @@ export default function PipelineTable({
               {selectedIds.size} deal{selectedIds.size === 1 ? "" : "s"} selected
             </span>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            <button
+              type="button"
+              onClick={() => setDispatchModalOpen(true)}
+              disabled={bulkBusy}
+              className="px-3.5 py-1.5 text-xs font-bold rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white shadow-xs transition-colors cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
+            >
+              <span>🚀</span>
+              <span>Batch Dispatch RFQs ({selectedIds.size})</span>
+            </button>
             <button
               type="button"
               onClick={handleBulkApprove}
@@ -311,6 +322,18 @@ export default function PipelineTable({
           </tbody>
         </table>
       </div>
+
+      <BulkRfqDispatchModal
+        deals={rows}
+        selectedIds={selectedIds}
+        isOpen={dispatchModalOpen}
+        onClose={() => setDispatchModalOpen(false)}
+        onDispatched={(dispatchedIds) => {
+          setSelectedIds(new Set());
+          setDispatchModalOpen(false);
+          router.refresh();
+        }}
+      />
     </div>
   );
 }

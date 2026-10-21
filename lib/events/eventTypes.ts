@@ -14,6 +14,7 @@ export type EventType =
   | "request_viewed" // wired: app/en/portal/requests/[id]
   | "matches_viewed" // wired: app/en/portal/requests/[id]
   | "match_interest" // wired: app/api/buyer/interested
+  | "sample_requested" // wired: app/api/buyer/request-sample
   | "info_requested" // wired: app/api/buyer/request-info
   | "support_message_sent" // wired: app/api/buyer/support
   | "question_asked" // wired: app/api/buyer/ask-question

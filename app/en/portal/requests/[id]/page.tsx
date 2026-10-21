@@ -6,7 +6,8 @@ import { cleanRequestName } from "@/lib/matching/cleanRequestName";
 import { logEvent } from "@/lib/events/logEvent";
 import { buyerOwnsRequest } from "@/lib/matches/buyerAuth";
 import StatusBadge from "@/components/portal/StatusBadge";
-import BuyerMatchCard, { type BuyerMatch, type BuyerMatchProduct } from "@/components/matches/BuyerMatchCard";
+import BuyerMatchesContainer from "@/components/matches/BuyerMatchesContainer";
+import type { BuyerMatch, BuyerMatchProduct } from "@/components/matches/BuyerMatchCard";
 
 type Params = Promise<{ id: string }>;
 
@@ -147,19 +148,12 @@ export default async function PortalRequestDetailPage({ params }: { params: Para
           </div>
         </div>
 
-        <h2 className="text-lg font-semibold text-white mt-10 mb-4">Matched suppliers</h2>
-
-        {matches.length === 0 ? (
-          <div className="dark-card p-6 text-sm text-slate-400">
-            Waiting for our team to match you with suppliers.
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {matches.map((m) => (
-              <BuyerMatchCard key={m.id} match={m} />
-            ))}
-          </div>
-        )}
+        <div className="mt-8">
+          <BuyerMatchesContainer
+            matches={matches}
+            buyerCompany={(request.company as string) || "Retail Buyer"}
+          />
+        </div>
       </div>
     </section>
   );
