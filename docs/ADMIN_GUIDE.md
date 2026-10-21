@@ -74,6 +74,18 @@ stateDiagram-v2
    - **Standard**: 30% advance on PO confirmation / 70% against Bill of Lading copy & pre-shipment lab certificate.
 4. Export the bilingual Hebrew/English PO PDF for buyer and factory countersignature.
 
+### Stage 5.5: Hebrew Packaging & Regulatory AI Audit (`/admin/compliance/label-checker`)
+Before releasing a factory production run, audit packaging artwork against Israeli Standard SI 1145 and Red Warning Badge regulations:
+1. In the pipeline table, click the **`[ 🏷️ Label ]`** action on the deal row, or visit `/admin/compliance/label-checker`.
+2. Select a reference preset or input custom Hebrew denominations, ingredients, importer details, and nutritional values.
+3. The engine automatically checks:
+   - Mandatory Front-of-Package Red Badges (Sodium &ge;400mg, Sugar &ge;10g, Sat Fat &ge;4g per 100g).
+   - Ingredients descending order and percentage declarations.
+   - Chief Rabbinate of Israel import division kosher clause (אישור הרה״ר).
+   - Allergen information bold box.
+4. Click **"Copy Designer Notes"** to provide the European factory designer with numbered, actionable corrections before printing plates are engraved.
+5. Saving the audit logs the compliance breakdown to `sourcing_matches.match_breakdown.label_compliance` and posts an audit notification to the deal message thread.
+
 ### Stage 6: Production Release & Vessel Tracking
 1. Once advance deposit receipt is confirmed, click **"🚀 Release Production"**.
 2. Sign off on:

@@ -24,6 +24,8 @@
 | `/api/admin/pipeline/bulk-rfq` | `POST` | Admin | Dispatches simultaneous RFQs to selected European suppliers via Resend and logs `supplier_actions` |
 | `/api/admin/pipeline/generate-po` | `POST` | Admin | Generates bilingual English/Hebrew B2B Purchase Order with commercial milestone payments (30/70) |
 | `/api/admin/pipeline/release-production` | `POST` | Admin | Authorizes factory production run upon confirmation of advance deposit receipt |
+| `/api/admin/compliance/analyze-label` | `POST` | Admin | Audits food packaging artwork against Israeli Standard SI 1145, computes Front-of-Package Red Warning circles, and logs compliance breakdown |
+| `/api/admin/docs/quick-search` | `GET` | Admin | Fast-searches across all 54 Knowledge Base specifications and regulations for the slide-over SOP drawer |
 | `/api/buyer/request-sample` | `POST` | Buyer | Allows Israeli importers to order express DHL tasting samples with delivery address and sensory requirements |
 
 ---

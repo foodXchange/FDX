@@ -44,6 +44,10 @@ timeline
   - Commercial contracts with 30/70 payment milestone splits, Hebrew plate sign-offs, and vessel ETA tracking.
 - [x] **Platform Knowledge Base & SOP Center (`AdminDocsHub.tsx`)**:
   - 54 comprehensive technical specifications, matching algorithms, scraper pipelines, and regulatory playbooks with internal vs. public filtering.
+- [x] **Interactive 6-Stage Deal Stepper & Trade SOP Helper Drawer (`DealWorkflowStepper.tsx` & `SopHelperDrawer.tsx`)**:
+  - Visual 6-step progress pills with hover status tooltips, 1-click modal openers, and a slide-over drawer searching all 54 specs with fast-copy Incoterms/Kosher cheat sheets.
+- [x] **Israeli Supermarket Hebrew Label & Regulatory AI Reviewer (`labelComplianceEngine.ts`)**:
+  - Full packaging artwork verification against Israeli Standard SI 1145, Chief Rabbinate fraud-prevention kosher laws, and mandatory Front-of-Package Red Warning circles (Sodium >=400mg, Sugar >=10g, Sat Fat >=4g). Accessible via `/admin/compliance/label-checker` and `[ 🏷️ Label ]` deal button.
 
 ---
 

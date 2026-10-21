@@ -46,7 +46,7 @@ FoodXchange provides a complete transaction desk spanning the entire B2B sourcin
 3. **Physical Tasting Samples Hub**: Express courier tracking (DHL/FedEx AWB) and 5-dimension sensory scorecard (Taste, Texture, Packaging, Shelf life, Retail fit).
 4. **Google Meet & AI Intelligence**: Instant video calls with dual-timezone synchronization (Israel IDT vs. Europe CEST) and AI extraction of commercial agreements, CIF terms, and action items.
 5. **Bilingual B2B Purchase Orders**: Contract generation with institutional 30/70 payment milestone splits (30% advance / 70% against Bill of Lading copy).
-6. **Production Release & Ocean Freight**: Artwork plate approvals, Chief Rabbinate supervision schedules, and vessel tracking into Israeli ports.
+6. **Packaging Compliance & Production Release**: Israeli Standard SI 1145 audit, Front-of-Package Red Badges calculation, Chief Rabbinate supervision schedules, and vessel tracking into Israeli ports.
 
 ---
 
