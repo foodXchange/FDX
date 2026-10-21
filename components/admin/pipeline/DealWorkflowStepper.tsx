@@ -138,7 +138,13 @@ export default function DealWorkflowStepper({
               {/* Rich Tooltip on Hover */}
               {hoveredStep === stepNum && (
                 <div
-                  className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 p-3 bg-slate-900 text-white rounded-xl shadow-2xl border border-slate-700 text-xs z-50 pointer-events-none animate-in fade-in zoom-in-95 duration-150"
+                  className={`absolute bottom-full mb-2 w-64 p-3 bg-slate-900 text-white rounded-xl shadow-2xl border border-slate-700 text-xs z-50 pointer-events-none animate-in fade-in zoom-in-95 duration-150 ${
+                    idx <= 1
+                      ? "left-0"
+                      : idx >= STEPS.length - 2
+                      ? "right-0"
+                      : "left-1/2 -translate-x-1/2"
+                  }`}
                   onClick={(e) => e.stopPropagation()}
                 >
                   <div className="flex items-center justify-between gap-1 mb-1.5 pb-1 border-b border-slate-800">
@@ -169,7 +175,15 @@ export default function DealWorkflowStepper({
                   </div>
 
                   {/* Tooltip Triangle Arrow */}
-                  <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-slate-900" />
+                  <div
+                    className={`absolute top-full border-4 border-transparent border-t-slate-900 ${
+                      idx <= 1
+                        ? "left-4"
+                        : idx >= STEPS.length - 2
+                        ? "right-4"
+                        : "left-1/2 -translate-x-1/2"
+                    }`}
+                  />
                 </div>
               )}
             </div>
