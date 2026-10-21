@@ -80,6 +80,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           <div className="flex items-center gap-3">
             <div className="hidden md:flex items-center gap-1.5">
               <Link
+                href="/admin/docs"
+                className="px-2.5 py-1 text-xs font-semibold rounded-md border border-slate-200 bg-white text-slate-700 hover:border-orange-300 hover:text-orange-600 transition-colors shadow-2xs"
+              >
+                📚 SOPs & Docs
+              </Link>
+              <Link
                 href="/admin/analytics"
                 className="px-2.5 py-1 text-xs font-semibold rounded-md border border-slate-200 bg-white text-slate-700 hover:border-orange-300 hover:text-orange-600 transition-colors shadow-2xs"
               >

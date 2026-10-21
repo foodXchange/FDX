@@ -38,6 +38,7 @@ const sections: { title: string; links: NavItem[] }[] = [
   {
     title: "Sales & Content",
     links: [
+      { href: "/admin/docs", label: "Knowledge Base & SOPs", icon: "📚", badge: "54" },
       { href: "/admin/catalogue", label: "Product Catalogue", icon: "📋" },
       { href: "/admin/proposals", label: "Buyer Proposals", icon: "💼" },
       { href: "/en/admin/newsletter-builder", label: "Newsletter Builder", icon: "✉️" },
