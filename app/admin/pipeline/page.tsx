@@ -20,7 +20,7 @@ export default async function PipelinePage() {
         `id, request_id, supplier_id, status, match_score,
          product_name, company_name, country,
          approved_at, sent_at, responded_at, closed_at, sent_via,
-         response_note, whatsapp_message, match_summary,
+         response_note, whatsapp_message, match_summary, match_breakdown,
          sourcing_requests!request_id(company, product_name, buyer_id)`
       )
       .order("match_score", { ascending: false })
@@ -66,6 +66,7 @@ export default async function PipelinePage() {
     response_note: string | null;
     whatsapp_message: string | null;
     match_summary: string | null;
+    match_breakdown?: Record<string, any> | null;
     sourcing_requests: {
       company: string | null;
       product_name: string | null;
@@ -96,6 +97,7 @@ export default async function PipelinePage() {
     response_note: m.response_note,
     whatsapp_message: m.whatsapp_message,
     match_summary: m.match_summary,
+    match_breakdown: m.match_breakdown ?? null,
     buyer_company: m.sourcing_requests?.company ?? null,
     buyer_product: m.sourcing_requests?.product_name ?? null,
     buyer_id: m.sourcing_requests?.buyer_id ?? null,

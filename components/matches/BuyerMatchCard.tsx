@@ -6,6 +6,7 @@ import MatchPipelineBadge from "./MatchPipelineBadge";
 import MatchDetailsPanel from "./MatchDetailsPanel";
 import RequestInfoModal from "./RequestInfoModal";
 import SampleRequestModal from "./SampleRequestModal";
+import DealWorkflowStepper from "@/components/admin/pipeline/DealWorkflowStepper";
 import ProductImage from "@/components/ProductImage";
 import { countryToFlag } from "@/lib/admin/countryFlag";
 import { getInitials } from "@/lib/admin/avatarPalette";
@@ -231,6 +232,22 @@ export default function BuyerMatchCard({ match }: { match: BuyerMatch }) {
             {match.match_summary}
           </p>
         )}
+
+        {/* Deal Sourcing 6-Step Stepper */}
+        <div className="mt-4 pt-3.5 border-t border-white/10">
+          <div className="flex items-center justify-between gap-2 mb-2 text-xs">
+            <span className="font-bold text-slate-200 flex items-center gap-1.5">
+              <span>🔄</span> Sourcing Progress
+            </span>
+            <span className="text-[11px] text-slate-400">Hover step for milestone details</span>
+          </div>
+          <DealWorkflowStepper
+            dealId={match.id}
+            status={match.status}
+            matchBreakdown={breakdown}
+            compact={false}
+          />
+        </div>
 
         {/* Scheduled Video Call Banner */}
         {activeMeeting && (

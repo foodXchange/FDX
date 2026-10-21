@@ -12,6 +12,7 @@ import {
 import { bulkUpdateMatchStage } from "./actions";
 import BulkRfqDispatchModal from "./BulkRfqDispatchModal";
 import MeetingIntelligenceModal from "@/components/admin/meetings/MeetingIntelligenceModal";
+import DealWorkflowStepper from "@/components/admin/pipeline/DealWorkflowStepper";
 
 export type PipelineRow = {
   id: string;
@@ -33,6 +34,7 @@ export type PipelineRow = {
   buyer_company: string | null;
   buyer_product: string | null;
   buyer_id: string | null;
+  match_breakdown?: Record<string, any> | null;
 };
 
 function lastUpdated(row: PipelineRow): string {
@@ -193,7 +195,7 @@ export default function PipelineTable({
               <th className="py-2.5 pr-4 font-semibold">Supplier</th>
               <th className="py-2.5 pr-4 font-semibold">Origin</th>
               <th className="py-2.5 pr-4 text-center font-semibold">Score</th>
-              <th className="py-2.5 pr-4 font-semibold">Stage</th>
+              <th className="py-2.5 pr-4 font-semibold min-w-[260px]">Stage & 6-Step Workflow</th>
               <th className="py-2.5 pr-4 font-semibold">Last Updated</th>
               <th className="py-2.5 pr-4 text-right font-semibold w-40">Pipeline Action</th>
             </tr>
@@ -269,7 +271,29 @@ export default function PipelineTable({
                     </span>
                   </td>
                   <td className="py-3 pr-4">
-                    <StatusBadge status={currentStatus} />
+                    <div className="flex flex-col gap-1.5 min-w-[260px]">
+                      <div className="flex items-center justify-between gap-1">
+                        <StatusBadge status={currentStatus} />
+                        <span className="text-[10px] text-gray-400 font-medium">6-Step Flow</span>
+                      </div>
+                      <DealWorkflowStepper
+                        dealId={row.id}
+                        status={currentStatus}
+                        matchScore={row.match_score}
+                        matchBreakdown={row.match_breakdown}
+                        compact={true}
+                        onStepClick={(stepNum, stepKey) => {
+                          if (stepKey === "meet") {
+                            setMeetingDeal(row);
+                          } else if (stepKey === "rfq") {
+                            setSelectedIds(new Set([row.id]));
+                            setDispatchModalOpen(true);
+                          } else {
+                            onOpenModal(row, "details");
+                          }
+                        }}
+                      />
+                    </div>
                   </td>
                   <td className="py-3 pr-4 text-gray-400 text-xs whitespace-nowrap">
                     {lastUpdated(row)}

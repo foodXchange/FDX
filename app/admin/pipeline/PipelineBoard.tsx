@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import PipelineTable, { type PipelineRow } from "./PipelineTable";
 import PipelineKanban from "./PipelineKanban";
 import DealActionModal from "./DealActionModal";
+import SopHelperDrawer from "@/components/admin/docs/SopHelperDrawer";
 import CategoryCombobox from "@/components/admin/CategoryCombobox";
 import {
   STAGE_COLORS,
@@ -42,6 +43,7 @@ export default function PipelineBoard({
   // Modal state
   const [modalDeal, setModalDeal] = useState<PipelineRow | null>(null);
   const [modalMode, setModalMode] = useState<"send" | "respond" | "details" | "reject" | null>(null);
+  const [sopDrawerOpen, setSopDrawerOpen] = useState(false);
 
   // Auto-approval state
   const [isAutoApproving, setIsAutoApproving] = useState(false);
@@ -227,7 +229,20 @@ export default function PipelineBoard({
         </div>
 
         {/* View Switcher & 1-Click Action */}
-        <div className="flex items-center gap-2 self-end sm:self-auto">
+        <div className="flex items-center gap-2 self-end sm:self-auto flex-wrap">
+          <button
+            type="button"
+            onClick={() => setSopDrawerOpen(true)}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg bg-slate-900 text-white hover:bg-slate-800 transition-colors shadow-xs cursor-pointer border border-slate-700"
+            title="Open Trade SOP & Regulation Knowledge Base Drawer"
+          >
+            <span className="text-orange-400">💡</span>
+            <span>Trade SOP & Rules</span>
+            <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+              54 Specs
+            </span>
+          </button>
+
           <button
             type="button"
             onClick={handleAutoApprove}
@@ -369,6 +384,12 @@ export default function PipelineBoard({
           setModalMode(null);
         }}
         onSuccess={handleModalSuccess}
+      />
+
+      {/* Slide-over Trade SOP & Knowledge Base Drawer */}
+      <SopHelperDrawer
+        isOpen={sopDrawerOpen}
+        onClose={() => setSopDrawerOpen(false)}
       />
     </div>
   );
