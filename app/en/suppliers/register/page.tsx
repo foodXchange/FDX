@@ -252,7 +252,45 @@ export default async function SupplierRegisterPage() {
 
           <FAQAccordion items={SUPPLIER_FAQS} />
 
-          <div className="mt-12 text-center p-6 rounded-2xl border border-white/10 bg-slate-900">
+          {/* Regulatory & Knowledge Base Hub Banner */}
+          <div className="mt-10 p-6 rounded-2xl border border-orange-500/30 bg-gradient-to-r from-orange-500/10 via-slate-900 to-slate-900">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div>
+                <div className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-orange-400 mb-1">
+                  <span>📚</span>
+                  <span>Manufacturer Export Knowledge Base</span>
+                </div>
+                <h3 className="text-base font-bold text-white">
+                  Need detailed guidance on Israeli food import regulations?
+                </h3>
+                <p className="text-xs text-slate-400 mt-1 max-w-xl">
+                  Browse our library of 43 practical guides covering Hebrew labeling, Kosher agency audits, GFSI recognition, and customs clearance procedures.
+                </p>
+              </div>
+              <Link
+                href="/en/import-guide"
+                className="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-bold text-xs shadow-md shadow-orange-500/20 transition shrink-0"
+              >
+                <span>Browse Import Guides (43) &rarr;</span>
+              </Link>
+            </div>
+            <div className="mt-4 pt-3 border-t border-slate-800 grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
+              <Link href="/en/import-guide/introduction-to-kosher-certification-for-food-exporters" className="text-slate-300 hover:text-orange-400 transition flex items-center gap-1.5">
+                <span>✡️ Kosher Overview</span>
+                <span className="text-slate-500">&rarr;</span>
+              </Link>
+              <Link href="/en/import-guide/brc-global-standard-do-israeli-buyers-require-it" className="text-slate-300 hover:text-orange-400 transition flex items-center gap-1.5">
+                <span>🛡️ GFSI / BRC Requirements</span>
+                <span className="text-slate-500">&rarr;</span>
+              </Link>
+              <Link href="/en/help/how-sourcing-requests-reach-suppliers" className="text-slate-300 hover:text-orange-400 transition flex items-center gap-1.5">
+                <span>⚡ How RFQ Matching Works</span>
+                <span className="text-slate-500">&rarr;</span>
+              </Link>
+            </div>
+          </div>
+
+          <div className="mt-8 text-center p-6 rounded-2xl border border-white/10 bg-slate-900">
             <p className="text-sm font-bold text-white">Have a specific question before registering?</p>
             <p className="text-xs text-slate-400 mt-1">
               Connect directly with our international trading desk on WhatsApp.

@@ -29,6 +29,8 @@ export default function OnboardingChecklist({
       href: "/en/supplier-portal/products",
       actionText: "Manage Products →",
       badge: "Commercial",
+      guideHref: "/en/help/building-a-strong-supplier-profile",
+      guideLabel: "Catalog Specs Guide",
     },
     {
       id: "profile",
@@ -39,6 +41,8 @@ export default function OnboardingChecklist({
       href: "/en/supplier-portal/profile",
       actionText: "Edit Profile →",
       badge: "Account",
+      guideHref: "/en/help/registering-as-a-supplier",
+      guideLabel: "Profile Setup Guide",
     },
     {
       id: "quality",
@@ -49,6 +53,8 @@ export default function OnboardingChecklist({
       href: "/en/supplier-portal/profile",
       actionText: "Add Certificates →",
       badge: "Regulatory",
+      guideHref: "/en/import-guide/brc-global-standard-do-israeli-buyers-require-it",
+      guideLabel: "GFSI Import Standards",
     },
     {
       id: "kosher",
@@ -59,6 +65,8 @@ export default function OnboardingChecklist({
       href: "/en/supplier-portal/profile",
       actionText: "Declare Kosher Status →",
       badge: "Compliance",
+      guideHref: "/en/import-guide/introduction-to-kosher-certification-for-food-exporters",
+      guideLabel: "Kosher Compliance Guide",
     },
   ];
 
@@ -149,6 +157,16 @@ export default function OnboardingChecklist({
                 {step.title}
               </h4>
               <p className="text-xs text-slate-400 mt-1 leading-relaxed">{step.desc}</p>
+
+              <div className="mt-2.5">
+                <Link
+                  href={step.guideHref}
+                  className="inline-flex items-center gap-1 text-[11px] font-semibold text-slate-400 hover:text-orange-400 transition underline decoration-slate-700 hover:decoration-orange-500"
+                >
+                  <span>📖 {step.guideLabel}</span>
+                  <span>&rarr;</span>
+                </Link>
+              </div>
             </div>
 
             <div className="mt-4 pt-3 border-t border-slate-800/80 flex items-center justify-between">

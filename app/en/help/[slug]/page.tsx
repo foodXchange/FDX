@@ -194,6 +194,22 @@ export default async function HelpArticlePage({ params }: { params: Params }) {
             </div>
           )}
 
+          <div className="bg-gradient-to-br from-slate-800 to-slate-800/60 border border-orange-500/30 rounded-xl p-5">
+            <p className="text-xs font-bold text-orange-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+              <span>🇮🇱</span>
+              <span>Israeli Import Regulations</span>
+            </p>
+            <p className="text-xs text-slate-300 mb-3 leading-relaxed">
+              Need specifics on Hebrew labels, Kosher agency audits, or customs duty exemptions?
+            </p>
+            <Link
+              href="/en/import-guide"
+              className="inline-flex items-center gap-1 text-xs font-bold text-orange-400 hover:text-orange-300 transition underline decoration-orange-500/50"
+            >
+              <span>Explore 43 Regulatory Guides &rarr;</span>
+            </Link>
+          </div>
+
           <div className="bg-slate-800 border border-slate-700 rounded-xl p-5">
             <p className="text-sm text-slate-300 mb-3">
               Still need help? Our team is happy to answer questions.

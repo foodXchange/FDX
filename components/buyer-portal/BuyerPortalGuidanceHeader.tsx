@@ -158,34 +158,67 @@ export default function BuyerPortalGuidanceHeader({
 
           {/* 3-Step Journey Timeline Card */}
           <div className="grid sm:grid-cols-3 gap-4 pt-2">
-            <div className="bg-slate-800/60 border border-slate-700/60 rounded-2xl p-4 relative">
-              <div className="w-7 h-7 rounded-full bg-orange-500 text-white font-bold text-xs flex items-center justify-center mb-3">
-                1
+            <div className="bg-slate-800/60 border border-slate-700/60 rounded-2xl p-4 relative flex flex-col justify-between">
+              <div>
+                <div className="w-7 h-7 rounded-full bg-orange-500 text-white font-bold text-xs flex items-center justify-center mb-3">
+                  1
+                </div>
+                <h4 className="text-sm font-bold text-white">Define or Upload Spec</h4>
+                <p className="text-xs text-slate-400 mt-1.5 leading-relaxed">
+                  Upload a current product packaging photo or specify net weight, Brix, ingredients, and target shelf life.
+                </p>
               </div>
-              <h4 className="text-sm font-bold text-white">Define or Upload Spec</h4>
-              <p className="text-xs text-slate-400 mt-1.5 leading-relaxed">
-                Upload a current product packaging photo or specify net weight, Brix, ingredients, and target shelf life.
-              </p>
+              <div className="mt-3 pt-2.5 border-t border-slate-700/50">
+                <Link
+                  href="/en/help/tips-for-a-strong-sourcing-request"
+                  className="text-[11px] font-semibold text-orange-400 hover:text-orange-300 transition flex items-center gap-1"
+                >
+                  <span>📖 Brief Tips &amp; Best Practices</span>
+                  <span>&rarr;</span>
+                </Link>
+              </div>
             </div>
 
-            <div className="bg-slate-800/60 border border-slate-700/60 rounded-2xl p-4 relative">
-              <div className="w-7 h-7 rounded-full bg-blue-500 text-white font-bold text-xs flex items-center justify-center mb-3">
-                2
+            <div className="bg-slate-800/60 border border-slate-700/60 rounded-2xl p-4 relative flex flex-col justify-between">
+              <div>
+                <div className="w-7 h-7 rounded-full bg-blue-500 text-white font-bold text-xs flex items-center justify-center mb-3">
+                  2
+                </div>
+                <h4 className="text-sm font-bold text-white">Compare Factory Quotes</h4>
+                <p className="text-xs text-slate-400 mt-1.5 leading-relaxed">
+                  Receive side-by-side CIF Haifa quotes from factories with BRC/IFS &amp; Chief Rabbinate / Badatz certifications.
+                </p>
               </div>
-              <h4 className="text-sm font-bold text-white">Compare Factory Quotes</h4>
-              <p className="text-xs text-slate-400 mt-1.5 leading-relaxed">
-                Receive side-by-side CIF Haifa quotes from factories with BRC/IFS & Chief Rabbinate / Badatz certifications.
-              </p>
+              <div className="mt-3 pt-2.5 border-t border-slate-700/50">
+                <Link
+                  href="/en/help/comparing-supplier-matches"
+                  className="text-[11px] font-semibold text-blue-400 hover:text-blue-300 transition flex items-center gap-1"
+                >
+                  <span>📖 Quote Evaluation Guide</span>
+                  <span>&rarr;</span>
+                </Link>
+              </div>
             </div>
 
-            <div className="bg-slate-800/60 border border-slate-700/60 rounded-2xl p-4 relative">
-              <div className="w-7 h-7 rounded-full bg-emerald-500 text-white font-bold text-xs flex items-center justify-center mb-3">
-                3
+            <div className="bg-slate-800/60 border border-slate-700/60 rounded-2xl p-4 relative flex flex-col justify-between">
+              <div>
+                <div className="w-7 h-7 rounded-full bg-emerald-500 text-white font-bold text-xs flex items-center justify-center mb-3">
+                  3
+                </div>
+                <h4 className="text-sm font-bold text-white">Free Evaluation Samples</h4>
+                <p className="text-xs text-slate-400 mt-1.5 leading-relaxed">
+                  Express courier delivery of physical samples directly to your office for sensory panel and lab testing.
+                </p>
               </div>
-              <h4 className="text-sm font-bold text-white">Free Evaluation Samples</h4>
-              <p className="text-xs text-slate-400 mt-1.5 leading-relaxed">
-                Express courier delivery of physical samples directly to your office for sensory panel and lab testing.
-              </p>
+              <div className="mt-3 pt-2.5 border-t border-slate-700/50">
+                <Link
+                  href="/en/help/what-happens-after-a-supplier-responds"
+                  className="text-[11px] font-semibold text-emerald-400 hover:text-emerald-300 transition flex items-center gap-1"
+                >
+                  <span>📖 Sample Dispatch SOP</span>
+                  <span>&rarr;</span>
+                </Link>
+              </div>
             </div>
           </div>
 
@@ -250,26 +283,28 @@ export default function BuyerPortalGuidanceHeader({
           {/* 5-Gate Visual Ribbon */}
           <div className="grid grid-cols-5 gap-1.5 sm:gap-3 pt-2 text-center">
             {[
-              { num: 1, label: "Brief Verified", icon: "📝" },
-              { num: 2, label: "Factory Outreach", icon: "🏭" },
-              { num: 3, label: "Quote Comparison", icon: "📊" },
-              { num: 4, label: "Sensory Samples", icon: "🥄" },
-              { num: 5, label: "PO & Delivery", icon: "🚢" },
+              { num: 1, label: "Brief Verified", icon: "📝", href: "/en/help/tips-for-a-strong-sourcing-request" },
+              { num: 2, label: "Factory Outreach", icon: "🏭", href: "/en/help/how-sourcing-requests-reach-suppliers" },
+              { num: 3, label: "Quote Comparison", icon: "📊", href: "/en/help/comparing-supplier-matches" },
+              { num: 4, label: "Sensory Samples", icon: "🥄", href: "/en/help/what-happens-after-a-supplier-responds" },
+              { num: 5, label: "PO & Delivery", icon: "🚢", href: "/en/help/tracking-your-deals-through-the-pipeline" },
             ].map((gate) => {
               const isPast = activeStage > gate.num;
               const isCurrent = activeStage === gate.num;
               return (
-                <div
+                <Link
                   key={gate.num}
-                  className={`p-2.5 sm:p-3 rounded-2xl border transition text-center ${
+                  href={gate.href}
+                  title={`View ${gate.label} procedure`}
+                  className={`p-2.5 sm:p-3 rounded-2xl border transition text-center group cursor-pointer block hover:scale-[1.03] ${
                     isCurrent
                       ? "bg-orange-500/15 border-orange-500/50 shadow-md shadow-orange-500/10"
                       : isPast
-                      ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400"
-                      : "bg-slate-800/40 border-slate-800 text-slate-500 opacity-60"
+                      ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400 hover:border-emerald-400/60"
+                      : "bg-slate-800/40 border-slate-800 text-slate-500 opacity-60 hover:opacity-90 hover:border-slate-700"
                   }`}
                 >
-                  <div className="text-base sm:text-lg mb-1">{isPast ? "✓" : gate.icon}</div>
+                  <div className="text-base sm:text-lg mb-1 group-hover:scale-110 transition">{isPast ? "✓" : gate.icon}</div>
                   <div
                     className={`text-[10px] sm:text-xs font-bold leading-tight ${
                       isCurrent ? "text-orange-400" : isPast ? "text-emerald-400" : "text-slate-500"
@@ -277,9 +312,22 @@ export default function BuyerPortalGuidanceHeader({
                   >
                     {gate.label}
                   </div>
-                </div>
+                  <div className="text-[9px] text-slate-400 group-hover:text-white transition mt-1 underline decoration-dotted">
+                    SOP &rarr;
+                  </div>
+                </Link>
               );
             })}
+          </div>
+
+          <div className="flex items-center justify-between text-[11px] text-slate-400 px-1 pt-1">
+            <span>💡 Click any gate to read the exact sourcing procedure &amp; lead times.</span>
+            <Link
+              href="/en/help/using-the-buyer-portal"
+              className="text-orange-400 hover:text-orange-300 font-semibold underline shrink-0 ml-2"
+            >
+              Buyer Portal Guide &rarr;
+            </Link>
           </div>
 
           {/* Next Best Action Callout */}

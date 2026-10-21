@@ -48,19 +48,15 @@ export default function Footer() {
           <h3 className="text-white font-medium mb-5">Resources</h3>
 
           <ul className="space-y-3 text-sm mb-6">
-            <li><Link href="/en/blog" className="hover:text-white">Blog</Link></li>
-            <li><Link href="/en/newsletter" className="hover:text-white">Newsletter</Link></li>
             <li>
-              <a
-                href="https://kb.fdx.trading"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="hover:text-white flex items-center gap-1.5"
-              >
-                Knowledge Base
-                <span className="bg-orange-500 text-white text-[10px] px-1 py-0.5 rounded font-bold leading-none">KB</span>
-              </a>
+              <Link href="/en/import-guide" className="hover:text-white flex items-center gap-1.5">
+                Israeli Import Guide
+                <span className="bg-orange-500 text-white text-[10px] px-1 py-0.5 rounded font-bold leading-none">43 Guides</span>
+              </Link>
             </li>
+            <li><Link href="/en/help" className="hover:text-white">Help &amp; FAQ</Link></li>
+            <li><Link href="/en/blog" className="hover:text-white">Industry Blog</Link></li>
+            <li><Link href="/en/newsletter" className="hover:text-white">Market Newsletter</Link></li>
           </ul>
 
           <div className="pt-4 border-t border-slate-800">

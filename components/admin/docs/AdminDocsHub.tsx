@@ -92,12 +92,19 @@ export default function AdminDocsHub({ categories, articles }: Props) {
             </p>
           </div>
 
-          <div className="flex items-center gap-2.5 shrink-0">
+          <div className="flex items-center gap-2.5 shrink-0 flex-wrap">
+            <Link
+              href="/admin/import-guide"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold bg-orange-500/20 hover:bg-orange-500/30 text-orange-300 border border-orange-500/40 transition"
+            >
+              <span>🇮🇱 Import Guide CMS (43)</span>
+            </Link>
+
             <Link
               href="/en/help"
               target="_blank"
               rel="noreferrer"
-              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-600 transition"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-600 transition"
             >
               <span>View Public Help Center</span>
               <span className="text-[10px]">↗</span>
@@ -175,6 +182,16 @@ export default function AdminDocsHub({ categories, articles }: Props) {
                 {articles.length}
               </span>
             </button>
+
+            <Link
+              href="/admin/import-guide"
+              className="px-3.5 py-1.5 rounded-lg text-xs font-bold transition text-slate-600 hover:text-orange-700 hover:bg-white flex items-center gap-1.5"
+            >
+              <span>🇮🇱 Import Guide CMS</span>
+              <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-orange-100 text-orange-800">
+                43
+              </span>
+            </Link>
           </div>
 
           {/* Search Bar */}

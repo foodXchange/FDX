@@ -165,6 +165,31 @@ export default async function HelpCenterPage() {
         );
       })}
 
+      {/* IMPORT GUIDE SPOTLIGHT */}
+      <section className="max-w-6xl mx-auto px-6 py-12">
+        <div className="rounded-3xl border border-orange-500/40 bg-gradient-to-r from-orange-950/30 via-slate-800 to-slate-900 p-8 sm:p-10 shadow-2xl relative overflow-hidden">
+          <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+            <div className="max-w-2xl">
+              <span className="inline-flex items-center gap-2 rounded-full border border-orange-500/30 bg-orange-500/10 px-3 py-1 text-xs font-bold text-orange-400 mb-3">
+                <span>🏛️ Official Trade Resource</span>
+              </span>
+              <h2 className="text-2xl sm:text-3xl font-bold text-white">
+                Looking for Israeli Food Import Regulations?
+              </h2>
+              <p className="text-slate-300 text-sm sm:text-base mt-2 leading-relaxed">
+                Explore our comprehensive 43-article directory covering Ministry of Health (MOH) approvals, Hebrew labeling standards (SI 1145), Kosher agency audits, customs tariffs, and cold-chain clearance at Haifa &amp; Ashdod ports.
+              </p>
+            </div>
+            <Link
+              href="/en/import-guide"
+              className="inline-flex items-center justify-center gap-2 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white px-6 py-3.5 rounded-xl font-bold text-sm shadow-lg shadow-orange-500/25 transition shrink-0"
+            >
+              <span>Explore Import Guide (43 Articles) &rarr;</span>
+            </Link>
+          </div>
+        </div>
+      </section>
+
       {/* CONTACT CTA */}
       <section className="bg-orange-500 text-white py-16 px-6 text-center">
         <h2 className="text-3xl font-bold mb-4">Still have questions?</h2>

@@ -19,6 +19,7 @@ export default function Header() {
     { href: '/en/suppliers/register', label: 'For Suppliers' },
     { href: '/en/products', label: 'Products' },
     { href: '/en/sourcing', label: 'Sourcing' },
+    { href: '/en/import-guide', label: 'Import Guide' },
     { href: '/en/help', label: 'Help' },
   ];
 

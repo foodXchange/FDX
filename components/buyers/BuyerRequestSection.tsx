@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import SourcingRequestForm from "@/components/forms/SourcingRequestForm";
 
 const BUYER_JOURNEY = [
@@ -81,6 +82,28 @@ export default function BuyerRequestSection() {
             <span>H. Cohen</span>
             <span className="text-slate-600">·</span>
             <span>Leiman Schlussel</span>
+          </div>
+
+          {/* Sourcing Guidance & Trust Callout */}
+          <div className="mt-4 pt-3 border-t border-slate-800/80 flex flex-wrap items-center justify-between gap-3 text-xs">
+            <div className="flex flex-wrap items-center gap-2 text-slate-400">
+              <span className="text-orange-400 font-bold">💡 Buyer Guidance:</span>
+              <Link href="/en/help/tips-for-a-strong-sourcing-request" className="hover:text-white underline decoration-slate-600 transition">
+                Tips for Strong Briefs
+              </Link>
+              <span className="text-slate-600">•</span>
+              <Link href="/en/help/how-sourcing-works" className="hover:text-white underline decoration-slate-600 transition">
+                Factory Outreach Timeline
+              </Link>
+              <span className="text-slate-600">•</span>
+              <Link href="/en/import-guide" className="hover:text-white underline decoration-slate-600 transition">
+                Israeli Import Guide (43 Articles)
+              </Link>
+            </div>
+            <Link href="/en/help/working-with-foodxchange" className="text-slate-400 hover:text-orange-400 font-medium transition flex items-center gap-1">
+              <span>🔒 Confidentiality &amp; Price Protection</span>
+              <span>&rarr;</span>
+            </Link>
           </div>
         </div>
       </section>
