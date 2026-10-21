@@ -257,6 +257,37 @@ export default function BuyerMatchCompareMatrix({
                 );
               })}
             </tr>
+
+            {/* Video Meeting & Factory Call */}
+            <tr>
+              <td className="p-4 font-bold text-slate-400 bg-slate-950/40">
+                Google Meet Video Call
+              </td>
+              {displayMatches.map((m) => {
+                const breakdown = (m.match_breakdown as Record<string, any> | null) ?? {};
+                const meet = breakdown.active_meeting;
+
+                return (
+                  <td key={m.id} className="p-4 border-l border-slate-800/80">
+                    {meet ? (
+                      <a
+                        href={meet.meet_url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-purple-600/20 text-purple-300 border border-purple-500/30 hover:bg-purple-600/30 font-bold text-[11px] transition"
+                      >
+                        <span>🎥 Join Google Meet</span>
+                        <span>↗</span>
+                      </a>
+                    ) : (
+                      <span className="text-slate-500 text-[11px]">
+                        Available upon sample receipt
+                      </span>
+                    )}
+                  </td>
+                );
+              })}
+            </tr>
           </tbody>
         </table>
       </div>

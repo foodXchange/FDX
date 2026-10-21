@@ -84,6 +84,10 @@ export default function BuyerMatchCard({ match }: { match: BuyerMatch }) {
   const pipeline = getPipelineStatus(match);
   const messagingDisabled = pipeline === "closed" || pipeline === "declined";
 
+  const breakdown = (match.match_breakdown as Record<string, any> | null) ?? {};
+  const activeMeeting = breakdown.active_meeting;
+  const latestMeetingSummary = breakdown.latest_meeting_summary;
+
   const certs = Array.from(
     new Set([
       ...(match.match_breakdown?.certifications ?? []),
@@ -226,6 +230,55 @@ export default function BuyerMatchCard({ match }: { match: BuyerMatch }) {
             <span className="font-medium text-slate-200">Why this match: </span>
             {match.match_summary}
           </p>
+        )}
+
+        {/* Scheduled Video Call Banner */}
+        {activeMeeting && (
+          <div className="mt-4 p-3.5 rounded-2xl bg-gradient-to-r from-purple-950/60 to-slate-900 border border-purple-500/30 flex items-center justify-between gap-3 text-xs">
+            <div className="flex items-center gap-2.5">
+              <span className="text-xl">🎥</span>
+              <div>
+                <div className="font-bold text-purple-300">
+                  Video Call Scheduled: {activeMeeting.title || "Factory Alignment"}
+                </div>
+                <div className="text-slate-400 text-[11px]">
+                  {new Date(activeMeeting.start_time).toLocaleString("en-GB", { timeZone: "Asia/Jerusalem" })} (Israel Time)
+                </div>
+              </div>
+            </div>
+            <a
+              href={activeMeeting.meet_url}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs shadow-md shadow-purple-600/25 transition shrink-0"
+            >
+              <span>Join Google Meet</span>
+              <span>↗</span>
+            </a>
+          </div>
+        )}
+
+        {/* AI Meeting Summary Card */}
+        {latestMeetingSummary && (
+          <div className="mt-3 p-3.5 rounded-2xl bg-slate-800/80 border border-slate-700/80 text-xs space-y-2">
+            <div className="flex items-center justify-between text-slate-400">
+              <span className="font-bold text-orange-400 text-[10px] uppercase tracking-wider flex items-center gap-1">
+                <span>🤖</span> AI Call Summary: {latestMeetingSummary.meeting_title}
+              </span>
+              <span className="text-[10px]">
+                {new Date(latestMeetingSummary.summarized_at).toLocaleDateString("en-GB")}
+              </span>
+            </div>
+            <p className="text-slate-200 text-xs leading-relaxed">
+              {latestMeetingSummary.executive_summary}
+            </p>
+            {latestMeetingSummary.action_items?.length > 0 && (
+              <div className="pt-2 border-t border-slate-700/60 text-[11px] text-slate-400">
+                <span className="font-semibold text-slate-300">Next Step: </span>
+                {latestMeetingSummary.action_items[0].task} ({latestMeetingSummary.action_items[0].owner})
+              </div>
+            )}
+          </div>
         )}
 
         {interestError && <p className="mt-3 text-xs text-red-400">{interestError}</p>}

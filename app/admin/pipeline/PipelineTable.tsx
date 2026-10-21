@@ -11,6 +11,7 @@ import {
 } from "./stage";
 import { bulkUpdateMatchStage } from "./actions";
 import BulkRfqDispatchModal from "./BulkRfqDispatchModal";
+import MeetingIntelligenceModal from "@/components/admin/meetings/MeetingIntelligenceModal";
 
 export type PipelineRow = {
   id: string;
@@ -80,6 +81,7 @@ export default function PipelineTable({
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkBusy, setBulkBusy] = useState(false);
   const [dispatchModalOpen, setDispatchModalOpen] = useState(false);
+  const [meetingDeal, setMeetingDeal] = useState<PipelineRow | null>(null);
 
   const allSelected = rows.length > 0 && selectedIds.size === rows.length;
 
@@ -308,6 +310,16 @@ export default function PipelineTable({
 
                       <button
                         type="button"
+                        onClick={() => setMeetingDeal(row)}
+                        title="Schedule Google Meet or Summarize Call with AI"
+                        className="text-xs font-semibold px-2 py-1 rounded-lg border border-purple-200 text-purple-700 bg-purple-50 hover:bg-purple-100 transition-colors shadow-xs flex items-center gap-1 cursor-pointer"
+                      >
+                        <span>🎥</span>
+                        <span className="hidden xl:inline">Meet / AI</span>
+                      </button>
+
+                      <button
+                        type="button"
                         onClick={() => onOpenModal(row, "details")}
                         title="View match details"
                         className="text-gray-400 hover:text-gray-700 p-1 rounded hover:bg-gray-100 text-xs"
@@ -331,6 +343,15 @@ export default function PipelineTable({
         onDispatched={(dispatchedIds) => {
           setSelectedIds(new Set());
           setDispatchModalOpen(false);
+          router.refresh();
+        }}
+      />
+
+      <MeetingIntelligenceModal
+        deal={meetingDeal}
+        isOpen={Boolean(meetingDeal)}
+        onClose={() => setMeetingDeal(null)}
+        onSuccess={() => {
           router.refresh();
         }}
       />

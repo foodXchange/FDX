@@ -35,6 +35,8 @@ export type EventType =
   | "bulk_email_sent"
   | "bulk_whatsapp_sent"
   | "rfq_sent"
+  | "meeting_scheduled"
+  | "meeting_summarized"
   // Cron reminders
   | "supplier_action_reminder_3d"
   | "supplier_action_reminder_7d";
