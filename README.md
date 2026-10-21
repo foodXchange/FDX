@@ -1,17 +1,17 @@
 # FoodXchange (FDX.TRADING)
 
-> **B2B Food Sourcing & Matching Platform Connecting European Manufacturers with Israeli Food Importers & Retailers.**
+> **B2B Food Sourcing & Deal Execution Platform Connecting European Food Manufacturers with Israeli Importers, Supermarket Chains & HoReCa.**
 
 ---
 
 ## 📖 Overview
 
-**FoodXchange** bridges European food and beverage producers with the Israeli food retail and HoReCa sectors. The platform pairs AI-driven intent parsing and product taxonomy scraping with managed business-to-business deal facilitation, ensuring compliance with Israeli import requirements, Chief Rabbinate kosher standards, and private label specifications.
+**FoodXchange** bridges European food and beverage producers with the Israeli food retail and HoReCa sectors. The platform combines AI-driven sourcing intent parsing, catalog web scraping, and an institutional 6-stage deal facilitation desk — ensuring full compliance with Israeli import regulations, Chief Rabbinate kosher standards, and private-label packaging requirements.
 
 - **Production URL**: [https://fdx.trading](https://fdx.trading)
 - **Staging / Dev**: [http://localhost:3000](http://localhost:3000)
-- **Hosting**: Netlify
-- **Primary Admin**: `udi@fdx.trading`
+- **Hosting**: Netlify Edge CDN
+- **Deal Desk**: `udi@fdx.trading`
 
 ---
 
@@ -19,27 +19,46 @@
 
 | Layer | Technology | Purpose |
 | :--- | :--- | :--- |
-| **Framework** | Next.js 16 (App Router + Turbopack) | Modern server components, static generation & API routes |
-| **Language** | TypeScript 5 & Node.js 20 | Strict type safety across client and server |
-| **Styling** | Tailwind CSS v4 | High-contrast dark theme and responsive design |
-| **Database & Auth** | Supabase (PostgreSQL + RLS + Storage) | Relational data, product catalog, media storage & sessions |
-| **AI & NLP** | Anthropic Claude SDK & Perplexity API | Sourcing intent extraction, taxonomy tagging & semantic matching |
-| **Web Scraping** | Firecrawl v2 (`@mendable/firecrawl-js`) | Automated supplier catalog extraction |
-| **Email Delivery** | Resend API | Transactional lead alerts, notifications & supplier outreach |
-| **Error Monitoring** | Sentry (`@sentry/nextjs`) | Real-time crash monitoring and trace performance |
-| **Analytics** | Next-Plausible | Privacy-first site traffic analytics |
+| **Framework** | Next.js 16 (App Router + Turbopack) | High-performance React server components, static generation & API routes |
+| **Language** | TypeScript 5 & Node.js 20 | Strict static type safety across client and server |
+| **Styling** | Tailwind CSS v4 | Dark-theme optimized design system with high-contrast UI components |
+| **Database & Auth** | Supabase (PostgreSQL + pgvector + RLS) | Relational deal tables, product catalog, vector embeddings, sessions & storage |
+| **Vector Embeddings** | Voyage AI (`voyage-3`) | 1024-dimensional dense semantic representations of buyer inquiries & products |
+| **Dual AI Engines** | Google Gemini 2.0 & Anthropic Claude 3.5 | Sourcing intent parsing (PIP), call transcript summarization & catalog extraction |
+| **Web Scraping** | Firecrawl v2 (`@mendable/firecrawl-js`) | Deep spidering of European factory websites and dynamic JavaScript catalogs |
+| **Video & Scheduling** | Google Meet & Calendar API Engine | Instant room provisioning, 1-click calendar invites & dual-timezone alignment (Israel/Europe) |
+| **Email Delivery** | Resend API | Transactional lead alerts, bulk RFQ outreach & automated supplier reminders |
+| **Error Monitoring** | Sentry (`@sentry/nextjs`) | Real-time crash monitoring and production trace telemetry |
+| **Analytics** | Next-Plausible | Privacy-first site traffic and conversion analytics |
 
 ---
 
-## 📚 Repository Documentation
+## 🌟 The 6-Stage B2B Sourcing Lifecycle
 
-Detailed technical and product guides are maintained in [`/docs`](./docs):
+FoodXchange provides a complete transaction desk spanning the entire B2B sourcing lifecycle:
 
-- **[Product Story & Workflow (`docs/PRODUCT_STORY.md`)](./docs/PRODUCT_STORY.md)**: What we build, buyer and manufacturer personas, and the end-to-end deal lifecycle.
-- **[System Architecture & Tech Stack (`docs/ARCHITECTURE.md`)](./docs/ARCHITECTURE.md)**: Cloud services, data models, database tables, and security mechanisms.
-- **[API Directory & Data Flow (`docs/API_DIRECTORY.md`)](./docs/API_DIRECTORY.md)**: Complete catalog of all `/api/*` endpoints, payloads, and integrations.
-- **[Admin Operations Guide (`docs/ADMIN_GUIDE.md`)](./docs/ADMIN_GUIDE.md)**: Step-by-step instructions for managing sourcing requests, matches, and scraper jobs.
-- **[Roadmap & Next Steps (`docs/ROADMAP.md`)](./docs/ROADMAP.md)**: Prioritized action items, dates to follow up, and milestone checklists.
+```
+[ 1. Inquiry & AI Match ] ➔ [ 2. Bulk RFQ ] ➔ [ 3. Tasting Samples ] ➔ [ 4. Meet & AI Call ] ➔ [ 5. Bilingual PO ] ➔ [ 6. Production & Vessel ]
+```
+
+1. **Inquiry & Semantic Matching (`match_v3`)**: Hybrid ranking combining Voyage AI 1024-d dense vectors with deterministic trade gates (packaging formats, temperature regimes, private-label capabilities).
+2. **Bulk RFQ Outreach**: 1-click simultaneous outreach to verified European producers with CIF Haifa/Ashdod target pricing.
+3. **Physical Tasting Samples Hub**: Express courier tracking (DHL/FedEx AWB) and 5-dimension sensory scorecard (Taste, Texture, Packaging, Shelf life, Retail fit).
+4. **Google Meet & AI Intelligence**: Instant video calls with dual-timezone synchronization (Israel IDT vs. Europe CEST) and AI extraction of commercial agreements, CIF terms, and action items.
+5. **Bilingual B2B Purchase Orders**: Contract generation with institutional 30/70 payment milestone splits (30% advance / 70% against Bill of Lading copy).
+6. **Production Release & Ocean Freight**: Artwork plate approvals, Chief Rabbinate supervision schedules, and vessel tracking into Israeli ports.
+
+---
+
+## 📚 Repository Documentation Center
+
+Detailed technical specifications and operational SOPs are maintained in [`/docs`](./docs):
+
+- **[Product Story & Deal Lifecycle (`docs/PRODUCT_STORY.md`)](./docs/PRODUCT_STORY.md)**: Platform mission, buyer/supplier personas, and the complete 6-stage lifecycle.
+- **[System Architecture & Data Model (`docs/ARCHITECTURE.md`)](./docs/ARCHITECTURE.md)**: Cloud topology, AI engine specifications, Supabase ER diagram, and security architecture.
+- **[API Directory & Endpoints (`docs/API_DIRECTORY.md`)](./docs/API_DIRECTORY.md)**: Complete catalog of backend routes, payloads, and authentication rules.
+- **[Admin Operations Guide & Playbook (`docs/ADMIN_GUIDE.md`)](./docs/ADMIN_GUIDE.md)**: Step-by-step SOPs for managing sourcing requests, bulk RFQs, meetings, and POs.
+- **[Strategic Roadmap & Milestones (`docs/ROADMAP.md`)](./docs/ROADMAP.md)**: Completed milestones, active tasks, and upcoming quarterly roadmaps.
 
 ---
 
@@ -50,12 +69,13 @@ Detailed technical and product guides are maintained in [`/docs`](./docs):
 - npm `v10.x` or higher
 
 ### 2. Environment Variables
-Create a `.env.local` file in the project root with the following variables:
+Create a `.env.local` file in the project root with the following keys:
 
 ```bash
 # Admin Authentication
 ADMIN_PASSWORD="<your-admin-password>"
 ADMIN_SESSION_SECRET="<random-hmac-sha256-secret>"
+ADMIN_EMAILS="udi@fdx.trading"
 
 # Supabase
 NEXT_PUBLIC_SUPABASE_URL="https://<project-ref>.supabase.co"
@@ -63,9 +83,10 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY="<public-anon-key>"
 SUPABASE_SERVICE_ROLE_KEY="<service-role-key>"
 
 # AI Providers
-AI_PROVIDER="anthropic" # or "openai"
+AI_PROVIDER="gemini" # or "anthropic"
+GEMINI_API_KEY="AIzaSy..."
 ANTHROPIC_API_KEY="sk-ant-..."
-PERPLEXITY_API_KEY="pplx-..."
+VOYAGE_API_KEY="pa-..."
 
 # Email (Resend)
 RESEND_API_KEY="re_..."
@@ -73,14 +94,11 @@ RESEND_FROM_EMAIL="FoodXchange <info@fdx.trading>"
 RESEND_FROM="FoodXchange <info@fdx.trading>"
 NOTIFY_EMAIL_TO="udi@fdx.trading"
 
-# Scraper
+# Web Scraper
 FIRECRAWL_API_KEY="fc-..."
 
-# Sentry
+# Telemetry
 NEXT_PUBLIC_SENTRY_DSN="https://..."
-SENTRY_AUTH_TOKEN="sntryu_..."
-SENTRY_ORG="foodxchange"
-SENTRY_PROJECT="foodxchange"
 ```
 
 ### 3. Installation & Development
@@ -93,24 +111,16 @@ npm install
 npm run dev
 ```
 
-Visit [http://localhost:3000](http://localhost:3000) to view the application.
+Open [http://localhost:3000](http://localhost:3000) to view the application.
 
 ---
 
-## 🧪 Scripts & Quality Assurance
+## 🧪 Quality Assurance & Typecheck
 
 ```bash
-npm run typecheck    # Validate TypeScript types across the entire project
-npm run lint         # Run ESLint validation
-npm run build        # Build production bundle
-npm run predeploy    # Run typecheck followed by build check
+# Run full TypeScript compiler verification
+npx tsc --project tsconfig.json --noEmit
+
+# Run project linting
+npm run lint
 ```
-
----
-
-## 🔒 Security & Admin Access
-
-The platform operates on a single-administrator model:
-- Access portal: `/admin/login`
-- Login utilizes direct master password validation protected by client/server rate-limiting and lockout timers.
-- Sessions are secured with an HTTP-only, SameSite=Lax HMAC-signed cookie (`admin_session`).

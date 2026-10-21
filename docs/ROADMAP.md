@@ -1,83 +1,77 @@
-# FoodXchange — Roadmap & Recommended Next Steps
+# FoodXchange — Strategic Roadmap & Milestones
 
-> **Strategic execution roadmap, technical debt resolutions, and scheduled milestones.**  
-> *Last updated: October 18, 2026*
+> **Strategic Execution Roadmap, Completed Milestones & Planned Projects**  
+> *Last updated: October 21, 2026*
 
 ---
 
-## 📅 Scheduled Action Milestones
+## 1. Project Milestones & Progress
 
 ```mermaid
 timeline
-    title 2026 Q4 Operational & Technical Milestones
-    October 19, 2026 : Resend Domain DNS Verification
-                     : Sourcing Request End-to-End Test
-    October 23, 2026 : Voyage AI Key Verification & Embedding Audit
-                     : Catalog Vector Coverage Check
-    November 1, 2026 : Automated Daily Reminders Cron Setup
-                     : External Cron-job.org Health Check
-    November 15, 2026: Sentry Error Budget & Alert Tuning
-                     : Missing Category Image Asset Pipeline
-    December 1, 2026 : Mobile Experience & Buyer Portal Polish
-                     : Proposal Token Share Performance Review
+    title 2026 Platform Execution Milestones
+    October 18, 2026 : Resend Domain Verification & Transactional Alerts
+                     : Firecrawl v2 Catalog Spider Ingestion
+    October 20, 2026 : Bulk RFQ Outreach Engine Launched
+                     : Tasting Samples Hub & 5-Factor Sensory Scorecard
+                     : Bilingual B2B Purchase Order & Production Release
+    October 21, 2026 : Google Meet Instant Provisioning & Dual Timezones
+                     : AI Meeting Intelligence Summarizer (Gemini/Claude)
+                     : Knowledge Base Hub (54 SOP Specs & Import Guides)
+    November 2026    : Contextual In-App Knowledge Base Tooltips & Drawer
+                     : Direct WhatsApp Commercial Negotiation Bot
+    December 2026    : Escrow & Letter of Credit (L/C) Milestone Settlement
+                     : Ocean Container Vessel Live AIS GPS Tracking
 ```
 
 ---
 
-## 🎯 Prioritized Next Steps & Checklist
+## 2. Completed Milestones (October 2026)
 
-### 1. Resend Email Domain Verification & End-to-End Test
-- **Target Date**: **October 19, 2026**
+- [x] **Google Meet & Calendar Integration**:
+  - Direct Google Meet room provisioning without third-party OAuth.
+  - Dual-timezone scheduling (**Israel IDT vs. Europe CEST**).
+  - 1-click Google Calendar web invite links with agenda and attendees.
+- [x] **AI Call Intelligence Engine (`meetingSummarizer.ts`)**:
+  - Structured extraction of CIF Haifa/Ashdod prices, payment terms, MOQ, kosher dates, and action items.
+  - Automatic pipeline stage progression and deal history logging.
+- [x] **Physical Tasting Samples Hub (`SampleDispatchHub.tsx`)**:
+  - Express courier tracking (DHL/FedEx AWB) with Israeli customs clearance status.
+  - 5-dimension sensory scorecard (Taste, Texture, Packaging, Shelf life, Retail fit).
+- [x] **Bulk RFQ Outreach Engine (`BulkRfqDispatchModal.tsx`)**:
+  - 1-click simultaneous RFQ dispatch to multiple European producers.
+- [x] **Bilingual B2B Purchase Order & Production Release (`OrderWorkflowModal.tsx`)**:
+  - Commercial contracts with 30/70 payment milestone splits, Hebrew plate sign-offs, and vessel ETA tracking.
+- [x] **Platform Knowledge Base & SOP Center (`AdminDocsHub.tsx`)**:
+  - 54 comprehensive technical specifications, matching algorithms, scraper pipelines, and regulatory playbooks with internal vs. public filtering.
+
+---
+
+## 3. Planned Projects & High-Priority Next Steps
+
+### 1. In-App Contextual KB Tooltips & SOP Helper Drawer
 - **Priority**: High (Immediate)
-- **Status**: Pending DNS propagation
-- **Action Items**:
-  - [ ] Log in to [Resend Dashboard](https://resend.com/domains) and verify that `fdx.trading` shows as **Active / Verified** (SPF, DKIM, DMARC).
-  - [ ] Submit a test form on [https://fdx.trading/en/contact](https://fdx.trading/en/contact) and confirm delivery to `udi@fdx.trading`.
-  - [ ] Test the digital business card contact modal on [https://fdx.trading/business-card/udi](https://fdx.trading/business-card/udi).
+- **Objective**: Bring regulatory and commercial knowledge directly into deal forms without requiring users to navigate away to `/admin/docs`.
+- **Scope**:
+  - Add interactive tooltips explaining Chief Rabbinate vs. Badatz supervision, Hebrew labeling requirements, and CIF Haifa terms.
+  - Add a persistent slide-over `[ 💡 SOP Helper ]` drawer inside the Pipeline, Sample Hub, and Meeting Modals that allows searching all 54 KB specs.
 
----
+### 2. Automated WhatsApp Trade Facilitation Bot
+- **Priority**: High (November 2026)
+- **Objective**: Connect European factory export managers and Israeli buyers over WhatsApp Business API for instant quote approvals and delivery alerts.
+- **Scope**:
+  - Inbound WhatsApp webhook parsing quotes and dispatch confirmations directly into `match_messages`.
+  - Instant deal alert broadcasts when sample parcels arrive in Tel Aviv or Haifa.
 
-### 2. Voyage AI Key & Embedding Coverage Audit
-- **Target Date**: **October 23, 2026**
-- **Priority**: High
-- **Context**: The `match_v3()` function relies on 1024-d dense vectors generated by Voyage AI (`voyage-3`). When `VOYAGE_API_KEY` is absent or quota is exceeded, the algorithm defaults to a neutral score (`pts_vector = 20/40`), which reduces ranking accuracy.
-- **Action Items**:
-  - [ ] Verify `VOYAGE_API_KEY` is present in Netlify production environment variables.
-  - [ ] Run `npm run backfill:embeddings` (or `scripts/backfill-embeddings.ts`) to ensure 100% of rows in `supplier_products` have non-null `embedding` values.
-  - [ ] Run `scripts/backfill-request-embeddings.ts` on historical `sourcing_requests`.
+### 3. Escrow & Milestone Payment Settlement
+- **Priority**: Medium (December 2026)
+- **Objective**: Mitigate transaction risk for Israeli retailers placing orders with unfamiliar European producers.
+- **Scope**:
+  - Multi-currency escrow account integration (EUR / USD / ILS).
+  - Milestone release upon verified Bill of Lading surrender and independent SGS pre-shipment lab certificate.
 
----
-
-### 3. Automated Cron Reminder Health Check (`/api/cron/send-reminders`)
-- **Target Date**: **November 1, 2026**
-- **Priority**: Medium
-- **Context**: Supplier outreach requests that remain in `pending` status for 3 or 7 days trigger automated follow-up emails via `/api/cron/send-reminders`.
-- **Action Items**:
-  - [ ] Confirm scheduled cron job on [cron-job.org](https://cron-job.org) is active:
-    - **URL**: `https://fdx.trading/api/cron/send-reminders`
-    - **Method**: `POST`
-    - **Header**: `Authorization: Bearer <CRON_SECRET>`
-    - **Schedule**: Daily at 09:00 UTC
-  - [ ] Check `platform_events` table for entries logged under `supplier_action_reminder_3d` and `supplier_action_reminder_7d`.
-
----
-
-### 4. Image Asset Self-Hosting & CDN Optimization
-- **Target Date**: **November 15, 2026**
-- **Priority**: Medium
-- **Context**: Category banners and blog posts were migrated from expired Copilot links to permanent Unsplash photos. To achieve maximum durability and eliminate any external dependency, assets should be mirrored in Supabase Storage.
-- **Action Items**:
-  - [ ] Mirror all active category banner URLs from Unsplash into the `category-images` Supabase Storage bucket.
-  - [ ] Mirror all active blog post covers into the `blog-images` Supabase Storage bucket.
-  - [ ] Ensure Next.js Image component quality rules in `next.config.js` match `[75, 85, 90]`.
-
----
-
-### 5. Buyer Portal & Proposal Share Engine Polish
-- **Target Date**: **December 1, 2026**
-- **Priority**: Low / Enhancement
-- **Context**: Tokenized proposal pages (`/proposals/[token]`) allow prospective Israeli buyers to review customized catalog selections without requiring a login account.
-- **Action Items**:
-  - [ ] Test WhatsApp direct share buttons on iOS and Android devices.
-  - [ ] Review Plausible analytics metrics for buyer conversion rates on proposal pages.
-  - [ ] Add PDF export capability for formal retail presentation decks.
+### 4. Ocean Container AIS Vessel Live Tracking
+- **Priority**: Medium (Q1 2027)
+- **Objective**: Real-time GPS location tracking of maritime shipping containers from European ports (Genoa, Valencia, Antwerp, Piraeus) to Haifa and Ashdod.
+- **Scope**:
+  - Maritime API integration (VesselFinder / MarineTraffic) mapping ocean voyages with arrival countdowns.

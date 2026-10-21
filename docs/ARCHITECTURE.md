@@ -1,18 +1,25 @@
 # FoodXchange — System Architecture & Data Model
 
-## 1. Cloud Architecture
+> **Enterprise Technical Specification & Core Platform Data Models**  
+> *Last updated: October 21, 2026*
+
+---
+
+## 1. Cloud Architecture & Service Topology
 
 ```mermaid
 graph TD
-    User([Browser Client]) -->|HTTPS| Netlify[Netlify Edge CDN]
+    User([Browser Client: Buyer & Supplier]) -->|HTTPS| Netlify[Netlify Edge CDN]
+    AdminUser([Admin Trade Desk]) -->|HTTPS| Netlify
     Netlify -->|App Router SSR & Turbopack| NextJS[Next.js 16 Application]
     
-    subgraph Core Data & AI Platform
+    subgraph Core Data, AI & Communication Platform
         NextJS -->|PostgreSQL & pgvector| Supabase[(Supabase DB)]
         NextJS -->|Object Storage| SStorage[Supabase Storage Buckets]
         NextJS -->|1024-d Dense Embeddings| Voyage[Voyage AI: voyage-3]
-        NextJS -->|Intent Extraction & Normalization| Claude[Anthropic Claude SDK]
+        NextJS -->|Meeting Intelligence & PIP Parser| DualAI[Dual AI Engine: Gemini 2.0 / Claude 3.5]
         NextJS -->|Deep Web Product Catalog Spider| Firecrawl[Firecrawl v2 API]
+        NextJS -->|Instant Video Conferencing| GoogleMeet[Google Meet & Dual-TZ Calendar Engine]
         NextJS -->|Transactional Emails & Outreach| Resend[Resend Email API]
         NextJS -->|Telemetry & Crash Monitoring| Sentry[Sentry SDK]
     end
@@ -26,7 +33,7 @@ The FoodXchange matching engine pairs real-time buyer sourcing inquiries with ac
 
 ```mermaid
 flowchart TD
-    Inquiry([Buyer Sourcing Requirement]) --> PIP[Claude Intent Parser: Product, Formats, Temp, Certs]
+    Inquiry([Buyer Sourcing Requirement]) --> PIP[Claude/Gemini Intent Parser: Product, Formats, Temp, Certs]
     PIP --> Embed[Voyage AI: voyage-3 'query' Embedding]
     
     subgraph Supabase Postgres Engine: match_v3
@@ -75,15 +82,6 @@ If a supplier's product fails *any* of the buyer's strict requirements, it is im
 
 Candidates that pass the hard gates are scored and ranked from 0 to 110 points across 5 parameters:
 
-```mermaid
-pie title Match Score Weight Distribution (Max 110 Points)
-    "Vector Semantic Similarity (Voyage AI)" : 40
-    "Taxonomy & Category Alignment" : 35
-    "Packaging Format Precision" : 15
-    "Compliance & Quality Certifications" : 10
-    "Evidence & Israeli Market Fit" : 10
-```
-
 | Parameter | Max Points | How It Is Evaluated |
 | :--- | :---: | :--- |
 | **1. Semantic Vector Similarity (`pts_vector`)** | **40 pts** | Uses **Voyage AI’s `voyage-3`** 1024-dimensional embeddings. Computes the cosine similarity between the buyer's descriptive message and the supplier's product specs: <br>$$\text{pts\_vector} = \max\left(0.0, (1.0 - (\text{product\_emb} \Leftrightarrow \text{request\_emb})) \times 40.0\right)$$ |
@@ -101,21 +99,48 @@ flowchart LR
     URL[Supplier Website URL] --> Map[Firecrawl.map: Discover URLs]
     Map --> Filter[URL Filter: isProductUrl & isContactUrl]
     Filter --> BatchScrape[Firecrawl.batchScrape: Render JS & Extract Markdown]
-    BatchScrape --> LLM[Claude LLM: Structured Schema Extraction]
+    BatchScrape --> LLM[Claude / Gemini LLM: Structured Schema Extraction]
     LLM --> Dedup[Deduplication & Canonical Name Normalization]
     Dedup --> Upload[Supabase Storage: Product Images]
     Upload --> Vectorize[Voyage AI: voyage-3 'document' Embedding]
     Vectorize --> DB[(supplier_products Table)]
 ```
 
-1. **Discovery (`firecrawl.map`)**: Maps supplier domains up to limits, filtering out legal, careers, or non-product pages.
-2. **Batch Scraping (`firecrawl.batchScrape`)**: Fetches clean Markdown, handling dynamic client-side rendering (React, Vue, SPAs).
-3. **Schema Extraction (Claude 3.5 Sonnet)**: Parses product names, package sizes, formats, brix values, and certifications into structured JSON (`ExtractedProduct`).
-4. **Deduplication & Storage**: Normalizes multi-language terms, uploads images to Supabase Storage, embeds text with Voyage AI, and inserts into `supplier_products`.
+---
+
+## 4. Deal Intelligence & Execution Engines
+
+FoodXchange features four specialized transaction engines running on top of the relational deal database:
+
+### A. Google Meet & Dual-Timezone Video Calling
+- **Instant Meeting Provisioning**: Generates compliant Google Meet room URLs (`https://meet.google.com/fdx-...`) without requiring external Google OAuth tokens.
+- **Dual-Timezone Synchronization**: Automatically computes scheduled call times for Israeli buyers (**Asia/Jerusalem - IDT/IST**) and European manufacturers (**Europe/Rome/Paris/Berlin - CEST/CET**).
+- **Calendar Dispatch**: Pre-constructs 1-click Google Calendar web invite links with agenda, participants, and meet link preloaded.
+
+### B. AI Call Summarizer (`lib/ai/meetingSummarizer.ts`)
+- Dual-provider pipeline leveraging Google Gemini 2.0 Flash and Anthropic Claude 3.5 Sonnet with resilient regex/heuristic fallback.
+- Ingests raw meeting transcripts or call notes, extracting:
+  - **Executive Summary** (2-3 concise commercial sentences)
+  - **Commercial Terms** (CIF price, payment terms, MOQ, lead times)
+  - **Sample Commitments** (Courier method, dispatch date, item count)
+  - **Quality & Certifications** (Kosher supervision, BRC/IFS audits)
+  - **Action Items** (Task, owner `Buyer`/`Supplier`/`FDX Desk`, due date)
+  - **Suggested Deal Stage** (e.g. `samples_pending`, `commercial_negotiation`, `po_draft`)
+
+### C. Tasting Samples & Courier Hub (`components/admin/SampleDispatchHub.tsx`)
+- Manages physical sample tasting protocols for Israeli food retail category managers.
+- Tracks express couriers (DHL, FedEx) with AWB numbers and Israel customs clearance.
+- Gathers structured 5-dimension sensory evaluation scores (Taste, Texture, Packaging/Labeling, Shelf-life, Retail Fit).
+
+### D. Bilingual B2B Purchase Order & Production Release Engine
+- Generates institutional Hebrew/English Purchase Orders with milestones:
+  - 30% advance on PO confirmation
+  - 70% against Bill of Lading copy & pre-shipment lab certificate
+- Coordinates private-label artwork sign-off, Chief Rabbinate kosher certificate approvals, and container vessel ETAs into Haifa/Ashdod ports.
 
 ---
 
-## 4. Complete Supabase Database Schema
+## 5. Complete Supabase Database Schema
 
 ```mermaid
 erDiagram
@@ -126,6 +151,8 @@ erDiagram
     SOURCING_REQUESTS ||--o{ SOURCING_MATCHES : generates
     SOURCING_REQUESTS ||--o{ PIPS : generates
     SUPPLIER_OFFERINGS ||--o{ SOURCING_MATCHES : matched_with
+    SOURCING_MATCHES ||--o{ MATCH_MESSAGES : records
+    KB_CATEGORIES ||--o{ KB_ARTICLES : organizes
 
     SUPPLIER_OFFERINGS {
         uuid id PK
@@ -173,14 +200,6 @@ erDiagram
         text_array matched_slugs
     }
 
-    PIPS {
-        uuid id PK
-        uuid sourcing_request_id FK
-        int pip_version
-        text created_from
-        jsonb data_json
-    }
-
     SOURCING_MATCHES {
         uuid id PK
         uuid sourcing_request_id FK
@@ -188,38 +207,51 @@ erDiagram
         numeric score
         text match_notes
         text status
+        text pipeline_stage
+        jsonb match_breakdown "Contains active_meeting, summaries, samples, po"
     }
 
-    PORTFOLIO_ITEMS {
+    MATCH_MESSAGES {
         uuid id PK
-        text title
+        uuid match_id FK
+        text sender_type
+        text message
+        jsonb metadata
+        timestamptz created_at
+    }
+
+    KB_CATEGORIES {
+        uuid id PK
         text slug
-        text summary
-        text category
-        text hero_image
-    }
-
-    CATEGORY_IMAGES {
-        uuid id PK
-        text category
-        text image_url
-        text gradient_from
-        text gradient_to
-    }
-
-    BLOG_POSTS {
-        uuid id PK
         text title
+        text description
+        int display_order
+        boolean is_public
+    }
+
+    KB_ARTICLES {
+        uuid id PK
+        uuid category_id FK
         text slug
-        text cover_image
-        text lang
+        text title
+        text content_text
         text status
+        boolean is_public
+        int display_order
+        timestamptz updated_at
+    }
+
+    PLATFORM_EVENTS {
+        uuid id PK
+        text event_type
+        jsonb metadata
+        timestamptz created_at
     }
 ```
 
 ---
 
-## 5. Storage Buckets (Supabase Storage)
+## 6. Storage Buckets (Supabase Storage)
 
 | Bucket Name | Access | Purpose |
 | :--- | :--- | :--- |
@@ -232,13 +264,15 @@ erDiagram
 
 ---
 
-## 6. Security & Authentication Architecture
+## 7. Security & Authentication Architecture
 
 1. **Admin Master Authentication**:
    - Single-admin architecture protected by client/server rate-limiting (maximum 5 attempts before cooldown lockout).
    - Validation occurs server-side in `app/api/admin/login/route.ts`.
-   - On success, sets an encrypted HMAC-SHA256 cookie (`admin_session`) signed with `ADMIN_SESSION_SECRET`.
+   - Sets an encrypted HMAC-SHA256 cookie (`admin_session`) signed with `ADMIN_SESSION_SECRET`.
    - Admin route middleware checks session validity before rendering protected dashboards (`/admin/*`).
-2. **Database Row Level Security (RLS)**:
-   - Client queries run under the public `anon` key with read-only access to published products and public blog posts.
+2. **Protected Transactional Endpoints**:
+   - All pipeline operational endpoints (`/api/admin/meetings/*`, `/api/admin/pipeline/*`) call `verifySession` to prevent unauthorized invocation.
+3. **Database Row Level Security (RLS)**:
+   - Client queries run under the public `anon` key with read-only access to published products, public blog posts, and public KB articles (`is_public = true`).
    - All write operations, matching algorithms, and administrative tasks use `supabaseAdmin` with `SUPABASE_SERVICE_ROLE_KEY` in secure server-side routes only.

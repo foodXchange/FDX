@@ -1,215 +1,118 @@
-# FoodXchange Admin Guide
+# FoodXchange — Admin Operations Guide & Deal Desk Playbook
 
-## Overview
-
-The admin dashboard is available at `/admin` (production: `https://fdx.trading/admin`).  
-Login uses a **magic link** — no password. Enter your admin email and check your inbox.
+> **Standard Operating Procedures (SOPs) for the FoodXchange Deal Desk**  
+> *Last updated: October 21, 2026*
 
 ---
 
-## 1. Dashboard
+## 1. Access & Admin Authentication
 
-`/admin` — shows platform activity at a glance:
+The admin console is hosted at `/admin` (production: `https://fdx.trading/admin`).
 
-- **Sourcing requests** — new buyer submissions needing review
-- **Supplier actions** — pending responses from suppliers
-- **Recent events** — last 50 platform events from `platform_events`
-- **Notification bell** — unseen admin notifications from `admin_notifications`
-
----
-
-## 2. Processing Sourcing Requests
-
-### Flow
-1. Buyer submits a sourcing request via `/en/contact` or the portal
-2. Request appears in `sourcing_requests` table, status = `new`
-3. Admin reviews and routes to matching suppliers
-
-### Steps in the dashboard
-
-**a) Review request** — click into the request to see buyer details, product category, quantity, and any attachments.
-
-**b) Find suppliers** — use the supplier search or the matching tool at `/admin/scraper` to identify candidates.
-
-**c) Create supplier actions** — for each supplier you want to approach, create a record in `supplier_actions`:
-```sql
-INSERT INTO supplier_actions (sourcing_request_id, supplier_id, action_type, request_message, status)
-VALUES ('<request_id>', '<supplier_id>', 'outreach', 'Your message here', 'pending');
-```
-Or use the admin UI "Add Supplier Action" button on the request detail page.
-
-**d) Update request status** — move from `new` → `in_progress` once suppliers are contacted.
+- **Authentication Method**: Passwordless magic link or master password verification.
+- **Session Security**: HMAC-SHA256 encrypted session cookie (`admin_session`) valid for 8 hours.
+- **Admin Configuration**: Netlify environment variable `ADMIN_EMAILS` lists authorized emails.
 
 ---
 
-## 3. Managing Supplier Responses
+## 2. Managing the 6 Deal Lifecycle Stages
 
-Supplier actions live in `supplier_actions`. Statuses:
-
-| Status | Meaning |
-|---|---|
-| `pending` | Awaiting supplier response |
-| `responded` | Supplier replied |
-| `matched` | Confirmed match, moving to deal |
-| `declined` | Supplier passed |
-| `expired` | No response after 7+ days |
-
-### Reminder emails (automated)
-The cron job at `/api/cron/send-reminders` runs daily at **09:00 UTC** and:
-- Sends a **3-day reminder** if `status = pending` and created 3 days ago with no `last_reminder_3d_sent`
-- Sends a **7-day reminder** if still pending at 7 days with no `last_reminder_7d_sent`
-
-Set up the external cron at [cron-job.org](https://cron-job.org):
-- URL: `https://fdx.trading/api/cron/send-reminders`
-- Method: `POST`
-- Header: `Authorization: Bearer <CRON_SECRET>`
-- Schedule: daily 09:00 UTC
-
-### Manually updating a supplier action
-```sql
-UPDATE supplier_actions
-SET status = 'responded', updated_at = now()
-WHERE id = '<action_id>';
+```mermaid
+stateDiagram-v2
+    [*] --> NewInquiry: Buyer Inquires
+    NewInquiry --> BulkRFQ: AI Vector Match
+    BulkRFQ --> SampleTesting: Factory Quotes Received
+    SampleTesting --> VideoMeetAI: Sample Sensory Approved (4.0+ Score)
+    VideoMeetAI --> PODraft: Commercial Terms Aligned
+    PODraft --> ProductionRelease: 30% Advance Deposit Paid
+    ProductionRelease --> InTransit: Vessel Departed for Haifa/Ashdod
+    InTransit --> Completed: Customs Cleared & Final 70% Paid
 ```
 
----
+### Stage 1: Reviewing Inquiries & Running Matches
+1. Open `/admin` or `/admin/pipeline`.
+2. New inquiries arrive from `/en/contact` or `/en/sourcing` with an AI-generated Product Intent Profile (PIP).
+3. If no catalog match exists, run the catalog spider at `/admin/scraper` to ingest candidate European factories.
 
-## 4. Sourcing Matches
+### Stage 2: Bulk RFQ Outreach
+1. On `/admin/pipeline`, click the **"⚡ Bulk RFQ"** button.
+2. Select target suppliers from the matched candidates.
+3. Review target CIF Haifa/Ashdod benchmark price, requested container volumes, and packaging specifications.
+4. Click **"Dispatch Bulk RFQs"** — automated outreach emails are sent to supplier export managers via Resend, and records are tracked under `supplier_actions`.
 
-When a supplier confirms interest, create a match in `sourcing_matches`:
-```sql
-INSERT INTO sourcing_matches (sourcing_request_id, supplier_id, match_notes, status)
-VALUES ('<request_id>', '<supplier_id>', 'Supplier confirmed availability', 'active');
-```
+### Stage 3: Physical Tasting Samples & Sensory Evaluation
+1. In the deal pipeline table, click the **"📦 Sample Hub"** action.
+2. Manage the 4-phase sample tracking workflow:
+   - **Commercial Pre-Alignment**: Verify MOQ and CIF estimates before factory bears courier expense.
+   - **DHL/FedEx Dispatch**: Enter courier Air Waybill (AWB) number and consignee address in Israel.
+   - **Israel Customs Clearance**: Track sample release via Ministry of Agriculture & Health fast-track import.
+   - **5-Dimension Tasting Scorecard**: Score sample from 1 to 5 on:
+     - Taste & Flavor Profile
+     - Texture & Mouthfeel
+     - Retail Packaging & Hebrew Label Suitability
+     - Shelf Life & Preservatives
+     - Commercial Price-to-Quality Fit
+3. Approving a sample automatically qualifies the deal for Stage 4.
 
-- **Buyer notification bell** at `/en/portal` — polls `/api/buyer/notifications` every 30s, shows new matches
-- **Supplier notification bell** at `/en/supplier-portal` — polls `/api/supplier-portal/notifications` every 30s
+### Stage 4: Scheduling Video Calls & Running the AI Summarizer
+1. In the pipeline table, click the **`[ 🎥 Meet / AI ]`** action.
+2. **Scheduling a Google Meet Call**:
+   - The modal automatically provisions a Google Meet room (`https://meet.google.com/fdx-...`).
+   - The dual-timezone calculator shows call times in both **Israel Time (Asia/Jerusalem)** and **Europe Time (Europe/Rome/Paris)** to prevent scheduling mistakes.
+   - Click **"Schedule & Send Calendar Invite"** to generate 1-click Google Calendar web invite links and post meeting cards into the deal message history.
+3. **AI Call Intelligence Summarizer**:
+   - Switch to the **"🤖 AI Call Summarizer"** tab.
+   - Paste raw call notes, voice memos, or video transcripts (or click *"Load Sample Call Notes"* for 1-click testing).
+   - Click **"Run AI Sourcing Intelligence"**.
+   - Gemini / Claude automatically extracts commercial CIF terms, payment splits, sample commitments, kosher audit dates, and action items with owners (`Buyer`, `Supplier`, or `FDX Desk`).
+   - Checking *"Advance deal pipeline stage upon saving"* will automatically transition the deal stage.
 
----
+### Stage 5: B2B Purchase Order Generation
+1. In the pipeline table, click **"📝 Generate PO"**.
+2. Set container volume (e.g., 1 x 40ft High Cube FCL), unit prices, and delivery terms (Incoterms 2020: CIF Haifa or FOB Genoa/Valencia).
+3. Select payment milestones:
+   - **Standard**: 30% advance on PO confirmation / 70% against Bill of Lading copy & pre-shipment lab certificate.
+4. Export the bilingual Hebrew/English PO PDF for buyer and factory countersignature.
 
-## 5. Supplier Product Scraper
-
-`/admin/scraper` — bulk-import supplier product catalogs.
-
-1. Enter a supplier website URL
-2. Uses **Firecrawl v2** to crawl and extract product data
-3. Products saved to `supplier_products`
-4. Run matching against open sourcing requests via `matchSuppliers.ts`
-
----
-
-## 6. Bulk Outreach
-
-For campaigns targeting multiple suppliers:
-
-1. Export supplier emails from `supplier_profiles` filtered by category/region
-2. Use Resend bulk send (or the newsletter route `/api/newsletter`) to send
-3. Log the campaign in `platform_events` for tracking:
-```sql
-INSERT INTO platform_events (event_type, metadata)
-VALUES ('bulk_outreach', '{"campaign": "Q3 dairy suppliers", "count": 45}');
-```
-
----
-
-## 7. Portal Impersonation
-
-Admins can impersonate a buyer or supplier to troubleshoot their experience.
-
-1. In the admin dashboard, find the buyer/supplier record
-2. Click "View as buyer" or "View as supplier"
-3. A signed impersonation cookie is set via the auth callback
-4. An orange banner appears in the portal: "Impersonating [name]"
-5. Click "End session" to clear the cookie
-
-Cookie is signed with HMAC using `IMPERSONATION_SECRET` and expires after 1 hour.
-
----
-
-## 8. Auth & Login
-
-### Magic link login
-1. Go to `/admin/login`
-2. Enter your admin email (must be in `ADMIN_EMAILS` env var)
-3. Check email for the magic link — valid for **1 hour**
-4. Clicking the link hits `/admin/auth/callback`, verifies OTP, sets session cookie
-
-### Admin session cookie
-- HMAC-SHA256 signed with `ADMIN_SESSION_SECRET`
-- Expires after 8 hours
-- HttpOnly, Secure, SameSite=Lax
-
-### Adding a new admin
-Add the email to the `ADMIN_EMAILS` Netlify env var (comma-separated):
-```
-netlify env:set ADMIN_EMAILS "udi@fdx.trading,newadmin@fdx.trading"
-```
+### Stage 6: Production Release & Vessel Tracking
+1. Once advance deposit receipt is confirmed, click **"🚀 Release Production"**.
+2. Sign off on:
+   - Final Hebrew label plate proofs.
+   - Chief Rabbinate kosher supervisor production schedule.
+   - Laboratory Certificate of Analysis (COA).
+3. Log ocean vessel booking reference, shipping line (e.g. ZIM, MSC, Maersk), container number, and estimated arrival date (ETA) at Haifa or Ashdod port.
 
 ---
 
-## 9. Environment Variables
+## 3. Knowledge Base & System SOP Management (`/admin/docs`)
 
-| Variable | Where set | Purpose |
-|---|---|---|
-| `ADMIN_EMAILS` | Netlify | Comma-separated list of authorized admin emails |
-| `ADMIN_SESSION_SECRET` | Netlify | HMAC key for admin session cookies |
-| `CRON_SECRET` | Netlify | Bearer token for `/api/cron/send-reminders` |
-| `SUPABASE_SERVICE_ROLE_KEY` | Netlify | Server-side Supabase admin access |
-| `RESEND_API_KEY` | Netlify | Email sending via Resend |
-| `NEXT_PUBLIC_SUPABASE_URL` | Netlify + .env.local | Supabase project URL |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Netlify + .env.local | Supabase anon key |
-| `NEXT_PUBLIC_SITE_URL` | .env.local only | Local dev URL (http://localhost:3000) — do NOT set on Netlify |
+FoodXchange contains an integrated operating manual with 54 technical specifications, regulatory guides, and matching algorithms:
+
+- **Admin URL**: `/admin/docs`
+- **Audience Filtering**:
+  - **🔒 Internal SOPs**: Deal facilitation playbooks, margin structures, supplier negotiation templates, and algorithmic scoring specifications.
+  - **🌐 Public Guides**: Customer-facing explainers on Israeli food import laws, kosher supervision categories, and private-label timelines (synced with `/en/help`).
+- **Israel Import Guide CMS**: Direct access to `/admin/import-guide` with 43 category-specific import guides.
 
 ---
 
-## 10. Database Migrations
+## 4. Supplier Product Scraper (`/admin/scraper`)
 
-Migration files live in `supabase/migrations/`. They must be run **manually** in the Supabase SQL editor (not auto-applied).
+Bulk-imports European manufacturer catalogs using **Firecrawl v2**:
 
-To apply a migration:
-1. Open [Supabase Dashboard](https://app.supabase.com) → your project → SQL Editor
-2. Paste the migration file contents
-3. Run
-
-Pending migration: `supabase/migrations/20260616_supplier_actions_reminders.sql` — adds `last_reminder_3d_sent` and `last_reminder_7d_sent` columns to `supplier_actions`.
-
----
-
-## 11. Daily Operations Checklist
-
-- [ ] Check admin dashboard for new sourcing requests
-- [ ] Review any supplier actions with status `pending` > 3 days
-- [ ] Confirm cron reminder emails are sending (check `platform_events` for `supplier_action_reminder_3d` / `supplier_action_reminder_7d` entries)
-- [ ] Review new `sourcing_matches` and notify relevant buyers if bell hasn't fired
-- [ ] Check `newsletter_subscribers` for new signups
+1. Navigate to `/admin/scraper`.
+2. Input the supplier website URL (e.g., `https://example-pasta.it`).
+3. Firecrawl maps product URLs, renders dynamic single-page applications, and extracts markdown specs.
+4. Claude normalizes product names, package formats, and brix into `supplier_products`.
+5. Embeddings are generated with Voyage AI (`voyage-3`) for real-time vector matching.
 
 ---
 
-## 12. FAQ
+## 5. Portal Impersonation & Diagnostics
 
-**Q: Magic link expired or not received?**  
-Wait 60 seconds (rate limit), then try again. Check spam. Links are valid for 1 hour.
+Admins can impersonate any buyer or supplier to troubleshoot portal UX:
 
-**Q: Admin login returns "Invalid session"?**  
-`ADMIN_SESSION_SECRET` may be missing from Netlify. Set it:  
-```
-netlify env:set ADMIN_SESSION_SECRET "<32+ char random string>"
-```
-
-**Q: Buyer/supplier redirected to wrong portal after login?**  
-Check that `buyers.contact_email` (for buyers) and `supplier_profiles.email` (for suppliers) match the Supabase auth user email exactly.
-
-**Q: Notification bell not showing new matches?**  
-Check the API routes `/api/buyer/notifications` and `/api/supplier-portal/notifications`. Confirm `sourcing_matches` has records with the correct `buyer_id` or `supplier_id`.
-
-**Q: Cron reminders not sending?**  
-1. Verify cron-job.org is configured with correct URL and `Authorization` header
-2. Check Netlify function logs for `/api/cron/send-reminders`
-3. Confirm migration `20260616_supplier_actions_reminders.sql` was applied
-
----
-
-## 13. Support
-
-For platform issues: check Netlify deploy logs, Supabase logs, and `platform_events` table.  
-Resend delivery issues: check [Resend dashboard](https://resend.com) for bounces/failures.
+1. Locate the buyer or supplier in the dashboard.
+2. Click **"View as Buyer"** or **"View as Supplier"**.
+3. A signed HMAC impersonation cookie (`IMPERSONATION_SECRET`) is generated.
+4. An orange banner appears: *"Impersonating [Name] — Click End Session to Exit"*.
