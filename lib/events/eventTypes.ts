@@ -37,6 +37,7 @@ export type EventType =
   | "rfq_sent"
   | "meeting_scheduled"
   | "meeting_summarized"
+  | "label_compliance_reviewed"
   // Cron reminders
   | "supplier_action_reminder_3d"
   | "supplier_action_reminder_7d";

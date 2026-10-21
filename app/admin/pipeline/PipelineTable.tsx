@@ -12,6 +12,7 @@ import {
 import { bulkUpdateMatchStage } from "./actions";
 import BulkRfqDispatchModal from "./BulkRfqDispatchModal";
 import MeetingIntelligenceModal from "@/components/admin/meetings/MeetingIntelligenceModal";
+import LabelComplianceModal from "@/components/admin/compliance/LabelComplianceModal";
 import DealWorkflowStepper from "@/components/admin/pipeline/DealWorkflowStepper";
 
 export type PipelineRow = {
@@ -84,6 +85,7 @@ export default function PipelineTable({
   const [bulkBusy, setBulkBusy] = useState(false);
   const [dispatchModalOpen, setDispatchModalOpen] = useState(false);
   const [meetingDeal, setMeetingDeal] = useState<PipelineRow | null>(null);
+  const [complianceDeal, setComplianceDeal] = useState<PipelineRow | null>(null);
 
   const allSelected = rows.length > 0 && selectedIds.size === rows.length;
 
@@ -288,6 +290,8 @@ export default function PipelineTable({
                           } else if (stepKey === "rfq") {
                             setSelectedIds(new Set([row.id]));
                             setDispatchModalOpen(true);
+                          } else if (stepKey === "po" || stepKey === "vessel") {
+                            setComplianceDeal(row);
                           } else {
                             onOpenModal(row, "details");
                           }
@@ -344,6 +348,16 @@ export default function PipelineTable({
 
                       <button
                         type="button"
+                        onClick={() => setComplianceDeal(row)}
+                        title="Israeli Packaging & Hebrew Label Compliance (SI 1145)"
+                        className="text-xs font-semibold px-2 py-1 rounded-lg border border-amber-200 text-amber-700 bg-amber-50 hover:bg-amber-100 transition-colors shadow-xs flex items-center gap-1 cursor-pointer"
+                      >
+                        <span>🏷️</span>
+                        <span className="hidden xl:inline">Label</span>
+                      </button>
+
+                      <button
+                        type="button"
                         onClick={() => onOpenModal(row, "details")}
                         title="View match details"
                         className="text-gray-400 hover:text-gray-700 p-1 rounded hover:bg-gray-100 text-xs"
@@ -375,6 +389,15 @@ export default function PipelineTable({
         deal={meetingDeal}
         isOpen={Boolean(meetingDeal)}
         onClose={() => setMeetingDeal(null)}
+        onSuccess={() => {
+          router.refresh();
+        }}
+      />
+
+      <LabelComplianceModal
+        deal={complianceDeal}
+        isOpen={Boolean(complianceDeal)}
+        onClose={() => setComplianceDeal(null)}
         onSuccess={() => {
           router.refresh();
         }}
