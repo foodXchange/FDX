@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import RequestsList, { type PortalRequest } from "@/components/portal/RequestsList";
 import SupportForm from "@/components/portal/SupportForm";
+import BuyerPortalGuidanceHeader from "@/components/buyer-portal/BuyerPortalGuidanceHeader";
 
 export default async function PortalDashboardPage() {
   const supabase = await createClient();
@@ -48,39 +49,28 @@ export default async function PortalDashboardPage() {
   ]);
 
   const requests = (rawRequests ?? []) as PortalRequest[];
-  const greetingName = profile?.name || user.email;
+  const greetingName = profile?.name || buyerProfile?.contact_name || user.email?.split("@")[0] || "Buyer";
 
   return (
-    <section className="px-6 py-12">
-      <div className="max-w-3xl mx-auto">
-        <div className="flex items-center justify-between flex-wrap gap-4 mb-8">
-          <div>
-            <h1 className="text-2xl font-bold text-white">My Sourcing Requests</h1>
-            <p className="text-sm text-slate-400 mt-1">Welcome back, {greetingName}</p>
-          </div>
-          <Link
-            href={newRequestUrl}
-            className="bg-orange-500 hover:bg-orange-600 text-white px-5 py-2.5 rounded-md text-sm font-semibold transition"
-          >
-            + New request
-          </Link>
-        </div>
+    <section className="px-4 sm:px-6 py-10">
+      <div className="max-w-4xl mx-auto">
+        <BuyerPortalGuidanceHeader
+          requests={requests}
+          greetingName={greetingName}
+          newRequestUrl={newRequestUrl}
+        />
 
-        {requests.length === 0 ? (
-          <div className="dark-card p-8 text-center">
-            <p className="text-slate-200 font-medium">No requests yet</p>
-            <p className="text-sm text-slate-400 mt-2 mb-5">
-              Submit a sourcing request and we&apos;ll match you with verified suppliers.
-            </p>
-            <Link
-              href={newRequestUrl}
-              className="inline-block bg-orange-500 hover:bg-orange-600 text-white px-5 py-2.5 rounded-md text-sm font-semibold transition"
-            >
-              Submit a request →
-            </Link>
+        {requests.length > 0 && (
+          <div className="mb-10">
+            <h2 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
+              <span>📑</span>
+              <span>All Sourcing Briefs</span>
+              <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-slate-800 text-slate-400 border border-slate-700">
+                {requests.length}
+              </span>
+            </h2>
+            <RequestsList requests={requests} />
           </div>
-        ) : (
-          <RequestsList requests={requests} />
         )}
 
         <SupportForm />

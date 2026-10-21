@@ -20,7 +20,7 @@ export default async function SupplierPortalDashboardPage() {
     await Promise.all([
       supabaseAdmin
         .from("supplier_offerings")
-        .select("company_name, status, verified, product_description, onboarding_completed_at")
+        .select("company_name, status, verified, product_description, onboarding_completed_at, certifications, kosher_types")
         .eq("id", supplierId)
         .maybeSingle(),
       supabaseAdmin
@@ -73,7 +73,7 @@ export default async function SupplierPortalDashboardPage() {
 
   return (
     <section className="px-6 py-12">
-      <div className="max-w-3xl mx-auto">
+      <div className="max-w-4xl mx-auto">
         <div className="flex items-center justify-between flex-wrap gap-4 mb-8">
           <div>
             <h1 className="text-2xl font-bold text-white">Welcome back, {companyName}</h1>
@@ -97,6 +97,9 @@ export default async function SupplierPortalDashboardPage() {
             productCount={productCount}
             publishedCount={publishedCount}
             profileComplete={profileComplete}
+            hasCertifications={((supplier?.certifications as string[] | null)?.length ?? 0) > 0}
+            hasKosher={((supplier?.kosher_types as string[] | null)?.length ?? 0) > 0}
+            hasExportContacts={Boolean(ctx.profile?.phone?.trim())}
           />
         )}
 

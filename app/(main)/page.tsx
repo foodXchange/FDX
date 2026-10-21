@@ -2,6 +2,7 @@ import Link from "next/link";
 import Image from "next/image";
 import type { Metadata } from "next";
 import Reveal from "@/components/Reveal";
+import InteractiveSourcingFinder from "@/components/home/InteractiveSourcingFinder";
 
 export const metadata: Metadata = {
   title: "Food Sourcing for the Israeli Market | FoodXchange",
@@ -79,6 +80,7 @@ export default function HomePage() {
           <p className="text-xs text-slate-500 mt-4">
             No account needed to start. Takes 90 seconds.
           </p>
+          <InteractiveSourcingFinder />
         </Reveal>
       </section>
 
