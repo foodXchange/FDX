@@ -1,3 +1,4 @@
+import Link from "next/link";
 import Image from "next/image";
 import type { Metadata } from "next";
 import Reveal from "@/components/Reveal";
@@ -66,6 +67,13 @@ export default function HebrewBuyersPage() {
                 <a href="/en/suppliers/register" className="text-orange-400 hover:text-orange-300 font-semibold underline">
                   הרשמה כיצרן &larr;
                 </a>
+              </div>
+
+              <div className="mt-5 inline-flex items-center gap-2 bg-slate-900/90 border border-orange-500/30 hover:border-orange-500/60 rounded-full px-4 py-2 text-xs text-slate-300 transition shadow-sm">
+                <span>⚡ מעוניינים לבצע סימולציית רווחיות ועלות נחיתה במרלו״ג?</span>
+                <Link href="/he/calculator" className="text-orange-400 hover:text-orange-300 font-bold underline">
+                  למחשבון עלות נחיתה ←
+                </Link>
               </div>
             </Reveal>
           </div>

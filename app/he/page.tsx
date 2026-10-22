@@ -112,11 +112,19 @@ export default function HebrewBuyersHomePage() {
               {/* Primary Actions */}
               <div className="mt-10 flex flex-wrap gap-4 justify-center items-center">
                 <Link
-                  href="/he/contact"
+                  href="/he/sourcing"
                   className="bg-orange-500 hover:bg-orange-600 text-white px-7 py-3.5 rounded-xl font-bold text-sm sm:text-base transition shadow-lg shadow-orange-500/25 flex items-center gap-2"
                 >
                   <span>הגש בקשת רכש מהירה (RFQ)</span>
                   <span>←</span>
+                </Link>
+
+                <Link
+                  href="/he/calculator"
+                  className="bg-orange-500/10 hover:bg-orange-500/20 text-orange-400 border border-orange-500/30 px-6 py-3.5 rounded-xl font-bold text-sm sm:text-base transition flex items-center gap-2 shadow-sm"
+                >
+                  <span>⚡</span>
+                  <span>מחשבון עלות נחיתה ורווחיות</span>
                 </Link>
 
                 <a
@@ -139,6 +147,102 @@ export default function HebrewBuyersHomePage() {
               </div>
             </div>
           </Reveal>
+        </section>
+
+        {/* ── INTERACTIVE BUYER TOOLS SUITE ── */}
+        <section className="px-6 py-12 bg-slate-950 border-b border-white/10">
+          <div className="max-w-6xl mx-auto">
+            <Reveal>
+              <div className="text-center mb-8">
+                <span className="text-xs font-bold text-orange-400 uppercase tracking-widest bg-orange-500/10 border border-orange-500/20 px-3 py-1 rounded-full mb-2 inline-block">
+                  כלי קבלת החלטות מהירים לקניינים
+                </span>
+                <h2 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
+                  מכלולי סורסינג, חישוב רווחיות ורגולציה בישראל
+                </h2>
+              </div>
+
+              <div className="grid md:grid-cols-3 gap-6">
+                {/* Tool 1: Landed Cost Calculator */}
+                <div className="bg-slate-900 border border-orange-500/30 hover:border-orange-500 rounded-2xl p-6 transition flex flex-col justify-between shadow-xl">
+                  <div>
+                    <div className="flex items-center justify-between mb-4">
+                      <span className="text-3xl">⚡</span>
+                      <span className="text-[11px] font-bold text-orange-400 bg-orange-500/10 px-2.5 py-0.5 rounded-full border border-orange-500/20">
+                        סימולטור חי
+                      </span>
+                    </div>
+                    <h3 className="text-lg font-bold text-white mb-2">
+                      מחשבון עלות נחיתה ורווחיות מדף
+                    </h3>
+                    <p className="text-xs text-slate-400 leading-relaxed">
+                      המרת מחירי מפעל באירופה (€/$) לעלות נחיתה במרלו״ג בישראל (₪), שילוח ימי, אגרות נמל, מרווח גולמי לרשת והשוואת בנצ׳מרק למותגים מובילים.
+                    </p>
+                  </div>
+                  <div className="pt-6">
+                    <Link
+                      href="/he/calculator"
+                      className="w-full inline-flex items-center justify-center gap-1.5 bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold py-2.5 px-4 rounded-xl transition"
+                    >
+                      <span>פתח מחשבון עלות נחיתה ←</span>
+                    </Link>
+                  </div>
+                </div>
+
+                {/* Tool 2: Visual Sourcing RFQ */}
+                <div className="bg-slate-900 border border-white/10 hover:border-orange-500/50 rounded-2xl p-6 transition flex flex-col justify-between shadow-xl">
+                  <div>
+                    <div className="flex items-center justify-between mb-4">
+                      <span className="text-3xl">📸</span>
+                      <span className="text-[11px] font-bold text-sky-400 bg-sky-500/10 px-2.5 py-0.5 rounded-full border border-sky-500/20">
+                        תמונות + קול
+                      </span>
+                    </div>
+                    <h3 className="text-lg font-bold text-white mb-2">
+                      איתור יצרן לפי תמונת בנצ׳מרק מדף (RFQ)
+                    </h3>
+                    <p className="text-xs text-slate-400 leading-relaxed">
+                      העלאת עד 5 צילומים של מוצר קיים (חזית, רכיבים, ברקוד) או תיאור קולי בעברית. הצלבה מול 600+ מפעלי מזון מאומתים באירופה.
+                    </p>
+                  </div>
+                  <div className="pt-6">
+                    <Link
+                      href="/he/sourcing"
+                      className="w-full inline-flex items-center justify-center gap-1.5 bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold py-2.5 px-4 rounded-xl border border-slate-700 transition"
+                    >
+                      <span>התחל איתור יצרן RFQ ←</span>
+                    </Link>
+                  </div>
+                </div>
+
+                {/* Tool 3: Import Guide Hub */}
+                <div className="bg-slate-900 border border-white/10 hover:border-orange-500/50 rounded-2xl p-6 transition flex flex-col justify-between shadow-xl">
+                  <div>
+                    <div className="flex items-center justify-between mb-4">
+                      <span className="text-3xl">📋</span>
+                      <span className="text-[11px] font-bold text-emerald-400 bg-emerald-500/10 px-2.5 py-0.5 rounded-full border border-emerald-500/20">
+                        4 עמודי תווך
+                      </span>
+                    </div>
+                    <h3 className="text-lg font-bold text-white mb-2">
+                      מדריך יבוא המזון ומרכז הרגולציה
+                    </h3>
+                    <p className="text-xs text-slate-400 leading-relaxed">
+                      המדריך המקיף בישראל לרפורמת היבוא האירופאי, סימון תוויות לפי ת״י 1145, אישורי כשרות רבנות ובד״ץ ושחרור מהיר בנמלי אשדוד וחיפה.
+                    </p>
+                  </div>
+                  <div className="pt-6">
+                    <Link
+                      href="/he/import-guide"
+                      className="w-full inline-flex items-center justify-center gap-1.5 bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold py-2.5 px-4 rounded-xl border border-slate-700 transition"
+                    >
+                      <span>למדריך היבוא והרגולציה ←</span>
+                    </Link>
+                  </div>
+                </div>
+              </div>
+            </Reveal>
+          </div>
         </section>
 
         {/* ── 3 PILLARS: WHY FOODXCHANGE FOR ISRAELI BUYERS ── */}
@@ -416,7 +520,7 @@ export default function HebrewBuyersHomePage() {
 
               <div className="flex flex-wrap gap-3.5 justify-center">
                 <Link
-                  href="/he/contact"
+                  href="/he/sourcing"
                   className="bg-orange-500 hover:bg-orange-600 text-white px-8 py-3.5 rounded-xl font-bold transition shadow-lg shadow-orange-500/30 flex items-center gap-2"
                 >
                   <span>הגש בקשת רכש מהירה (RFQ)</span>
