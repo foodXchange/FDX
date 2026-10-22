@@ -27,6 +27,7 @@ interface ContactFieldsProps {
   errors: ContactFieldsErrors;
   defaultCountry?: string;
   companyOptional?: boolean;
+  lang?: "en" | "he";
 }
 
 function Label({ htmlFor, children }: { htmlFor?: string; children: React.ReactNode }) {
@@ -58,13 +59,19 @@ export default function ContactFields({
   errors,
   defaultCountry,
   companyOptional,
+  lang = "en",
 }: ContactFieldsProps) {
+  const isHe = lang === "he";
+  const resolvedCountry = (defaultCountry || (isHe ? "IL" : undefined)) as Country | undefined;
+
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" dir={isHe ? "rtl" : "ltr"}>
       {onCompanyChange !== undefined && (
         <div className="space-y-1">
           <Label htmlFor="cf-company">
-            Your company{companyOptional ? " (optional)" : ""}
+            {isHe
+              ? `שם החברה / רשת שיווק${companyOptional ? " (רשות)" : ""}`
+              : `Your company${companyOptional ? " (optional)" : ""}`}
           </Label>
           <input
             id="cf-company"
@@ -72,7 +79,7 @@ export default function ContactFields({
             value={company ?? ""}
             onChange={(e) => onCompanyChange(e.target.value)}
             onBlur={onCompanyBlur}
-            placeholder="e.g. Yochananof, ABC Imports"
+            placeholder={isHe ? "לדוגמה: יוחננוף, ויקטורי, שופרסל, טעמן" : "e.g. Yochananof, ABC Imports"}
             className="dark-input"
           />
           <FieldError msg={errors.company} />
@@ -81,7 +88,7 @@ export default function ContactFields({
 
       <div className="grid sm:grid-cols-2 gap-4">
         <div className="space-y-1">
-          <Label htmlFor="cf-name">Your name *</Label>
+          <Label htmlFor="cf-name">{isHe ? "שם מלא *" : "Your name *"}</Label>
           <input
             id="cf-name"
             type="text"
@@ -89,19 +96,20 @@ export default function ContactFields({
             value={name}
             onChange={(e) => onNameChange(e.target.value)}
             onBlur={onNameBlur}
-            placeholder="Full name"
+            placeholder={isHe ? "שם פרטי ומשפחה" : "Full name"}
             className="dark-input"
           />
           <FieldError msg={errors.name} />
         </div>
         <div className="space-y-1">
-          <Label htmlFor="cf-whatsapp">WhatsApp number</Label>
+          <Label htmlFor="cf-whatsapp">{isHe ? "מספר וואטסאפ (למענה מהיר)" : "WhatsApp number"}</Label>
           <div
             className="flex items-center bg-[#162330] border border-white/12 rounded-lg px-3 py-2.5 gap-2"
             style={{ "--PhoneInputCountrySelectArrow-color": "#94a3b8" } as React.CSSProperties}
+            dir="ltr"
           >
             <PhoneInput
-              defaultCountry={defaultCountry as Country | undefined}
+              defaultCountry={resolvedCountry}
               value={whatsapp || undefined}
               onChange={(v) => onWhatsappChange(v ?? "")}
               numberInputProps={{
@@ -113,13 +121,15 @@ export default function ContactFields({
           </div>
           <FieldError msg={errors.whatsapp} />
           <p className="mt-1 text-xs text-slate-500">
-            We respond faster on WhatsApp — usually within 2 hours.
+            {isHe
+              ? "אנו מגיבים מהר יותר בוואטסאפ — בדרך כלל בתוך שעתיים."
+              : "We respond faster on WhatsApp — usually within 2 hours."}
           </p>
         </div>
       </div>
 
       <div className="space-y-1">
-        <Label htmlFor="cf-email">Email address</Label>
+        <Label htmlFor="cf-email">{isHe ? "כתובת אימייל" : "Email address"}</Label>
         <input
           id="cf-email"
           type="email"
@@ -128,10 +138,13 @@ export default function ContactFields({
           onBlur={onEmailBlur}
           placeholder="you@company.com"
           className="dark-input"
+          dir="ltr"
         />
         <FieldError msg={errors.email} />
         <p className="mt-1 text-xs text-slate-500">
-          Please provide an email or WhatsApp number so we can reach you.
+          {isHe
+            ? "אנא ספקו אימייל או מספר וואטסאפ כדי שנוכל לחזור אליכם עם הצעות יצרנים."
+            : "Please provide an email or WhatsApp number so we can reach you."}
         </p>
       </div>
     </div>

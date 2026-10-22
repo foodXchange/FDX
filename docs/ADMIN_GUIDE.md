@@ -201,3 +201,29 @@ The Assortment Deck Studio allows the deal desk to create multi-factory presenta
      - 💬 **WhatsApp Udi**: Pre-formatted WhatsApp context message.
      - 📥 **Download PDF**: Instant access to the vector PDF deck.
 - **Real-Time Telemetry**: Every deck view and button click is tracked in `proposal_views` to alert the deal desk the moment a category manager reviews the deck.
+
+---
+
+## 9. Interactive Hebrew Sourcing RFQ & Benchmark Upload (`/he/buyers` & `/he/sourcing`)
+
+The Hebrew Sourcing RFQ & Benchmark Upload engine powers two dedicated Hebrew portals for Israeli supermarket category managers and food importers:
+
+- **Hebrew Buyers Portal**: `https://fdx.trading/he/buyers`
+- **Dedicated Hebrew Sourcing Form**: `https://fdx.trading/he/sourcing`
+- **RTL Sourcing Request Form (`SourcingRequestForm.tsx`)**:
+  - `lang="he"` prop support across all four steps.
+  - **Step 1: Benchmark Photo Upload (`MultiImageUpload.tsx`)**: Multi-image drag & drop or camera capture for up to 5 photos with Hebrew labels (`חזית האריזה`, `תווית רכיבים`, `ברקוד / יצרן`).
+  - **Step 2: Hebrew Voice Recognition & Real-Time AI Concierge**: Web Speech API integration defaulted to Hebrew (`voiceLang="he-IL"`), live transcript feedback, Hebrew prompt examples (Mayo 5kg, EVOO, canned tuna, frozen fries), and benchmark brand chips (הלמנס, היינץ, מוטי, ברילה, בלקוני, אסם, ריו מרה).
+  - **Step 3: 1-Click Hebrew Retail & Regulatory Presets**:
+    - Branding mode: `🏷️ מותג פרטי (PL)`, `🏭 מותג יצרן`, `🤝 שניהם אפשריים`.
+    - Packaging & dispenser: דלי 5 ק״ג + משאבה, בקבוק לחיץ, צנצנת זכוכית, שקיקים אישיים.
+    - Dietary & health claims: ללא גלוטן, טבעוני / ללא לקטוז, ללא תוספת סוכר, אורגני, ללא חומרים משמרים, Non-GMO.
+    - Kosher options: רבנות ראשית (מהדרין), בד״ץ (העדה החרדית / חתם סופר), רבנות רגילה (יבוא), כל כשרות מוכרת, ללא דרישת כשרות.
+    - Volume units: מכולות בשנה (Containers), משטחים בשנה (Pallets), טונות בשנה (Tons), ק״ג בשנה (Kg), יחידות בשנה (Units).
+  - **Step 4: Hebrew Buyer Contact Details (`ContactFields.tsx`)**: Defaults to Israel (+972) with phone/WhatsApp formatting and optional company field.
+- **Backend Ingestion**:
+  - Automatically posts to `/api/sourcing/submit` with `source: "buyers-he"` or `source: "sourcing-page-he"`.
+  - Automatically creates a buyer inquiry and launches AI Concierge analysis.
+  - Appears in `/admin/requests` and `/admin/pipeline` with full Hebrew requirement context and translated English brief.
+- **Global Bilingual Navigation Switcher (`[ EN | עב ]`)**:
+  - Integrated into `components/Header.tsx` with mirror paths `/en/buyers` ↔ `/he/buyers` and `/en/sourcing` ↔ `/he/sourcing`.

@@ -29,6 +29,7 @@ interface SourcingRequestFormProps {
   compact?: boolean;
   initialDescription?: string;
   onSuccess?: () => void;
+  lang?: "en" | "he";
 }
 
 type KosherOption = "chief-rabbinate" | "badatz" | "mehadrin" | "any" | "none";
@@ -97,6 +98,14 @@ const KOSHER_OPTIONS: { value: KosherOption; label: string }[] = [
   { value: "none", label: "No kosher required" },
 ];
 
+const KOSHER_OPTIONS_HE: { value: KosherOption; label: string }[] = [
+  { value: "chief-rabbinate", label: "רבנות ראשית לישראל (יבוא)" },
+  { value: "badatz", label: "בד״ץ מוכר (מהדרין / גלאט)" },
+  { value: "mehadrin", label: "מהדרין אחר (מוכר ביבוא)" },
+  { value: "any", label: "כל תעודת כשרות קיימת" },
+  { value: "none", label: "ללא דרישת כשרות" },
+];
+
 const PACKAGING_PRESETS = [
   "Plastic Squeeze Bottle",
   "Glass Bottle / Jar",
@@ -106,6 +115,17 @@ const PACKAGING_PRESETS = [
   "Retail Cans / Tins",
   "Resealable Stand-Up Pouch",
   "Industrial Bulk / IBC",
+];
+
+const PACKAGING_PRESETS_HE = [
+  "בקבוק לחיץ (Squeeze)",
+  "בקבוק / צנצנת זכוכית",
+  "דלי מוסדי 5 ק״ג",
+  "מכל 5 ק״ג + משאבת מזיגה",
+  "שקיקים אישיים (10–15 גרם)",
+  "שימורים / קופסאות פח",
+  "שקית עומדת (Doypack / Pouch)",
+  "צובר תעשייתי / IBC",
 ];
 
 const DIETARY_PRESETS = [
@@ -119,6 +139,17 @@ const DIETARY_PRESETS = [
   "Non-GMO",
 ];
 
+const DIETARY_PRESETS_HE = [
+  "ללא גלוטן",
+  "אורגני",
+  "ללא סוכר",
+  "מתאים לסוכרתיים",
+  "עשיר בחלבון",
+  "טבעוני / מן הצומח",
+  "ללא חומרים משמרים",
+  "Non-GMO",
+];
+
 const BENCHMARK_BRAND_SUGGESTIONS = [
   "Hellmann's",
   "Heinz",
@@ -127,6 +158,16 @@ const BENCHMARK_BRAND_SUGGESTIONS = [
   "Balconi",
   "Osem",
   "Rio Mare",
+];
+
+const BENCHMARK_BRAND_SUGGESTIONS_HE = [
+  "הלמנס",
+  "היינץ",
+  "מוטי (Mutti)",
+  "ברילה",
+  "בלקוני",
+  "אסם",
+  "ריו מרה",
 ];
 
 const EXAMPLES: ExampleRequest[] = [
@@ -199,6 +240,63 @@ const EXAMPLES: ExampleRequest[] = [
   },
 ];
 
+const EXAMPLES_HE: ExampleRequest[] = [
+  {
+    title: "🥫 מיונז מוסדי 5 ק״ג + משאבה",
+    details: "מכל 5 ק״ג + משאבה מוסדית · כשרות רבנות · מותג פרטי",
+    description:
+      "דרוש מיונז עשיר וקרמי בטעם דומה להלמנס או היינץ. ארוז במכל פלסטיק 5 ק״ג עם משאבת מזיגה מתאימה לרשתות מזון מהיר (QSR). ללא גלוטן, כשרות רבנות ראשית, מותג פרטי.",
+    kosher: "chief-rabbinate",
+    benchmarkBrand: "הלמנס / היינץ",
+    packaging: "מכל 5 ק״ג + משאבת מזיגה",
+    unitWeight: "5 ק״ג",
+    brandingMode: "private_label",
+    dietaryClaims: ["ללא גלוטן"],
+  },
+  {
+    title: "🫒 שמן זית כתית מעולה",
+    details: "בקבוק זכוכית כהה 750 מ״ל · רבנות ראשית · 20 טון בשנה",
+    description:
+      "שמן זית כתית מעולה (EVOO) בחמיצות מירבית 0.5%, בקבוק זכוכית כהה 750 מ״ל, כשרות רבנות ראשית יבוא, מותג פרטי של הרשת, כ-20 טון בשנה (מכולה חודשית).",
+    kosher: "chief-rabbinate",
+    packaging: "בקבוק / צנצנת זכוכית",
+    unitWeight: "750 מ״ל",
+    brandingMode: "private_label",
+  },
+  {
+    title: "🍟 צ׳יפס בלגי קפוא",
+    details: "שקית 1 ק״ג / 2.5 ק״ג · רבנות · 3–4 מכולות בחודש",
+    description:
+      "פלחי תפו״א קפואים (צ׳יפס בלגי חתוך 9x9 ו-10x10), שקיות 1 ק״ג למדף קמעונאי או 2.5 ק״ג לפודסרוויס, כשרות רבנות ראשית, מותג פרטי, כ-3 מכולות בחודש.",
+    kosher: "chief-rabbinate",
+    packaging: "שקית עומדת (Doypack / Pouch)",
+    unitWeight: "1 ק״ג",
+    brandingMode: "private_label",
+  },
+  {
+    title: "🍅 רסק עגבניות איטלקי מרוכז כפול",
+    details: "גביעי מנות 115 גרם ו-200 גרם · רבנות ראשית · מותג פרטי",
+    description:
+      "רסק עגבניות מרוכז כפול בריכוז 28-30% Brix, איכות פרימיום דומה למוטי, גביעים קמעונאיים 115 גרם ו-200 גרם, כשרות רבנות ראשית, מותג פרטי.",
+    kosher: "chief-rabbinate",
+    benchmarkBrand: "מוטי (Mutti)",
+    packaging: "שימורים / קופסאות פח",
+    unitWeight: "115 גרם",
+    brandingMode: "private_label",
+  },
+  {
+    title: "🥣 גרנולה אורגנית עשירה בחלבון",
+    details: "אריזת 400 גרם · ללא גלוטן · בד״ץ",
+    description:
+      "גרנולה אורגנית מועשרת בחלבון עם תערובת פירות יער מיובשים, שיבולת שועל ללא גלוטן, שקית עומדת 400 גרם עם פס סגירה חוזרת, כשרות בד״ץ, 10 טון בשנה.",
+    kosher: "badatz",
+    packaging: "שקית עומדת (Doypack / Pouch)",
+    unitWeight: "400 גרם",
+    brandingMode: "private_label",
+    dietaryClaims: ["אורגני", "ללא גלוטן", "עשיר בחלבון"],
+  },
+];
+
 function Label({ htmlFor, children }: { htmlFor?: string; children: ReactNode }) {
   return (
     <label htmlFor={htmlFor} className="mb-1.5 block text-xs font-semibold text-slate-200">
@@ -247,13 +345,29 @@ function SectionHeader({
 
 export default function SourcingRequestForm({
   source = "buyers-page",
-  heading = "Start Your Sourcing Request",
-  subheading = "Upload 1–3 photos, speak in Hebrew/English, or tap quick specs below.",
+  heading,
+  subheading,
   showExamples = false,
   compact = false,
   initialDescription,
   onSuccess,
+  lang = "en",
 }: SourcingRequestFormProps) {
+  const isHe = lang === "he";
+
+  const resolvedHeading =
+    heading ?? (isHe ? "הגשת בקשת רכש ממוקדת (RFQ)" : "Start Your Sourcing Request");
+  const resolvedSubheading =
+    subheading ??
+    (isHe
+      ? "העלו 1–3 תמונות בנצ'מרק מהמדף, הקליטו תיאור בעברית, או סמנו מפרט מהיר בקליק."
+      : "Upload 1–3 photos, speak in Hebrew/English, or tap quick specs below.");
+
+  const activeExamples = isHe ? EXAMPLES_HE : EXAMPLES;
+  const activePackaging = isHe ? PACKAGING_PRESETS_HE : PACKAGING_PRESETS;
+  const activeDietary = isHe ? DIETARY_PRESETS_HE : DIETARY_PRESETS;
+  const activeBrands = isHe ? BENCHMARK_BRAND_SUGGESTIONS_HE : BENCHMARK_BRAND_SUGGESTIONS;
+  const activeKosher = isHe ? KOSHER_OPTIONS_HE : KOSHER_OPTIONS;
   const formKey =
     source === "sourcing-page"
       ? "fdx_sourcing_form"
@@ -1067,15 +1181,15 @@ export default function SourcingRequestForm({
   const anyUploading = images.some((img) => img.uploading);
 
   return (
-    <div ref={formRef} className="space-y-6">
+    <div ref={formRef} className="space-y-6" dir={isHe ? "rtl" : "ltr"}>
       {showExamples && (
         <section className="border-b border-dark-border px-6 py-5 bg-slate-950/30">
           <div className="mx-auto max-w-4xl">
             <div className="flex flex-wrap items-center justify-center gap-2">
               <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 mr-1">
-                Quick-Fill Example:
+                {isHe ? "מילוי מהיר לדוגמה:" : "Quick-Fill Example:"}
               </span>
-              {EXAMPLES.map((example, idx) => (
+              {activeExamples.map((example, idx) => (
                 <button
                   key={idx}
                   type="button"
@@ -1094,8 +1208,8 @@ export default function SourcingRequestForm({
         <div className="mx-auto max-w-2xl">
           {!compact && (
             <div className="mb-6 text-center">
-              <h2 className="text-xl font-bold text-dark-text-primary">{heading}</h2>
-              {subheading && <p className="mt-1 text-xs text-slate-400">{subheading}</p>}
+              <h2 className="text-xl font-bold text-dark-text-primary">{resolvedHeading}</h2>
+              {resolvedSubheading && <p className="mt-1 text-xs text-slate-400">{resolvedSubheading}</p>}
             </div>
           )}
 
@@ -1111,11 +1225,15 @@ export default function SourcingRequestForm({
               </div>
 
               <h3 className="mb-1.5 text-lg font-semibold text-dark-text-primary">
-                Request Received — Matching Manufacturers Now
+                {isHe
+                  ? "בקשת הרכש התקבלה — מאתרים יצרנים מתאימים כעת"
+                  : "Request Received — Matching Manufacturers Now"}
               </h3>
 
               <p className="mb-4 text-xs text-slate-300">
-                We are matching your specs across 25,000+ verified products and will reach out with qualified suppliers.
+                {isHe
+                  ? "אנו סורקים את המפרט שלך מול מעל 600 יצרני מזון מאושרים באירופה ונחזור אליך אישית בתוך 24 שעות."
+                  : "We are matching your specs across 25,000+ verified products and will reach out with qualified suppliers."}
               </p>
 
               {submittedSummary && (
@@ -1129,7 +1247,7 @@ export default function SourcingRequestForm({
                 onClick={handleDifferentProduct}
                 className="btn-brand rounded-lg px-6 py-2.5 text-sm"
               >
-                Submit another request
+                {isHe ? "הגשת בקשה למוצר נוסף" : "Submit another request"}
               </button>
 
               <div
@@ -1143,12 +1261,12 @@ export default function SourcingRequestForm({
                     onClick={handleSameCategory}
                     className="rounded-lg border border-white/20 px-4 py-2 text-xs text-slate-300 transition hover:bg-white/5"
                   >
-                    + Add another product in same category
+                    {isHe ? "+ הוסף מוצר נוסף באותה קטגוריה" : "+ Add another product in same category"}
                   </button>
                 </div>
 
-                <a href="/" className="mt-5 block text-xs text-slate-500 transition hover:text-slate-300">
-                  ← Back to homepage
+                <a href={isHe ? "/he" : "/"} className="mt-5 block text-xs text-slate-500 transition hover:text-slate-300">
+                  {isHe ? "← חזרה לדף הבית" : "← Back to homepage"}
                 </a>
               </div>
 
@@ -1158,7 +1276,7 @@ export default function SourcingRequestForm({
             <form onSubmit={handleSubmit} className="space-y-5">
               {savedBanner && (
                 <div className="flex items-center justify-between rounded-lg border border-blue-500/20 bg-blue-500/10 px-4 py-2 text-xs">
-                  <span className="text-slate-300">Draft restored</span>
+                  <span className="text-slate-300">{isHe ? "טיוטה שוחזרה מהזיכרון" : "Draft restored"}</span>
                   <button
                     type="button"
                     onClick={() => setSavedBanner(false)}
@@ -1172,22 +1290,24 @@ export default function SourcingRequestForm({
               {/* ── STEP 1: BENCHMARK PHOTOS ── */}
               <SectionHeader
                 n={1}
-                title="Benchmark Photos (1–3 Images)"
-                badge="Recommended"
+                title={isHe ? "תמונות בנצ'מרק מהמדף (1–3 תמונות)" : "Benchmark Photos (1–3 Images)"}
+                badge={isHe ? "מומלץ מאוד" : "Recommended"}
                 first
               />
 
               <FieldGroup>
-                <MultiImageUpload value={images} onChange={setImages} maxImages={3} bucket="requests" />
+                <MultiImageUpload value={images} onChange={setImages} maxImages={3} bucket="requests" lang={lang} />
                 <p className="text-[11px] text-slate-400">
-                  ① Front / Brand · ② Packaging / Pump · ③ Ingredients / Kosher
+                  {isHe
+                    ? "① תווית קדמית / מותג · ② סוג אריזה / משאבה · ③ רכיבים / כשרות ומשקל"
+                    : "① Front / Brand · ② Packaging / Pump · ③ Ingredients / Kosher"}
                 </p>
               </FieldGroup>
 
               {/* ── STEP 2: VOICE OR TEXT + BENCHMARK BRAND ── */}
               <SectionHeader
                 n={2}
-                title="Speak or Describe Product"
+                title={isHe ? "הקלטה קולית או תיאור חופשי" : "Speak or Describe Product"}
                 badge="עברית / English"
               />
 
@@ -1195,7 +1315,7 @@ export default function SourcingRequestForm({
               <div className="space-y-3 rounded-2xl border border-white/10 bg-[#0b1324] p-4">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <span className="text-xs font-semibold text-slate-200">
-                    🎙️ Voice Narration or Text
+                    {isHe ? "🎙️ הקלטה קולית בעברית או תיאור חופשי" : "🎙️ Voice Narration or Text"}
                   </span>
 
                   <div className="flex items-center gap-2">
@@ -1234,7 +1354,7 @@ export default function SourcingRequestForm({
                       }`}
                     >
                       <span className="h-2 w-2 rounded-full bg-white" />
-                      {isRecording ? "Stop" : "Speak"}
+                      {isRecording ? (isHe ? "עצור" : "Stop") : (isHe ? "הקלט" : "Speak")}
                     </button>
 
                     <button
@@ -1243,7 +1363,7 @@ export default function SourcingRequestForm({
                       disabled={conciergeLoading || (!description.trim() && images.length === 0 && !benchmarkBrand.trim())}
                       className="rounded-lg border border-orange-500/40 bg-orange-500/15 px-2.5 py-1.5 text-xs font-semibold text-orange-300 transition hover:bg-orange-500/25 disabled:opacity-40"
                     >
-                      {conciergeLoading ? "✨ Analyzing..." : "✨ AI Check"}
+                      {conciergeLoading ? (isHe ? "✨ בודק מפרט..." : "✨ Analyzing...") : (isHe ? "✨ בדיקת AI" : "✨ AI Check")}
                     </button>
                   </div>
                 </div>
@@ -1273,7 +1393,11 @@ export default function SourcingRequestForm({
                     }
                   }}
                   maxLength={4000}
-                  placeholder="e.g. Mayonnaise similar to Hellmann's, 5kg catering plastic box with pump, kosher, private label..."
+                  placeholder={
+                    isHe
+                      ? "לדוגמה: מיונז בסגנון הלמנ'ס, דלי 5 ק״ג לקייטרינג ומסעדות, כשר לפסח, מותג פרטי..."
+                      : "e.g. Mayonnaise similar to Hellmann's, 5kg catering plastic box with pump, kosher, private label..."
+                  }
                   className={`${inputClass("resize-none")} ${descHighlight ? "border-orange-500/60" : ""}`}
                 />
                 <FieldError message={fieldErrors.description} />
@@ -1286,11 +1410,15 @@ export default function SourcingRequestForm({
                       type="text"
                       value={benchmarkBrand}
                       onChange={(e) => setBenchmarkBrand(e.target.value)}
-                      placeholder="Benchmark brand (e.g. Hellmann's, Heinz, Mutti)..."
+                      placeholder={
+                        isHe
+                          ? "מותג בנצ'מרק להשוואה (למשל הלמנ'ס, היינץ, מוטי)..."
+                          : "Benchmark brand (e.g. Hellmann's, Heinz, Mutti)..."
+                      }
                       className="flex-1 min-w-[200px] rounded-lg border border-white/10 bg-[#0f172a] px-3 py-2 text-xs text-slate-100 placeholder-slate-500 focus:border-orange-500 focus:outline-none"
                     />
                     <div className="flex flex-wrap items-center gap-1">
-                      {BENCHMARK_BRAND_SUGGESTIONS.map((brand) => (
+                      {activeBrands.map((brand) => (
                         <button
                           key={brand}
                           type="button"
@@ -1318,10 +1446,12 @@ export default function SourcingRequestForm({
                   <div className="flex items-center justify-between gap-3">
                     <div className="flex items-center gap-2">
                       <span className="text-sm">🤖</span>
-                      <span className="text-xs font-bold text-slate-100">AI Sourcing Concierge</span>
+                      <span className="text-xs font-bold text-slate-100">
+                        {isHe ? "סייר רכש AI חכם" : "AI Sourcing Concierge"}
+                      </span>
                       {conciergeData && conciergeData.liveMatchPreview.matchingSuppliersCount > 0 && (
                         <span className="rounded-full border border-emerald-500/30 bg-emerald-500/15 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-300">
-                          🎯 {conciergeData.liveMatchPreview.matchingSuppliersCount} Factories Ready
+                          🎯 {conciergeData.liveMatchPreview.matchingSuppliersCount} {isHe ? "מפעלים מתאימים" : "Factories Ready"}
                         </span>
                       )}
                     </div>
@@ -1347,7 +1477,7 @@ export default function SourcingRequestForm({
                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
                       </svg>
-                      Checking specs...
+                      {isHe ? "בודק מפרט..." : "Checking specs..."}
                     </div>
                   ) : conciergeData ? (
                     <div className="mt-2.5 space-y-2.5">
@@ -1389,16 +1519,16 @@ export default function SourcingRequestForm({
               {/* ── STEP 3: QUICK SPECS (1-CLICK CHIPS) ── */}
               <SectionHeader
                 n={3}
-                title="Quick Product Specs"
-                badge="1-Click"
+                title={isHe ? "מפרט מוצר מהיר" : "Quick Product Specs"}
+                badge={isHe ? "קליק 1" : "1-Click"}
               />
 
               {/* Branding Mode Toggle */}
               <div className="grid grid-cols-3 gap-2">
                 {[
-                  { value: "private_label" as const, label: "🏷️ Private Label" },
-                  { value: "supplier_brand" as const, label: "🏭 Supplier Brand" },
-                  { value: "both" as const, label: "🤝 Either / Both" },
+                  { value: "private_label" as const, label: isHe ? "🏷️ מותג פרטי (PL)" : "🏷️ Private Label" },
+                  { value: "supplier_brand" as const, label: isHe ? "🏭 מותג יצרן" : "🏭 Supplier Brand" },
+                  { value: "both" as const, label: isHe ? "🤝 שניהם אפשריים" : "🤝 Either / Both" },
                 ].map((item) => (
                   <button
                     key={item.value}
@@ -1420,17 +1550,21 @@ export default function SourcingRequestForm({
 
               {/* Packaging & Hardware */}
               <FieldGroup>
-                <Label htmlFor="packaging">Packaging &amp; Dispenser Format</Label>
+                <Label htmlFor="packaging">{isHe ? "אריזה ואופן הגשה / דיספנסר" : "Packaging & Dispenser Format"}</Label>
                 <input
                   id="packaging"
                   type="text"
                   value={packaging}
                   onChange={(event) => setPackaging(event.target.value)}
-                  placeholder="e.g. 5kg catering box + pump, squeeze bottle, glass jar, sachets..."
+                  placeholder={
+                    isHe
+                      ? "למשל: דלי 5 ק״ג + משאבה, בקבוק לחיץ 400 מ״ל, צנצנת זכוכית, שקיקים אישיים..."
+                      : "e.g. 5kg catering box + pump, squeeze bottle, glass jar, sachets..."
+                  }
                   className={inputClass("py-2.5")}
                 />
                 <div className="flex flex-wrap gap-1.5">
-                  {PACKAGING_PRESETS.map((preset) => (
+                  {activePackaging.map((preset) => (
                     <button
                       key={preset}
                       type="button"
@@ -1450,37 +1584,37 @@ export default function SourcingRequestForm({
               {/* Weight & SKU Count */}
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <FieldGroup>
-                  <Label htmlFor="unitWeight">Unit Weight / Size</Label>
+                  <Label htmlFor="unitWeight">{isHe ? "משקל / נפח יחידה" : "Unit Weight / Size"}</Label>
                   <input
                     id="unitWeight"
                     type="text"
                     value={unitWeight}
                     onChange={(e) => setUnitWeight(e.target.value)}
-                    placeholder="e.g. 5kg, 400g, 750ml, 10g"
+                    placeholder={isHe ? "למשל: 5 ק״ג, 400 גרם, 750 מ״ל, 10 גרם" : "e.g. 5kg, 400g, 750ml, 10g"}
                     className={inputClass("py-2.5")}
                   />
                 </FieldGroup>
 
                 <FieldGroup>
-                  <Label htmlFor="productCount">Number of Products</Label>
+                  <Label htmlFor="productCount">{isHe ? "מספר מק״טים מבוקש" : "Number of Products"}</Label>
                   <select
                     id="productCount"
                     value={productCount}
                     onChange={(e) => setProductCount(e.target.value)}
                     className={inputClass("py-2.5")}
                   >
-                    <option value="1 single product">1 Product (Single SKU)</option>
-                    <option value="2–3 pack sizes / variants">2–3 Products / Variants</option>
-                    <option value="Full range (4+ SKUs / flavours)">4+ Products (Full Line)</option>
+                    <option value="1 single product">{isHe ? "מוצר בודד (מק״ט יחיד)" : "1 Product (Single SKU)"}</option>
+                    <option value="2–3 pack sizes / variants">{isHe ? "2–3 גדלים / טעמים" : "2–3 Products / Variants"}</option>
+                    <option value="Full range (4+ SKUs / flavours)">{isHe ? "סדרה מלאה (4+ מק״טים)" : "4+ Products (Full Line)"}</option>
                   </select>
                 </FieldGroup>
               </div>
 
               {/* Dietary & Functional Chips */}
               <FieldGroup>
-                <Label>Dietary &amp; Health Claims</Label>
+                <Label>{isHe ? "דרישות תזונתיות ותוויות איכות" : "Dietary & Health Claims"}</Label>
                 <div className="flex flex-wrap gap-1.5">
-                  {DIETARY_PRESETS.map((claim) => {
+                  {activeDietary.map((claim) => {
                     const active = dietaryClaims.includes(claim);
                     return (
                       <button
@@ -1504,14 +1638,14 @@ export default function SourcingRequestForm({
               {/* Kosher, Category & Volume in a compact grid */}
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                 <FieldGroup>
-                  <Label htmlFor="kosherSelect">Kosher</Label>
+                  <Label htmlFor="kosherSelect">{isHe ? "כשרות" : "Kosher"}</Label>
                   <select
                     id="kosherSelect"
                     value={kosher}
                     onChange={(e) => setKosher(e.target.value as KosherOption)}
                     className={inputClass("py-2.5")}
                   >
-                    {KOSHER_OPTIONS.map((option) => (
+                    {activeKosher.map((option) => (
                       <option key={option.value} value={option.value}>
                         {option.label}
                       </option>
@@ -1520,14 +1654,14 @@ export default function SourcingRequestForm({
                 </FieldGroup>
 
                 <FieldGroup>
-                  <Label htmlFor="category">Category</Label>
+                  <Label htmlFor="category">{isHe ? "קטגוריה" : "Category"}</Label>
                   <select
                     id="category"
                     value={category}
                     onChange={(event) => setCategory(event.target.value)}
                     className={inputClass("py-2.5")}
                   >
-                    <option value="">Auto-detect (AI)</option>
+                    <option value="">{isHe ? "זיהוי אוטומטי (AI)" : "Auto-detect (AI)"}</option>
                     {CATEGORY_OPTIONS.map((option) => (
                       <option key={option} value={option}>
                         {option}
@@ -1537,7 +1671,7 @@ export default function SourcingRequestForm({
                 </FieldGroup>
 
                 <FieldGroup>
-                  <Label htmlFor="volume">Annual Volume</Label>
+                  <Label htmlFor="volume">{isHe ? "צפי נפח שנתי" : "Annual Volume"}</Label>
                   <div className="flex items-center gap-1.5">
                     <input
                       id="volume"
@@ -1555,11 +1689,21 @@ export default function SourcingRequestForm({
                         setVolumeUnit(event.target.value as (typeof VOLUME_UNIT_OPTIONS)[number]["value"])
                       }
                       className={inputClass("py-2.5 px-2 text-xs")}
-                      aria-label="Volume unit"
+                      aria-label={isHe ? "יחידת מידה לנפח" : "Volume unit"}
                     >
                       {VOLUME_UNIT_OPTIONS.map((option) => (
                         <option key={option.value} value={option.value}>
-                          {option.value}
+                          {isHe
+                            ? option.value === "containers"
+                              ? "מכולות בשנה (Containers)"
+                              : option.value === "pallets"
+                              ? "משטחים בשנה (Pallets)"
+                              : option.value === "tons"
+                              ? "טונות בשנה (Tons)"
+                              : option.value === "kg"
+                              ? "ק״ג בשנה (Kg)"
+                              : "יחידות בשנה (Units)"
+                            : option.label}
                         </option>
                       ))}
                     </select>
@@ -1568,9 +1712,13 @@ export default function SourcingRequestForm({
               </div>
 
               {/* ── STEP 4: BUYER CONTACT DETAILS ── */}
-              <SectionHeader n={4} title="Where Should We Send Your Matches?" />
+              <SectionHeader
+                n={4}
+                title={isHe ? "לאן לשלוח את הצעות המפעלים המתאימים?" : "Where Should We Send Your Matches?"}
+              />
 
               <ContactFields
+                lang={lang}
                 name={name}
                 onNameChange={(value) => {
                   setName(value);
@@ -1618,7 +1766,7 @@ export default function SourcingRequestForm({
                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
                       </svg>
-                      Matching Suppliers...
+                      {isHe ? "מאתר יצרנים מתאימים..." : "Matching Suppliers..."}
                     </>
                   ) : anyUploading ? (
                     <>
@@ -1626,10 +1774,10 @@ export default function SourcingRequestForm({
                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
                       </svg>
-                      Uploading photos...
+                      {isHe ? "מעלה תמונות..." : "Uploading photos..."}
                     </>
                   ) : (
-                    "Match Verified Manufacturers →"
+                    isHe ? "שליחת בקשת רכש ואיתור מפעלים מתאימים ←" : "Match Verified Manufacturers →"
                   )}
                 </button>
               </div>
@@ -1639,7 +1787,7 @@ export default function SourcingRequestForm({
                 onClick={clearForm}
                 className="mx-auto block text-center text-xs text-slate-500 hover:text-slate-300"
               >
-                Clear form
+                {isHe ? "איפוס הטופס" : "Clear form"}
               </button>
             </form>
           )}

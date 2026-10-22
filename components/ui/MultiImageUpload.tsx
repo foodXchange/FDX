@@ -17,6 +17,7 @@ interface Props {
   maxImages?: number;
   bucket?: string;
   exampleTypes?: { label: string; color: string }[];
+  lang?: "en" | "he";
 }
 
 const MAX_SIZE_BYTES = 5 * 1024 * 1024;
@@ -79,7 +80,9 @@ export default function MultiImageUpload({
   maxImages = 5,
   bucket = "requests",
   exampleTypes = DEFAULT_EXAMPLES,
+  lang = "en",
 }: Props) {
+  const isHe = lang === "he";
   const [images, setImages] = useState<UploadedImage[]>(value);
   const imagesRef = useRef<UploadedImage[]>(images);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -124,11 +127,11 @@ export default function MultiImageUpload({
     newImages.forEach((img, idx) => {
       const file = toAdd[idx];
       if (!file.type.startsWith("image/")) {
-        updateImage(img.id, { uploading: false, error: "Only image files are supported" });
+        updateImage(img.id, { uploading: false, error: isHe ? "רק קובצי תמונה נתמכים" : "Only image files are supported" });
         return;
       }
       if (file.size > MAX_SIZE_BYTES) {
-        updateImage(img.id, { uploading: false, error: "File too large (max 5 MB)" });
+        updateImage(img.id, { uploading: false, error: isHe ? "קובץ גדול מדי (עד 5MB)" : "File too large (max 5 MB)" });
         return;
       }
       uploadFile(file, bucket)
@@ -136,7 +139,7 @@ export default function MultiImageUpload({
         .catch((err: unknown) =>
           updateImage(img.id, {
             uploading: false,
-            error: err instanceof Error ? err.message : "Upload failed",
+            error: err instanceof Error ? err.message : isHe ? "העלאה נכשלה" : "Upload failed",
           })
         );
     });
@@ -158,11 +161,11 @@ export default function MultiImageUpload({
     const raw = urlInput.trim();
     if (!raw) return;
     if (!raw.startsWith("http")) {
-      setUrlError("Please enter a valid URL starting with http");
+      setUrlError(isHe ? "נא להזין כתובת תקינה המתחילה ב-http" : "Please enter a valid URL starting with http");
       return;
     }
     if (!canAdd) {
-      setUrlError(`Maximum ${maxImages} images reached`);
+      setUrlError(isHe ? `הגעת לכמות המקסימלית של ${maxImages} תמונות` : `Maximum ${maxImages} images reached`);
       return;
     }
     setUrlError(null);
@@ -186,10 +189,12 @@ export default function MultiImageUpload({
     setImages(imagesRef.current.filter((m) => m.id !== id));
   }
 
-  const slotBadges = ["① Brand / Front", "② Packaging / Pump", "③ Specs / Kosher"];
+  const slotBadges = isHe
+    ? ["① תווית קדמית / מותג", "② סוג אריזה / משאבה", "③ מפרט / כשרות ומשקל"]
+    : ["① Brand / Front", "② Packaging / Pump", "③ Specs / Kosher"];
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-3" dir={isHe ? "rtl" : "ltr"}>
       {images.length === 0 ? (
         <div
           onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
@@ -208,10 +213,14 @@ export default function MultiImageUpload({
             </svg>
           </div>
           <p className="text-sm font-semibold text-slate-100">
-            Drop up to 3 Benchmark Product Photos here
+            {isHe
+              ? "גררו לכאן עד 3 תמונות של מוצר בנצ'מרק מהמדף"
+              : "Drop up to 3 Benchmark Product Photos here"}
           </p>
           <p className="text-xs text-slate-400 mt-1 text-center">
-            e.g. Hellmann&apos;s or Heinz front label, packaging/pump format, and ingredients/kosher mark
+            {isHe
+              ? "לדוגמה: תווית קדמית של המותג המוביל, סוג אריזה, רכיבים / חותמת כשרות"
+              : "e.g. Hellmann's or Heinz front label, packaging/pump format, and ingredients/kosher mark"}
           </p>
         </div>
       ) : (
@@ -275,7 +284,7 @@ export default function MultiImageUpload({
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
               </svg>
               <span className="text-xs mt-1 font-medium">
-                {slotBadges[images.length] ?? "+ Add Photo"}
+                {slotBadges[images.length] ?? (isHe ? "+ הוסף תמונה" : "+ Add Photo")}
               </span>
             </button>
           )}
@@ -283,7 +292,9 @@ export default function MultiImageUpload({
       )}
 
       {images.length >= maxImages && (
-        <p className="text-xs text-slate-400 text-center">Maximum {maxImages} images reached</p>
+        <p className="text-xs text-slate-400 text-center">
+          {isHe ? `הגעת לכמות המקסימלית של ${maxImages} תמונות` : `Maximum ${maxImages} images reached`}
+        </p>
       )}
 
       <div className="flex gap-2">
@@ -292,17 +303,18 @@ export default function MultiImageUpload({
           value={urlInput}
           onChange={(e) => setUrlInput(e.target.value)}
           onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addUrl(); } }}
-          placeholder="Or paste a Google Image / Benchmark Product URL..."
+          placeholder={isHe ? "או הדבק קישור לתמונת מוצר (Google Images / URL)..." : "Or paste a Google Image / Benchmark Product URL..."}
           className="flex-1 text-sm border border-white/10 bg-[#0f172a] text-slate-100 rounded-xl px-3.5 py-2.5 focus:outline-none focus:border-orange-500 placeholder-slate-500"
           disabled={!canAdd}
+          dir={isHe ? "rtl" : "ltr"}
         />
         <button
           type="button"
           onClick={addUrl}
           disabled={!urlInput.trim() || !canAdd}
-          className="px-4 py-2 text-sm font-medium bg-white/10 hover:bg-white/15 text-slate-200 rounded-xl disabled:opacity-40 transition"
+          className="px-4 py-2 text-sm font-medium bg-white/10 hover:bg-white/15 text-slate-200 rounded-xl disabled:opacity-40 transition shrink-0"
         >
-          Add URL
+          {isHe ? "הוסף קישור" : "Add URL"}
         </button>
       </div>
       {urlError && <p className="text-xs text-red-400">{urlError}</p>}
