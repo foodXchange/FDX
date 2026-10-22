@@ -397,3 +397,30 @@ The Technical Product Specification module transforms the catalog from a discove
   - `+ הוסף לערכת טעימות`: Direct addition to the Tasting Sample Box.
   - `פתח במחשבון עלות נחיתה ⚡`: Instant link to `/he/calculator` with prefilled parameters.
   - Print-ready A4 stylesheet and 1-tap WhatsApp sharing for retail category trade meetings.
+
+---
+
+## 16. Universal Live Tracking & Courier Lookup Portal (`/track` & `/he/track`)
+
+The Live Tracking Portal provides self-service transparency for supermarket buyers and category managers awaiting European factory samples or commercial import containers:
+
+- **Public Buyer Routes**:
+  - Hebrew (RTL): `/he/track` (with `?code=FDX-SMP-XXXXX`, `?q=...`, or `?phone=...`).
+  - English (LTR): `/en/track` and unified `/track`.
+- **Search & Lookup Engine (`/api/track/lookup`)**:
+  - Multi-key resolution: Matches `FDX-SMP-XXXXX` tracking references, DHL / FedEx Air Waybills (AWB), buyer phone numbers, session tokens, or UUID request identifiers.
+  - Interactive Demo Mode: Instant test simulation via `FDX-SMP-DEMO88`.
+- **Visual 5-Stage Logistics Timeline (`SampleTrackingTimeline.tsx`)**:
+  1. `coordinating_factory`: Production line batch sampling and European plant consolidation.
+  2. `dispatched_air`: International air express flight dispatch with 1-click external DHL AWB tracking link.
+  3. `customs_tlv`: Ben Gurion Airport (TLV) quarantine inspection, Ministry of Health and Rabbinate clearance.
+  4. `delivered`: Local courier delivery to retail headquarters tasting table.
+  5. `feedback_evaluated`: Organoleptic quality evaluation and transition to commercial quotation.
+- **Sensory Quality Scorecard (`SensoryScorecardSection.tsx` & `/api/track/feedback`)**:
+  - 4-dimension 5-star scoring: Taste & Flavor, Texture & Mouthfeel, Packaging & Drained Weight, and Israeli Retail Viability.
+  - Real-time weighted overall score calculation.
+  - Commercial procurement decision: "Approved for Container Quote" vs "Needs Improvement / Alternate Format".
+  - Instant dispatch alert to the Deal Desk team (`sendLeadNotification`) for PO issuance.
+- **Bi-Directional WhatsApp Integration**:
+  - Prefilled status queries from the tracking portal to the Deal Desk manager (`+972 52-522-2291`).
+  - One-tap status updates with embedded live tracking URLs sent from `/admin/samples`.

@@ -219,17 +219,22 @@ export default function AdminSamplesClient({ initialSamples }: Props) {
     const awb = first.ai_analysis?.tracking_awb || editingAwb;
     const trackingCode = first.ai_analysis?.tracking_code || `FDX-SMP-${first.id.slice(0, 6)}`;
 
+    const liveTrackingUrl = `https://fdx.trading/he/track?code=${trackingCode}`;
+
     let msg = "";
     if (first.status === "dispatched_air") {
       msg = `שלום ${first.name || "קניין יקר"}, ערכת הדוגמאות של ${first.company || "הרשת"} (#${trackingCode}) שוגרה כעת מאירופה ב-DHL Express!
 ✈️ מספר מעקב למשלוח: ${awb || "נשלח בהודעה עוקבת"}
-קישור למעקב ישיר: https://www.dhl.com/en/express/tracking.html?AWB=${awb}
+קישור למעקב ישיר ב-DHL: https://www.dhl.com/en/express/tracking.html?AWB=${awb}
+📱 ציר זמן חי ב-FoodXchange: ${liveTrackingUrl}
 צפי מסירה בשולחן הטעימות: תוך 3-4 ימי עסקים. צוות FoodXchange לשירותך.`;
     } else if (first.status === "delivered") {
       msg = `שלום ${first.name || "קניין יקר"}, ערכת הדוגמאות (#${trackingCode}) נמסרה כעת למשרדי ${first.company || "הרשת"}.
-נשמח לתיאום רשמי שולחן הטעימות והערכת האיכות מול היצרן האירופי לקראת גיבוש הצעת מחיר למכולה ראשונה.`;
+נשמח לתיאום רשמי של שולחן הטעימות והערכת האיכות מול היצרן האירופי לקראת גיבוש הצעת מחיר למכולה ראשונה.
+⭐️ למילוי משוב טעימות ודירוג איכות דיגיטלי: ${liveTrackingUrl}`;
     } else {
-      msg = `שלום ${first.name || "קניין יקר"}, עדכון מ-FoodXchange לגבי ערכת הדוגמאות (#${trackingCode}) עבור ${first.company || "הרשת"}: הבקשה נמצאת בסטטוס: ${first.status}.`;
+      msg = `שלום ${first.name || "קניין יקר"}, עדכון מ-FoodXchange לגבי ערכת הדוגמאות (#${trackingCode}) עבור ${first.company || "הרשת"}: הבקשה נמצאת בסטטוס: ${first.status}.
+📱 מעקב חי: ${liveTrackingUrl}`;
     }
 
     return `https://wa.me/${cleanPhone}?text=${encodeURIComponent(msg)}`;

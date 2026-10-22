@@ -5,6 +5,7 @@ import type { CommercialOrderLifecycle } from "@/app/admin/requests/actions";
 import BuyerPortfolioCockpit, {
   type BuyerPortfolioItem,
 } from "@/components/buyer-portfolio/BuyerPortfolioCockpit";
+import TrackingClientView from "@/components/tracking/TrackingClientView";
 
 export const dynamic = "force-dynamic";
 
@@ -12,6 +13,13 @@ export const metadata: Metadata = {
   title: "פורטל רכש וניהול מכולות יבוא | FoodXchange B2B Enterprise",
   description:
     "מערכת ניהול תיק מכולות, מעקב מטענים ימיים בזמן אמת והזמנות חוזרות לרשתות שיווק ומפיצים קמעונאיים בישראל.",
+  alternates: {
+    canonical: "https://fdx.trading/track",
+    languages: {
+      en: "https://fdx.trading/track",
+      he: "https://fdx.trading/he/track",
+    },
+  },
 };
 
 const COUNTRY_FLAGS: Record<string, string> = {
@@ -40,11 +48,21 @@ const HEBREW_PRODUCT_TRANSLATIONS: Record<string, string> = {
 interface PageProps {
   searchParams: Promise<{
     buyer?: string;
+    code?: string;
+    q?: string;
+    query?: string;
+    mode?: string;
   }>;
 }
 
 export default async function BuyerPortfolioPage({ searchParams }: PageProps) {
   const params = await searchParams;
+  const lookupQuery = params?.code || params?.q || params?.query || (params?.mode === "lookup" ? "DEMO" : "");
+
+  if (lookupQuery) {
+    return <TrackingClientView initialQuery={lookupQuery === "DEMO" ? "" : lookupQuery} lang="he" />;
+  }
+
   const buyerQuery = params?.buyer || "all";
 
   // 1. Fetch Sourcing Requests

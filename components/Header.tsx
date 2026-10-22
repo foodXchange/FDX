@@ -51,6 +51,7 @@ export default function Header() {
     else if (pathname === '/he/sourcing') enTarget = '/en/sourcing';
     else if (pathname === '/he/calculator') enTarget = '/en/calculator';
     else if (pathname === '/he/benchmark') enTarget = '/en/benchmark';
+    else if (pathname === '/he/track') enTarget = '/track';
     else if (pathname === '/he/contact') enTarget = '/en/contact';
     else if (pathname === '/he/blog') enTarget = '/en/blog';
     else if (pathname === '/he/newsletter') enTarget = '/en/newsletter';
@@ -69,6 +70,7 @@ export default function Header() {
     else if (pathname === '/en/sourcing') heTarget = '/he/sourcing';
     else if (pathname === '/en/calculator') heTarget = '/he/calculator';
     else if (pathname === '/en/benchmark') heTarget = '/he/benchmark';
+    else if (pathname === '/track' || pathname === '/en/track') heTarget = '/he/track';
     else if (pathname === '/en/contact') heTarget = '/he/contact';
     else if (pathname === '/en/blog') heTarget = '/he/blog';
     else if (pathname === '/en/newsletter') heTarget = '/he/newsletter';
@@ -110,6 +112,12 @@ export default function Header() {
       desc: 'Order curated European factory samples delivered to your office',
     },
     {
+      href: '/track',
+      label: 'Live Sample & Order Tracking',
+      icon: '🚚',
+      desc: 'Track tasting sample boxes, DHL air waybills, and ocean containers',
+    },
+    {
       href: '/en/calculator',
       label: 'Landed Cost Calculator',
       icon: '⚡',
@@ -147,6 +155,12 @@ export default function Header() {
       label: 'ערכת דוגמאות לשולחן הטעימות',
       icon: '📦',
       desc: 'איסוף דוגמאות ישירות ממפעלי אירופה ומשלוח אקספרס לרשת',
+    },
+    {
+      href: '/he/track',
+      label: 'מעקב משלוח דוגמאות חי',
+      icon: '🚚',
+      desc: 'מעקב אחר סטטוס ערכות טעימה, שטרי מטען DHL ודסק טעימות',
     },
     {
       href: '/he/calculator',

@@ -318,7 +318,14 @@ export default function BuyerPortfolioCockpit({
           </div>
 
           {/* Quick Action Buttons */}
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
+            <Link
+              href="/he/track"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold bg-slate-850 hover:bg-slate-800 border border-slate-700 text-amber-400 hover:text-amber-300 transition-all shadow-sm"
+            >
+              <span>🚚</span>
+              <span>איתור ומעקב דוגמאות אקספרס</span>
+            </Link>
             <Link
               href="/sourcing"
               className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white shadow-lg shadow-blue-500/20 transition-all"

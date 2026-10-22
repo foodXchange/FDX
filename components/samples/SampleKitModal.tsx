@@ -88,6 +88,7 @@ export default function SampleKitModal() {
 
   const generateWhatsAppMessage = () => {
     if (!successData) return "";
+    const trackingUrl = `https://fdx.trading/${isHe ? "he/" : ""}track?code=${successData.trackingCode}`;
     const text = isHe
       ? `שלום אודי, הגשתי כעת בקשה לערכת דוגמאות טעימה ב-FoodXchange:
 📦 מספר מעקב: ${successData.trackingCode}
@@ -96,6 +97,7 @@ export default function SampleKitModal() {
 📍 כתובת למשלוח: ${deliveryAddress}
 📅 תאריך טעימה מתוכנן: ${targetTastingDate || "הקדם האפשרי"}
 📋 כמות מוצרים: ${successData.itemCount} דוגמאות
+🔗 מעקב חי: ${trackingUrl}
 
 אשמח לוודא מולך שקיבלתם את הפרטים ושמועדי השילוח באקספרס מאושרים.`
       : `Hi Udi, I submitted a Tasting Sample Kit dispatch request on FoodXchange:
@@ -105,6 +107,7 @@ export default function SampleKitModal() {
 📍 Delivery Address: ${deliveryAddress}
 📅 Target Tasting Date: ${targetTastingDate || "ASAP"}
 📋 Total items: ${successData.itemCount} samples
+🔗 Live Tracking: ${trackingUrl}
 
 Please confirm receipt and estimated DHL dispatch schedule.`;
 
@@ -167,13 +170,24 @@ Please confirm receipt and estimated DHL dispatch schedule.`;
             </div>
 
             {/* Tracking Reference Card */}
-            <div className="bg-slate-950 p-4 rounded-2xl border border-slate-800 max-w-sm mx-auto font-mono text-center space-y-1">
+            <div className="bg-slate-950 p-4 rounded-2xl border border-slate-800 max-w-sm mx-auto font-mono text-center space-y-2">
               <span className="text-xs text-slate-500 block font-sans">
                 {isHe ? "מספר מעקב פנימי למשלוח:" : "Tracking Reference:"}
               </span>
-              <span className="text-lg font-black text-orange-400">
+              <span className="text-xl font-black text-orange-400 block tracking-wider">
                 {successData.trackingCode}
               </span>
+              <div className="pt-2">
+                <a
+                  href={isHe ? `/he/track?code=${successData.trackingCode}` : `/track?code=${successData.trackingCode}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center justify-center gap-2 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-slate-950 font-black py-2.5 px-4 rounded-xl text-xs transition shadow-md shadow-orange-950/30 w-full"
+                >
+                  <span>🔎</span>
+                  <span>{isHe ? "פתח דף מעקב חי אחר החבילה ←" : "Open Live Tracking Page ←"}</span>
+                </a>
+              </div>
             </div>
 
             {/* CTAs */}
