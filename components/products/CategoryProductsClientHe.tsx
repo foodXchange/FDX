@@ -6,6 +6,7 @@ import Image from "next/image";
 import { cleanProductName } from "@/lib/products/cleanProductName";
 import { getHebrewCategoryMeta } from "@/lib/products/hebrewCategoryMap";
 import { useSampleKit } from "@/context/SampleKitContext";
+import ProductSpecModal from "@/components/products/ProductSpecModal";
 import type {
   PublicCatalogueProduct,
   CategoryImageData,
@@ -64,6 +65,7 @@ export default function CategoryProductsClientHe({
 }: Props) {
   const meta = getHebrewCategoryMeta(category);
   const { addItem, removeItem, isItemInKit } = useSampleKit();
+  const [selectedProductForSpec, setSelectedProductForSpec] = useState<PublicCatalogueProduct | null>(null);
 
   // Filters state
   const [searchFilter, setSearchFilter] = useState("");
@@ -364,7 +366,11 @@ export default function CategoryProductsClientHe({
                 className="bg-slate-900 hover:bg-slate-850 border border-slate-800 hover:border-orange-500/40 rounded-2xl overflow-hidden transition flex flex-col justify-between shadow-md group"
               >
                 {/* Packshot Image */}
-                <div className="relative h-48 w-full bg-slate-950 flex items-center justify-center overflow-hidden border-b border-slate-800">
+                <div
+                  onClick={() => setSelectedProductForSpec(p)}
+                  className="relative h-48 w-full bg-slate-950 flex items-center justify-center overflow-hidden border-b border-slate-800 cursor-pointer group-hover:opacity-95"
+                  title="לחץ לצפייה במפרט טכני ומשטוח"
+                >
                   {p.image_url ? (
                     <Image
                       src={p.image_url}
@@ -399,7 +405,11 @@ export default function CategoryProductsClientHe({
                 {/* Info Content */}
                 <div className="p-4 space-y-3 flex-1 flex flex-col justify-between">
                   <div className="space-y-1.5">
-                    <h3 className="font-bold text-white text-sm line-clamp-2 leading-snug group-hover:text-orange-400 transition">
+                    <h3
+                      onClick={() => setSelectedProductForSpec(p)}
+                      className="font-bold text-white text-sm line-clamp-2 leading-snug group-hover:text-orange-400 transition cursor-pointer"
+                      title="לחץ לצפייה במפרט טכני ומשטוח"
+                    >
                       {cleanProductName(p.product_name, category)}
                     </h3>
 
@@ -464,13 +474,25 @@ export default function CategoryProductsClientHe({
                         <span>{inKit ? "✓ בערכת הטעימות" : "+ הוסף לערכת טעימות"}</span>
                       </button>
 
-                      <Link
-                        href={rfqUrl}
-                        className="w-full inline-flex items-center justify-center gap-1.5 bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white text-xs font-semibold py-1.5 px-3 rounded-xl border border-slate-700 transition"
-                      >
-                        <span>הצעת מחיר (RFQ)</span>
-                        <span>←</span>
-                      </Link>
+                      <div className="grid grid-cols-2 gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => setSelectedProductForSpec(p)}
+                          className="w-full inline-flex items-center justify-center gap-1 bg-slate-850 hover:bg-slate-800 text-slate-300 hover:text-white text-xs font-semibold py-1.5 px-2 rounded-xl border border-slate-700 transition cursor-pointer"
+                          title="מפרט טכני, משטוח ות״י 1145"
+                        >
+                          <span>📋</span>
+                          <span>מפרט טכני</span>
+                        </button>
+
+                        <Link
+                          href={rfqUrl}
+                          className="w-full inline-flex items-center justify-center gap-1 bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white text-xs font-semibold py-1.5 px-2 rounded-xl border border-slate-700 transition"
+                        >
+                          <span>RFQ</span>
+                          <span>←</span>
+                        </Link>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -497,7 +519,11 @@ export default function CategoryProductsClientHe({
                 className="bg-slate-900 hover:bg-slate-850 border border-slate-800 hover:border-orange-500/40 rounded-xl p-3 sm:p-4 transition flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-sm"
               >
                 <div className="flex items-center gap-3 min-w-0">
-                  <div className="relative w-14 h-14 bg-slate-950 rounded-lg shrink-0 overflow-hidden border border-slate-800 flex items-center justify-center">
+                  <div
+                    onClick={() => setSelectedProductForSpec(p)}
+                    className="relative w-14 h-14 bg-slate-950 rounded-lg shrink-0 overflow-hidden border border-slate-800 flex items-center justify-center cursor-pointer hover:opacity-90"
+                    title="לחץ לצפייה במפרט טכני ומשטוח"
+                  >
                     {p.image_url ? (
                       <Image
                         src={p.image_url}
@@ -511,7 +537,11 @@ export default function CategoryProductsClientHe({
                   </div>
 
                   <div className="min-w-0 space-y-1">
-                    <h3 className="font-bold text-white text-sm truncate">
+                    <h3
+                      onClick={() => setSelectedProductForSpec(p)}
+                      className="font-bold text-white text-sm truncate hover:text-orange-400 transition cursor-pointer"
+                      title="לחץ לצפייה במפרט טכני ומשטוח"
+                    >
                       {cleanProductName(p.product_name, category)}
                     </h3>
                     <div className="flex items-center gap-2 text-xs text-slate-400">
@@ -537,6 +567,17 @@ export default function CategoryProductsClientHe({
                       ✡️ {p.kosher_types[0]}
                     </span>
                   )}
+
+                  <button
+                    type="button"
+                    onClick={() => setSelectedProductForSpec(p)}
+                    className="inline-flex items-center gap-1 py-2 px-2.5 rounded-lg text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 transition cursor-pointer"
+                    title="צפה במפרט טכני, משטוח ות״י 1145"
+                  >
+                    <span>📋</span>
+                    <span>מפרט</span>
+                  </button>
+
                   <button
                     type="button"
                     onClick={() => {
@@ -635,6 +676,15 @@ export default function CategoryProductsClientHe({
           </a>
         </div>
       </div>
+
+      {/* ── TECHNICAL PRODUCT SPEC & PALLETIZATION MODAL ── */}
+      {selectedProductForSpec && (
+        <ProductSpecModal
+          product={selectedProductForSpec}
+          onClose={() => setSelectedProductForSpec(null)}
+          isHebrew={true}
+        />
+      )}
     </div>
   );
 }

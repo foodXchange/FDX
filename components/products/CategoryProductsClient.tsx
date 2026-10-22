@@ -6,6 +6,7 @@ import ProductListRow from "@/components/ProductListRow";
 import ProductCard from "@/components/ProductCard";
 import AiSearchPanel from "@/components/products/AiSearchPanel";
 import RequestProductModal from "@/components/products/RequestProductModal";
+import ProductSpecModal from "@/components/products/ProductSpecModal";
 import { cleanProductName } from "@/lib/products/cleanProductName";
 import { useSampleKit } from "@/context/SampleKitContext";
 import type { PublicCatalogueProduct, CategoryImageData } from "@/app/en/products/page";
@@ -36,6 +37,7 @@ export default function CategoryProductsClient({
   const [aiResults, setAiResults] = useState<PublicCatalogueProduct[] | null>(null);
   const [activeAiQuery, setActiveAiQuery] = useState<string | null>(null);
   const [requestProduct, setRequestProduct] = useState<PublicCatalogueProduct | null>(null);
+  const [specProduct, setSpecProduct] = useState<PublicCatalogueProduct | null>(null);
   const [showImages, setShowImages] = useState(false);
 
   useEffect(() => {
@@ -321,6 +323,7 @@ export default function CategoryProductsClient({
                 key={product.id}
                 product={product}
                 onRequest={setRequestProduct}
+                onViewSpec={setSpecProduct}
                 isInBasket={isItemInKit(product.id)}
                 onToggleBasket={(prod) => {
                   if (isItemInKit(prod.id)) {
@@ -383,6 +386,15 @@ export default function CategoryProductsClient({
         <RequestProductModal
           product={requestProduct}
           onClose={() => setRequestProduct(null)}
+        />
+      )}
+
+      {/* Technical Spec & Palletization Modal */}
+      {specProduct && (
+        <ProductSpecModal
+          product={specProduct}
+          onClose={() => setSpecProduct(null)}
+          isHebrew={false}
         />
       )}
     </>

@@ -6,6 +6,7 @@ import { cleanProductName, CATEGORY_COLORS } from "@/lib/products/cleanProductNa
 export interface ProductCardProps {
   product: PublicCatalogueProduct;
   onRequest: (product: PublicCatalogueProduct) => void;
+  onViewSpec?: (product: PublicCatalogueProduct) => void;
   isInBasket?: boolean;
   onToggleBasket?: (product: PublicCatalogueProduct) => void;
 }
@@ -47,6 +48,7 @@ export default function ProductCard({
   onRequest,
   isInBasket = false,
   onToggleBasket,
+  onViewSpec,
 }: ProductCardProps) {
   const color = CATEGORY_COLORS[product.category] ?? "#888780";
   const country = product.supplier?.country_of_origin ?? null;
@@ -63,7 +65,13 @@ export default function ProductCard({
       <div style={{ height: 6, backgroundColor: color }} />
 
       {product.image_url && (
-        <div className="relative h-36 bg-white/95 flex items-center justify-center p-2 overflow-hidden">
+        <div
+          onClick={() => onViewSpec?.(product)}
+          className={`relative h-36 bg-white/95 flex items-center justify-center p-2 overflow-hidden ${
+            onViewSpec ? "cursor-pointer" : ""
+          }`}
+          title="Click to view technical specifications"
+        >
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={product.image_url}
@@ -93,7 +101,13 @@ export default function ProductCard({
           </span>
         )}
 
-        <p className="text-base font-semibold text-dark-text-primary leading-snug line-clamp-2 pr-16">
+        <p
+          onClick={() => onViewSpec?.(product)}
+          className={`text-base font-semibold text-dark-text-primary leading-snug line-clamp-2 pr-16 ${
+            onViewSpec ? "cursor-pointer hover:text-orange-400 transition" : ""
+          }`}
+          title="Click to view technical specifications"
+        >
           {displayName}
         </p>
 
@@ -130,24 +144,46 @@ export default function ProductCard({
           {isInBasket ? "✓ In Tasting Box" : "+ Tasting Sample"}
         </button>
 
-        {/* Request single */}
-        <button
-          type="button"
-          onClick={() => onRequest(product)}
-          className="mt-1.5 w-full py-2 rounded-xl text-xs font-medium text-slate-500 hover:text-orange-400 transition"
-        >
-          Request &#x2192;
-        </button>
+        {/* Actions sub-row */}
+        <div className="grid grid-cols-2 gap-1.5 mt-1.5">
+          {onViewSpec && (
+            <button
+              type="button"
+              onClick={() => onViewSpec(product)}
+              className="py-1.5 rounded-xl text-xs font-semibold bg-white/5 border border-white/10 text-slate-300 hover:text-white hover:border-white/20 transition cursor-pointer"
+            >
+              📋 Spec
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={() => onRequest(product)}
+            className={`py-1.5 rounded-xl text-xs font-semibold bg-white/5 border border-white/10 text-slate-300 hover:text-orange-400 hover:border-orange-500/40 transition cursor-pointer ${
+              !onViewSpec ? "col-span-2" : ""
+            }`}
+          >
+            RFQ &#x2192;
+          </button>
+        </div>
       </div>
 
       {/* Hover overlay (desktop) */}
-      <div className="absolute inset-0 bg-dark-900/90 opacity-0 group-hover:opacity-100 transition-opacity duration-300 hidden md:flex items-center justify-center rounded-2xl">
+      <div className="absolute inset-0 bg-dark-900/90 opacity-0 group-hover:opacity-100 transition-opacity duration-300 hidden md:flex flex-col gap-2 items-center justify-center p-4 rounded-2xl">
+        {onViewSpec && (
+          <button
+            type="button"
+            onClick={() => onViewSpec(product)}
+            className="w-full bg-slate-800 hover:bg-slate-700 text-white font-bold py-2.5 px-4 rounded-xl text-xs border border-slate-600 transition shadow-md cursor-pointer"
+          >
+            📋 Technical Spec Sheet
+          </button>
+        )}
         <button
           type="button"
           onClick={() => onRequest(product)}
-          className="bg-orange-500 hover:bg-orange-600 text-white font-semibold px-6 py-3 rounded-xl text-sm transition transform scale-95 group-hover:scale-100"
+          className="w-full bg-orange-500 hover:bg-orange-600 text-white font-semibold py-2.5 px-4 rounded-xl text-xs transition cursor-pointer"
         >
-          Request this product
+          Request Factory RFQ
         </button>
       </div>
     </div>

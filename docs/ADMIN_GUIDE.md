@@ -376,3 +376,24 @@ The Tasting Sample Box Builder allows supermarket category managers, food servic
 - **Courier Logistics**: Integrated Air Waybill (AWB) management with 1-click DHL Express tracking links.
 - **5-Dimension Sensory Scorecard**: Taste & Flavor, Texture, Packaging & Drained Weight, Commercial Viability (1–5 scale).
 - **1-Click WhatsApp Buyer Updates**: Pre-formatted notifications for air dispatch confirmation and post-delivery tasting follow-ups.
+
+---
+
+## 15. Technical Product Specification, Palletization & SI 1145 Compliance Module
+
+The Technical Product Specification module transforms the catalog from a discovery viewer into a formal institutional procurement tool:
+
+- **Component**: `ProductSpecModal.tsx` & `ProductSpecView.tsx` (accessible via modal drawer across catalog cards or standalone deep links `/he/products/spec/[id]` and `/en/products/spec/[id]`).
+- **Palletization & Container Matrix (`specGenerator.ts`)**:
+  - Calculates master carton units, gross weight, and Ti/Hi palletization parameters.
+  - Computes total cartons and units per standard Euro-pallet (120x80cm), pallet gross weight, and pallet height.
+  - Container capacity: Total units and payload for 20ft Dry (11 pallets) and 40ft High Cube (24 pallets).
+- **Israeli Standard SI 1145 Regulatory Compliance**:
+  - Nutrition facts panel per 100g (Calories, Total Fat, Saturated Fat, Carbohydrates, Sugars, Protein, Sodium).
+  - Public Health Protection (Food) Regulations Red Badges: Automatic evaluation of Red Sugar, Red Sodium, and Red Saturated Fat circles vs "Clean Label" designation.
+  - Allergen declaration box: Mandatory "מכיל / עלול להכיל" per SI 1145.
+  - Chief Rabbinate Kosher certification text and European certifying body credentials.
+- **Conversion Integrations**:
+  - `+ הוסף לערכת טעימות`: Direct addition to the Tasting Sample Box.
+  - `פתח במחשבון עלות נחיתה ⚡`: Instant link to `/he/calculator` with prefilled parameters.
+  - Print-ready A4 stylesheet and 1-tap WhatsApp sharing for retail category trade meetings.
