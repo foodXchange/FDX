@@ -28,19 +28,24 @@ type DBCard = {
 };
 
 function dbCardToViewData(db: DBCard): CardViewData {
+  const legacy = getCard(db.handle);
   return {
     handle: db.handle,
     name: db.name,
+    nameHe: legacy?.nameHe || "אודי סטריק",
     title: db.title ?? "",
+    titleHe: legacy?.titleHe || "מייסד ומנהל",
     company: db.company ?? "",
     tagline: db.tagline ?? "",
+    taglineHe: legacy?.taglineHe || "מחברים יצרני מזון אירופאים עם רשתות השיווק בישראל.",
     pitch: db.pitch ?? undefined,
-    email: db.email ?? "",
-    phone: db.phone ?? "",
-    whatsappBuyer: (db.whatsapp_buyer ?? "").replace(/^\+/, ""),
-    whatsappManufacturer: (db.whatsapp_manufacturer ?? "").replace(/^\+/, ""),
-    website: db.website ?? "",
-    linkedin: db.linkedin ?? undefined,
+    pitchHe: legacy?.pitchHe || "אני מסייע לרשתות שיווק וקניינים בישראל לאתר יצרני מזון אירופאים מובילים — עם התאמה לכשרות (רבנות/בד״ץ), מותג פרטי ואיכות אירופאית. ומלווה יצרנים בכניסה חלקה לשוק הישראלי.",
+    email: db.email || legacy?.email || "udi@fdx.trading",
+    phone: db.phone || legacy?.phone || "+972525222291",
+    whatsappBuyer: (db.whatsapp_buyer || legacy?.whatsapp || "").replace(/^\+/, ""),
+    whatsappManufacturer: (db.whatsapp_manufacturer || legacy?.whatsapp || "").replace(/^\+/, ""),
+    website: db.website || legacy?.website || "https://fdx.trading",
+    linkedin: db.linkedin || legacy?.linkedin || "https://www.linkedin.com/in/udi-stryk/",
     photos: (db.photos ?? []).map((p) => ({
       src: p.src,
       alt: p.alt,
@@ -49,6 +54,13 @@ function dbCardToViewData(db: DBCard): CardViewData {
       offsetY: p.offsetY ?? 0,
     })),
     activeSourcing: db.active_sourcing ?? [],
+    activeSourcingHe: legacy?.currentlySourcingHe || [
+      "שמן זית כתית מעולה 750 מ״ל — רבנות ראשית",
+      "גרנולה אורגנית — בד״ץ",
+      "פלחי תפו״א קפואים (צ׳יפס) — כשר",
+      "שימורי טונה 185 גרם — רבנות ראשית",
+      "רסק עגבניות בגביעים קמעונאיים — כשר",
+    ],
   };
 }
 
@@ -56,16 +68,20 @@ function legacyCardToViewData(card: ContactCard): CardViewData {
   return {
     handle: card.handle,
     name: card.name,
+    nameHe: card.nameHe || "אודי סטריק",
     title: card.title,
+    titleHe: card.titleHe || "מייסד ומנהל",
     company: card.company,
     tagline: card.tagline,
+    taglineHe: card.taglineHe || "מחברים יצרני מזון אירופאים עם רשתות השיווק בישראל.",
     pitch: card.pitch,
-    email: card.email,
-    phone: card.phone,
+    pitchHe: card.pitchHe || "אני מסייע לרשתות שיווק וקניינים בישראל לאתר יצרני מזון אירופאים מובילים — עם התאמה לכשרות (רבנות/בד״ץ), מותג פרטי ואיכות אירופאית.",
+    email: card.email || "udi@fdx.trading",
+    phone: card.phone || "+972525222291",
     whatsappBuyer: card.whatsapp,
     whatsappManufacturer: card.whatsapp,
-    website: card.website,
-    linkedin: card.linkedin,
+    website: card.website || "https://fdx.trading",
+    linkedin: card.linkedin || "https://www.linkedin.com/in/udi-stryk/",
     photos: (card.photos ?? []).map((p) => ({
       src: p.src,
       alt: p.alt,
@@ -74,6 +90,7 @@ function legacyCardToViewData(card: ContactCard): CardViewData {
       offsetY: 0,
     })),
     activeSourcing: card.currentlySourcing ?? [],
+    activeSourcingHe: card.currentlySourcingHe || [],
   };
 }
 

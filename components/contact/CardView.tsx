@@ -15,10 +15,14 @@ export interface CardViewPhoto {
 export interface CardViewData {
   handle: string;
   name: string;
+  nameHe?: string;
   title: string;
+  titleHe?: string;
   company: string;
   tagline: string;
+  taglineHe?: string;
   pitch?: string;
+  pitchHe?: string;
   email: string;
   phone: string;
   /** Raw phone digits for wa.me URL (e.g. "972525222291") */
@@ -28,6 +32,7 @@ export interface CardViewData {
   linkedin?: string;
   photos: CardViewPhoto[];
   activeSourcing: string[];
+  activeSourcingHe?: string[];
 }
 
 interface CardViewProps {
@@ -49,6 +54,7 @@ function trackEvent(name: string, props: Record<string, string>) {
 }
 
 export function CardView({ card, cardUrl, preview = false }: CardViewProps) {
+  const [lang, setLang] = useState<"en" | "he">("en");
   const [linkCopied, setLinkCopied] = useState(false);
   const [copied, setCopied] = useState(false);
   const [activePhoto, setActivePhoto] = useState(0);
@@ -127,6 +133,19 @@ export function CardView({ card, cardUrl, preview = false }: CardViewProps) {
   function track(event: string, extra: Record<string, string> = {}) {
     if (preview) return;
     trackEvent(event, { handle: card.handle, page_path: `/business-card/${card.handle}`, ...extra });
+
+    // Also persist telemetry to /api/card/track so the database records conversions
+    fetch("/api/card/track", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        handle: card.handle,
+        persona: extra.audience || "default",
+        event,
+        referrer: typeof document !== "undefined" ? document.referrer : undefined,
+        userAgent: typeof navigator !== "undefined" ? navigator.userAgent : undefined,
+      }),
+    }).catch(() => {});
   }
 
   function handleCopyLink() {
@@ -137,7 +156,7 @@ export function CardView({ card, cardUrl, preview = false }: CardViewProps) {
   }
 
   async function handleShare() {
-    const shareUrl = "https://fdx.trading/business-card/udi";
+    const shareUrl = cardUrl || "https://fdx.trading/business-card/udi";
     const shareData = {
       title: "Udi Stryk — FoodXchange",
       text: "Connecting European manufacturers with the Israeli food market.",
@@ -171,15 +190,66 @@ export function CardView({ card, cardUrl, preview = false }: CardViewProps) {
     "min-h-[44px] rounded-xl font-medium text-sm transition-all duration-200 flex items-center gap-2 justify-center w-full active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900";
   const btnSecondary = `${btnBase} bg-white/5 hover:bg-white/10 border border-white/10 text-white`;
 
-  const buyerWaMsg = "Hi, I'm a buyer in Israel. I saw your contact card and want to discuss sourcing.";
-  const mfgWaMsg = "Hi, I'm a manufacturer/exporter. I want to explore entering the Israeli market through FoodXchange.";
+  const buyerWaMsgEn = "Hi Udi, I'm a food buyer in Israel. I saw your contact card and want to discuss sourcing European products.";
+  const buyerWaMsgHe = "שלום אודי, אני קניין/יבואן מזון בישראל. ראיתי את כרטיס הביקור שלך ורוצה לבדוק אפשרויות רכש מול יצרנים באירופה.";
+  const buyerWaMsg = lang === "he" ? buyerWaMsgHe : buyerWaMsgEn;
+
+  const mfgWaMsgEn = "Hi Udi, I'm a European food manufacturer/exporter. I want to explore entering the Israeli market through FoodXchange.";
+  const mfgWaMsgHe = "שלום אודי, אני יצרן/יצואן מזון מאירופה ורוצה לבדוק כניסה לשוק הישראלי באמצעות FoodXchange.";
+  const mfgWaMsg = lang === "he" ? mfgWaMsgHe : mfgWaMsgEn;
   const buyerNum = card.whatsappBuyer.replace(/^\+/, "");
   const mfgNum = card.whatsappManufacturer.replace(/^\+/, "");
 
+  const displayName = lang === "he" && card.nameHe ? card.nameHe : card.name;
+  const displayTitle = lang === "he" && card.titleHe ? card.titleHe : card.title;
+  const displayTagline = lang === "he" && card.taglineHe ? card.taglineHe : card.tagline;
+  const displayPitch = lang === "he" && card.pitchHe ? card.pitchHe : card.pitch;
+  const displaySourcing =
+    lang === "he" && card.activeSourcingHe && card.activeSourcingHe.length > 0
+      ? card.activeSourcingHe
+      : card.activeSourcing;
+
   return (
-    <div className="bg-[#1B2A4A] border border-white/10 rounded-3xl p-8 w-full max-w-sm shadow-2xl mx-auto">
+    <div
+      dir={lang === "he" ? "rtl" : "ltr"}
+      className="bg-[#1B2A4A] border border-white/10 rounded-3xl p-6 sm:p-8 w-full max-w-sm shadow-2xl mx-auto transition-all duration-200"
+    >
+      {/* ── Top Bar: Badge & Bilingual Switcher ── */}
+      <div className="flex items-center justify-between w-full mb-5">
+        <span className="text-[10px] font-extrabold tracking-wider text-orange-400 uppercase bg-orange-500/10 border border-orange-500/20 px-2.5 py-0.5 rounded-full">
+          FoodXchange ID
+        </span>
+
+        <div className="inline-flex rounded-xl border border-white/10 bg-slate-900/80 p-0.5 text-xs font-bold" dir="ltr">
+          <button
+            type="button"
+            onClick={() => {
+              setLang("en");
+              track("switch_language", { lang: "en" });
+            }}
+            className={`px-2.5 py-1 rounded-lg transition cursor-pointer ${
+              lang === "en" ? "bg-orange-500 text-white shadow-xs" : "text-slate-400 hover:text-white"
+            }`}
+          >
+            EN
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setLang("he");
+              track("switch_language", { lang: "he" });
+            }}
+            className={`px-2.5 py-1 rounded-lg transition cursor-pointer ${
+              lang === "he" ? "bg-orange-500 text-white shadow-xs" : "text-slate-400 hover:text-white"
+            }`}
+          >
+            עב
+          </button>
+        </div>
+      </div>
+
       {/* ── Profile ── */}
-      <div className="relative flex flex-col items-center text-center mb-8">
+      <div className="relative flex flex-col items-center text-center mb-6">
         {hasGallery ? (
           <div className="w-full mb-4">
             {/* Main photo */}
@@ -262,8 +332,8 @@ export function CardView({ card, cardUrl, preview = false }: CardViewProps) {
           </div>
         ) : null}
 
-        <h1 className="text-2xl font-semibold text-white tracking-tight">{card.name}</h1>
-        <p className="text-[#F47920] font-semibold text-sm tracking-wide mt-1">{card.title}</p>
+        <h1 className="text-2xl font-semibold text-white tracking-tight">{displayName}</h1>
+        <p className="text-[#F47920] font-semibold text-sm tracking-wide mt-1">{displayTitle}</p>
         <Image
           src="/logo-dark.svg"
           alt="FoodXchange"
@@ -271,11 +341,27 @@ export function CardView({ card, cardUrl, preview = false }: CardViewProps) {
           height={32}
           className="mx-auto mt-1"
         />
-        <p className="text-base font-medium text-white/90 text-center leading-snug mt-3 max-w-60">{card.tagline}</p>
+        <p className="text-base font-medium text-white/90 text-center leading-snug mt-3 max-w-60">{displayTagline}</p>
 
-        {card.pitch && (
-          <div className="mt-4 rounded-xl bg-white/5 border border-white/10 px-4 py-3 w-full max-w-70">
-            <p className="text-xs text-slate-400 leading-relaxed text-start">{card.pitch}</p>
+        {/* ── Trust Credibility Badges ── */}
+        <div className="flex flex-wrap items-center justify-center gap-1.5 mt-3 mb-1">
+          <span className="px-2.5 py-1 rounded-full bg-white/5 border border-white/10 text-[10px] text-slate-300 font-medium flex items-center gap-1">
+            <span>🛡️</span>
+            <span>{lang === "he" ? "600+ יצרנים באירופה" : "600+ EU Factories"}</span>
+          </span>
+          <span className="px-2.5 py-1 rounded-full bg-white/5 border border-white/10 text-[10px] text-slate-300 font-medium flex items-center gap-1">
+            <span>🇮🇱</span>
+            <span>{lang === "he" ? "רשתות שיווק בישראל" : "Israeli Retail Desk"}</span>
+          </span>
+          <span className="px-2.5 py-1 rounded-full bg-white/5 border border-white/10 text-[10px] text-slate-300 font-medium flex items-center gap-1">
+            <span>✡</span>
+            <span>{lang === "he" ? "כשרות רבנות ובד״ץ" : "Kosher Oversight"}</span>
+          </span>
+        </div>
+
+        {displayPitch && (
+          <div className="mt-3.5 rounded-xl bg-white/5 border border-white/10 px-4 py-3 w-full max-w-70">
+            <p className="text-xs text-slate-300 leading-relaxed text-start">{displayPitch}</p>
           </div>
         )}
       </div>
@@ -286,16 +372,18 @@ export function CardView({ card, cardUrl, preview = false }: CardViewProps) {
           href={`/api/vcard/${card.handle}`}
           download
           onClick={() => track("contact_card_vcard_download_clicked")}
-          className="w-full bg-[#F47920] hover:bg-[#d96810] text-white font-semibold py-3 rounded-xl flex items-center justify-center gap-2 transition-colors"
+          className="w-full bg-[#F47920] hover:bg-[#d96810] text-white font-semibold py-3 rounded-xl flex items-center justify-center gap-2 transition-colors shadow-lg shadow-orange-500/25"
         >
-          <UserPlusIcon /> Save Contact
+          <UserPlusIcon /> {lang === "he" ? "שמור איש קשר (vCard)" : "Save Contact"}
         </a>
       </div>
 
       {/* ── WhatsApp CTAs ── */}
       <div className="mb-6">
-        <p className="text-xs text-slate-500 text-center mb-3 leading-relaxed">
-          Choose a message that matches you — it helps us respond faster.
+        <p className="text-xs text-slate-400 text-center mb-3 leading-relaxed">
+          {lang === "he"
+            ? "בחר את ההודעה המתאימה לך — זה עוזר לנו להגיב מהר יותר:"
+            : "Choose a message that matches you — it helps us respond faster."}
         </p>
         <div className="space-y-2">
           {preview ? (
@@ -314,18 +402,18 @@ export function CardView({ card, cardUrl, preview = false }: CardViewProps) {
                 target="_blank"
                 rel="noopener noreferrer"
                 onClick={() => track("contact_card_whatsapp_clicked", { audience: "buyer" })}
-                className={`${btnBase} bg-[#1DA851] hover:bg-[#189a47] text-white`}
+                className={`${btnBase} bg-[#1DA851] hover:bg-[#189a47] text-white shadow-md shadow-emerald-600/20`}
               >
-                <WhatsAppIcon /> WhatsApp — I&apos;m a Buyer
+                <WhatsAppIcon /> {lang === "he" ? "וואטסאפ — אני קניין מזון בישראל" : "WhatsApp — I'm a Buyer"}
               </a>
               <a
                 href={`https://wa.me/${mfgNum}?text=${encodeURIComponent(mfgWaMsg)}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 onClick={() => track("contact_card_whatsapp_clicked", { audience: "supplier" })}
-                className={`${btnBase} bg-[#1DA851] hover:bg-[#189a47] text-white`}
+                className={`${btnBase} bg-[#1DA851] hover:bg-[#189a47] text-white shadow-md shadow-emerald-600/20`}
               >
-                <WhatsAppIcon /> WhatsApp — I&apos;m a Manufacturer
+                <WhatsAppIcon /> {lang === "he" ? "וואטסאפ — אני יצרן / יצואן אירופאי" : "WhatsApp — I'm a Manufacturer"}
               </a>
             </>
           )}
@@ -333,17 +421,20 @@ export function CardView({ card, cardUrl, preview = false }: CardViewProps) {
       </div>
 
       {/* ── Active sourcing ── */}
-      {card.activeSourcing.length > 0 && (
+      {displaySourcing.length > 0 && (
         <div
-          className="mb-6 rounded-xl px-4 py-3"
+          className="mb-6 rounded-xl px-4 py-3.5"
           style={{ background: "rgba(249,115,22,0.08)", border: "1px solid rgba(249,115,22,0.2)" }}
         >
-          <p className="text-xs font-semibold text-[#F47920] mb-2">Currently sourcing:</p>
-          <ul className="space-y-1">
-            {card.activeSourcing.map((item) => (
-              <li key={item} className="flex items-center gap-2 text-xs text-slate-300">
+          <p className="text-xs font-bold text-[#F47920] mb-2 flex items-center gap-1.5">
+            <span>⚡</span>
+            <span>{lang === "he" ? "רכש פעיל כעת בישראל:" : "Currently sourcing:"}</span>
+          </p>
+          <ul className="space-y-1.5">
+            {displaySourcing.map((item) => (
+              <li key={item} className="flex items-center gap-2 text-xs text-slate-200">
                 <span className="w-1.5 h-1.5 rounded-full bg-[#F47920] shrink-0" />
-                {item}
+                <span>{item}</span>
               </li>
             ))}
           </ul>
@@ -417,8 +508,10 @@ export function CardView({ card, cardUrl, preview = false }: CardViewProps) {
 
       {/* ── QR Code ── */}
       <div className="flex flex-col items-center gap-3">
-        <QrCode url="https://fdx.trading/" size={164} onRendered={() => track("contact_card_qr_rendered")} />
-        <p className="text-xs text-slate-600">Scan to open this card</p>
+        <QrCode url={cardUrl || `https://fdx.trading/business-card/${card.handle}`} size={164} onRendered={() => track("contact_card_qr_rendered")} />
+        <p className="text-xs text-slate-400">
+          {lang === "he" ? "סרוק לשמירת כרטיס זה בנייד" : "Scan to open this card on your phone"}
+        </p>
         <div className="flex items-center gap-4">
           <button
             onClick={handleCopyLink}
