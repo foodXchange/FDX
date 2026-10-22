@@ -41,10 +41,13 @@ export default function TrackingClientView({
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [result, setResult] = useState<TrackedSampleKit | TrackedCommercialRequest | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const lastFetchedQueryRef = React.useRef<string>("");
 
-  const performLookup = async (q: string) => {
+  const performLookup = async (q: string, force = false) => {
     const trimmed = q.trim();
     if (!trimmed) return;
+    if (!force && lastFetchedQueryRef.current === trimmed && result) return;
+    lastFetchedQueryRef.current = trimmed;
 
     setIsLoading(true);
     setErrorMessage(null);
@@ -90,7 +93,7 @@ export default function TrackingClientView({
     const currentUrl = new URL(window.location.href);
     currentUrl.searchParams.set("code", queryInput.trim());
     router.replace(currentUrl.pathname + currentUrl.search);
-    performLookup(queryInput);
+    performLookup(queryInput, true);
   };
 
   const handleDemoClick = () => {
@@ -98,7 +101,7 @@ export default function TrackingClientView({
     const currentUrl = new URL(window.location.href);
     currentUrl.searchParams.set("code", "FDX-SMP-DEMO88");
     router.replace(currentUrl.pathname + currentUrl.search);
-    performLookup("FDX-SMP-DEMO88");
+    performLookup("FDX-SMP-DEMO88", true);
   };
 
   const generateWhatsAppInquiry = (kit: TrackedSampleKit) => {
@@ -279,7 +282,11 @@ Looking forward to the expected delivery update.`;
                       {/* Action to view spec */}
                       <div className="shrink-0">
                         <Link
-                          href={isHe ? `/he/products` : `/en/products`}
+                          href={
+                            item.id && !item.id.startsWith("demo-")
+                              ? `/${isHe ? "he" : "en"}/products/spec/${item.id}`
+                              : `/${isHe ? "he" : "en"}/products`
+                          }
                           className="text-xs text-slate-400 hover:text-white bg-slate-900 hover:bg-slate-800 border border-slate-800 px-3 py-2 rounded-xl transition inline-flex items-center gap-1"
                         >
                           <span>{isHe ? "מפרט" : "Spec"}</span>
@@ -296,7 +303,7 @@ Looking forward to the expected delivery update.`;
             <SensoryScorecardSection
               kit={result}
               lang={lang}
-              onFeedbackSubmitted={() => performLookup(result.tracking_code)}
+              onFeedbackSubmitted={() => performLookup(result.tracking_code, true)}
             />
 
             {/* 4. Direct WhatsApp Deal Desk Concierge */}

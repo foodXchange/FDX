@@ -135,14 +135,17 @@ export async function GET(req: NextRequest) {
     ""
   ).trim();
 
-  if (!rawQuery) {
+  // Strip dangerous SQL wildcard characters
+  const cleanQuery = rawQuery.replace(/[%_\\]/g, "").trim();
+
+  if (!cleanQuery || cleanQuery.length < 3) {
     return NextResponse.json(
-      { found: false, message: "Please enter a tracking number, DHL AWB, or phone." },
+      { found: false, message: "Please enter a valid tracking number, DHL AWB, or contact phone." },
       { status: 400 }
     );
   }
 
-  const queryUpper = rawQuery.toUpperCase();
+  const queryUpper = cleanQuery.toUpperCase();
 
   // Demo shortcut for buyers / reviewers
   if (
@@ -155,22 +158,50 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    // 1. Try finding by tracking_code in ai_analysis
-    const { data: codeMatches } = await supabaseAdmin
-      .from("sourcing_requests")
-      .select("id, name, company, product_name, category, whatsapp, ai_analysis, created_at, status")
-      .ilike("ai_analysis->>tracking_code", `%${rawQuery}%`)
-      .order("created_at", { ascending: false })
-      .limit(20);
+    let rows: Array<{
+      id: string;
+      name: string | null;
+      company: string | null;
+      product_name: string | null;
+      category: string | null;
+      whatsapp: string | null;
+      ai_analysis: unknown;
+      created_at: string;
+      status: string;
+    }> = [];
 
-    let rows = codeMatches || [];
+    // 1. Try finding by tracking_code in ai_analysis (exact match if full code, or prefix-safe match)
+    if (queryUpper.startsWith("FDX-SMP-")) {
+      const { data: exactMatches } = await supabaseAdmin
+        .from("sourcing_requests")
+        .select("id, name, company, product_name, category, whatsapp, ai_analysis, created_at, status")
+        .eq("ai_analysis->>tracking_code", queryUpper)
+        .order("created_at", { ascending: false })
+        .limit(20);
 
-    // 2. If not found by tracking_code, try by DHL AWB
-    if (rows.length === 0) {
+      if (exactMatches && exactMatches.length > 0) {
+        rows = exactMatches;
+      }
+    } else if (cleanQuery.length >= 5) {
+      // Suffix search (e.g. buyer enters only the 6-8 digit suffix)
+      const { data: suffixMatches } = await supabaseAdmin
+        .from("sourcing_requests")
+        .select("id, name, company, product_name, category, whatsapp, ai_analysis, created_at, status")
+        .ilike("ai_analysis->>tracking_code", `FDX-SMP-%${cleanQuery}%`)
+        .order("created_at", { ascending: false })
+        .limit(20);
+
+      if (suffixMatches && suffixMatches.length > 0) {
+        rows = suffixMatches;
+      }
+    }
+
+    // 2. If not found by tracking_code, try by DHL AWB (must be >= 8 digits to prevent loose collisions)
+    if (rows.length === 0 && cleanQuery.length >= 8) {
       const { data: awbMatches } = await supabaseAdmin
         .from("sourcing_requests")
         .select("id, name, company, product_name, category, whatsapp, ai_analysis, created_at, status")
-        .ilike("ai_analysis->>tracking_awb", `%${rawQuery}%`)
+        .eq("ai_analysis->>tracking_awb", cleanQuery)
         .order("created_at", { ascending: false })
         .limit(20);
 
@@ -179,12 +210,12 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    // 3. Try by session_id
-    if (rows.length === 0) {
+    // 3. Try by session_id (exact match only)
+    if (rows.length === 0 && cleanQuery.length >= 8) {
       const { data: sessionMatches } = await supabaseAdmin
         .from("sourcing_requests")
         .select("id, name, company, product_name, category, whatsapp, ai_analysis, created_at, status")
-        .eq("session_id", rawQuery)
+        .eq("session_id", cleanQuery)
         .order("created_at", { ascending: false })
         .limit(20);
 
@@ -193,13 +224,13 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    // 4. Try by phone number if query contains >= 7 digits
-    const digitsOnly = rawQuery.replace(/\D/g, "");
-    if (rows.length === 0 && digitsOnly.length >= 7) {
+    // 4. Try by phone number if query contains >= 9 digits (Israeli mobile numbers: 05X-XXXXXXX or 9725XXXXXXXX)
+    const digitsOnly = cleanQuery.replace(/\D/g, "");
+    if (rows.length === 0 && digitsOnly.length >= 9) {
       const { data: phoneMatches } = await supabaseAdmin
         .from("sourcing_requests")
         .select("id, name, company, product_name, category, whatsapp, ai_analysis, created_at, status")
-        .ilike("whatsapp", `%${digitsOnly}%`)
+        .ilike("whatsapp", `%${digitsOnly.slice(-9)}%`)
         .order("created_at", { ascending: false })
         .limit(20);
 
@@ -209,12 +240,12 @@ export async function GET(req: NextRequest) {
     }
 
     // 5. Try by exact UUID if formatted as UUID
-    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(rawQuery);
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(cleanQuery);
     if (rows.length === 0 && isUuid) {
       const { data: idMatches } = await supabaseAdmin
         .from("sourcing_requests")
         .select("id, name, company, product_name, category, whatsapp, ai_analysis, created_at, status")
-        .eq("id", rawQuery)
+        .eq("id", cleanQuery)
         .limit(1);
 
       if (idMatches && idMatches.length > 0) {

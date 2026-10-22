@@ -27,6 +27,7 @@ export default function ProductSpecView({ product, spec, isHebrew = true }: Prop
   )}&category=${encodeURIComponent(spec.category)}`;
 
   const generateWhatsAppShare = () => {
+    const specUrl = `https://fdx.trading/${isHebrew ? "he" : "en"}/products/spec/${spec.productId}`;
     const text = isHebrew
       ? `*דף מפרט טכני ומשטוח רשמי — FoodXchange*
 📦 *מוצר:* ${spec.productName}
@@ -34,12 +35,14 @@ export default function ProductSpecView({ product, spec, isHebrew = true }: Prop
 📐 *אריזה ומשטוח:* ${spec.palletization.unitsPerCarton} יח׳ בקרטון | ${spec.palletization.totalUnitsPerPallet.toLocaleString()} יח׳ במשטח
 🚢 *מכולת 40ft HC:* ${spec.palletization.unitsPer40ftHC.toLocaleString()} יח׳ (${spec.palletization.palletsPer40ftHC} משטחי יורו)
 ✡️ *כשרות:* ${spec.kosherTypes.join(", ")}
-🏷️ *תקנים:* ${spec.certifications.join(", ")}`
+🏷️ *תקנים:* ${spec.certifications.join(", ")}
+🔗 *קישור ישיר למפרט:* ${specUrl}`
       : `*Technical Product Spec & Palletization Sheet — FoodXchange*
 📦 *Product:* ${spec.productName}
 🏭 *Manufacturer:* ${spec.supplierName} (${spec.countryFlag} ${spec.countryOfOrigin})
 📐 *Packaging:* ${spec.palletization.unitsPerCarton} units/box | ${spec.palletization.totalUnitsPerPallet.toLocaleString()} units/Euro-pallet
-🚢 *40ft HC:* ${spec.palletization.unitsPer40ftHC.toLocaleString()} units (${spec.palletization.palletsPer40ftHC} Euro-pallets)`;
+🚢 *40ft HC:* ${spec.palletization.unitsPer40ftHC.toLocaleString()} units (${spec.palletization.palletsPer40ftHC} Euro-pallets)
+🔗 *Direct Spec Link:* ${specUrl}`;
 
     return `https://wa.me/?text=${encodeURIComponent(text)}`;
   };

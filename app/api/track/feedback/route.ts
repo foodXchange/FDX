@@ -59,11 +59,26 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    // 1. Fetch rows matching this tracking code
-    const { data: rows, error: fetchErr } = await supabaseAdmin
+    const cleanTrackingCode = tracking_code.trim().toUpperCase();
+
+    // 1. Fetch rows matching this tracking code (exact match)
+    let { data: rows, error: fetchErr } = await supabaseAdmin
       .from("sourcing_requests")
       .select("id, name, company, whatsapp, email, product_name, ai_analysis")
-      .ilike("ai_analysis->>tracking_code", `%${tracking_code}%`);
+      .eq("ai_analysis->>tracking_code", cleanTrackingCode);
+
+    // Fallback: If cleanTrackingCode is a UUID, search by exact ID
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(cleanTrackingCode);
+    if ((!rows || rows.length === 0) && isUuid) {
+      const { data: idRows } = await supabaseAdmin
+        .from("sourcing_requests")
+        .select("id, name, company, whatsapp, email, product_name, ai_analysis")
+        .eq("id", cleanTrackingCode);
+
+      if (idRows && idRows.length > 0) {
+        rows = idRows;
+      }
+    }
 
     if (fetchErr || !rows || rows.length === 0) {
       return NextResponse.json(

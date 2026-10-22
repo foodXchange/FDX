@@ -94,6 +94,7 @@ export async function POST(req: Request) {
       session_id,
       ai_analysis: {
         tracking_code: trackingCode,
+        sample_status: "coordinating_factory",
         delivery_address,
         target_tasting_date,
         sample_format: item.sample_format,

@@ -31,6 +31,7 @@ export default function ProductSpecModal({ product, onClose, isHebrew = true }: 
   )}&category=${encodeURIComponent(spec.category)}`;
 
   const generateWhatsAppShare = () => {
+    const specUrl = `https://fdx.trading/${isHebrew ? "he" : "en"}/products/spec/${spec.productId}`;
     const text = isHebrew
       ? `*מפרט טכני ומשטוח למוצר — FoodXchange*
 📦 *מוצר:* ${spec.productName}
@@ -39,14 +40,15 @@ export default function ProductSpecModal({ product, onClose, isHebrew = true }: 
 🚢 *מכולת 40ft HC:* ${spec.palletization.unitsPer40ftHC.toLocaleString()} יח׳ (${spec.palletization.palletsPer40ftHC} משטחי יורו)
 ✡️ *כשרות:* ${spec.kosherTypes.join(", ")}
 🏷️ *תקנים:* ${spec.certifications.join(", ")}
-קישור לצפייה: https://fdx.trading/he/products`
+🔗 *קישור ישיר למפרט:* ${specUrl}`
       : `*Technical Product Spec & Palletization — FoodXchange*
 📦 *Product:* ${spec.productName}
 🏭 *Manufacturer:* ${spec.supplierName} (${spec.countryFlag} ${spec.countryOfOrigin})
 📐 *Packaging:* ${spec.palletization.unitsPerCarton} units/box | ${spec.palletization.totalUnitsPerPallet.toLocaleString()} units/Euro-pallet
 🚢 *40ft HC Capacity:* ${spec.palletization.unitsPer40ftHC.toLocaleString()} units (${spec.palletization.palletsPer40ftHC} Euro-pallets)
 ✡️ *Kosher:* ${spec.kosherTypes.join(", ")}
-🏷️ *Certifications:* ${spec.certifications.join(", ")}`;
+🏷️ *Certifications:* ${spec.certifications.join(", ")}
+🔗 *Direct Spec Link:* ${specUrl}`;
 
     return `https://wa.me/?text=${encodeURIComponent(text)}`;
   };
