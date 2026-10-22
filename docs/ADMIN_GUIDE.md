@@ -149,6 +149,25 @@ The FoodXchange e-Business Card (`/business-card/[handle]`, production: `https:/
 
 ---
 
+### Hebrew Retail Buyer Portal & Global Bilingual Switcher (`/he`)
+
+A dedicated commercial entry point for Israeli supermarket category managers (Shufersal, Victory, Rami Levy, Yohananof, Osher Ad) and food importers:
+
+- **Canonical URL**: `https://fdx.trading/he`
+- **RTL Typography & Layout**: Built with native RTL text direction (`dir="rtl"`) and responsive Tailwind layout.
+- **Commercial Focus**:
+  - 🏷️ **Private Label (מותג פרטי)**: Highlighting custom packaging and Hebrew labeling compliance (ת״י 1145).
+  - ✡️ **Kosher Pathways**: Clarifying kosher feasibility pathways (Chief Rabbinate and recognized Badatz bodies).
+  - 🚢 **Factory-Direct CIF Pricing**: Clear economics on container-level procurement (FCL) from 600+ European factories.
+  - ⚡ **Streamlined RFQ Submission**: Direct links to Hebrew sourcing requests, direct WhatsApp routing with founder Udi Stryk, and 15-minute video intro booking.
+- **Global Header Bilingual Toggle (`[ EN | עב ]`)**:
+  - Integrated into [`components/Header.tsx`](file:///c:/Users/UdiFDX/Desktop/WebSites/FDX.TRADING/components/Header.tsx) across desktop and mobile headers.
+  - Automatically maps mirror routes (`/` ↔ `/he`, `/en/contact` ↔ `/he/contact`, `/en/blog` ↔ `/he/blog`, `/en/newsletter` ↔ `/he/newsletter`).
+  - Automatically switches navigation labels to Hebrew when browsing `/he/*`.
+- **Localized RTL Footer**: [`components/ui/Footer.tsx`](file:///c:/Users/UdiFDX/Desktop/WebSites/FDX.TRADING/components/ui/Footer.tsx) accepts `lang="he"`, serving Hebrew navigation, Israeli corporate details, and founder contact `udi@fdx.trading`.
+
+---
+
 ## 7. Unified B2B Meetings & Video Calls Command Center (`/admin/meetings`)
 
 A centralized operations desk for all commercial video interactions across the deal lifecycle:

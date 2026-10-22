@@ -27,7 +27,7 @@ export default function FAQAccordion({
             className="dark-card overflow-hidden"
           >
             <button
-              className="w-full text-left px-6 py-4 flex items-center justify-between gap-4 hover:bg-white/3 transition"
+              className="w-full text-start px-6 py-4 flex items-center justify-between gap-4 hover:bg-white/3 transition"
               onClick={() => setOpenIdx(openIdx === i ? null : i)}
               aria-expanded={openIdx === i}
             >
