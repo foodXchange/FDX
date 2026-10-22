@@ -59,6 +59,8 @@
 | `/api/supplier-portal/notifications` | `GET` | Supplier | Polling endpoint for supplier inquiry notifications |
 | `/api/suppliers/enquiry` | `POST` | Public | Direct inquiry routing from a specific supplier profile page |
 | `/api/proposals/[token]` | `GET` | Public | Generates tokenized shareable product proposals for prospective retail buyers |
+| `/api/admin/deck/generate` | `POST` | Admin | Generates multi-factory B2B assortment decks, creates 12-char cryptographic token, stores payload in `proposals`, and returns web deck & PDF URLs |
+| `/api/deck/[token]/pdf` | `GET` | Public | Produces high-resolution A4 landscape printable vector presentation deck with commercial matrix table and factory deep dives |
 
 ---
 

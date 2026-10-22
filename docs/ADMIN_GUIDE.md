@@ -157,3 +157,23 @@ A centralized operations desk for all commercial video interactions across the d
   - 💬 **Ping WhatsApp**: Generates pre-formatted WhatsApp reminder to the attendee with the Google Meet link.
   - 🧠 **AI Intelligence Brief**: Directly opens the AI Meeting Intelligence modal to ingest call transcripts/notes, generate structured Hebrew commercial summaries, extract CIF terms, and assign sample dispatch tasks.
   - **+ Schedule Video Call**: Quick-modal to create an ad-hoc video meeting and calendar invitation in 10 seconds.
+
+---
+
+## 8. B2B Assortment Deck & Factory Showcase Generator (`/admin/deck-builder`)
+
+The Assortment Deck Studio allows the deal desk to create multi-factory presentation decks for Israeli supermarket category managers (Shufersal, Victory, Yohananof, Osher Ad, Rami Levy):
+
+- **Deck Studio URL**: `/admin/deck-builder`
+- **One-Click Category Presets**: Instant loading of curated European factory selections:
+  - 🫒 *Extra Virgin Olive Oil (Spain & Italy)*
+  - 🥫 *Canned Tuna & Pelagic Fish Fillets (Spain & Portugal)*
+  - 🍟 *Frozen French Fries & Potato Wedges (Belgium)*
+- **Dual Presentation Formats**:
+  1. **Print & Save Vector PDF (`/api/deck/[token]/pdf`)**: An A4 Landscape executive presentation containing cover slide, commercial comparison matrix table, factory deep-dive slides (certifications BRC/IFS, Kosher pathway, CIF Haifa economics), and Udi Stryk QR contact back-cover.
+  2. **Interactive Secret Web Deck (`/deck/[token]`)**: Mobile & desktop responsive presentation for retail buyers with direct CTAs:
+     - 📦 **Request Tasting Sample Kit**: Dispatches courier sample order.
+     - 📅 **Book 15-Min Sourcing Review**: Direct Google Meet scheduling.
+     - 💬 **WhatsApp Udi**: Pre-formatted WhatsApp context message.
+     - 📥 **Download PDF**: Instant access to the vector PDF deck.
+- **Real-Time Telemetry**: Every deck view and button click is tracked in `proposal_views` to alert the deal desk the moment a category manager reviews the deck.

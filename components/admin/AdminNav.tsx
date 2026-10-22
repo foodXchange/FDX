@@ -44,6 +44,7 @@ const sections: { title: string; links: NavItem[] }[] = [
       { href: "/admin/card-analytics", label: "Card Analytics", icon: "📈" },
       { href: "/admin/catalogue", label: "Product Catalogue", icon: "📋" },
       { href: "/admin/proposals", label: "Buyer Proposals", icon: "💼" },
+      { href: "/admin/deck-builder", label: "Assortment Deck Studio", icon: "📑", badge: "New" },
       { href: "/en/admin/newsletter-builder", label: "Newsletter Builder", icon: "✉️" },
       { href: "/en/admin/blog-editor", label: "Blog & SEO Editor", icon: "✍️" },
       { href: "/admin/portfolio", label: "Portfolio CMS", icon: "📁" },
