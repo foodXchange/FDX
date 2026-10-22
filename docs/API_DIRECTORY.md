@@ -73,7 +73,7 @@
 | `/api/card/track` | `POST` | Public | Digital business card visit and interaction telemetry (`/business-card/udi`) |
 | `/api/card/inquiry` | `POST` | Public | Direct RFQ submission from digital business card drawer; upserts buyer, creates `sourcing_requests` record, dispatches email alert to `udi@fdx.trading`, and issues in-app admin notification |
 | `/api/card/meeting-schedule` | `POST` | Public | 15-minute intro video call booking; provisions Google Meet URL, creates RFC 5545 `.ics` file and Google Calendar template, records telemetry, and notifies both attendee and host |
-| `/api/vcard/[handle]` | `GET` | Public | Generates RFC-compliant vCard 3.0 file dynamically populated from Supabase `contact_cards` with embedded base64 avatar photo |
+| `/api/vcard/[handle]` | `GET` | Public | Generates RFC-compliant vCard 3.0 file dynamically populated from Supabase `contact_cards` with embedded base64 avatar photo. Supports `?lang=he` to generate localized Hebrew vCard (`Udi-Stryk-FoodXchange-Hebrew.vcf`) with Hebrew name ("אודי סטריק"), title ("מייסד ומנהל"), and Israeli retail sourcing notes |
 
 ---
 

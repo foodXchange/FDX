@@ -26,21 +26,50 @@ export async function GET(
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
-  const name = dbCard?.name || legacy?.name || "Udi Stryk";
-  const nameParts = name.split(" ");
-  const firstName = nameParts[0] || "Udi";
-  const lastName = nameParts.slice(1).join(" ") || "Stryk";
+  const lang = _req.nextUrl.searchParams.get("lang")?.toLowerCase() || "en";
+  const isHebrew = lang === "he";
+
+  const rawName = isHebrew
+    ? (legacy?.nameHe || "אודי סטריק")
+    : (dbCard?.name || legacy?.name || "Udi Stryk");
+
+  let firstName = "Udi";
+  let lastName = "Stryk";
+  if (isHebrew) {
+    firstName = "אודי";
+    lastName = "סטריק";
+  } else {
+    const nameParts = rawName.split(" ");
+    firstName = nameParts[0] || "Udi";
+    lastName = nameParts.slice(1).join(" ") || "Stryk";
+  }
+
+  const title = isHebrew
+    ? (legacy?.titleHe || "מייסד ומנהל")
+    : (dbCard?.title || legacy?.title || "Founder & Operator");
+
+  const company = isHebrew
+    ? "FoodXchange (פודאקסצ'יינג')"
+    : (dbCard?.company || legacy?.company || "FoodXchange");
+
+  const tagline = isHebrew
+    ? (legacy?.taglineHe || "מחברים יצרני מזון אירופאים עם רשתות השיווק בישראל.")
+    : (dbCard?.tagline || legacy?.tagline || "Connecting European manufacturers with the Israeli food market.");
+
+  const pitch = isHebrew
+    ? (legacy?.pitchHe || "איתור יצרני מזון אירופאים מובילים לרשתות השיווק בישראל — מותג פרטי, כשרות (רבנות/בד״ץ) ואיכות אירופאית.")
+    : (dbCard?.pitch || legacy?.pitch || undefined);
 
   const cardForVcf = {
     handle: dbCard?.handle || legacy?.handle || handle,
     persona: legacy?.persona || "default",
-    name,
+    name: rawName,
     firstName,
     lastName,
-    title: dbCard?.title || legacy?.title || "Founder & Operator",
-    company: dbCard?.company || legacy?.company || "FoodXchange",
-    tagline: dbCard?.tagline || legacy?.tagline || "Connecting European manufacturers with the Israeli food market.",
-    pitch: dbCard?.pitch || legacy?.pitch || undefined,
+    title,
+    company,
+    tagline,
+    pitch,
     email: dbCard?.email || legacy?.email || "udi@fdx.trading",
     phone: dbCard?.phone || legacy?.phone || "+972525222291",
     whatsapp: (dbCard?.whatsapp_buyer || legacy?.whatsapp || "+972525222291").replace(/^\+/, ""),
@@ -68,10 +97,14 @@ export async function GET(
   }
 
   const vcf = await generateVCard(cardForVcf, photoBase64);
+  const downloadFilename = isHebrew
+    ? "Udi-Stryk-FoodXchange-Hebrew.vcf"
+    : `${firstName}-${lastName}.vcf`;
+
   return new NextResponse(vcf, {
     headers: {
       "Content-Type": "text/vcard; charset=utf-8",
-      "Content-Disposition": `attachment; filename="${firstName}-${lastName}.vcf"`,
+      "Content-Disposition": `attachment; filename="${downloadFilename}"`,
       "Cache-Control": "no-store",
     },
   });

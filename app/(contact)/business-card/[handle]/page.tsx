@@ -8,6 +8,7 @@ import { CardView, type CardViewData, type CardViewPhoto } from "@/components/co
 
 interface PageProps {
   params: Promise<{ handle: string }>;
+  searchParams?: Promise<{ lang?: string }>;
 }
 
 type DBCard = {
@@ -109,21 +110,30 @@ async function loadCard(handle: string): Promise<CardViewData | null> {
   return legacyCardToViewData(legacy);
 }
 
-export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+export async function generateMetadata({ params, searchParams }: PageProps): Promise<Metadata> {
   const { handle } = await params;
+  const sp = searchParams ? await searchParams : undefined;
+  const isHe = sp?.lang === "he";
   const card = await loadCard(handle);
   if (!card) return { title: "Contact Not Found" };
 
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://foodz-x.com";
-  const cardUrl = `${siteUrl}/business-card/${handle}`;
+  const cardUrl = `${siteUrl}/business-card/${handle}${isHe ? "?lang=he" : ""}`;
   const ogImageUrl = `${siteUrl}/business-card/${handle}/opengraph-image`;
 
+  const metaTitle = isHe
+    ? `${card.nameHe || card.name} | ${card.company || "FoodXchange"}`
+    : `${card.name} | ${card.company}`;
+  const metaDescription = isHe
+    ? `${card.titleHe || card.title} ב-FoodXchange. ${card.taglineHe || card.tagline}`
+    : `${card.title} at ${card.company}. ${card.tagline}`;
+
   return {
-    title: `${card.name} | ${card.company}`,
-    description: `${card.title} at ${card.company}. ${card.tagline}`,
+    title: metaTitle,
+    description: metaDescription,
     openGraph: {
-      title: `${card.name} — ${card.title}`,
-      description: `${card.title} at ${card.company}. ${card.tagline}`,
+      title: isHe ? `${card.nameHe || card.name} — ${card.titleHe || card.title}` : `${card.name} — ${card.title}`,
+      description: metaDescription,
       url: cardUrl,
       siteName: "FoodXchange",
       type: "website",
@@ -131,21 +141,23 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     },
     twitter: {
       card: "summary_large_image",
-      title: `${card.name} — ${card.title}`,
-      description: `${card.title} at ${card.company}. ${card.tagline}`,
+      title: isHe ? `${card.nameHe || card.name} — ${card.titleHe || card.title}` : `${card.name} — ${card.title}`,
+      description: metaDescription,
       images: [ogImageUrl],
     },
   };
 }
 
-export default async function ContactCardPage({ params }: PageProps) {
+export default async function ContactCardPage({ params, searchParams }: PageProps) {
   const { handle } = await params;
+  const sp = searchParams ? await searchParams : undefined;
   const card = await loadCard(handle);
   if (!card) notFound();
 
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://foodz-x.com";
   const cardUrl = `${siteUrl}/business-card/${handle}`;
   const plausibleDomain = process.env.NEXT_PUBLIC_PLAUSIBLE_DOMAIN;
+  const initialLang = sp?.lang === "he" ? "he" : sp?.lang === "en" ? "en" : undefined;
 
   return (
     <main className="flex items-center justify-center px-4 py-12 min-h-screen">
@@ -156,7 +168,7 @@ export default async function ContactCardPage({ params }: PageProps) {
           src="https://plausible.io/js/script.tagged-events.js"
         />
       )}
-      <CardView card={card} cardUrl={cardUrl} />
+      <CardView card={card} cardUrl={cardUrl} initialLang={initialLang} />
     </main>
   );
 }

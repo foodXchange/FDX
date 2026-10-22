@@ -135,11 +135,16 @@ Admins can impersonate any buyer or supplier to troubleshoot portal UX:
 
 The FoodXchange e-Business Card (`/business-card/[handle]`, production: `https://fdx.trading/business-card/udi`) acts as the high-conversion mobile front door for European factories and Israeli retail buyers:
 
-- **Bilingual Switcher (`[ EN | עב ]`)**: Instant toggle switching UI and text direction (LTR / RTL), presenting localized value propositions and Hebrew titles.
-- **Dynamic vCard 3.0 (`/api/vcard/[handle]`)**: Queries Supabase `contact_cards` in real-time, embeds the base64 photo avatar, phone, and updated `udi@fdx.trading` address.
+- **Dedicated Hebrew Edition (`?lang=he`) & Browser Locale Detection**: 
+  - Direct URL access to `https://fdx.trading/business-card/udi?lang=he` renders the card in full Hebrew with RTL layout and localized OpenGraph metadata for WhatsApp share previews in Israel.
+  - Automatic locale detection detects Israeli browsers (`navigator.language.startsWith('he')`) and switches to Hebrew automatically when no language override is present.
+  - Interactive top switcher (`[ EN | עב ]`) allows instant toggle while synchronizing browser URL query parameters without reloading.
+- **Dynamic Localized vCard 3.0 (`/api/vcard/[handle]`)**: 
+  - In default/English mode, exports `Udi-Stryk.vcf` with global title, company, and email.
+  - In Hebrew mode (`?lang=he`), exports `Udi-Stryk-FoodXchange-Hebrew.vcf` with full Hebrew name ("אודי סטריק"), title ("מייסד ומנהל"), company ("FoodXchange (פודאקסצ'יינג')"), and Israeli retail sourcing notes.
 - **⚡ Instant Sourcing Inquiry Drawer (`/api/card/inquiry`)**: Allows buyers to submit an RFQ in under 30 seconds with 1-click active sourcing suggestions (e.g. Extra Virgin Olive Oil 750ml, Frozen Potato Wedges, Organic Granola), target volume, and Kosher requirements. Ingests directly into `sourcing_requests` with automated email and in-app admin alert.
 - **📅 Direct 15-Minute Intro Call Scheduler (`/api/card/meeting-schedule`)**: Provides an interactive calendar strip for the next 8 business days (Sunday–Thursday, Israel Time IDT / Europe Time CET). Provisions permanent Google Meet rooms, generates 1-click Google Calendar links, and outputs `.ics` calendar files.
-- **🖨️ Printable High-Res Vector QR Code Studio (`/admin/card-editor`)**: Located inside the Admin Card Editor. Features Error Correction Level **H** (30% recovery) with an embedded FoodXchange Orange `#F47920` 'X' emblem, 4 brand color palettes, and 1-click 1200x1200px PNG and scalable SVG vector downloads.
+- **🖨️ Printable High-Res Vector QR Code Studio (`/admin/card-editor`)**: Located inside the Admin Card Editor. Features Error Correction Level **H** (30% recovery) with an embedded FoodXchange Orange `#F47920` 'X' emblem, 4 brand color palettes, 1-click toggle between **Global / English** expo codes and **Israel / Hebrew** retail codes with custom Hebrew print caption, and 1-click 1200x1200px PNG and scalable SVG vector downloads.
 - **📊 6-Metric Conversion Funnel Analytics (`/admin/card-analytics`)**: Tracks page views, vCard saves, WhatsApp clicks, RFQ inquiries, scheduled calls, and overall conversion rate percentage with live 30-event audit stream.
 
 ---

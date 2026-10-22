@@ -7,6 +7,7 @@ interface Props {
   name: string;
   title: string;
   handle: string;
+  nameHe?: string;
 }
 
 type Palette = {
@@ -53,7 +54,8 @@ const PALETTES: Palette[] = [
   },
 ];
 
-export function PrintableQrStudio({ cardUrl, name, title, handle }: Props) {
+export function PrintableQrStudio({ cardUrl, name, title, handle, nameHe }: Props) {
+  const [targetLang, setTargetLang] = useState<"en" | "he">("en");
   const [selectedPalette, setSelectedPalette] = useState<Palette>(PALETTES[0]);
   const [withLogo, setWithLogo] = useState<boolean>(true);
   const [withCaption, setWithCaption] = useState<boolean>(true);
@@ -61,6 +63,13 @@ export function PrintableQrStudio({ cardUrl, name, title, handle }: Props) {
   const [svgString, setSvgString] = useState<string>("");
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+
+  const effectiveUrl =
+    targetLang === "he"
+      ? cardUrl.includes("?")
+        ? `${cardUrl}&lang=he`
+        : `${cardUrl}?lang=he`
+      : cardUrl;
 
   useEffect(() => {
     let cancelled = false;
@@ -89,7 +98,7 @@ export function PrintableQrStudio({ cardUrl, name, title, handle }: Props) {
 
       // Render raw QR to temporary canvas
       const tempCanvas = document.createElement("canvas");
-      await QRCode.toCanvas(tempCanvas, cardUrl, {
+      await QRCode.toCanvas(tempCanvas, effectiveUrl, {
         width: baseSize,
         margin: 3,
         errorCorrectionLevel: "H",
@@ -134,21 +143,35 @@ export function PrintableQrStudio({ cardUrl, name, title, handle }: Props) {
         const textY = baseSize + 55;
         ctx.textAlign = "center";
         ctx.fillStyle = selectedPalette.dark;
-        ctx.font = "bold 44px Poppins, -apple-system, sans-serif";
-        ctx.fillText(`${name} · FoodXchange`, baseSize / 2, textY);
 
-        ctx.fillStyle = selectedPalette.dark === "#FFFFFF" ? "#94a3b8" : "#64748b";
-        ctx.font = "normal 32px Poppins, -apple-system, sans-serif";
-        ctx.fillText("Scan with Camera to Connect & Review Active Sourcing", baseSize / 2, textY + 50);
+        if (targetLang === "he") {
+          ctx.font = "bold 44px Rubik, Heebo, Poppins, Arial, sans-serif";
+          ctx.fillText(`${nameHe || "אודי סטריק"} · FoodXchange`, baseSize / 2, textY);
 
-        ctx.font = "bold 28px monospace";
-        ctx.fillStyle = "#F47920";
-        ctx.fillText(`fdx.trading/business-card/${handle}`, baseSize / 2, textY + 95);
+          ctx.fillStyle = selectedPalette.dark === "#FFFFFF" ? "#94a3b8" : "#64748b";
+          ctx.font = "normal 30px Rubik, Heebo, Poppins, Arial, sans-serif";
+          ctx.fillText("סרוק במצלמה לשמירת איש קשר ורכש פעיל", baseSize / 2, textY + 50);
+
+          ctx.font = "bold 26px monospace";
+          ctx.fillStyle = "#F47920";
+          ctx.fillText(`fdx.trading/business-card/${handle}?lang=he`, baseSize / 2, textY + 95);
+        } else {
+          ctx.font = "bold 44px Poppins, -apple-system, sans-serif";
+          ctx.fillText(`${name} · FoodXchange`, baseSize / 2, textY);
+
+          ctx.fillStyle = selectedPalette.dark === "#FFFFFF" ? "#94a3b8" : "#64748b";
+          ctx.font = "normal 32px Poppins, -apple-system, sans-serif";
+          ctx.fillText("Scan with Camera to Connect & Review Active Sourcing", baseSize / 2, textY + 50);
+
+          ctx.font = "bold 28px monospace";
+          ctx.fillStyle = "#F47920";
+          ctx.fillText(`fdx.trading/business-card/${handle}`, baseSize / 2, textY + 95);
+        }
       }
 
       // 2. Generate Scalable Vector SVG
       try {
-        const rawSvg: string = await QRCode.toString(cardUrl, {
+        const rawSvg: string = await QRCode.toString(effectiveUrl, {
           type: "svg",
           margin: 3,
           errorCorrectionLevel: "H",
@@ -194,13 +217,13 @@ export function PrintableQrStudio({ cardUrl, name, title, handle }: Props) {
     return () => {
       cancelled = true;
     };
-  }, [cardUrl, name, title, handle, selectedPalette, withLogo, withCaption]);
+  }, [effectiveUrl, name, title, handle, nameHe, selectedPalette, withLogo, withCaption, targetLang]);
 
   function downloadPng() {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const link = document.createElement("a");
-    link.download = `FoodXchange-QR-${handle}-1200px.png`;
+    link.download = `FoodXchange-QR-${handle}-${targetLang}-1200px.png`;
     link.href = canvas.toDataURL("image/png");
     link.click();
   }
@@ -210,7 +233,7 @@ export function PrintableQrStudio({ cardUrl, name, title, handle }: Props) {
     const blob = new Blob([svgString], { type: "image/svg+xml;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
-    link.download = `FoodXchange-QR-${handle}-vector.svg`;
+    link.download = `FoodXchange-QR-${handle}-${targetLang}-vector.svg`;
     link.href = url;
     link.click();
     URL.revokeObjectURL(url);
@@ -254,6 +277,46 @@ export function PrintableQrStudio({ cardUrl, name, title, handle }: Props) {
 
         {/* Right: Studio Controls */}
         <div className="lg:col-span-7 space-y-4">
+          {/* Target Language Edition */}
+          <div>
+            <label className="block text-xs font-semibold text-slate-300 mb-2">
+              Audience & Language Edition:
+            </label>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setTargetLang("en")}
+                className={`flex items-center gap-2 px-3 py-2.5 rounded-xl text-xs font-medium border text-start transition-colors ${
+                  targetLang === "en"
+                    ? "border-[#0284c7] bg-sky-500/10 text-white"
+                    : "border-white/5 bg-slate-800 text-slate-400 hover:text-white hover:bg-slate-700"
+                }`}
+              >
+                <span className="text-base">🌐</span>
+                <div className="min-w-0">
+                  <div className="font-semibold text-white">Global / English</div>
+                  <div className="text-[10px] text-slate-400">Trade expos & EU suppliers</div>
+                </div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setTargetLang("he")}
+                className={`flex items-center gap-2 px-3 py-2.5 rounded-xl text-xs font-medium border text-start transition-colors ${
+                  targetLang === "he"
+                    ? "border-[#F47920] bg-orange-500/10 text-white"
+                    : "border-white/5 bg-slate-800 text-slate-400 hover:text-white hover:bg-slate-700"
+                }`}
+              >
+                <span className="text-base">🇮🇱</span>
+                <div className="min-w-0">
+                  <div className="font-semibold text-white">Israel / עברית</div>
+                  <div className="text-[10px] text-slate-400">Retail chains & local buyers</div>
+                </div>
+              </button>
+            </div>
+          </div>
+
           {/* Palette Selector */}
           <div>
             <label className="block text-xs font-semibold text-slate-300 mb-2">
@@ -306,9 +369,9 @@ export function PrintableQrStudio({ cardUrl, name, title, handle }: Props) {
 
           {/* Target URL Display */}
           <div className="p-3 rounded-xl bg-slate-900 border border-white/5 text-xs text-slate-400 font-mono flex items-center justify-between">
-            <span className="truncate">{cardUrl}</span>
+            <span className="truncate">{effectiveUrl}</span>
             <span className="text-emerald-400 font-sans font-semibold shrink-0 text-[11px] ml-2">
-              ✓ Verified Destination
+              ✓ Verified Destination ({targetLang.toUpperCase()})
             </span>
           </div>
 

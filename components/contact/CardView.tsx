@@ -42,6 +42,7 @@ interface CardViewProps {
   cardUrl: string;
   /** true = no analytics tracking, WhatsApp buttons are non-functional */
   preview?: boolean;
+  initialLang?: "en" | "he";
 }
 
 function trackEvent(name: string, props: Record<string, string>) {
@@ -55,8 +56,8 @@ function trackEvent(name: string, props: Record<string, string>) {
   }
 }
 
-export function CardView({ card, cardUrl, preview = false }: CardViewProps) {
-  const [lang, setLang] = useState<"en" | "he">("en");
+export function CardView({ card, cardUrl, preview = false, initialLang }: CardViewProps) {
+  const [lang, setLang] = useState<"en" | "he">(initialLang || "en");
   const [linkCopied, setLinkCopied] = useState(false);
   const [copied, setCopied] = useState(false);
   const [activePhoto, setActivePhoto] = useState(0);
@@ -72,6 +73,27 @@ export function CardView({ card, cardUrl, preview = false }: CardViewProps) {
   const [formError, setFormError] = useState("");
   const touchStartX = useRef(0);
   const touchStartY = useRef(0);
+
+  // Auto-detect Hebrew browser language if no explicit initialLang passed via URL
+  useEffect(() => {
+    if (!initialLang && typeof navigator !== "undefined" && navigator.language?.toLowerCase().startsWith("he")) {
+      setLang("he");
+    }
+  }, [initialLang]);
+
+  function switchLang(newLang: "en" | "he") {
+    setLang(newLang);
+    track("switch_language", { lang: newLang });
+    if (typeof window !== "undefined") {
+      const url = new URL(window.location.href);
+      if (newLang === "he") {
+        url.searchParams.set("lang", "he");
+      } else {
+        url.searchParams.delete("lang");
+      }
+      window.history.replaceState({}, "", url.toString());
+    }
+  }
 
   useEffect(() => {
     if (!preview) {
@@ -120,7 +142,7 @@ export function CardView({ card, cardUrl, preview = false }: CardViewProps) {
           company: formCompany.trim() || undefined,
           message: formMessage.trim(),
           lead_type: `business_card_${card.handle}`,
-          lang: "en",
+          lang: lang,
         }),
       });
 
@@ -162,17 +184,20 @@ export function CardView({ card, cardUrl, preview = false }: CardViewProps) {
   }
 
   async function handleShare() {
-    const shareUrl = cardUrl || "https://fdx.trading/business-card/udi";
+    const base = cardUrl || "https://fdx.trading/business-card/udi";
+    const shareUrl = `${base}${lang === "he" ? "?lang=he" : ""}`;
     const shareData = {
-      title: "Udi Stryk — FoodXchange",
-      text: "Connecting European manufacturers with the Israeli food market.",
+      title: lang === "he" ? `${card.nameHe || card.name} — FoodXchange` : `${card.name} — FoodXchange`,
+      text: lang === "he"
+        ? (card.taglineHe || "מחברים יצרני מזון אירופאים עם רשתות השיווק בישראל.")
+        : (card.tagline || "Connecting European manufacturers with the Israeli food market."),
       url: shareUrl,
     };
 
     if (navigator.share && navigator.canShare && navigator.canShare(shareData)) {
       try {
         await navigator.share(shareData);
-        track("share_card");
+        track("share_card", { lang });
         return;
       } catch (err) {
         if ((err as Error).name === "AbortError") return;
@@ -182,10 +207,10 @@ export function CardView({ card, cardUrl, preview = false }: CardViewProps) {
     try {
       await navigator.clipboard.writeText(shareUrl);
       setCopied(true);
-      track("share_card");
+      track("share_card", { lang });
       setTimeout(() => setCopied(false), 2500);
     } catch {
-      window.prompt("Copy this link:", shareUrl);
+      window.prompt(lang === "he" ? "העתק קישור זה:" : "Copy this link:", shareUrl);
     }
   }
 
@@ -229,10 +254,7 @@ export function CardView({ card, cardUrl, preview = false }: CardViewProps) {
         <div className="inline-flex rounded-xl border border-white/10 bg-slate-900/80 p-0.5 text-xs font-bold" dir="ltr">
           <button
             type="button"
-            onClick={() => {
-              setLang("en");
-              track("switch_language", { lang: "en" });
-            }}
+            onClick={() => switchLang("en")}
             className={`px-2.5 py-1 rounded-lg transition cursor-pointer ${
               lang === "en" ? "bg-orange-500 text-white shadow-xs" : "text-slate-400 hover:text-white"
             }`}
@@ -241,10 +263,7 @@ export function CardView({ card, cardUrl, preview = false }: CardViewProps) {
           </button>
           <button
             type="button"
-            onClick={() => {
-              setLang("he");
-              track("switch_language", { lang: "he" });
-            }}
+            onClick={() => switchLang("he")}
             className={`px-2.5 py-1 rounded-lg transition cursor-pointer ${
               lang === "he" ? "bg-orange-500 text-white shadow-xs" : "text-slate-400 hover:text-white"
             }`}
@@ -375,9 +394,9 @@ export function CardView({ card, cardUrl, preview = false }: CardViewProps) {
       {/* ── Primary CTAs: Save Contact & Book 15-Min Call ── */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 mb-6">
         <a
-          href={`/api/vcard/${card.handle}`}
+          href={`/api/vcard/${card.handle}${lang === "he" ? "?lang=he" : ""}`}
           download
-          onClick={() => track("contact_card_vcard_download_clicked")}
+          onClick={() => track("contact_card_vcard_download_clicked", { lang })}
           className="w-full bg-[#F47920] hover:bg-[#d96810] text-white font-semibold py-3 rounded-xl flex items-center justify-center gap-2 transition-colors shadow-lg shadow-orange-500/25 text-xs sm:text-sm"
         >
           <UserPlusIcon /> {lang === "he" ? "שמור איש קשר" : "Save Contact"}
@@ -537,7 +556,11 @@ export function CardView({ card, cardUrl, preview = false }: CardViewProps) {
 
       {/* ── QR Code ── */}
       <div className="flex flex-col items-center gap-3">
-        <QrCode url={cardUrl || `https://fdx.trading/business-card/${card.handle}`} size={164} onRendered={() => track("contact_card_qr_rendered")} />
+        <QrCode
+          url={`${cardUrl || `https://fdx.trading/business-card/${card.handle}`}${lang === "he" ? "?lang=he" : ""}`}
+          size={164}
+          onRendered={() => track("contact_card_qr_rendered")}
+        />
         <p className="text-xs text-slate-400">
           {lang === "he" ? "סרוק לשמירת כרטיס זה בנייד" : "Scan to open this card on your phone"}
         </p>
@@ -546,18 +569,22 @@ export function CardView({ card, cardUrl, preview = false }: CardViewProps) {
             onClick={handleCopyLink}
             className="text-xs text-slate-400 hover:text-white transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-orange-400 rounded"
           >
-            {linkCopied ? "Copied!" : "Copy link"}
+            {linkCopied ? (lang === "he" ? "הועתק!" : "Copied!") : (lang === "he" ? "העתק קישור" : "Copy link")}
           </button>
           <button
             onClick={handleShare}
             className="text-xs text-slate-400 hover:text-white transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-orange-400 rounded"
           >
-            {copied ? "✓ Link copied!" : "Share"}
+            {copied ? (lang === "he" ? "✓ הקישור הועתק!" : "✓ Link copied!") : (lang === "he" ? "שתף כרטיס" : "Share")}
           </button>
         </div>
         <div className="flex gap-3 justify-center mt-2">
           <a
-            href={`https://wa.me/?text=${encodeURIComponent("Udi Stryk — FoodXchange: https://fdx.trading/business-card/udi")}`}
+            href={`https://wa.me/?text=${encodeURIComponent(
+              lang === "he"
+                ? `אודי סטריק — FoodXchange: ${cardUrl || "https://fdx.trading/business-card/udi"}?lang=he`
+                : `Udi Stryk — FoodXchange: ${cardUrl || "https://fdx.trading/business-card/udi"}`
+            )}`}
             target="_blank"
             rel="noopener noreferrer"
             className="text-xs text-white/50 hover:text-white/80 transition-colors"
@@ -565,13 +592,19 @@ export function CardView({ card, cardUrl, preview = false }: CardViewProps) {
             WhatsApp
           </a>
           <a
-            href={`mailto:?subject=FoodXchange&body=${encodeURIComponent("https://fdx.trading/business-card/udi")}`}
+            href={`mailto:?subject=${encodeURIComponent(
+              lang === "he" ? "כרטיס ביקור — אודי סטריק (FoodXchange)" : "FoodXchange — Udi Stryk"
+            )}&body=${encodeURIComponent(
+              `${cardUrl || "https://fdx.trading/business-card/udi"}${lang === "he" ? "?lang=he" : ""}`
+            )}`}
             className="text-xs text-white/50 hover:text-white/80 transition-colors"
           >
             Email
           </a>
           <a
-            href={`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent("https://fdx.trading/business-card/udi")}`}
+            href={`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(
+              `${cardUrl || "https://fdx.trading/business-card/udi"}${lang === "he" ? "?lang=he" : ""}`
+            )}`}
             target="_blank"
             rel="noopener noreferrer"
             className="text-xs text-white/50 hover:text-white/80 transition-colors"
@@ -663,9 +696,12 @@ export function CardView({ card, cardUrl, preview = false }: CardViewProps) {
               ✕
             </button>
 
-            <h3 className="text-lg font-semibold mb-1">Send a message to {card.name}</h3>
+            <h3 className="text-lg font-semibold mb-1">
+              {lang === "he" ? `שלח הודעה ל${displayName}` : `Send a message to ${card.name}`}
+            </h3>
             <p className="text-xs text-slate-400 mb-5">
-              Delivered directly to <span className="text-[#F47920]">{card.email}</span>
+              {lang === "he" ? "מגיע ישירות ל-" : "Delivered directly to "}
+              <span className="text-[#F47920]">{card.email}</span>
             </p>
 
             {formStatus === "success" ? (
@@ -673,9 +709,13 @@ export function CardView({ card, cardUrl, preview = false }: CardViewProps) {
                 <div className="w-12 h-12 bg-green-500/20 text-green-400 rounded-full flex items-center justify-center mx-auto mb-3 text-2xl">
                   ✓
                 </div>
-                <h4 className="font-semibold text-white mb-1">Message Sent!</h4>
+                <h4 className="font-semibold text-white mb-1">
+                  {lang === "he" ? "ההודעה נשלחה בהצלחה!" : "Message Sent!"}
+                </h4>
                 <p className="text-xs text-slate-300 mb-6">
-                  Thank you. Your message was sent directly to {card.name}.
+                  {lang === "he"
+                    ? `תודה רבה. הודעתך נמסרה ישירות לאודי סטריק.`
+                    : `Thank you. Your message was sent directly to ${card.name}.`}
                 </p>
                 <button
                   type="button"
@@ -689,25 +729,27 @@ export function CardView({ card, cardUrl, preview = false }: CardViewProps) {
                   }}
                   className="bg-[#F47920] hover:bg-[#d96810] text-white text-xs font-semibold px-5 py-2.5 rounded-xl transition"
                 >
-                  Done
+                  {lang === "he" ? "סיום" : "Done"}
                 </button>
               </div>
             ) : (
               <form onSubmit={handleSendEmail} className="space-y-3.5">
                 <div>
-                  <label className="block text-xs font-medium text-slate-300 mb-1">Your Name</label>
+                  <label className="block text-xs font-medium text-slate-300 mb-1">
+                    {lang === "he" ? "שם מלא" : "Your Name"}
+                  </label>
                   <input
                     type="text"
                     value={formName}
                     onChange={(e) => setFormName(e.target.value)}
-                    placeholder="Your name"
+                    placeholder={lang === "he" ? "שמך המלא" : "Your name"}
                     className="w-full bg-slate-900/60 border border-white/10 rounded-xl px-3 py-2 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-[#F47920]"
                   />
                 </div>
 
                 <div>
                   <label className="block text-xs font-medium text-slate-300 mb-1">
-                    Your Email <span className="text-[#F47920]">*</span>
+                    {lang === "he" ? "כתובת אימייל" : "Your Email"} <span className="text-[#F47920]">*</span>
                   </label>
                   <input
                     type="email"
@@ -720,26 +762,28 @@ export function CardView({ card, cardUrl, preview = false }: CardViewProps) {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-medium text-slate-300 mb-1">Company (optional)</label>
+                  <label className="block text-xs font-medium text-slate-300 mb-1">
+                    {lang === "he" ? "חברה / רשת (רשות)" : "Company (optional)"}
+                  </label>
                   <input
                     type="text"
                     value={formCompany}
                     onChange={(e) => setFormCompany(e.target.value)}
-                    placeholder="Your company"
+                    placeholder={lang === "he" ? "שם החברה שלך" : "Your company"}
                     className="w-full bg-slate-900/60 border border-white/10 rounded-xl px-3 py-2 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-[#F47920]"
                   />
                 </div>
 
                 <div>
                   <label className="block text-xs font-medium text-slate-300 mb-1">
-                    Message <span className="text-[#F47920]">*</span>
+                    {lang === "he" ? "תוכן ההודעה" : "Message"} <span className="text-[#F47920]">*</span>
                   </label>
                   <textarea
                     required
                     rows={4}
                     value={formMessage}
                     onChange={(e) => setFormMessage(e.target.value)}
-                    placeholder="How can we help you?"
+                    placeholder={lang === "he" ? "במה נוכל לסייע לך?" : "How can we help you?"}
                     className="w-full bg-slate-900/60 border border-white/10 rounded-xl px-3 py-2 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-[#F47920] resize-none"
                   />
                 </div>
@@ -756,14 +800,16 @@ export function CardView({ card, cardUrl, preview = false }: CardViewProps) {
                     onClick={() => setEmailModalOpen(false)}
                     className="w-1/3 bg-white/5 hover:bg-white/10 text-slate-300 text-xs font-medium py-2.5 rounded-xl transition"
                   >
-                    Cancel
+                    {lang === "he" ? "ביטול" : "Cancel"}
                   </button>
                   <button
                     type="submit"
                     disabled={formStatus === "sending"}
                     className="w-2/3 bg-[#F47920] hover:bg-[#d96810] text-white text-xs font-semibold py-2.5 rounded-xl transition disabled:opacity-50"
                   >
-                    {formStatus === "sending" ? "Sending..." : "Send Message"}
+                    {formStatus === "sending"
+                      ? (lang === "he" ? "שולח..." : "Sending...")
+                      : (lang === "he" ? "שלח הודעה" : "Send Message")}
                   </button>
                 </div>
               </form>

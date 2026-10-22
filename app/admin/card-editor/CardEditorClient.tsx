@@ -548,6 +548,7 @@ export function CardEditorClient({ initialData, siteUrl }: Props) {
         <PrintableQrStudio
           cardUrl={cardUrl}
           name={data.name}
+          nameHe="אודי סטריק"
           title={data.title}
           handle={data.handle}
         />
