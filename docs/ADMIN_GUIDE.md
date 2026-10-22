@@ -230,3 +230,40 @@ The Hebrew Sourcing RFQ & Benchmark Upload engine powers two dedicated Hebrew po
   - Appears in `/admin/requests` and `/admin/pipeline` with full Hebrew requirement context and translated English brief.
 - **Global Bilingual Navigation Switcher (`[ EN | עב ]`)**:
   - Integrated into `components/Header.tsx` with mirror paths `/en/buyers` ↔ `/he/buyers` and `/en/sourcing` ↔ `/he/sourcing`.
+
+
+---
+
+## 10. Hebrew Import Guide & Israeli Food Regulation Hub (`/he/import-guide`)
+
+The Hebrew Food Import Guide & Regulatory Hub provides Israeli supermarket category managers, food distributors, and private-label brand owners with an authoritative, native Hebrew knowledge center for navigating Israeli food import standards:
+
+- **Hub URL**: `https://fdx.trading/he/import-guide`
+- **Category Filter Hub**: `https://fdx.trading/he/import-guide/category/[category]`
+- **Article Reader & Buyer Executive Brief**: `https://fdx.trading/he/import-guide/[slug]`
+
+### Key Architecture & Features:
+1. **Four Core Israeli Regulatory Pillars**:
+   - 🇪🇺 **רפורמת היבוא האירופאי ("מה שטוב לאירופה טוב לישראל")**: Clear breakdown of adoption of Regulation (EC) 178/2002, Green Channel fast-tracking, and exemption from pre-import approvals for compliant European packaged food.
+   - 🏷️ **ת״י 1145 וסימון אזהרות אדומות**: Step-by-step compliance for Hebrew labeling, allergen declarations, nutritional values per 100g, and front-of-package red warning stickers (נתרן, סוכר, שומן רווי).
+   - ✡️ **כשרות רבנות ראשית ובד״צים מוכרים**: Full vetting pathway for Orthodox Rabbinate import approvals, Mehadrin certifications (בד״ץ העדה החרדית, לנדא, חתם סופר), mashgiach factory visits, and non-kosher risk mitigation.
+   - 🚢 **שחרור מהיר בנמל אשדוד וחיפה (מכס ולוגיסטיקה)**: Demurrage prevention, Certificate of Origin (EUR.1 / Invoice Declaration), Free Sale Certificates (CFS), and cold-chain customs clearance.
+2. **Comprehensive Category Coverage (All 9 Regulatory Tracks in Hebrew)**:
+   - מדריכי עשה-ואל-תעשה (How-To Guides)
+   - רפורמת היבוא ותקינה ישראלית (European Reform & Standards)
+   - סימון מזון ות״י 1145 (Food Labeling & Mandatory Stickers)
+   - כשרות ושחיטה בחו״ל (Kosher Certification)
+   - בטיחות מזון ותקני BRC/IFS (Food Safety Standards)
+   - מכס, הובלה ושרשרת אספקה (Customs & Cold-Chain Logistics)
+   - ניהול סיכונים ובדיקות מעבדה (Risk Management & Lab Testing)
+   - תביעות בריאות ומזון רגיש (Dietary & Health Claims)
+   - עדכוני חקיקה ומשרד הבריאות (Regulatory Alerts & Circulars)
+3. **Israeli Buyer Executive Brief (תקציר מנהלים לקניין ישראלי)**:
+   - Present on every individual article page at `/he/import-guide/[slug]`.
+   - Offers an immediate 4-point takeaway: practical retail impact, required factory paperwork, kosher feasibility, and tariff/customs classification.
+   - Includes a 1-click toggle to view the original full English research article.
+4. **Interactive Buyer FAQ & Conversion Funnel**:
+   - Native Hebrew interactive accordion answering the most pressing buyer questions regarding timeline, sample validation, and lab verification.
+   - Sticky conversion banner linking directly to `/he/sourcing` and pre-configured WhatsApp consultation with Udi Stryk.
+5. **Bidirectional Navigation**:
+   - Synchronized header language toggle (`[ EN | עב ]`) dynamically translating `/en/import-guide` ↔ `/he/import-guide` across all deep category and article routes.

@@ -25,7 +25,10 @@ export default function Header() {
     else if (pathname === '/he/contact') enTarget = '/en/contact';
     else if (pathname === '/he/blog') enTarget = '/en/blog';
     else if (pathname === '/he/newsletter') enTarget = '/en/newsletter';
-    else enTarget = '/';
+    else if (pathname.startsWith('/he/import-guide')) {
+      const sub = pathname.replace('/he/import-guide', '');
+      enTarget = '/en/import-guide' + sub;
+    } else enTarget = '/';
     heTarget = pathname;
   } else {
     enTarget = pathname;
@@ -35,7 +38,10 @@ export default function Header() {
     else if (pathname === '/en/contact') heTarget = '/he/contact';
     else if (pathname === '/en/blog') heTarget = '/he/blog';
     else if (pathname === '/en/newsletter') heTarget = '/he/newsletter';
-    else heTarget = '/he';
+    else if (pathname.startsWith('/en/import-guide')) {
+      const sub = pathname.replace('/en/import-guide', '');
+      heTarget = '/he/import-guide' + sub;
+    } else heTarget = '/he';
   }
 
   const navLinksEn = [
@@ -53,7 +59,7 @@ export default function Header() {
     { href: '/he/buyers', label: 'לקניינים ורשתות' },
     { href: '/he/sourcing', label: 'איתור מפעל (RFQ)' },
     { href: '/en/products', label: 'קטלוג מוצרים' },
-    { href: '/en/import-guide', label: 'מדריך יבוא' },
+    { href: '/he/import-guide', label: 'מדריך יבוא' },
     { href: '/he/blog', label: 'בלוג מקצועי' },
     { href: '/he/newsletter', label: 'עדכוני שוק' },
   ];
