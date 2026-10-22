@@ -15,6 +15,7 @@ const sections: { title: string; links: NavItem[] }[] = [
     title: "Deal Operations",
     links: [
       { href: "/admin/pipeline", label: "Deal Pipeline", icon: "🎯" },
+      { href: "/admin/meetings", label: "Meetings & Video Calls", icon: "📅", badge: "Meet" },
       { href: "/admin/finance", label: "Broker Treasury & P&L", icon: "💰", badge: "Live" },
       { href: "/admin/notifications", label: "Notifications & Outreach", icon: "🔔" },
       { href: "/admin/requests", label: "Sourcing Requests", icon: "📥" },
@@ -39,6 +40,8 @@ const sections: { title: string; links: NavItem[] }[] = [
     title: "Sales & Content",
     links: [
       { href: "/admin/docs", label: "Knowledge Base & SOPs", icon: "📚", badge: "54" },
+      { href: "/admin/card-editor", label: "Card Editor & Studio", icon: "📇" },
+      { href: "/admin/card-analytics", label: "Card Analytics", icon: "📈" },
       { href: "/admin/catalogue", label: "Product Catalogue", icon: "📋" },
       { href: "/admin/proposals", label: "Buyer Proposals", icon: "💼" },
       { href: "/en/admin/newsletter-builder", label: "Newsletter Builder", icon: "✉️" },
