@@ -128,3 +128,32 @@ Admins can impersonate any buyer or supplier to troubleshoot portal UX:
 2. Click **"View as Buyer"** or **"View as Supplier"**.
 3. A signed HMAC impersonation cookie (`IMPERSONATION_SECRET`) is generated.
 4. An orange banner appears: *"Impersonating [Name] — Click End Session to Exit"*.
+
+---
+
+## 6. Digital Business Card & Inbound Ingestion Suite
+
+The FoodXchange e-Business Card (`/business-card/[handle]`, production: `https://fdx.trading/business-card/udi`) acts as the high-conversion mobile front door for European factories and Israeli retail buyers:
+
+- **Bilingual Switcher (`[ EN | עב ]`)**: Instant toggle switching UI and text direction (LTR / RTL), presenting localized value propositions and Hebrew titles.
+- **Dynamic vCard 3.0 (`/api/vcard/[handle]`)**: Queries Supabase `contact_cards` in real-time, embeds the base64 photo avatar, phone, and updated `udi@fdx.trading` address.
+- **⚡ Instant Sourcing Inquiry Drawer (`/api/card/inquiry`)**: Allows buyers to submit an RFQ in under 30 seconds with 1-click active sourcing suggestions (e.g. Extra Virgin Olive Oil 750ml, Frozen Potato Wedges, Organic Granola), target volume, and Kosher requirements. Ingests directly into `sourcing_requests` with automated email and in-app admin alert.
+- **📅 Direct 15-Minute Intro Call Scheduler (`/api/card/meeting-schedule`)**: Provides an interactive calendar strip for the next 8 business days (Sunday–Thursday, Israel Time IDT / Europe Time CET). Provisions permanent Google Meet rooms, generates 1-click Google Calendar links, and outputs `.ics` calendar files.
+- **🖨️ Printable High-Res Vector QR Code Studio (`/admin/card-editor`)**: Located inside the Admin Card Editor. Features Error Correction Level **H** (30% recovery) with an embedded FoodXchange Orange `#F47920` 'X' emblem, 4 brand color palettes, and 1-click 1200x1200px PNG and scalable SVG vector downloads.
+- **📊 6-Metric Conversion Funnel Analytics (`/admin/card-analytics`)**: Tracks page views, vCard saves, WhatsApp clicks, RFQ inquiries, scheduled calls, and overall conversion rate percentage with live 30-event audit stream.
+
+---
+
+## 7. Unified B2B Meetings & Video Calls Command Center (`/admin/meetings`)
+
+A centralized operations desk for all commercial video interactions across the deal lifecycle:
+
+- **Unified Chronological Stream**: Integrates both 15-minute digital card intro calls and Stage 4 commercial sourcing alignment calls from active matches.
+- **Dual Timezone Clocks**: Displays Israeli Time (IDT) and Central European Time (CET) side-by-side to eliminate scheduling errors with factories across Italy, Spain, France, and Greece.
+- **Live Status Badges**: Real-time visual pills (`🔴 LIVE NOW`, `In 15 mins`, `Today in 2h`, `Tomorrow`, `Completed`).
+- **1-Click Operational Controls**:
+  - 📹 **Join Google Meet**: Direct launch into the video room.
+  - 📅 **Open Google Calendar**: Web calendar link.
+  - 💬 **Ping WhatsApp**: Generates pre-formatted WhatsApp reminder to the attendee with the Google Meet link.
+  - 🧠 **AI Intelligence Brief**: Directly opens the AI Meeting Intelligence modal to ingest call transcripts/notes, generate structured Hebrew commercial summaries, extract CIF terms, and assign sample dispatch tasks.
+  - **+ Schedule Video Call**: Quick-modal to create an ad-hoc video meeting and calendar invitation in 10 seconds.
