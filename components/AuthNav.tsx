@@ -55,50 +55,64 @@ async function signOutAndRedirect(router: ReturnType<typeof useRouter>) {
   router.refresh();
 }
 
-export function AuthNavDesktop() {
+export function AuthNavDesktop({ isHebrew = false }: { isHebrew?: boolean }) {
   const router = useRouter();
   const state = usePortalAuthState();
 
+  const ctaText = isHebrew ? "איתור יצרן (RFQ)" : "Start Sourcing →";
+  const ctaHref = isHebrew ? "/he/sourcing" : "/en/sourcing";
+  const signInText = isHebrew ? "כניסה" : "Sign in";
+
   if (state.status === "signed-in") {
     return (
-      <div className="ml-2 flex items-center gap-3 shrink-0">
+      <div className="flex items-center gap-3 shrink-0">
         <Link
           href={state.portalHref}
-          className="text-sm font-medium text-slate-300 hover:text-orange-400 transition whitespace-nowrap"
+          className="text-xs font-semibold text-slate-300 hover:text-orange-400 transition whitespace-nowrap"
         >
-          My Portal →
+          {isHebrew ? "הפורטל שלי ←" : "My Portal →"}
         </Link>
         <button
           onClick={() => signOutAndRedirect(router)}
-          className="border border-orange-500 text-orange-400 hover:bg-orange-500 hover:text-white px-3.5 py-1.5 rounded-md text-sm font-semibold transition whitespace-nowrap shrink-0 cursor-pointer"
+          className="border border-slate-700 text-slate-300 hover:border-orange-500 hover:text-white px-3 py-1.5 rounded-lg text-xs font-semibold transition whitespace-nowrap shrink-0 cursor-pointer"
         >
-          Sign Out
+          {isHebrew ? "התנתק" : "Sign Out"}
         </button>
       </div>
     );
   }
 
   return (
-    <div className="ml-2 flex items-center gap-3 shrink-0">
+    <div className="flex items-center gap-2.5 shrink-0">
       <Link
         href="/en/login"
-        className="text-sm text-slate-400 hover:text-white transition whitespace-nowrap"
+        className="text-xs font-medium text-slate-300 hover:text-white px-2.5 py-1.5 rounded-lg hover:bg-slate-800/60 transition whitespace-nowrap"
       >
-        Sign in
+        {signInText}
       </Link>
       <Link
-        href="/en/buyers"
-        className="bg-orange-500 hover:bg-orange-600 text-white px-3.5 py-1.5 rounded-md text-sm font-semibold transition whitespace-nowrap shrink-0 shadow-xs"
+        href={ctaHref}
+        className="bg-orange-500 hover:bg-orange-600 active:scale-[0.98] text-white px-3.5 py-1.5 rounded-lg text-xs font-bold transition whitespace-nowrap shrink-0 shadow-md shadow-orange-500/20"
       >
-        Get Matched →
+        {ctaText}
       </Link>
     </div>
   );
 }
 
-export function AuthNavMobile({ onNavigate }: { onNavigate: () => void }) {
+export function AuthNavMobile({
+  onNavigate,
+  isHebrew = false,
+}: {
+  onNavigate: () => void;
+  isHebrew?: boolean;
+}) {
   const router = useRouter();
   const state = usePortalAuthState();
+
+  const ctaText = isHebrew ? "הגש בקשת רכש מהירה (RFQ) ←" : "Start Sourcing Request (RFQ) →";
+  const ctaHref = isHebrew ? "/he/sourcing" : "/en/sourcing";
+  const signInText = isHebrew ? "כניסה למערכת (Sign In)" : "Sign In to Portal";
 
   if (state.status === "signed-in") {
     return (
@@ -106,39 +120,39 @@ export function AuthNavMobile({ onNavigate }: { onNavigate: () => void }) {
         <Link
           href={state.portalHref}
           onClick={onNavigate}
-          className="block px-4 py-2 rounded text-sm font-medium text-slate-300 hover:bg-slate-800 transition"
+          className="block px-4 py-2.5 rounded-lg text-sm font-semibold text-slate-200 hover:bg-slate-800 transition"
         >
-          My Portal →
+          {isHebrew ? "הפורטל שלי ←" : "My Portal →"}
         </Link>
         <button
           onClick={() => {
             onNavigate();
             void signOutAndRedirect(router);
           }}
-          className="block w-full text-center border border-orange-500 text-orange-400 hover:bg-orange-500 hover:text-white px-4 py-2 rounded-md text-sm font-semibold transition"
+          className="block w-full text-center border border-orange-500/60 text-orange-400 hover:bg-orange-500 hover:text-white px-4 py-2.5 rounded-lg text-sm font-semibold transition"
         >
-          Sign Out
+          {isHebrew ? "התנתקות מהמערכת" : "Sign Out"}
         </button>
       </>
     );
   }
 
   return (
-    <>
+    <div className="space-y-2 pt-1">
       <Link
-        href="/en/buyers"
+        href={ctaHref}
         onClick={onNavigate}
-        className="block text-center bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-md text-sm font-semibold transition"
+        className="block text-center bg-orange-500 hover:bg-orange-600 text-white px-4 py-2.5 rounded-xl text-sm font-bold shadow-md shadow-orange-500/20 transition"
       >
-        Get Matched →
+        {ctaText}
       </Link>
       <Link
         href="/en/login"
         onClick={onNavigate}
-        className="block px-4 py-2 rounded text-sm text-slate-400 hover:bg-slate-800 transition"
+        className="block text-center border border-slate-700 hover:border-slate-500 text-slate-300 hover:text-white px-4 py-2 rounded-xl text-xs font-semibold transition"
       >
-        Sign in
+        {signInText}
       </Link>
-    </>
+    </div>
   );
 }
