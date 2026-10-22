@@ -3,6 +3,8 @@ import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { CopyButton } from "@/components/CopyButton";
 import { QrCode } from "@/components/QrCode";
+import { SourcingInquiryDrawer } from "./SourcingInquiryDrawer";
+import { CallSchedulerModal } from "./CallSchedulerModal";
 
 export interface CardViewPhoto {
   src: string;
@@ -60,6 +62,8 @@ export function CardView({ card, cardUrl, preview = false }: CardViewProps) {
   const [activePhoto, setActivePhoto] = useState(0);
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [emailModalOpen, setEmailModalOpen] = useState(false);
+  const [inquiryDrawerOpen, setInquiryDrawerOpen] = useState(false);
+  const [schedulerModalOpen, setSchedulerModalOpen] = useState(false);
   const [formName, setFormName] = useState("");
   const [formEmail, setFormEmail] = useState("");
   const [formCompany, setFormCompany] = useState("");
@@ -88,6 +92,8 @@ export function CardView({ card, cardUrl, preview = false }: CardViewProps) {
       if (e.key === "Escape") {
         setLightboxOpen(false);
         setEmailModalOpen(false);
+        setInquiryDrawerOpen(false);
+        setSchedulerModalOpen(false);
       }
     }
     window.addEventListener("keydown", onKeyDown);
@@ -366,16 +372,26 @@ export function CardView({ card, cardUrl, preview = false }: CardViewProps) {
         )}
       </div>
 
-      {/* ── Save Contact (primary CTA) ── */}
-      <div className="mb-6">
+      {/* ── Primary CTAs: Save Contact & Book 15-Min Call ── */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 mb-6">
         <a
           href={`/api/vcard/${card.handle}`}
           download
           onClick={() => track("contact_card_vcard_download_clicked")}
-          className="w-full bg-[#F47920] hover:bg-[#d96810] text-white font-semibold py-3 rounded-xl flex items-center justify-center gap-2 transition-colors shadow-lg shadow-orange-500/25"
+          className="w-full bg-[#F47920] hover:bg-[#d96810] text-white font-semibold py-3 rounded-xl flex items-center justify-center gap-2 transition-colors shadow-lg shadow-orange-500/25 text-xs sm:text-sm"
         >
-          <UserPlusIcon /> {lang === "he" ? "שמור איש קשר (vCard)" : "Save Contact"}
+          <UserPlusIcon /> {lang === "he" ? "שמור איש קשר" : "Save Contact"}
         </a>
+        <button
+          type="button"
+          onClick={() => {
+            setSchedulerModalOpen(true);
+            track("contact_card_call_modal_opened");
+          }}
+          className="w-full bg-[#0284c7] hover:bg-[#0369a1] text-white font-semibold py-3 rounded-xl flex items-center justify-center gap-2 transition-colors shadow-lg shadow-sky-600/20 text-xs sm:text-sm"
+        >
+          <span>📅</span> {lang === "he" ? "שיחת היכרות (15 דק׳)" : "Book 15-Min Call"}
+        </button>
       </div>
 
       {/* ── WhatsApp CTAs ── */}
@@ -438,6 +454,19 @@ export function CardView({ card, cardUrl, preview = false }: CardViewProps) {
               </li>
             ))}
           </ul>
+          <div className="mt-3.5 pt-3 border-t border-orange-500/20">
+            <button
+              type="button"
+              onClick={() => {
+                setInquiryDrawerOpen(true);
+                track("contact_card_inquiry_opened");
+              }}
+              className="w-full bg-[#F47920]/15 hover:bg-[#F47920]/25 text-orange-300 hover:text-white border border-orange-500/30 font-semibold py-2 rounded-lg flex items-center justify-center gap-1.5 transition-colors text-xs"
+            >
+              <span>⚡</span>
+              <span>{lang === "he" ? "הגש בקשת רכש מהירה (RFQ)" : "Submit Sourcing Inquiry (RFQ)"}</span>
+            </button>
+          </div>
         </div>
       )}
 
@@ -742,6 +771,22 @@ export function CardView({ card, cardUrl, preview = false }: CardViewProps) {
           </div>
         </div>
       )}
+      {/* ── Priority 1: Sourcing Inquiry Drawer ── */}
+      <SourcingInquiryDrawer
+        isOpen={inquiryDrawerOpen}
+        onClose={() => setInquiryDrawerOpen(false)}
+        cardHandle={card.handle}
+        lang={lang}
+        suggestions={displaySourcing}
+      />
+
+      {/* ── Priority 2: 15-Min Intro Call Scheduler ── */}
+      <CallSchedulerModal
+        isOpen={schedulerModalOpen}
+        onClose={() => setSchedulerModalOpen(false)}
+        cardHandle={card.handle}
+        lang={lang}
+      />
     </div>
   );
 }

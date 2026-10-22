@@ -22,6 +22,8 @@ export default async function CardAnalyticsPage() {
     { count: totalVcards },
     { count: totalWhatsapp },
     { count: totalEmails },
+    { count: totalInquiries },
+    { count: totalScheduledCalls },
     { data: allViews },
     { data: recent },
   ] = await Promise.all([
@@ -48,6 +50,14 @@ export default async function CardAnalyticsPage() {
       .in("event", ["contact_card_email_clicked", "contact_card_email_sent"]),
     supabaseAdmin
       .from("card_views")
+      .select("*", { count: "exact", head: true })
+      .eq("event", "contact_card_inquiry_submitted"),
+    supabaseAdmin
+      .from("card_views")
+      .select("*", { count: "exact", head: true })
+      .eq("event", "contact_card_call_scheduled"),
+    supabaseAdmin
+      .from("card_views")
       .select("handle, persona, created_at")
       .eq("event", "view")
       .order("created_at", { ascending: false }),
@@ -62,7 +72,9 @@ export default async function CardAnalyticsPage() {
   const vcardsCount = totalVcards ?? 0;
   const whatsappCount = totalWhatsapp ?? 0;
   const emailsCount = totalEmails ?? 0;
-  const totalInteractions = vcardsCount + whatsappCount + emailsCount;
+  const inquiriesCount = totalInquiries ?? 0;
+  const callsCount = totalScheduledCalls ?? 0;
+  const totalInteractions = vcardsCount + whatsappCount + emailsCount + inquiriesCount + callsCount;
   const conversionRate = viewsCount > 0 ? ((totalInteractions / viewsCount) * 100).toFixed(1) : "0.0";
 
   // Views by handle
@@ -105,37 +117,53 @@ export default async function CardAnalyticsPage() {
       </div>
 
       {/* ── Conversion Funnel KPIs ── */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-slate-800 border border-slate-700 rounded-2xl p-5">
-          <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">
-            Total Card Views
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3.5">
+        <div className="bg-slate-800 border border-slate-700 rounded-2xl p-4">
+          <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-1">
+            Total Views
           </p>
-          <p className="text-3xl font-black text-white">{viewsCount}</p>
-          <p className="text-[11px] text-orange-400 mt-1">+{weekViews ?? 0} in last 7 days</p>
+          <p className="text-2xl font-black text-white">{viewsCount}</p>
+          <p className="text-[10px] text-orange-400 mt-1">+{weekViews ?? 0} in last 7d</p>
         </div>
 
-        <div className="bg-slate-800 border border-slate-700 rounded-2xl p-5">
-          <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">
-            💾 VCard Downloads
+        <div className="bg-slate-800 border border-slate-700 rounded-2xl p-4">
+          <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-1">
+            💾 vCard Saves
           </p>
-          <p className="text-3xl font-black text-emerald-400">{vcardsCount}</p>
-          <p className="text-[11px] text-slate-500 mt-1">Saved to phone contacts</p>
+          <p className="text-2xl font-black text-emerald-400">{vcardsCount}</p>
+          <p className="text-[10px] text-slate-500 mt-1">Phone contacts</p>
         </div>
 
-        <div className="bg-slate-800 border border-slate-700 rounded-2xl p-5">
-          <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">
-            💬 WhatsApp Leads
+        <div className="bg-slate-800 border border-slate-700 rounded-2xl p-4">
+          <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-1">
+            💬 WhatsApp
           </p>
-          <p className="text-3xl font-black text-emerald-400">{whatsappCount}</p>
-          <p className="text-[11px] text-slate-500 mt-1">Buyers &amp; Manufacturers</p>
+          <p className="text-2xl font-black text-emerald-400">{whatsappCount}</p>
+          <p className="text-[10px] text-slate-500 mt-1">Chat inquiries</p>
         </div>
 
-        <div className="bg-slate-800 border border-slate-700 rounded-2xl p-5">
-          <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">
-            ⚡ Overall Conversion
+        <div className="bg-slate-800 border border-slate-700 rounded-2xl p-4">
+          <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-1">
+            ⚡ RFQ Inquiries
           </p>
-          <p className="text-3xl font-black text-orange-400">{conversionRate}%</p>
-          <p className="text-[11px] text-slate-500 mt-1">View-to-interaction rate</p>
+          <p className="text-2xl font-black text-amber-400">{inquiriesCount}</p>
+          <p className="text-[10px] text-slate-500 mt-1">Submitted RFQs</p>
+        </div>
+
+        <div className="bg-slate-800 border border-slate-700 rounded-2xl p-4">
+          <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-1">
+            📅 Calls Booked
+          </p>
+          <p className="text-2xl font-black text-sky-400">{callsCount}</p>
+          <p className="text-[10px] text-slate-500 mt-1">15-min Google Meet</p>
+        </div>
+
+        <div className="bg-slate-800 border border-slate-700 rounded-2xl p-4">
+          <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-1">
+            🎯 Conversion
+          </p>
+          <p className="text-2xl font-black text-orange-400">{conversionRate}%</p>
+          <p className="text-[10px] text-slate-500 mt-1">Total leads / views</p>
         </div>
       </div>
 

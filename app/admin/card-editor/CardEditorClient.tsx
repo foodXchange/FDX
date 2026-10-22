@@ -2,6 +2,7 @@
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { CardView, type CardViewData } from "@/components/contact/CardView";
+import { PrintableQrStudio } from "@/components/admin/card-editor/PrintableQrStudio";
 
 export interface CardEditorPhoto {
   src: string;
@@ -542,6 +543,14 @@ export function CardEditorClient({ initialData, siteUrl }: Props) {
             </button>
           )}
         </div>
+
+        {/* Printable QR Code Studio */}
+        <PrintableQrStudio
+          cardUrl={cardUrl}
+          name={data.name}
+          title={data.title}
+          handle={data.handle}
+        />
 
         {/* Save button */}
         <div className="sticky bottom-0 bg-slate-950/90 backdrop-blur-sm pt-4 pb-6 border-t border-white/8">
