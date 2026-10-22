@@ -117,17 +117,17 @@ export default function ProductCard({
           </div>
         )}
 
-        {/* Add to basket */}
+        {/* Add to sample kit */}
         <button
           type="button"
           onClick={() => onToggleBasket?.(product)}
-          className={`mt-3 w-full py-2 rounded-xl text-xs font-semibold border transition duration-200 ${
+          className={`mt-3 w-full py-2 rounded-xl text-xs font-semibold border transition duration-200 cursor-pointer ${
             isInBasket
-              ? "bg-green-600 border-green-600 text-white"
-              : "bg-white/5 border-white/10 text-slate-400 hover:border-orange-500/40 hover:text-orange-400"
+              ? "bg-emerald-600 border-emerald-500 text-white"
+              : "bg-white/5 border-white/10 text-slate-300 hover:border-orange-500/40 hover:text-orange-400"
           }`}
         >
-          {isInBasket ? "Added ✓" : "Add +"}
+          {isInBasket ? "✓ In Tasting Box" : "+ Tasting Sample"}
         </button>
 
         {/* Request single */}

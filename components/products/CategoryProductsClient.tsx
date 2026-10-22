@@ -7,6 +7,7 @@ import ProductCard from "@/components/ProductCard";
 import AiSearchPanel from "@/components/products/AiSearchPanel";
 import RequestProductModal from "@/components/products/RequestProductModal";
 import { cleanProductName } from "@/lib/products/cleanProductName";
+import { useSampleKit } from "@/context/SampleKitContext";
 import type { PublicCatalogueProduct, CategoryImageData } from "@/app/en/products/page";
 
 interface Props {
@@ -25,6 +26,7 @@ export default function CategoryProductsClient({
   category,
   categoryImage,
 }: Props) {
+  const { addItem, removeItem, isItemInKit } = useSampleKit();
   const [kosherFilter, setKosherFilter] = useState<string | null>(null);
   const [certFilter, setCertFilter] = useState<string | null>(null);
   const [privateLabelOnly, setPrivateLabelOnly] = useState(false);
@@ -292,6 +294,23 @@ export default function CategoryProductsClient({
                 onRequest={setRequestProduct}
                 showImages={showImages}
                 categoryImage={categoryImage ?? undefined}
+                isInBasket={isItemInKit(product.id)}
+                onToggleBasket={(prod) => {
+                  if (isItemInKit(prod.id)) {
+                    removeItem(prod.id);
+                  } else {
+                    addItem({
+                      id: prod.id,
+                      product_name: cleanProductName(prod.product_name, prod.category),
+                      category: prod.category,
+                      image_url: prod.image_url,
+                      supplier_name: prod.supplier?.company_name,
+                      country_of_origin: prod.supplier?.country_of_origin,
+                      kosher_types: prod.kosher_types,
+                      certifications: prod.certifications,
+                    });
+                  }
+                }}
               />
             ))}
           </div>
@@ -302,6 +321,23 @@ export default function CategoryProductsClient({
                 key={product.id}
                 product={product}
                 onRequest={setRequestProduct}
+                isInBasket={isItemInKit(product.id)}
+                onToggleBasket={(prod) => {
+                  if (isItemInKit(prod.id)) {
+                    removeItem(prod.id);
+                  } else {
+                    addItem({
+                      id: prod.id,
+                      product_name: cleanProductName(prod.product_name, prod.category),
+                      category: prod.category,
+                      image_url: prod.image_url,
+                      supplier_name: prod.supplier?.company_name,
+                      country_of_origin: prod.supplier?.country_of_origin,
+                      kosher_types: prod.kosher_types,
+                      certifications: prod.certifications,
+                    });
+                  }
+                }}
               />
             ))}
           </div>

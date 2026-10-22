@@ -335,3 +335,19 @@ The Hebrew Product Catalog exposes the platform's proprietary index of 20,000+ E
    - Pre-configured WhatsApp consultation button pre-filling category and volume inquiries.
 4. **Bidirectional Navigation & Mirror Paths**:
    - Header navigation completely synchronized: `/he/products` ↔ `/en/products` and `/he/products/[slug]` ↔ `/en/products/[slug]`.
+
+---
+
+## 13. Interactive Tasting Sample Box Builder & DHL Courier Dispatcher (`SampleKitContext` & `/api/sourcing/samples`)
+
+The Tasting Sample Box Builder allows supermarket category managers, food service buyers, and private-label directors to curate samples of interest across the entire 20,000+ European product catalog and request an aggregated, express courier dispatch (DHL/FedEx) directly to their tasting table or test lab in Israel:
+
+- **State Management & Persistence**: `SampleKitContext.tsx` with `localStorage` persistence across page navigation and sessions (`fdx_tasting_sample_kit_items`).
+- **Floating Pill Bar**: `FloatingSampleKitBar.tsx` mounted globally in `RootLayout`. Displays item count, thumbnail stack, and one-click 'Order Kit' trigger. Automatically hidden on `/admin` routes.
+- **2-Column Dispatch Modal**: `SampleKitModal.tsx` provides:
+  - Selected sample review, format specification (e.g. 750ml glass bottle, 160g tin), and removal.
+  - Delivery details: Chain name, buyer name & role, phone/WhatsApp, address in Israel, target tasting date, and lab instructions.
+  - Courier Delivery SLA infographic (European factory collection 1-2 days -> DHL air cargo to TLV -> retail office delivery 3-5 days).
+  - Success screen generating internal tracking code `FDX-SMP-[UUID]` and 1-tap WhatsApp confirmation to Udi.
+- **Backend API**: `app/api/sourcing/samples/route.ts` validates payload with Zod, inserts rows into `sourcing_requests` with `source: 'sample_kit'`, and sends instant email notification to the Deal Desk.
+- **Bilingual Support**: Full Hebrew RTL (`+ הוסף לערכת טעימות`, `✓ בערכת הטעימות`) and English LTR (`+ Tasting Sample`, `✓ In Tasting Box`).

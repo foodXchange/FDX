@@ -96,6 +96,12 @@ export default function Header() {
 
   const toolsItemsEn: ToolDropdownItem[] = [
     {
+      href: '/en/products',
+      label: 'Tasting Sample Box Dispatcher',
+      icon: '📦',
+      desc: 'Order curated European factory samples delivered to your office',
+    },
+    {
       href: '/en/calculator',
       label: 'Landed Cost Calculator',
       icon: '⚡',
@@ -122,6 +128,12 @@ export default function Header() {
   ];
 
   const toolsItemsHe: ToolDropdownItem[] = [
+    {
+      href: '/he/products',
+      label: 'ערכת דוגמאות לשולחן הטעימות',
+      icon: '📦',
+      desc: 'איסוף דוגמאות ישירות ממפעלי אירופה ומשלוח אקספרס לרשת',
+    },
     {
       href: '/he/calculator',
       label: 'מחשבון עלות נחיתה ורווחיות',

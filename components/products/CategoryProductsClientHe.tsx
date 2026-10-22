@@ -5,6 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { cleanProductName } from "@/lib/products/cleanProductName";
 import { getHebrewCategoryMeta } from "@/lib/products/hebrewCategoryMap";
+import { useSampleKit } from "@/context/SampleKitContext";
 import type {
   PublicCatalogueProduct,
   CategoryImageData,
@@ -62,6 +63,7 @@ export default function CategoryProductsClientHe({
   categoryImage,
 }: Props) {
   const meta = getHebrewCategoryMeta(category);
+  const { addItem, removeItem, isItemInKit } = useSampleKit();
 
   // Filters state
   const [searchFilter, setSearchFilter] = useState("");
@@ -354,6 +356,8 @@ export default function CategoryProductsClientHe({
               cleanProductName(p.product_name, category)
             )}&category=${encodeURIComponent(category)}`;
 
+            const inKit = isItemInKit(p.id);
+
             return (
               <div
                 key={p.id}
@@ -431,13 +435,40 @@ export default function CategoryProductsClientHe({
                       </div>
                     )}
 
-                    {/* Action Button */}
-                    <div className="pt-2">
+                    {/* Action Buttons */}
+                    <div className="pt-2 flex flex-col gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (inKit) {
+                            removeItem(p.id);
+                          } else {
+                            addItem({
+                              id: p.id,
+                              product_name: cleanProductName(p.product_name, category),
+                              category: category,
+                              image_url: p.image_url,
+                              supplier_name: p.supplier?.company_name,
+                              country_of_origin: country,
+                              kosher_types: p.kosher_types,
+                              certifications: p.certifications,
+                            });
+                          }
+                        }}
+                        className={`w-full inline-flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl font-bold text-xs transition shadow-sm cursor-pointer ${
+                          inKit
+                            ? "bg-emerald-600 hover:bg-emerald-700 text-white border border-emerald-500"
+                            : "bg-orange-500/10 hover:bg-orange-500 text-orange-400 hover:text-white border border-orange-500/30 hover:border-orange-500"
+                        }`}
+                      >
+                        <span>{inKit ? "✓ בערכת הטעימות" : "+ הוסף לערכת טעימות"}</span>
+                      </button>
+
                       <Link
                         href={rfqUrl}
-                        className="w-full inline-flex items-center justify-center gap-1.5 bg-slate-800 hover:bg-orange-500 text-slate-200 hover:text-white text-xs font-bold py-2 px-3 rounded-xl border border-slate-700 hover:border-orange-500 transition shadow-sm"
+                        className="w-full inline-flex items-center justify-center gap-1.5 bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white text-xs font-semibold py-1.5 px-3 rounded-xl border border-slate-700 transition"
                       >
-                        <span>בקש הצעת מחיר ודוגמאות</span>
+                        <span>הצעת מחיר (RFQ)</span>
                         <span>←</span>
                       </Link>
                     </div>
@@ -457,6 +488,8 @@ export default function CategoryProductsClientHe({
             const rfqUrl = `/he/sourcing?product=${encodeURIComponent(
               cleanProductName(p.product_name, category)
             )}&category=${encodeURIComponent(category)}`;
+
+            const inKit = isItemInKit(p.id);
 
             return (
               <div
@@ -504,11 +537,38 @@ export default function CategoryProductsClientHe({
                       ✡️ {p.kosher_types[0]}
                     </span>
                   )}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (inKit) {
+                        removeItem(p.id);
+                      } else {
+                        addItem({
+                          id: p.id,
+                          product_name: cleanProductName(p.product_name, category),
+                          category: category,
+                          image_url: p.image_url,
+                          supplier_name: p.supplier?.company_name,
+                          country_of_origin: country,
+                          kosher_types: p.kosher_types,
+                          certifications: p.certifications,
+                        });
+                      }
+                    }}
+                    className={`inline-flex items-center gap-1.5 py-2 px-3 rounded-lg text-xs font-bold transition cursor-pointer ${
+                      inKit
+                        ? "bg-emerald-600 hover:bg-emerald-700 text-white border border-emerald-500"
+                        : "bg-orange-500/10 hover:bg-orange-500 text-orange-400 hover:text-white border border-orange-500/30 hover:border-orange-500"
+                    }`}
+                  >
+                    <span>{inKit ? "✓ בערכה" : "+ הוסף לטעימות"}</span>
+                  </button>
+
                   <Link
                     href={rfqUrl}
-                    className="inline-flex items-center gap-1.5 bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold py-2 px-3.5 rounded-lg transition"
+                    className="inline-flex items-center gap-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white text-xs font-bold py-2 px-3 rounded-lg border border-slate-700 transition"
                   >
-                    <span>בקש דוגמאות / RFQ ←</span>
+                    <span>RFQ ←</span>
                   </Link>
                 </div>
               </div>

@@ -1,5 +1,8 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { SampleKitProvider } from "@/context/SampleKitContext";
+import FloatingSampleKitBar from "@/components/samples/FloatingSampleKitBar";
+import SampleKitModal from "@/components/samples/SampleKitModal";
 
 const baseUrl =
   process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
@@ -64,7 +67,11 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body suppressHydrationWarning>
-        {children}
+        <SampleKitProvider>
+          {children}
+          <FloatingSampleKitBar />
+          <SampleKitModal />
+        </SampleKitProvider>
       </body>
     </html>
   );
