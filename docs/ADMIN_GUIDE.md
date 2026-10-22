@@ -351,3 +351,28 @@ The Tasting Sample Box Builder allows supermarket category managers, food servic
   - Success screen generating internal tracking code `FDX-SMP-[UUID]` and 1-tap WhatsApp confirmation to Udi.
 - **Backend API**: `app/api/sourcing/samples/route.ts` validates payload with Zod, inserts rows into `sourcing_requests` with `source: 'sample_kit'`, and sends instant email notification to the Deal Desk.
 - **Bilingual Support**: Full Hebrew RTL (`+ הוסף לערכת טעימות`, `✓ בערכת הטעימות`) and English LTR (`+ Tasting Sample`, `✓ In Tasting Box`).
+
+---
+
+## 14. Competitive Shelf Benchmark Matrix & Admin Tasting Samples Desk (`/he/benchmark` & `/admin/samples`)
+
+### 1. Competitive Shelf Benchmark Matrix (`/he/benchmark` & `/en/benchmark`):
+- **Commercial Premise**: Directly targets the core metric of Israeli supermarket buyers — replacing expensive national monopoly brands with high-margin European direct factory OEM alternatives.
+- **Benchmark Coverage**: Curated market data for high-velocity staples:
+  - *Extra Virgin Olive Oil 750ml*: Yad Mordechai / Filippo Berio (₪37.90) ➔ Spanish Andalusian harvest (₪28.90 shelf / Landed ₪17.60 / 39% margin).
+  - *Crushed Tomatoes 400g*: Mutti Polpa (₪6.90) ➔ Italian 100% Parma/Campania OEM (₪4.90 shelf / Landed ₪2.65 / 46% margin).
+  - *Tuna in Olive Oil 4x80g*: Rio Mare (₪28.90) ➔ Galician Yellowfin Fillets in EVOO (₪22.90 shelf / Landed ₪13.90 / 39% margin).
+  - *Durum Pasta 500g*: Barilla (₪8.50) ➔ Italian Bronze Die Cut Trafilata al Bronzo (₪5.90 shelf / Landed ₪2.95 / 50% margin).
+  - *Frozen Green Peas 800g*: Sunfrost (₪19.90) ➔ Belgian/Polish IQF Grade-A Petite Peas (₪13.90 shelf / Landed ₪6.80 / 51% margin).
+  - *Hazelnut Wafers 250g*: Loacker Quadratini (₪15.90) ➔ Italian Crispy 5-Layer 74% Hazelnut Cream (₪10.90 shelf / Landed ₪5.40 / 50% margin).
+  - *Pitted Green Olives 560g*: Beit HaShita (₪12.50) ➔ Sevillian Manzanilla Olives in brine (₪8.50 shelf / Landed ₪4.30 / 49% margin).
+  - *Tomato Ketchup 700g*: Heinz (₪14.90) ➔ German/Dutch 165g/100g Tomato Top-Down (₪9.90 shelf / Landed ₪5.10 / 48% margin).
+- **Interactive Container Volume Slider**: 1 to 16 FCLs per item, dynamically updating annual extra gross profit generated for the retail supermarket chain.
+- **Action Triggers**: Direct 1-click addition to Tasting Sample Box (`+ הוסף לערכת טעימות`), Landed Cost Calculator prefill, RFQ launch, WhatsApp executive brief, and A4 print stylesheet.
+
+### 2. Admin Tasting Samples Desk (`/admin/samples`):
+- **Command & Control**: Dedicated operational hub for the Deal Desk located under "Deal Operations" in `AdminNav`.
+- **Pipeline Stage Workflow**: `new` -> `coordinating_factory` -> `dispatched_air` -> `customs_tlv` -> `delivered` -> `feedback_approved` -> `feedback_rejected`.
+- **Courier Logistics**: Integrated Air Waybill (AWB) management with 1-click DHL Express tracking links.
+- **5-Dimension Sensory Scorecard**: Taste & Flavor, Texture, Packaging & Drained Weight, Commercial Viability (1–5 scale).
+- **1-Click WhatsApp Buyer Updates**: Pre-formatted notifications for air dispatch confirmation and post-delivery tasting follow-ups.

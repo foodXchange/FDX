@@ -50,6 +50,7 @@ export default function Header() {
     else if (pathname === '/he/buyers') enTarget = '/en/buyers';
     else if (pathname === '/he/sourcing') enTarget = '/en/sourcing';
     else if (pathname === '/he/calculator') enTarget = '/en/calculator';
+    else if (pathname === '/he/benchmark') enTarget = '/en/benchmark';
     else if (pathname === '/he/contact') enTarget = '/en/contact';
     else if (pathname === '/he/blog') enTarget = '/en/blog';
     else if (pathname === '/he/newsletter') enTarget = '/en/newsletter';
@@ -67,6 +68,7 @@ export default function Header() {
     else if (pathname === '/en/buyers') heTarget = '/he/buyers';
     else if (pathname === '/en/sourcing') heTarget = '/he/sourcing';
     else if (pathname === '/en/calculator') heTarget = '/he/calculator';
+    else if (pathname === '/en/benchmark') heTarget = '/he/benchmark';
     else if (pathname === '/en/contact') heTarget = '/he/contact';
     else if (pathname === '/en/blog') heTarget = '/he/blog';
     else if (pathname === '/en/newsletter') heTarget = '/he/newsletter';
@@ -95,6 +97,12 @@ export default function Header() {
   ];
 
   const toolsItemsEn: ToolDropdownItem[] = [
+    {
+      href: '/en/benchmark',
+      label: 'Shelf Replacement Matrix',
+      icon: '🎯',
+      desc: 'Replace expensive brands with high-margin European OEM alternatives',
+    },
     {
       href: '/en/products',
       label: 'Tasting Sample Box Dispatcher',
@@ -128,6 +136,12 @@ export default function Header() {
   ];
 
   const toolsItemsHe: ToolDropdownItem[] = [
+    {
+      href: '/he/benchmark',
+      label: 'מטריצת החלפת מותגי מדף',
+      icon: '🎯',
+      desc: 'החלפת מותגי יבואנים יקרים במותג פרטי אירופאי רווחי לרשת',
+    },
     {
       href: '/he/products',
       label: 'ערכת דוגמאות לשולחן הטעימות',
