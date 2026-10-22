@@ -308,3 +308,30 @@ The Landed Cost & Gross Margin Simulator allows Israeli supermarket category man
    - 🚀 **1-Click Factory RFQ**: Directly launches `/he/sourcing` with pre-filled product name, volume, and target pricing parameters.
    - 🖨️ **Print / Vector PDF**: Print-ready A4 stylesheet.
    - 🌐 **Header & Footer Synchronization**: Synchronized language toggle (`[ EN | עב ]`) with mirror path switching.
+
+
+---
+
+## 12. Hebrew Product Catalog & Verified European Supplier Directory (`/he/products`)
+
+The Hebrew Product Catalog exposes the platform's proprietary index of 20,000+ European food products and verified manufacturing plants directly to Israeli supermarket category managers, commercial food importers, and private-label buyers in a native Hebrew RTL interface:
+
+- **Hebrew Catalog Hub URL**: `https://fdx.trading/he/products`
+- **Hebrew Category Detail URL**: `https://fdx.trading/he/products/[slug]`
+- **English Catalog Mirror URL**: `https://fdx.trading/en/products`
+
+### Key Architecture & Features:
+1. **Full Hebrew Category Index & Metadata (`hebrewCategoryMap.ts`)**:
+   - Comprehensive translation and commercial adaptation of all 23 food industries (Oils & Fats, Tomato Products, Canned Fish & Tuna, Frozen Foods, Pasta & Grains, Bakery, Snacks, etc.).
+   - Includes retail operational notes, kosher certifications (Badatz / Mehadrin), and packaging formats.
+2. **Interactive Hebrew Filtering & Search**:
+   - Free text keyword search across Hebrew titles, descriptions, and factory names.
+   - Kosher certification filters (כל סוגי הכשרות, כשרות בד״ץ, רבנות מהדרין, רבנות יבוא).
+   - Country of origin filters with flags (ספרד 🇪🇸, איטליה 🇮🇹, בלגיה 🇧🇪, יוון 🇬🇷, פורטוגל 🇵🇹, פולין 🇵🇱).
+   - Private label (מותג פרטי PL) filter toggle.
+   - Grid and List views with pagination (48 items per page).
+3. **Direct RFQ & Sample Kit Conversion**:
+   - Every product card features a 1-click **"בקש הצעת מחיר ודוגמאות ←"** CTA button linking directly to `/he/sourcing` with pre-filled product name and category.
+   - Pre-configured WhatsApp consultation button pre-filling category and volume inquiries.
+4. **Bidirectional Navigation & Mirror Paths**:
+   - Header navigation completely synchronized: `/he/products` ↔ `/en/products` and `/he/products/[slug]` ↔ `/en/products/[slug]`.

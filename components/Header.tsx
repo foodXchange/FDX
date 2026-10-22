@@ -26,7 +26,10 @@ export default function Header() {
     else if (pathname === '/he/contact') enTarget = '/en/contact';
     else if (pathname === '/he/blog') enTarget = '/en/blog';
     else if (pathname === '/he/newsletter') enTarget = '/en/newsletter';
-    else if (pathname.startsWith('/he/import-guide')) {
+    else if (pathname.startsWith('/he/products')) {
+      const sub = pathname.replace('/he/products', '');
+      enTarget = '/en/products' + sub;
+    } else if (pathname.startsWith('/he/import-guide')) {
       const sub = pathname.replace('/he/import-guide', '');
       enTarget = '/en/import-guide' + sub;
     } else enTarget = '/';
@@ -40,7 +43,10 @@ export default function Header() {
     else if (pathname === '/en/contact') heTarget = '/he/contact';
     else if (pathname === '/en/blog') heTarget = '/he/blog';
     else if (pathname === '/en/newsletter') heTarget = '/he/newsletter';
-    else if (pathname.startsWith('/en/import-guide')) {
+    else if (pathname.startsWith('/en/products')) {
+      const sub = pathname.replace('/en/products', '');
+      heTarget = '/he/products' + sub;
+    } else if (pathname.startsWith('/en/import-guide')) {
       const sub = pathname.replace('/en/import-guide', '');
       heTarget = '/he/import-guide' + sub;
     } else heTarget = '/he';
@@ -62,7 +68,7 @@ export default function Header() {
     { href: '/he/buyers', label: 'לקניינים ורשתות' },
     { href: '/he/sourcing', label: 'איתור מפעל (RFQ)' },
     { href: '/he/calculator', label: 'מחשבון עלות נחיתה' },
-    { href: '/en/products', label: 'קטלוג מוצרים' },
+    { href: '/he/products', label: 'קטלוג מוצרים' },
     { href: '/he/import-guide', label: 'מדריך יבוא' },
     { href: '/he/blog', label: 'בלוג מקצועי' },
     { href: '/he/newsletter', label: 'עדכוני שוק' },

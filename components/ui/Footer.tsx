@@ -47,7 +47,7 @@ export default function Footer({ lang = "en" }: FooterProps) {
               </Link>
             </li>
             <li>
-              <Link href="/en/products" className="hover:text-white transition">
+              <Link href={isHe ? "/he/products" : "/en/products"} className="hover:text-white transition">
                 {isHe ? "קטלוג מוצרים" : "Products"}
               </Link>
             </li>
