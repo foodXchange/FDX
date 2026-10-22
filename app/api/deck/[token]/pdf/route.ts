@@ -38,6 +38,8 @@ function escapeHtml(str: string): string {
 
 export async function GET(req: NextRequest, { params }: { params: Params }) {
   const { token } = await params;
+  const lang = req.nextUrl.searchParams.get("lang") === "he" ? "he" : "en";
+  const isHe = lang === "he";
 
   const { data: proposal, error } = await supabaseAdmin
     .from("proposals")
@@ -47,7 +49,10 @@ export async function GET(req: NextRequest, { params }: { params: Params }) {
     .single();
 
   if (error || !proposal) {
-    return new Response("Proposal deck not found or expired.", { status: 404 });
+    return new Response(isHe ? "מצגת הספקים פגה או לא נמצאה." : "Proposal deck not found or expired.", {
+      status: 404,
+      headers: { "Content-Type": "text/plain; charset=utf-8" },
+    });
   }
 
   let payload: DeckPayload = {};
@@ -58,10 +63,10 @@ export async function GET(req: NextRequest, { params }: { params: Params }) {
   }
 
   const factories = payload.factories || [];
-  const title = proposal.title || "European Manufacturer Assortment Selection";
-  const buyerName = proposal.buyer_name || "Retail Buyer";
-  const buyerCompany = proposal.buyer_company || payload.target_retailer || "Retail Desk";
-  const category = payload.category || "Specialty Sourcing";
+  const title = proposal.title || (isHe ? "מצגת בחירת יצרני מזון מאירופה" : "European Manufacturer Assortment Selection");
+  const buyerName = proposal.buyer_name || (isHe ? "קניין רשת" : "Retail Buyer");
+  const buyerCompany = proposal.buyer_company || payload.target_retailer || (isHe ? "מחלקת סחר ורכש" : "Retail Desk");
+  const category = payload.category || (isHe ? "איתור ספקים ומותג פרטי" : "Specialty Sourcing");
   const note = payload.personal_note || "";
 
   // Build Matrix Rows
@@ -72,11 +77,11 @@ export async function GET(req: NextRequest, { params }: { params: Params }) {
       <td style="font-weight:700; color:#0f172a;">${i + 1}. ${escapeHtml(f.company_name)}</td>
       <td>${f.flag} ${escapeHtml(f.country)}</td>
       <td style="font-weight:600; color:#c2410c;">${escapeHtml(f.product_name)}</td>
-      <td>${escapeHtml(f.format || "Standard")}</td>
+      <td>${escapeHtml(f.format || (isHe ? "סטנדרטי" : "Standard"))}</td>
       <td><span class="badge badge-cert">${f.certifications.length > 0 ? escapeHtml(f.certifications.join(", ")) : "ISO 22000"}</span></td>
-      <td><span class="badge badge-kosher">${escapeHtml(f.kosher_type || "Rabbinate")}</span></td>
-      <td style="font-weight:700; color:#15803d;">${escapeHtml(f.indicative_price || "Inquire")}</td>
-      <td style="font-size:11px; color:#64748b;">${escapeHtml(f.moq || "1 FCL")}</td>
+      <td><span class="badge badge-kosher">${escapeHtml(f.kosher_type || (isHe ? "אישור רבנות" : "Rabbinate"))}</span></td>
+      <td style="font-weight:700; color:#15803d;">${escapeHtml(f.indicative_price || (isHe ? "לפי פנייה" : "Inquire"))}</td>
+      <td style="font-size:11px; color:#64748b;">${escapeHtml(f.moq || (isHe ? "מכולה 1" : "1 FCL"))}</td>
     </tr>`
     )
     .join("");
@@ -87,12 +92,12 @@ export async function GET(req: NextRequest, { params }: { params: Params }) {
       (f, i) => `
   <div class="page factory-slide">
     <div class="header">
-      <div class="header-brand">Food<span>X</span>change &middot; European Factory Deep Dive</div>
-      <div class="header-meta">Option ${i + 1} of ${factories.length} &middot; ${escapeHtml(category)}</div>
+      <div class="header-brand">${isHe ? 'Food<span>X</span>change &middot; סקירה מעמיקה של מפעל אירופאי' : 'Food<span>X</span>change &middot; European Factory Deep Dive'}</div>
+      <div class="header-meta">${isHe ? `אפשרות ${i + 1} מתוך ${factories.length} &middot; ${escapeHtml(category)}` : `Option ${i + 1} of ${factories.length} &middot; ${escapeHtml(category)}`}</div>
     </div>
 
     <div class="factory-layout">
-      <!-- Left Column: Details -->
+      <!-- Details Column -->
       <div class="factory-details">
         <div class="factory-title-wrap">
           <span class="country-pill">${f.flag} ${escapeHtml(f.country)}${f.region ? ` &middot; ${escapeHtml(f.region)}` : ""}</span>
@@ -102,44 +107,44 @@ export async function GET(req: NextRequest, { params }: { params: Params }) {
 
         <div class="specs-grid">
           <div class="spec-card">
-            <span class="spec-label">Target CIF Haifa / Ashdod</span>
-            <span class="spec-val text-green">${escapeHtml(f.indicative_price || "Quoted per container")}</span>
+            <span class="spec-label">${isHe ? "מחיר יעד CIF חיפה / אשדוד" : "Target CIF Haifa / Ashdod"}</span>
+            <span class="spec-val text-green">${escapeHtml(f.indicative_price || (isHe ? "הצעת מחיר למכולה" : "Quoted per container"))}</span>
           </div>
           <div class="spec-card">
-            <span class="spec-label">Minimum Order Qty (MOQ)</span>
-            <span class="spec-val">${escapeHtml(f.moq || "1 x 20ft / 40ft FCL")}</span>
+            <span class="spec-label">${isHe ? "כמות מינימום להזמנה (MOQ)" : "Minimum Order Qty (MOQ)"}</span>
+            <span class="spec-val">${escapeHtml(f.moq || (isHe ? "מכולה 20/40 רגל" : "1 x 20ft / 40ft FCL"))}</span>
           </div>
           <div class="spec-card">
-            <span class="spec-label">Production &amp; Shipping Lead Time</span>
-            <span class="spec-val">${escapeHtml(f.lead_time || "3 to 4 weeks")}</span>
+            <span class="spec-label">${isHe ? "זמן אספקה וייצור (Lead Time)" : "Production &amp; Shipping Lead Time"}</span>
+            <span class="spec-val">${escapeHtml(f.lead_time || (isHe ? "3–4 שבועות" : "3 to 4 weeks"))}</span>
           </div>
           <div class="spec-card">
-            <span class="spec-label">Packaging &amp; Format</span>
-            <span class="spec-val">${escapeHtml(f.format || "Retail / HoReCa")}</span>
+            <span class="spec-label">${isHe ? "תצורת אריזה ומיתוג" : "Packaging &amp; Format"}</span>
+            <span class="spec-val">${escapeHtml(f.format || (isHe ? "קמעונאי / מותג פרטי" : "Retail / HoReCa"))}</span>
           </div>
         </div>
 
         <div class="compliance-box">
           <div class="compliance-row">
-            <span class="comp-label">🛡️ Food Safety Certifications:</span>
+            <span class="comp-label">${isHe ? "🛡️ תקני איכות ובטיחות מזון:" : "🛡️ Food Safety Certifications:"}</span>
             <span class="comp-val">${f.certifications.length > 0 ? f.certifications.map(c => `<span class="pill-cert">${escapeHtml(c)}</span>`).join(" ") : '<span class="pill-cert">IFS Higher Level</span> <span class="pill-cert">BRC Grade A</span>'}</span>
           </div>
           <div class="compliance-row">
-            <span class="comp-label">✡ Kosher Supervision Feasibility:</span>
-            <span class="comp-val text-orange"><strong>${escapeHtml(f.kosher_type || "Chief Rabbinate of Israel (אישור הרה״ר)")}</strong> &middot; Kosher certification supported</span>
+            <span class="comp-label">${isHe ? "✡ נתיב כשרות מותאם ליבוא לישראל:" : "✡ Kosher Supervision Feasibility:"}</span>
+            <span class="comp-val text-orange"><strong>${escapeHtml(f.kosher_type || (isHe ? "רבנות ראשית (אישור הרה״ר)" : "Chief Rabbinate of Israel (אישור הרה״ר)"))}</strong> &middot; ${isHe ? "נתיב פיקוח רבני מאומת לשחרור מכס בישראל" : "Kosher certification supported"}</span>
           </div>
         </div>
 
         ${f.specs.length > 0 ? `
         <div class="tech-specs">
-          <span class="tech-title">Key Quality Specifications &amp; Commercial Notes:</span>
+          <span class="tech-title">${isHe ? "מפרט טכני ודגשי איכות מסחריים:" : "Key Quality Specifications &amp; Commercial Notes:"}</span>
           <ul class="tech-list">
             ${f.specs.map(s => `<li>${escapeHtml(s)}</li>`).join("")}
           </ul>
         </div>` : ""}
       </div>
 
-      <!-- Right Column: Visual Packshot / Plant -->
+      <!-- Visual Packshot / Plant Column -->
       <div class="factory-visual">
         ${f.image_url ? `
           <img src="${escapeHtml(f.image_url)}" alt="${escapeHtml(f.product_name)}" class="factory-img" />
@@ -147,28 +152,28 @@ export async function GET(req: NextRequest, { params }: { params: Params }) {
           <div class="placeholder-img">
             <span style="font-size:64px;">📦</span>
             <p style="font-size:13px; font-weight:600; color:#64748b; margin-top:8px;">${escapeHtml(f.product_name)}</p>
-            <p style="font-size:11px; color:#94a3b8;">European Plant &middot; ${escapeHtml(f.country)}</p>
+            <p style="font-size:11px; color:#94a3b8;">${isHe ? "מפעל אירופאי מאומת" : "European Plant"} &middot; ${escapeHtml(f.country)}</p>
           </div>
         `}
         <div class="sample-callout">
-          <span>📦 Tasting Samples Available via Express Courier (DHL/FedEx)</span>
+          <span>${isHe ? "📦 דוגמאות לטעימה זמינות במשלוח אקספרס (DHL/FedEx)" : "📦 Tasting Samples Available via Express Courier (DHL/FedEx)"}</span>
         </div>
       </div>
     </div>
 
     <div class="footer">
-      <span>FoodXchange &middot; fdx.trading &middot; Prepared for ${escapeHtml(buyerCompany)}</span>
-      <span>Confidential &middot; Page ${i + 3}</span>
+      <span>${isHe ? `FoodXchange &middot; fdx.trading &middot; הוכן עבור ${escapeHtml(buyerCompany)}` : `FoodXchange &middot; fdx.trading &middot; Prepared for ${escapeHtml(buyerCompany)}`}</span>
+      <span>${isHe ? `סודי ומסחרי &middot; עמוד ${i + 3}` : `Confidential &middot; Page ${i + 3}`}</span>
     </div>
   </div>`
     )
     .join("");
 
   const html = `<!DOCTYPE html>
-<html lang="en">
+<html lang="${isHe ? "he" : "en"}" dir="${isHe ? "rtl" : "ltr"}">
 <head>
   <meta charset="UTF-8">
-  <title>${escapeHtml(title)} | FoodXchange B2B Assortment Deck</title>
+  <title>${escapeHtml(title)} | ${isHe ? "מצגת בחירת מפעלים מאירופה | FoodXchange" : "FoodXchange B2B Assortment Deck"}</title>
   <style>
     @page {
       size: A4 landscape;
@@ -182,14 +187,14 @@ export async function GET(req: NextRequest, { params }: { params: Params }) {
     body {
       margin: 0;
       padding: 0;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      font-family: ${isHe ? '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Heebo", "Assistant", Arial, sans-serif' : '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif'};
       background: #0f172a;
       color: #0f172a;
     }
     .print-controls {
       position: fixed;
       top: 16px;
-      right: 16px;
+      ${isHe ? "left: 16px;" : "right: 16px;"}
       z-index: 9999;
       display: flex;
       gap: 8px;
@@ -260,9 +265,8 @@ export async function GET(req: NextRequest, { params }: { params: Params }) {
     .cover-title { font-size: 38px; font-weight: 800; line-height: 1.15; margin: 0 0 16px 0; color: #ffffff; }
     .cover-recipient {
       background: rgba(255, 255, 255, 0.05);
-      border-left: 4px solid #F47920;
+      ${isHe ? "border-right: 4px solid #F47920; border-radius: 10px 0 0 10px;" : "border-left: 4px solid #F47920; border-radius: 0 10px 10px 0;"}
       padding: 14px 18px;
-      border-radius: 0 10px 10px 0;
       margin-top: 16px;
     }
     .recipient-label { font-size: 11px; text-transform: uppercase; color: #94a3b8; font-weight: 600; letter-spacing: 1px; margin-bottom: 2px; }
@@ -314,7 +318,7 @@ export async function GET(req: NextRequest, { params }: { params: Params }) {
     table.matrix-table th {
       background: #0f172a;
       color: #ffffff;
-      text-align: left;
+      text-align: ${isHe ? "right" : "left"};
       padding: 9px 10px;
       font-size: 11px;
       text-transform: uppercase;
@@ -322,6 +326,7 @@ export async function GET(req: NextRequest, { params }: { params: Params }) {
     }
     table.matrix-table td {
       padding: 10px 10px;
+      text-align: ${isHe ? "right" : "left"};
       border-bottom: 1px solid #e2e8f0;
     }
     table.matrix-table tr:nth-child(even) { background: #f8fafc; }
@@ -391,7 +396,7 @@ export async function GET(req: NextRequest, { params }: { params: Params }) {
     }
     .tech-specs { font-size: 11px; color: #334155; }
     .tech-title { font-weight: 700; color: #0f172a; margin-bottom: 4px; display: block; }
-    .tech-list { margin: 0; padding-left: 16px; }
+    .tech-list { margin: 0; padding-${isHe ? "right" : "left"}: 16px; }
     .tech-list li { margin-bottom: 2px; }
 
     /* Factory Visual Column */
@@ -459,15 +464,15 @@ export async function GET(req: NextRequest, { params }: { params: Params }) {
 <body>
 
 <div class="print-controls">
-  <button class="btn-action" onclick="window.print()">Save as PDF</button>
-  <button class="btn-close" onclick="window.close()">Close</button>
+  <button class="btn-action" onclick="window.print()">${isHe ? "🖨️ שמור כקובץ PDF / הדפסה" : "Save as PDF"}</button>
+  <button class="btn-close" onclick="window.close()">${isHe ? "✕ סגור" : "Close"}</button>
 </div>
 
 <!-- Slide 1: Cover Page -->
 <div class="page cover-page">
   <div class="cover-top">
     <div class="logo">Food<span>X</span>change</div>
-    <div class="tagline-pill">Commercial Deal Deck</div>
+    <div class="tagline-pill">${isHe ? "מצגת בחירת מפעלים מאירופה · סודי ומסחרי" : "Commercial Deal Deck"}</div>
   </div>
 
   <div class="cover-body">
@@ -475,8 +480,8 @@ export async function GET(req: NextRequest, { params }: { params: Params }) {
     <h1 class="cover-title">${escapeHtml(title)}</h1>
     
     <div class="cover-recipient">
-      <div class="recipient-label">Prepared Exclusively For</div>
-      <div class="recipient-name">${escapeHtml(buyerCompany)} &middot; Attn: ${escapeHtml(buyerName)}</div>
+      <div class="recipient-label">${isHe ? "הוכן באופן בלעדי עבור:" : "Prepared Exclusively For"}</div>
+      <div class="recipient-name">${escapeHtml(buyerCompany)} &middot; ${isHe ? "לידי:" : "Attn:"} ${escapeHtml(buyerName)}</div>
     </div>
 
     ${note ? `<p style="font-size:13px; color:#cbd5e1; margin-top:14px; line-height:1.5;">"${escapeHtml(note)}"</p>` : ""}
@@ -484,12 +489,12 @@ export async function GET(req: NextRequest, { params }: { params: Params }) {
 
   <div class="cover-footer">
     <div>
-      <span class="cover-host">Udi Stryk</span> &middot; Founder &amp; Operator, FoodXchange<br>
-      <span style="font-size:11px;">Tel Aviv, Israel &middot; udi@fdx.trading &middot; +972-52-522-2291</span>
+      <span class="cover-host">${isHe ? "אודי סטריק" : "Udi Stryk"}</span> &middot; ${isHe ? "מייסד ומנהל מסחרי, FoodXchange" : "Founder &amp; Operator, FoodXchange"}<br>
+      <span style="font-size:11px;">${isHe ? "תל אביב, ישראל &middot; udi@fdx.trading &middot; 052-522-2291" : "Tel Aviv, Israel &middot; udi@fdx.trading &middot; +972-52-522-2291"}</span>
     </div>
-    <div style="text-align:right;">
-      <span>Strictly Confidential</span> &middot; 
-      <span>${new Date().toLocaleDateString("en-GB", { month: "long", year: "numeric" })}</span>
+    <div style="text-align:${isHe ? "left" : "right"};">
+      <span>${isHe ? "סודי ביותר ומסחרי" : "Strictly Confidential"}</span> &middot; 
+      <span>${isHe ? new Date().toLocaleDateString("he-IL", { month: "long", year: "numeric" }) : new Date().toLocaleDateString("en-GB", { month: "long", year: "numeric" })}</span>
     </div>
   </div>
 </div>
@@ -497,25 +502,25 @@ export async function GET(req: NextRequest, { params }: { params: Params }) {
 <!-- Slide 2: Commercial Matrix -->
 <div class="page">
   <div class="header">
-    <div class="header-brand">Food<span>X</span>change &middot; Assortment Selection Matrix</div>
-    <div class="header-meta">${escapeHtml(category)} &middot; CIF Haifa &amp; Ashdod Benchmark</div>
+    <div class="header-brand">${isHe ? "Food<span>X</span>change &middot; טבלת השוואה מסחרית" : "Food<span>X</span>change &middot; Assortment Selection Matrix"}</div>
+    <div class="header-meta">${isHe ? `${escapeHtml(category)} &middot; בנצ'מרק CIF חיפה ואשדוד` : `${escapeHtml(category)} &middot; CIF Haifa &amp; Ashdod Benchmark`}</div>
   </div>
 
   <div style="flex:1;">
-    <h2 class="matrix-title">Candidate European Manufacturers Overview</h2>
-    <p class="matrix-subtitle">Comparative assessment of verified production facilities, international safety certifications, kosher oversight, and preliminary CIF terms.</p>
+    <h2 class="matrix-title">${isHe ? "סקירה השוואתית של מפעלי הייצור באירופה" : "Candidate European Manufacturers Overview"}</h2>
+    <p class="matrix-subtitle">${isHe ? "הערכה השוואתית של מפעלי מזון מאומתים, תקני בטיחות בינלאומיים (BRC/IFS), כשרות ומחירי CIF לישראל." : "Comparative assessment of verified production facilities, international safety certifications, kosher oversight, and preliminary CIF terms."}</p>
 
     <table class="matrix-table">
       <thead>
         <tr>
-          <th>Factory / Plant</th>
-          <th>Origin</th>
-          <th>Product / Format</th>
-          <th>Packaging</th>
-          <th>Standards</th>
-          <th>Kosher Feasibility</th>
-          <th>Target CIF Haifa</th>
-          <th>MOQ</th>
+          <th>${isHe ? "מפעל / יצרן" : "Factory / Plant"}</th>
+          <th>${isHe ? "מקור" : "Origin"}</th>
+          <th>${isHe ? "מוצר / תצורה" : "Product / Format"}</th>
+          <th>${isHe ? "אריזה" : "Packaging"}</th>
+          <th>${isHe ? "תקנים" : "Standards"}</th>
+          <th>${isHe ? "נתיב כשרות" : "Kosher Feasibility"}</th>
+          <th>${isHe ? "מחיר יעד CIF חיפה" : "Target CIF Haifa"}</th>
+          <th>${isHe ? "כמות מינימום" : "MOQ"}</th>
         </tr>
       </thead>
       <tbody>
@@ -525,8 +530,8 @@ export async function GET(req: NextRequest, { params }: { params: Params }) {
   </div>
 
   <div class="footer">
-    <span>FoodXchange &middot; fdx.trading &middot; Prepared for ${escapeHtml(buyerCompany)}</span>
-    <span>Page 2 &middot; Commercial Comparison</span>
+    <span>${isHe ? `FoodXchange &middot; fdx.trading &middot; הוכן עבור ${escapeHtml(buyerCompany)}` : `FoodXchange &middot; fdx.trading &middot; Prepared for ${escapeHtml(buyerCompany)}`}</span>
+    <span>${isHe ? "עמוד 2 &middot; השוואה מסחרית" : "Page 2 &middot; Commercial Comparison"}</span>
   </div>
 </div>
 
@@ -536,7 +541,7 @@ ${factorySlides}
 <!-- Final Slide: Back Cover & Contact -->
 <div class="page back-cover">
   <div class="back-logo">Food<span>X</span>change</div>
-  <div class="back-tagline">Connecting Verified European Manufacturers with Israeli Retailers</div>
+  <div class="back-tagline">${isHe ? "מחברים יצרני מזון אירופאיים מאומתים עם רשתות השיווק בישראל" : "Connecting Verified European Manufacturers with Israeli Retailers"}</div>
 
   <div class="qr-box">
     <img
@@ -547,14 +552,14 @@ ${factorySlides}
   </div>
 
   <div class="back-contact">
-    <strong>Udi Stryk &middot; Founder &amp; Operator</strong><br>
-    Direct: <a href="tel:+972525222291" style="color:#F47920; text-decoration:none;">+972-52-522-2291</a><br>
-    Email: <a href="mailto:udi@fdx.trading" style="color:#F47920; text-decoration:none;">udi@fdx.trading</a><br>
-    Portal: <span style="color:#94a3b8;">fdx.trading/business-card/udi</span>
+    <strong>${isHe ? "אודי סטריק &middot; מייסד ומנהל פעילות" : "Udi Stryk &middot; Founder &amp; Operator"}</strong><br>
+    ${isHe ? "ישיר" : "Direct"}: <a href="tel:+972525222291" style="color:#F47920; text-decoration:none;">052-522-2291</a><br>
+    ${isHe ? "אימייל" : "Email"}: <a href="mailto:udi@fdx.trading" style="color:#F47920; text-decoration:none;">udi@fdx.trading</a><br>
+    ${isHe ? "כרטיס ביקור" : "Portal"}: <span style="color:#94a3b8;">fdx.trading/business-card/udi</span>
   </div>
 
   <div style="margin-top:20px; font-size:11px; color:#64748b;">
-    Next Steps: Request DHL Tasting Samples &middot; Schedule 15-Min Sourcing Video Call
+    ${isHe ? "שלבים הבאים: הזמנת ערכת דוגמאות ב-DHL &middot; תיאום שיחת וידאו מקצועית (15 דקות)" : "Next Steps: Request DHL Tasting Samples &middot; Schedule 15-Min Sourcing Video Call"}
   </div>
 </div>
 

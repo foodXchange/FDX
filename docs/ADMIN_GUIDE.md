@@ -193,13 +193,16 @@ The Assortment Deck Studio allows the deal desk to create multi-factory presenta
   - 🫒 *Extra Virgin Olive Oil (Spain & Italy)*
   - 🥫 *Canned Tuna & Pelagic Fish Fillets (Spain & Portugal)*
   - 🍟 *Frozen French Fries & Potato Wedges (Belgium)*
-- **Dual Presentation Formats**:
-  1. **Print & Save Vector PDF (`/api/deck/[token]/pdf`)**: An A4 Landscape executive presentation containing cover slide, commercial comparison matrix table, factory deep-dive slides (certifications BRC/IFS, Kosher pathway, CIF Haifa economics), and Udi Stryk QR contact back-cover.
-  2. **Interactive Secret Web Deck (`/deck/[token]`)**: Mobile & desktop responsive presentation for retail buyers with direct CTAs:
-     - 📦 **Request Tasting Sample Kit**: Dispatches courier sample order.
-     - 📅 **Book 15-Min Sourcing Review**: Direct Google Meet scheduling.
-     - 💬 **WhatsApp Udi**: Pre-formatted WhatsApp context message.
-     - 📥 **Download PDF**: Instant access to the vector PDF deck.
+- **Dual Presentation Formats & Full Hebrew RTL Support**:
+  1. **Print & Save Vector PDF (`/api/deck/[token]/pdf` and `?lang=he`)**: An A4 Landscape executive presentation containing cover slide, commercial comparison matrix table, factory deep-dive slides (certifications BRC/IFS, Kosher pathway, CIF Haifa economics), and Udi Stryk QR contact back-cover. Automatically renders native Hebrew typography and RTL layout when `?lang=he` is requested.
+  2. **Interactive Secret Web Deck (`/deck/[token]` and `?lang=he`)**: Mobile & desktop responsive presentation for retail buyers with on-screen `[ EN | עב ]` toggle and direct CTAs:
+     - 📦 **Request Tasting Sample Kit (הזמנת ערכת דוגמאות לטעימה)**: Dispatches courier sample order directly to Israeli office or test kitchen.
+     - 📅 **Book 15-Min Sourcing Review (תיאום שיחת וידאו עם אודי)**: Direct Google Meet scheduling with Hebrew or English calendar modal.
+     - 💬 **WhatsApp Udi (שיחה בווטסאפ)**: Pre-formatted WhatsApp context message in the chosen language.
+     - 📥 **Download PDF (הורדת מצגת PDF)**: Instant access to the vector PDF deck in English or Hebrew.
+- **Admin Deal Desk Sharing Controls**:
+  - The Assortment Deck generation modal provides 1-click links to copy the English link or the Hebrew link (`?lang=he`).
+  - 1-click WhatsApp buttons for dispatching English or Hebrew pre-formatted outreach to retail category managers (Shufersal, Victory, Yohananof, Osher Ad, Rami Levy).
 - **Real-Time Telemetry**: Every deck view and button click is tracked in `proposal_views` to alert the deal desk the moment a category manager reviews the deck.
 
 ---

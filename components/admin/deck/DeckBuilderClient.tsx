@@ -577,7 +577,10 @@ export function DeckBuilderClient() {
             </div>
 
             <div className="bg-slate-800 border border-slate-700 rounded-2xl p-4 space-y-2 text-xs">
-              <span className="text-slate-400 font-semibold block">Shareable Secret Web Deck:</span>
+              <div className="flex items-center justify-between">
+                <span className="text-slate-400 font-semibold block">Shareable Secret Web Deck:</span>
+                <span className="text-[10px] text-orange-400 font-bold">Bilingual: EN &middot; עב</span>
+              </div>
               <div className="flex items-center gap-2">
                 <input
                   type="text"
@@ -589,11 +592,21 @@ export function DeckBuilderClient() {
                   type="button"
                   onClick={() => {
                     navigator.clipboard.writeText(shareableFullUrl);
-                    alert("Copied deck link to clipboard!");
+                    alert("Copied EN deck link to clipboard!");
                   }}
                   className="px-3 py-2 bg-white/10 hover:bg-white/15 text-white rounded-xl font-medium shrink-0"
                 >
-                  Copy
+                  Copy EN
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    navigator.clipboard.writeText(`${shareableFullUrl}?lang=he`);
+                    alert("הועתק קישור למצגת בעברית!");
+                  }}
+                  className="px-3 py-2 bg-orange-500/20 hover:bg-orange-500/30 text-orange-300 border border-orange-500/30 rounded-xl font-medium shrink-0"
+                >
+                  העתק בעברית 🇮🇱
                 </button>
               </div>
             </div>
@@ -606,21 +619,43 @@ export function DeckBuilderClient() {
                 className="w-full bg-[#0284c7] hover:bg-[#0369a1] text-white font-bold py-2.5 rounded-xl text-xs flex items-center justify-center gap-1.5 transition-colors shadow-md shadow-sky-600/20"
               >
                 <span>👁️</span>
-                <span>Open Web Deck</span>
+                <span>Open Deck (EN)</span>
               </a>
 
               <a
+                href={`${generatedDeck.deckUrl}?lang=he`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-full bg-slate-800 hover:bg-slate-700 text-orange-300 font-bold py-2.5 rounded-xl text-xs flex items-center justify-center gap-1.5 transition-colors border border-orange-500/30"
+              >
+                <span>🇮🇱</span>
+                <span>פתח בעברית (עב)</span>
+              </a>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2.5">
+              <a
                 href={generatedDeck.pdfUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-full bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold py-2.5 rounded-xl text-xs flex items-center justify-center gap-1.5 transition-colors border border-slate-700"
+              >
+                <span>📥</span>
+                <span>PDF (English)</span>
+              </a>
+
+              <a
+                href={`${generatedDeck.pdfUrl}?lang=he`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="w-full bg-[#F47920] hover:bg-[#d96810] text-white font-bold py-2.5 rounded-xl text-xs flex items-center justify-center gap-1.5 transition-colors shadow-md shadow-orange-500/20"
               >
                 <span>📥</span>
-                <span>Download Vector PDF</span>
+                <span>PDF בעברית 🇮🇱</span>
               </a>
             </div>
 
-            <div className="pt-2">
+            <div className="pt-2 grid grid-cols-1 sm:grid-cols-2 gap-2">
               <a
                 href={`https://wa.me/?text=${encodeURIComponent(
                   `Hi ${buyerName}, here is the European Assortment Deck prepared for ${buyerCompany}: ${shareableFullUrl}`
@@ -630,7 +665,19 @@ export function DeckBuilderClient() {
                 className="w-full bg-[#1DA851] hover:bg-[#189a47] text-white font-bold py-2.5 rounded-xl text-xs flex items-center justify-center gap-2 transition-colors"
               >
                 <span>💬</span>
-                <span>Share Link on WhatsApp</span>
+                <span>WhatsApp (EN)</span>
+              </a>
+
+              <a
+                href={`https://wa.me/?text=${encodeURIComponent(
+                  `שלום ${buyerName}, מצורפת מצגת בחירת מפעלים מאירופה שהוכנה במיוחד עבור ${buyerCompany}: ${shareableFullUrl}?lang=he`
+                )}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-full bg-emerald-700 hover:bg-emerald-600 text-white font-bold py-2.5 rounded-xl text-xs flex items-center justify-center gap-2 transition-colors"
+              >
+                <span>💬</span>
+                <span>ווטסאפ בעברית 🇮🇱</span>
               </a>
             </div>
 

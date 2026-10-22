@@ -33,9 +33,26 @@ export interface DeckData {
 
 interface Props {
   deck: DeckData;
+  initialLang?: "en" | "he";
 }
 
-export function AssortmentDeckViewer({ deck }: Props) {
+export function AssortmentDeckViewer({ deck, initialLang = "en" }: Props) {
+  const [lang, setLang] = useState<"en" | "he">(initialLang);
+  const isHe = lang === "he";
+
+  function switchLang(newLang: "en" | "he") {
+    setLang(newLang);
+    if (typeof window !== "undefined") {
+      const url = new URL(window.location.href);
+      if (newLang === "he") {
+        url.searchParams.set("lang", "he");
+      } else {
+        url.searchParams.delete("lang");
+      }
+      window.history.replaceState({}, "", url.toString());
+    }
+  }
+
   const [activeFactoryIdx, setActiveFactoryIdx] = useState(0);
   const [viewMode, setViewMode] = useState<"showcase" | "matrix">("showcase");
   const [schedulerOpen, setSchedulerOpen] = useState(false);
@@ -94,11 +111,13 @@ export function AssortmentDeckViewer({ deck }: Props) {
   }
 
   const waHref = `https://wa.me/972525222291?text=${encodeURIComponent(
-    `Hi Udi, reviewing your European Assortment Deck for "${deck.title}". Let's discuss option ${activeFactoryIdx + 1} (${activeFactory?.company_name}).`
+    isHe
+      ? `שלום אודי, אני מעיין במצגת הספקים מאירופה "${deck.title}". אשמח לשוחח על אפשרות ${activeFactoryIdx + 1} (${activeFactory?.company_name}).`
+      : `Hi Udi, reviewing your European Assortment Deck for "${deck.title}". Let's discuss option ${activeFactoryIdx + 1} (${activeFactory?.company_name}).`
   )}`;
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col">
+    <div dir={isHe ? "rtl" : "ltr"} className={`min-h-screen bg-slate-950 text-slate-100 flex flex-col ${isHe ? "font-sans" : ""}`}>
       {/* ── Top Bar ── */}
       <header className="sticky top-0 z-40 bg-slate-900/90 backdrop-blur-md border-b border-slate-800 px-4 sm:px-8 py-3.5 flex items-center justify-between">
         <div className="flex items-center gap-3 min-w-0">
@@ -107,7 +126,7 @@ export function AssortmentDeckViewer({ deck }: Props) {
           </div>
           <div className="min-w-0">
             <span className="text-[10px] uppercase font-bold tracking-wider text-orange-400 block">
-              Confidential Assortment Deck
+              {isHe ? "מצגת בחירת מפעלים מאירופה · סודי ומסחרי" : "Confidential Assortment Deck"}
             </span>
             <h1 className="text-sm sm:text-base font-bold text-white truncate">
               {deck.title}
@@ -116,14 +135,36 @@ export function AssortmentDeckViewer({ deck }: Props) {
         </div>
 
         <div className="flex items-center gap-2.5">
+          {/* Bilingual Switcher */}
+          <div className="flex rounded-xl border border-white/10 bg-slate-800 p-0.5 text-xs font-semibold">
+            <button
+              type="button"
+              onClick={() => switchLang("en")}
+              className={`rounded-lg px-2.5 py-1 transition ${
+                !isHe ? "bg-orange-500 text-white" : "text-slate-400 hover:text-slate-200"
+              }`}
+            >
+              EN
+            </button>
+            <button
+              type="button"
+              onClick={() => switchLang("he")}
+              className={`rounded-lg px-2.5 py-1 transition ${
+                isHe ? "bg-orange-500 text-white" : "text-slate-400 hover:text-slate-200"
+              }`}
+            >
+              עב
+            </button>
+          </div>
+
           <a
-            href={deck.pdfUrl}
+            href={isHe ? `${deck.pdfUrl}?lang=he` : deck.pdfUrl}
             target="_blank"
             rel="noopener noreferrer"
             className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold border border-slate-700 transition-colors"
           >
             <span>📥</span>
-            <span>Download PDF</span>
+            <span>{isHe ? "הורדת מצגת PDF" : "Download PDF"}</span>
           </a>
 
           <a
@@ -133,7 +174,7 @@ export function AssortmentDeckViewer({ deck }: Props) {
             className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-[#1DA851] hover:bg-[#189a47] text-white text-xs font-bold transition-colors shadow-md shadow-emerald-600/20"
           >
             <span>💬</span>
-            <span className="hidden sm:inline">WhatsApp Udi</span>
+            <span className="hidden sm:inline">{isHe ? "שיחה עם אודי בווטסאפ" : "WhatsApp Udi"}</span>
             <span className="sm:hidden">WhatsApp</span>
           </a>
         </div>
@@ -149,7 +190,8 @@ export function AssortmentDeckViewer({ deck }: Props) {
                 {deck.category}
               </span>
               <span className="text-xs text-slate-400">
-                Prepared exclusively for: <strong className="text-white">{deck.buyer_company || deck.buyer_name}</strong>
+                {isHe ? "הוכן באופן בלעדי עבור:" : "Prepared exclusively for:"}{" "}
+                <strong className="text-white">{deck.buyer_company || deck.buyer_name}</strong>
               </span>
             </div>
             {deck.personal_note && (
@@ -168,7 +210,7 @@ export function AssortmentDeckViewer({ deck }: Props) {
                   : "bg-slate-800 text-slate-400 hover:text-white"
               }`}
             >
-              Factory Showcase
+              {isHe ? "סקירת מפעלים" : "Factory Showcase"}
             </button>
             <button
               onClick={() => setViewMode("matrix")}
@@ -178,7 +220,7 @@ export function AssortmentDeckViewer({ deck }: Props) {
                   : "bg-slate-800 text-slate-400 hover:text-white"
               }`}
             >
-              Comparison Matrix
+              {isHe ? "טבלת השוואה" : "Comparison Matrix"}
             </button>
           </div>
         </div>
@@ -223,7 +265,9 @@ export function AssortmentDeckViewer({ deck }: Props) {
                           {activeFactory.region ? ` · ${activeFactory.region}` : ""}
                         </span>
                         <span className="w-1.5 h-1.5 rounded-full bg-slate-600" />
-                        <span className="text-xs text-slate-400">Verified European Manufacturer</span>
+                        <span className="text-xs text-slate-400">
+                          {isHe ? "מפעל אירופאי מאומת ומבוקר" : "Verified European Manufacturer"}
+                        </span>
                       </div>
                       <h2 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
                         {activeFactory.company_name}
@@ -237,34 +281,34 @@ export function AssortmentDeckViewer({ deck }: Props) {
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                       <div className="bg-slate-800/80 border border-slate-700/80 rounded-2xl p-3.5">
                         <span className="text-[10px] font-semibold text-slate-400 uppercase block mb-1">
-                          Target CIF Haifa
+                          {isHe ? "מחיר יעד CIF חיפה/אשדוד" : "Target CIF Haifa"}
                         </span>
                         <span className="text-sm font-bold text-emerald-400">
-                          {activeFactory.indicative_price || "Quoted per container"}
+                          {activeFactory.indicative_price || (isHe ? "הצעת מחיר לפי מכולה" : "Quoted per container")}
                         </span>
                       </div>
                       <div className="bg-slate-800/80 border border-slate-700/80 rounded-2xl p-3.5">
                         <span className="text-[10px] font-semibold text-slate-400 uppercase block mb-1">
-                          Minimum Order (MOQ)
+                          {isHe ? "כמות מינימום (MOQ)" : "Minimum Order (MOQ)"}
                         </span>
                         <span className="text-sm font-bold text-white">
-                          {activeFactory.moq || "1 x 20ft / 40ft FCL"}
+                          {activeFactory.moq || (isHe ? "מכולה 20/40 רגל" : "1 x 20ft / 40ft FCL")}
                         </span>
                       </div>
                       <div className="bg-slate-800/80 border border-slate-700/80 rounded-2xl p-3.5">
                         <span className="text-[10px] font-semibold text-slate-400 uppercase block mb-1">
-                          Production Lead Time
+                          {isHe ? "זמן אספקה וייצור" : "Production Lead Time"}
                         </span>
                         <span className="text-sm font-bold text-white">
-                          {activeFactory.lead_time || "3 to 4 weeks"}
+                          {activeFactory.lead_time || (isHe ? "3–4 שבועות" : "3 to 4 weeks")}
                         </span>
                       </div>
                       <div className="bg-slate-800/80 border border-slate-700/80 rounded-2xl p-3.5">
                         <span className="text-[10px] font-semibold text-slate-400 uppercase block mb-1">
-                          Packaging Format
+                          {isHe ? "תצורת אריזה ומיתוג" : "Packaging Format"}
                         </span>
                         <span className="text-sm font-bold text-white truncate block">
-                          {activeFactory.format || "Retail / Private Label"}
+                          {activeFactory.format || (isHe ? "קמעונאי / מותג פרטי" : "Retail / Private Label")}
                         </span>
                       </div>
                     </div>
@@ -273,7 +317,7 @@ export function AssortmentDeckViewer({ deck }: Props) {
                     <div className="bg-amber-500/10 border border-amber-500/20 rounded-2xl p-4 space-y-2.5">
                       <div className="flex items-center gap-2">
                         <span className="text-xs font-bold text-amber-300 uppercase tracking-wide">
-                          🛡️ Food Safety &amp; Quality Certifications:
+                          {isHe ? "🛡️ תקני איכות ובטיחות מזון:" : "🛡️ Food Safety & Quality Certifications:"}
                         </span>
                         <div className="flex flex-wrap gap-1.5">
                           {activeFactory.certifications.length > 0 ? (
@@ -294,8 +338,13 @@ export function AssortmentDeckViewer({ deck }: Props) {
                       </div>
 
                       <div className="text-xs text-amber-200/90 leading-relaxed">
-                        <strong className="text-amber-300">✡ Kosher Supervision Feasibility:</strong>{" "}
-                        {activeFactory.kosher_type} &middot; Verified rabbinical inspection path for Israeli import clearance (אישור הרה״ר).
+                        <strong className="text-amber-300">
+                          {isHe ? "✡ נתיב כשרות מותאם ליבוא לישראל:" : "✡ Kosher Supervision Feasibility:"}
+                        </strong>{" "}
+                        {activeFactory.kosher_type} &middot;{" "}
+                        {isHe
+                          ? "נתיב פיקוח רבני מאומת לשחרור מכס בישראל (אישור מחלקת יבוא ברה״ר לישראל)."
+                          : "Verified rabbinical inspection path for Israeli import clearance (אישור הרה״ר)."}
                       </div>
                     </div>
 
@@ -303,7 +352,7 @@ export function AssortmentDeckViewer({ deck }: Props) {
                     {activeFactory.specs.length > 0 && (
                       <div className="space-y-2">
                         <span className="text-xs font-bold text-slate-300 uppercase tracking-wider block">
-                          Technical Specifications &amp; Quality Notes:
+                          {isHe ? "מפרט טכני ודגשי איכות:" : "Technical Specifications & Quality Notes:"}
                         </span>
                         <ul className="space-y-1.5">
                           {activeFactory.specs.map((s, idx) => (
@@ -332,9 +381,9 @@ export function AssortmentDeckViewer({ deck }: Props) {
                           <span className="text-5xl mb-2">📦</span>
                           <span className="text-xs font-bold text-white">
                             {activeFactory.product_name}
-                          </span >
+                          </span>
                           <span className="text-[11px] text-slate-400 mt-0.5">
-                            {activeFactory.country} &middot; Private Label
+                            {activeFactory.country} &middot; {isHe ? "מותג פרטי" : "Private Label"}
                           </span>
                         </div>
                       )}
@@ -350,7 +399,11 @@ export function AssortmentDeckViewer({ deck }: Props) {
                         className="w-full bg-[#F47920] hover:bg-[#d96810] text-white font-bold py-3 rounded-xl text-xs flex items-center justify-center gap-2 transition-colors shadow-lg shadow-orange-500/25"
                       >
                         <span>📦</span>
-                        <span>Request Tasting Sample Kit (DHL Express)</span>
+                        <span>
+                          {isHe
+                            ? "הזמנת ערכת דוגמאות לטעימה (DHL אקספרס)"
+                            : "Request Tasting Sample Kit (DHL Express)"}
+                        </span>
                       </button>
 
                       <button
@@ -358,17 +411,25 @@ export function AssortmentDeckViewer({ deck }: Props) {
                         className="w-full bg-[#0284c7] hover:bg-[#0369a1] text-white font-bold py-2.5 rounded-xl text-xs flex items-center justify-center gap-2 transition-colors shadow-md shadow-sky-600/20"
                       >
                         <span>📅</span>
-                        <span>Book 15-Min Sourcing Review with Udi</span>
+                        <span>
+                          {isHe
+                            ? "תיאום שיחת וידאו עם אודי (15 דקות)"
+                            : "Book 15-Min Sourcing Review with Udi"}
+                        </span>
                       </button>
 
                       <a
-                        href={deck.pdfUrl}
+                        href={isHe ? `${deck.pdfUrl}?lang=he` : deck.pdfUrl}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="w-full bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold py-2.5 rounded-xl text-xs flex items-center justify-center gap-1.5 transition-colors"
                       >
                         <span>📥</span>
-                        <span>Download Complete PDF Presentation</span>
+                        <span>
+                          {isHe
+                            ? "הורדת מצגת PDF מלאה בעברית"
+                            : "Download Complete PDF Presentation"}
+                        </span>
                       </a>
                     </div>
                   </div>
@@ -379,22 +440,26 @@ export function AssortmentDeckViewer({ deck }: Props) {
         ) : (
           /* Matrix Comparison View */
           <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl overflow-x-auto">
-            <h2 className="text-lg font-bold text-white mb-1">Commercial Comparison Matrix</h2>
+            <h2 className="text-lg font-bold text-white mb-1">
+              {isHe ? "טבלת השוואה מסחרית בין המפעלים" : "Commercial Comparison Matrix"}
+            </h2>
             <p className="text-xs text-slate-400 mb-5">
-              Side-by-side comparison of candidate European plants, certifications, kosher feasibility, and CIF economics.
+              {isHe
+                ? "השוואת נתונים זה לצד זה: מדינת מקור, תקני איכות בינלאומיים, כשרות, ומחירי CIF."
+                : "Side-by-side comparison of candidate European plants, certifications, kosher feasibility, and CIF economics."}
             </p>
 
             <table className="w-full text-xs text-start">
               <thead>
                 <tr className="border-b border-slate-800 text-slate-400 uppercase text-[10px]">
-                  <th className="py-3 px-3 text-start">Factory / Plant</th>
-                  <th className="py-3 px-3 text-start">Origin</th>
-                  <th className="py-3 px-3 text-start">Product / Format</th>
-                  <th className="py-3 px-3 text-start">Certifications</th>
-                  <th className="py-3 px-3 text-start">Kosher Path</th>
-                  <th className="py-3 px-3 text-start">Target CIF Haifa</th>
-                  <th className="py-3 px-3 text-start">MOQ</th>
-                  <th className="py-3 px-3 text-start">Action</th>
+                  <th className="py-3 px-3 text-start">{isHe ? "מפעל / יצרן" : "Factory / Plant"}</th>
+                  <th className="py-3 px-3 text-start">{isHe ? "מקור" : "Origin"}</th>
+                  <th className="py-3 px-3 text-start">{isHe ? "מוצר / תצורה" : "Product / Format"}</th>
+                  <th className="py-3 px-3 text-start">{isHe ? "תקני איכות" : "Certifications"}</th>
+                  <th className="py-3 px-3 text-start">{isHe ? "כשרות" : "Kosher Path"}</th>
+                  <th className="py-3 px-3 text-start">{isHe ? "מחיר CIF" : "Target CIF Haifa"}</th>
+                  <th className="py-3 px-3 text-start">{isHe ? "כמות מינימום" : "MOQ"}</th>
+                  <th className="py-3 px-3 text-start">{isHe ? "פעולה" : "Action"}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-800/60">
@@ -420,8 +485,12 @@ export function AssortmentDeckViewer({ deck }: Props) {
                       </div>
                     </td>
                     <td className="py-3 px-3 text-amber-300 font-medium">{f.kosher_type}</td>
-                    <td className="py-3 px-3 font-bold text-emerald-400">{f.indicative_price || "Inquire"}</td>
-                    <td className="py-3 px-3 text-slate-400">{f.moq || "1 FCL"}</td>
+                    <td className="py-3 px-3 font-bold text-emerald-400">
+                      {f.indicative_price || (isHe ? "לפי פנייה" : "Inquire")}
+                    </td>
+                    <td className="py-3 px-3 text-slate-400">
+                      {f.moq || (isHe ? "מכולה 1" : "1 FCL")}
+                    </td>
                     <td className="py-3 px-3">
                       <button
                         onClick={() => {
@@ -430,7 +499,7 @@ export function AssortmentDeckViewer({ deck }: Props) {
                         }}
                         className="text-xs font-semibold text-[#F47920] hover:underline"
                       >
-                        Deep Dive &rarr;
+                        {isHe ? "סקירה מעמיקה ←" : "Deep Dive →"}
                       </button>
                     </td>
                   </tr>
@@ -443,7 +512,11 @@ export function AssortmentDeckViewer({ deck }: Props) {
 
       {/* ── Footer ── */}
       <footer className="border-t border-slate-900 bg-slate-950 py-6 text-center text-xs text-slate-500 space-y-1">
-        <p>FoodXchange &middot; Tel Aviv &middot; Connecting European Manufacturers with Israeli Retail</p>
+        <p>
+          {isHe
+            ? "FoodXchange · תל אביב · מחברים יצרני מזון אירופאיים עם רשתות השיווק בישראל"
+            : "FoodXchange · Tel Aviv · Connecting European Manufacturers with Israeli Retail"}
+        </p>
         <p>Contact: udi@fdx.trading &middot; +972-52-522-2291</p>
       </footer>
 
@@ -452,7 +525,7 @@ export function AssortmentDeckViewer({ deck }: Props) {
         isOpen={schedulerOpen}
         onClose={() => setSchedulerOpen(false)}
         cardHandle="udi"
-        lang="en"
+        lang={lang}
       />
 
       {/* ── Sample Request Modal ── */}
@@ -465,7 +538,11 @@ export function AssortmentDeckViewer({ deck }: Props) {
             <div className="flex items-center justify-between pb-3 border-b border-slate-800">
               <div className="flex items-center gap-2">
                 <span className="text-xl">📦</span>
-                <h3 className="font-bold text-sm">Order Tasting Samples (DHL Express)</h3>
+                <h3 className="font-bold text-sm">
+                  {isHe
+                    ? "הזמנת דוגמאות לטעימה ומבחן מדף (DHL אקספרס)"
+                    : "Order Tasting Samples (DHL Express)"}
+                </h3>
               </div>
               <button
                 onClick={() => setSampleModalOpen(false)}
@@ -480,25 +557,33 @@ export function AssortmentDeckViewer({ deck }: Props) {
                 <div className="w-12 h-12 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center mx-auto text-xl font-bold">
                   ✓
                 </div>
-                <h4 className="font-bold text-base">Sample Request Dispatched!</h4>
+                <h4 className="font-bold text-base">
+                  {isHe ? "בקשת הדוגמאות הועברה בהצלחה!" : "Sample Request Dispatched!"}
+                </h4>
                 <p className="text-xs text-slate-400 leading-relaxed">
-                  Udi and the FoodXchange team have received your dispatch request. We will coordinate airfreight shipping with {activeFactory?.company_name} and notify you with tracking details.
+                  {isHe
+                    ? `אודי וצוות FoodXchange קיבלו את הבקשה. נתאם את המשלוח האווירי ישירות מול ${activeFactory?.company_name} ונעדכן אתכם במספר מעקב (AWB).`
+                    : `Udi and the FoodXchange team have received your dispatch request. We will coordinate airfreight shipping with ${activeFactory?.company_name} and notify you with tracking details.`}
                 </p>
                 <button
                   onClick={() => setSampleModalOpen(false)}
                   className="w-full bg-slate-800 hover:bg-slate-700 text-white font-medium py-2 rounded-xl text-xs transition-colors"
                 >
-                  Close
+                  {isHe ? "סגור" : "Close"}
                 </button>
               </div>
             ) : (
               <form onSubmit={handleSampleSubmit} className="space-y-3 text-xs">
                 <p className="text-slate-400 text-[11px]">
-                  Samples are shipped directly from {activeFactory?.company_name} ({activeFactory?.country}) to your office or test kitchen in Israel.
+                  {isHe
+                    ? `הדוגמאות נשלחות ישירות מהמפעל ב-${activeFactory?.company_name} (${activeFactory?.country}) למשרדי הרשת או למטבח הבדיקה בישראל.`
+                    : `Samples are shipped directly from ${activeFactory?.company_name} (${activeFactory?.country}) to your office or test kitchen in Israel.`}
                 </p>
 
                 <div>
-                  <label className="block text-slate-400 mb-1">Contact / Recipient Name *</label>
+                  <label className="block text-slate-400 mb-1">
+                    {isHe ? "שם איש קשר / קניין *" : "Contact / Recipient Name *"}
+                  </label>
                   <input
                     type="text"
                     required
@@ -509,7 +594,9 @@ export function AssortmentDeckViewer({ deck }: Props) {
                 </div>
 
                 <div>
-                  <label className="block text-slate-400 mb-1">Company / Retailer</label>
+                  <label className="block text-slate-400 mb-1">
+                    {isHe ? "שם הרשת / החברה" : "Company / Retailer"}
+                  </label>
                   <input
                     type="text"
                     value={sampleCompany}
@@ -519,19 +606,23 @@ export function AssortmentDeckViewer({ deck }: Props) {
                 </div>
 
                 <div>
-                  <label className="block text-slate-400 mb-1">Delivery Address in Israel *</label>
+                  <label className="block text-slate-400 mb-1">
+                    {isHe ? "כתובת למשלוח בישראל (רחוב, עיר, מיקוד) *" : "Delivery Address in Israel *"}
+                  </label>
                   <input
                     type="text"
                     required
                     value={sampleAddress}
                     onChange={(e) => setSampleAddress(e.target.value)}
-                    placeholder="Street, City, Postal Code"
+                    placeholder={isHe ? "רחוב, מספר, עיר, מיקוד" : "Street, City, Postal Code"}
                     className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-white outline-none focus:border-[#F47920]"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-slate-400 mb-1">Phone / WhatsApp (for Courier Delivery) *</label>
+                  <label className="block text-slate-400 mb-1">
+                    {isHe ? "טלפון / ווטסאפ (לתיאום עם השליח) *" : "Phone / WhatsApp (for Courier Delivery) *"}
+                  </label>
                   <input
                     type="tel"
                     required
@@ -543,12 +634,18 @@ export function AssortmentDeckViewer({ deck }: Props) {
                 </div>
 
                 <div>
-                  <label className="block text-slate-400 mb-1">Sensory / Packaging Notes (Optional)</label>
+                  <label className="block text-slate-400 mb-1">
+                    {isHe ? "דגשים לבדיקת טעימה או אריזה (אופציונלי)" : "Sensory / Packaging Notes (Optional)"}
+                  </label>
                   <input
                     type="text"
                     value={sampleNotes}
                     onChange={(e) => setSampleNotes(e.target.value)}
-                    placeholder="e.g. Include both 750ml glass and 1L PET samples"
+                    placeholder={
+                      isHe
+                        ? "לדוגמה: לכלול דוגמאות בבקבוק זכוכית 750 מ״ל וגם 1 ליטר פלסטיק"
+                        : "e.g. Include both 750ml glass and 1L PET samples"
+                    }
                     className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-white outline-none focus:border-[#F47920]"
                   />
                 </div>
@@ -559,14 +656,20 @@ export function AssortmentDeckViewer({ deck }: Props) {
                     onClick={() => setSampleModalOpen(false)}
                     className="w-1/3 py-2 bg-slate-800 text-slate-400 rounded-xl hover:bg-slate-700"
                   >
-                    Cancel
+                    {isHe ? "ביטול" : "Cancel"}
                   </button>
                   <button
                     type="submit"
                     disabled={sampleSubmitting}
                     className="w-2/3 py-2 bg-[#F47920] hover:bg-[#d96810] text-white font-bold rounded-xl disabled:opacity-50"
                   >
-                    {sampleSubmitting ? "Dispatching..." : "Confirm Sample Request"}
+                    {sampleSubmitting
+                      ? isHe
+                        ? "שולח בקשה..."
+                        : "Dispatching..."
+                      : isHe
+                      ? "אישור והזמנת דוגמאות"
+                      : "Confirm Sample Request"}
                   </button>
                 </div>
               </form>
