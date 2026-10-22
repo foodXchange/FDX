@@ -77,8 +77,16 @@ export default function Footer({ lang = "en" }: FooterProps) {
               </Link>
             </li>
             <li>
+              <Link href={isHe ? "/he/calculator" : "/en/calculator"} className="hover:text-white transition flex items-center gap-1.5">
+                {isHe ? "מחשבון עלות נחיתה ורווחיות" : "Landed Cost Calculator"}
+                <span className="bg-orange-500/20 text-orange-400 border border-orange-500/30 text-[10px] px-1 py-0.5 rounded font-bold leading-none">
+                  {isHe ? "חישוב מדף" : "Tool"}
+                </span>
+              </Link>
+            </li>
+            <li>
               <Link
-                href="/en/import-guide"
+                href={isHe ? "/he/import-guide" : "/en/import-guide"}
                 className="hover:text-white flex items-center gap-1.5 transition"
               >
                 {isHe ? "מדריך יבוא וכשרות" : "Knowledge Base"}

@@ -49,6 +49,12 @@ export default function Footer() {
 
           <ul className="space-y-3 text-sm mb-6">
             <li>
+              <Link href="/en/calculator" className="hover:text-white flex items-center gap-1.5">
+                Landed Cost Calculator
+                <span className="bg-orange-500/20 text-orange-400 border border-orange-500/30 text-[10px] px-1 py-0.5 rounded font-bold leading-none">Tool</span>
+              </Link>
+            </li>
+            <li>
               <Link href="/en/import-guide" className="hover:text-white flex items-center gap-1.5">
                 Israeli Import Guide
                 <span className="bg-orange-500 text-white text-[10px] px-1 py-0.5 rounded font-bold leading-none">43 Guides</span>

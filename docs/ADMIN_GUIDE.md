@@ -267,3 +267,44 @@ The Hebrew Food Import Guide & Regulatory Hub provides Israeli supermarket categ
    - Sticky conversion banner linking directly to `/he/sourcing` and pre-configured WhatsApp consultation with Udi Stryk.
 5. **Bidirectional Navigation**:
    - Synchronized header language toggle (`[ EN | עב ]`) dynamically translating `/en/import-guide` ↔ `/he/import-guide` across all deep category and article routes.
+
+
+---
+
+## 11. Hebrew Landed Cost & Retail Margin Calculator (`/he/calculator`)
+
+The Landed Cost & Gross Margin Simulator allows Israeli supermarket category managers, commercial food importers, and private-label buyers to convert European factory quotations into landed cost at Israeli distribution centers, evaluate retail gross margins, and calculate benchmark brand savings:
+
+- **Hebrew Calculator URL**: `https://fdx.trading/he/calculator`
+- **English Calculator URL**: `https://fdx.trading/en/calculator`
+
+### Key Architecture & Features:
+1. **1-Click European Food Retail Presets**:
+   - 🫒 **Extra Virgin Olive Oil 750ml (Spain/Italy)**: €3.85 CIF, 21,000 bottles (40ft Dry), Target Shelf ₪29.90 (vs ₪39.90 Filippo Berio).
+   - 🥫 **Canned Light Tuna 4-Pack 4x160g (Spain)**: €2.15 FOB, 36,000 packs (40ft Dry), Target Shelf ₪18.90 (vs ₪26.90 Rio Mare).
+   - 🍟 **Premium Belgian Frozen Fries 2.5kg (Belgium)**: €1.45 EXW, 8,200 bags (40ft Reefer), Target Shelf ₪16.90 (vs ₪24.90 Lutosa).
+   - 🍝 **Premium Italian Durum Pasta 500g (Italy)**: €0.52 FOB, 44,000 packs (40ft Dry), Target Shelf ₪5.90 (vs ₪8.90 Barilla).
+   - 🍅 **Finely Chopped Italian Tomatoes 400g (Italy)**: €0.44 CIF, 48,000 cans (20ft Dry), Target Shelf ₪4.50 (vs ₪6.90 Mutti).
+
+2. **Full Incoterm & Landed Cost Arithmetic Engine**:
+   - Multi-currency support (EUR, USD, GBP, ILS) with live-adjustable FX rates.
+   - Incoterms: EXW, FOB, CIF, DDP.
+   - International logistics: European inland haulage, ocean freight per container type (20ft Dry, 40ft HC, 40ft Reefer), and marine cargo insurance (0.3%).
+   - Israeli ports & clearance: Ashdod / Haifa port charges, customs brokerage, delivery order, Ministry of Health quarantine station, and Standards Institute lab testing.
+   - 0% customs duty default under EU-Israel Free Trade Agreement (EUR.1 origin).
+
+3. **Dual Retail Shelf Pricing Modes**:
+   - **Mode A (Target Consumer Shelf Price)**: Input target shelf price (incl. VAT) -> Computes retailer gross margin % and profit per unit.
+   - **Mode B (Target Gross Margin %)**: Input desired retailer gross margin (e.g. 35%) -> Computes required consumer shelf price (incl. VAT).
+   - Adjustable retail VAT rate (default 18%).
+
+4. **Benchmark Brand Comparison & Annualized Chain Economics**:
+   - Immediate calculation of consumer savings per unit and percentage reduction vs leading shelf brands.
+   - Annual container volume slider (1–24 FCLs) showing total annual extra gross profit generated for the retail supermarket chain.
+
+5. **Integrated Conversion & Sharing CTAs**:
+   - 💬 **WhatsApp Sharing**: Generates pre-formatted Hebrew commercial brief to category managers and commercial leadership.
+   - 📋 **Executive Summary Copy**: Formatted clipboard summary for retail assortment meetings.
+   - 🚀 **1-Click Factory RFQ**: Directly launches `/he/sourcing` with pre-filled product name, volume, and target pricing parameters.
+   - 🖨️ **Print / Vector PDF**: Print-ready A4 stylesheet.
+   - 🌐 **Header & Footer Synchronization**: Synchronized language toggle (`[ EN | עב ]`) with mirror path switching.
