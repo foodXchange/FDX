@@ -99,6 +99,12 @@ export default function FoodXchangeCopilot() {
   }, [welcomeMessage, messages.length]);
 
   useEffect(() => {
+    const handleCustomOpen = () => setIsOpen(true);
+    window.addEventListener("fdx:open-copilot", handleCustomOpen);
+    return () => window.removeEventListener("fdx:open-copilot", handleCustomOpen);
+  }, []);
+
+  useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
@@ -158,17 +164,35 @@ export default function FoodXchangeCopilot() {
   };
 
   return (
-    <div className={`fixed bottom-6 ${isHe ? "left-6" : "right-6"} z-50 no-print`}>
-      {/* ── EXPANDED CHAT DRAWER ── */}
-      {isOpen ? (
+    <>
+      {/* Mobile Backdrop when open */}
+      {isOpen && (
         <div
-          className={`w-[360px] sm:w-[420px] h-[550px] max-h-[82vh] bg-slate-900 border border-slate-700/80 rounded-2xl shadow-2xl flex flex-col overflow-hidden backdrop-blur-xl ${
-            isHe ? "rtl" : "ltr"
-          }`}
-          dir={isHe ? "rtl" : "ltr"}
-        >
-          {/* Header */}
-          <div className="bg-gradient-to-r from-slate-950 via-slate-900 to-slate-950 border-b border-slate-800 p-4 flex items-center justify-between">
+          onClick={() => setIsOpen(false)}
+          className="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 sm:hidden no-print"
+        />
+      )}
+
+      <div
+        className={`fixed ${
+          isOpen
+            ? "inset-x-0 bottom-0 sm:bottom-6 sm:inset-x-auto z-50"
+            : `bottom-20 sm:bottom-6 z-30 sm:z-50`
+        } ${isHe ? "sm:left-6" : "sm:right-6"} no-print`}
+      >
+        {/* ── EXPANDED CHAT DRAWER (BOTTOM SHEET ON MOBILE) ── */}
+        {isOpen ? (
+          <div
+            className={`w-full sm:w-[420px] h-[85vh] sm:h-[550px] max-h-[85vh] bg-slate-900 border-t sm:border border-slate-700/80 rounded-t-3xl sm:rounded-2xl shadow-2xl flex flex-col overflow-hidden backdrop-blur-xl ${
+              isHe ? "rtl" : "ltr"
+            }`}
+            dir={isHe ? "rtl" : "ltr"}
+          >
+            {/* Mobile Drag Indicator */}
+            <div className="w-12 h-1.5 bg-slate-700 rounded-full mx-auto my-2 sm:hidden shrink-0" />
+
+            {/* Header */}
+            <div className="bg-gradient-to-r from-slate-950 via-slate-900 to-slate-950 border-b border-slate-800 p-4 flex items-center justify-between shrink-0">
             <div className="flex items-center gap-2.5">
               <div className="w-8 h-8 rounded-lg bg-amber-500/20 border border-amber-500/40 text-amber-400 flex items-center justify-center">
                 <SparklesIcon className="w-4 h-4" />
@@ -300,6 +324,7 @@ export default function FoodXchangeCopilot() {
           <span className="w-2 h-2 rounded-full bg-emerald-600 animate-ping" />
         </button>
       )}
-    </div>
+      </div>
+    </>
   );
 }

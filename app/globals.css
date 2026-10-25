@@ -584,3 +584,9 @@ body {
   border-radius: 4px;
   font-weight: 500;
 }
+
+
+/* Safe area insets for mobile iOS / Android home bars */
+.safe-area-pb {
+  padding-bottom: max(0.75rem, env(safe-area-inset-bottom, 0.75rem));
+}

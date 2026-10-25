@@ -702,7 +702,86 @@ export default function MixedContainerBuilder({ initialLang = "he" }: Props) {
             </button>
           </div>
 
-          <div className="overflow-x-auto">
+          {/* MOBILE RESPONSIVE CARDS (VISIBLE ON MOBILE ONLY) */}
+          <div className="block sm:hidden space-y-3">
+            {skus.map((sku) => {
+              const totalUnitsSku = sku.pallets * sku.cartonsPerPallet * sku.unitsPerCarton;
+              const totalCostEur = totalUnitsSku * sku.factoryUnitPriceEur;
+              const palletRatio = sku.pallets / Math.max(1, calculations.totalPallets);
+              const allocatedLogisticsEur = calculations.totalConsolidatedLogisticsEur * palletRatio;
+              const unitLandedEur = (totalCostEur + allocatedLogisticsEur) / Math.max(1, totalUnitsSku);
+              const unitLandedIls = Math.round(unitLandedEur * eurRate * 100) / 100;
+
+              return (
+                <div key={sku.id} className="bg-slate-950 p-4 rounded-2xl border border-slate-800 space-y-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-start gap-2.5">
+                      <span className="w-3.5 h-3.5 rounded-full shrink-0 mt-1" style={{ backgroundColor: sku.color }} />
+                      <div>
+                        <h4 className="font-bold text-white text-xs leading-snug">{sku.productName}</h4>
+                        <p className="text-[11px] text-slate-400">{sku.productHebrewName}</p>
+                        <p className="text-[10px] text-slate-500 font-mono mt-0.5">
+                          🏭 {sku.supplierName} ({sku.factoryLocation})
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => handleRemoveSku(sku.id)}
+                      className="text-slate-500 hover:text-rose-400 p-1.5 rounded-lg hover:bg-slate-800 transition"
+                      title="Remove SKU"
+                    >
+                      ✕
+                    </button>
+                  </div>
+
+                  {/* Stepper & Units */}
+                  <div className="flex items-center justify-between bg-slate-900/80 p-2.5 rounded-xl border border-slate-800/80">
+                    <div>
+                      <span className="text-[10px] uppercase text-slate-400 block">{isHe ? "הקצאת משטחים:" : "Pallets Allocation:"}</span>
+                      <span className="text-xs text-slate-300 font-mono">{sku.unitsPerCarton} u/box · {sku.cartonsPerPallet} box/pal</span>
+                    </div>
+
+                    <div className="inline-flex items-center gap-2 bg-slate-950 border border-slate-800 rounded-xl px-2 py-1">
+                      <button
+                        onClick={() => handlePalletChange(sku.id, -1)}
+                        className="w-8 h-8 rounded-lg bg-slate-800 active:bg-slate-700 text-white font-bold flex items-center justify-center text-sm"
+                      >
+                        -
+                      </button>
+                      <span className="font-mono font-bold text-white text-base w-8 text-center">
+                        {sku.pallets}
+                      </span>
+                      <button
+                        onClick={() => handlePalletChange(sku.id, 1)}
+                        className="w-8 h-8 rounded-lg bg-slate-800 active:bg-slate-700 text-white font-bold flex items-center justify-center text-sm"
+                      >
+                        +
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Cost & Landed Grid */}
+                  <div className="grid grid-cols-3 gap-2 text-[11px] pt-1">
+                    <div className="bg-slate-900/60 p-2 rounded-lg">
+                      <span className="text-slate-500 block text-[9px]">{isHe ? "סה״כ יחידות" : "Units"}</span>
+                      <span className="font-bold text-slate-200 font-mono">{totalUnitsSku.toLocaleString()}</span>
+                    </div>
+                    <div className="bg-slate-900/60 p-2 rounded-lg">
+                      <span className="text-slate-500 block text-[9px]">{isHe ? "מחיר מפעל" : "Factory"}</span>
+                      <span className="font-bold text-amber-400 font-mono">€{sku.factoryUnitPriceEur.toFixed(2)}</span>
+                    </div>
+                    <div className="bg-slate-900/60 p-2 rounded-lg">
+                      <span className="text-slate-500 block text-[9px]">{isHe ? "עלות נחיתה" : "Landed"}</span>
+                      <span className="font-bold text-emerald-400 font-mono">₪{unitLandedIls.toFixed(2)}</span>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* DESKTOP TABLE VIEW (VISIBLE ON TABLET & DESKTOP) */}
+          <div className="hidden sm:block overflow-x-auto">
             <table className="w-full text-xs text-left border-collapse">
               <thead>
                 <tr className="bg-slate-950/80 text-slate-400 border-b border-slate-800 font-semibold">
@@ -749,7 +828,7 @@ export default function MixedContainerBuilder({ initialLang = "he" }: Props) {
                         <div className="inline-flex items-center gap-2 bg-slate-950 border border-slate-800 rounded-xl px-2 py-1">
                           <button
                             onClick={() => handlePalletChange(sku.id, -1)}
-                            className="w-6 h-6 rounded-lg bg-slate-800 hover:bg-slate-700 text-white font-bold flex items-center justify-center text-xs"
+                            className="w-7 h-7 rounded-lg bg-slate-800 hover:bg-slate-700 text-white font-bold flex items-center justify-center text-xs"
                           >
                             -
                           </button>
@@ -758,7 +837,7 @@ export default function MixedContainerBuilder({ initialLang = "he" }: Props) {
                           </span>
                           <button
                             onClick={() => handlePalletChange(sku.id, 1)}
-                            className="w-6 h-6 rounded-lg bg-slate-800 hover:bg-slate-700 text-white font-bold flex items-center justify-center text-xs"
+                            className="w-7 h-7 rounded-lg bg-slate-800 hover:bg-slate-700 text-white font-bold flex items-center justify-center text-xs"
                           >
                             +
                           </button>

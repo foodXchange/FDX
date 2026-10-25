@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import Link from "next/link";
 import { type DealRecord, signCommercialDeal } from "@/app/admin/deals/actions";
 import { generatePriorityErpCsv } from "@/lib/documents/erpAsnGenerator";
@@ -19,6 +19,80 @@ export default function ProFormaViewer({ deal: initialDeal }: Props) {
   const [signingRole, setSigningRole] = useState<"buyer" | "supplier">("buyer");
   const [isSigning, setIsSigning] = useState(false);
   const [signSuccess, setSignSuccess] = useState(false);
+
+  // Touch & Mouse Canvas Signature
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [isDrawing, setIsDrawing] = useState(false);
+  const [hasDrawn, setHasDrawn] = useState(false);
+  const [savedSignatureUrl, setSavedSignatureUrl] = useState<string | null>(null);
+
+  const startDrawing = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    const rect = canvas.getBoundingClientRect();
+    ctx.beginPath();
+    ctx.moveTo(e.clientX - rect.left, e.clientY - rect.top);
+    ctx.lineWidth = 2.5;
+    ctx.lineCap = "round";
+    ctx.strokeStyle = "#1e3a8a"; // deep blue ink
+    setIsDrawing(true);
+    setHasDrawn(true);
+  };
+
+  const draw = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (!isDrawing) return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    const rect = canvas.getBoundingClientRect();
+    ctx.lineTo(e.clientX - rect.left, e.clientY - rect.top);
+    ctx.stroke();
+  };
+
+  const startDrawingTouch = (e: React.TouchEvent<HTMLCanvasElement>) => {
+    const canvas = canvasRef.current;
+    if (!canvas || e.touches.length === 0) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    const rect = canvas.getBoundingClientRect();
+    const touch = e.touches[0];
+    ctx.beginPath();
+    ctx.moveTo(touch.clientX - rect.left, touch.clientY - rect.top);
+    ctx.lineWidth = 2.5;
+    ctx.lineCap = "round";
+    ctx.strokeStyle = "#1e3a8a";
+    setIsDrawing(true);
+    setHasDrawn(true);
+  };
+
+  const drawTouch = (e: React.TouchEvent<HTMLCanvasElement>) => {
+    if (!isDrawing || e.touches.length === 0) return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    const rect = canvas.getBoundingClientRect();
+    const touch = e.touches[0];
+    ctx.lineTo(touch.clientX - rect.left, touch.clientY - rect.top);
+    ctx.stroke();
+  };
+
+  const stopDrawing = () => {
+    setIsDrawing(false);
+  };
+
+  const clearCanvas = () => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    setHasDrawn(false);
+    setSavedSignatureUrl(null);
+  };
 
   const ilsValue = Math.round(deal.grossContractValue * 4.05);
 
@@ -73,6 +147,13 @@ export default function ProFormaViewer({ deal: initialDeal }: Props) {
     setIsSigning(false);
 
     if (res.ok) {
+      if (hasDrawn && canvasRef.current) {
+        try {
+          const dataUrl = canvasRef.current.toDataURL("image/png");
+          setSavedSignatureUrl(dataUrl);
+        } catch {}
+      }
+
       setSignSuccess(true);
       const now = new Date().toISOString();
       if (signingRole === "buyer") {
@@ -441,6 +522,9 @@ export default function ProFormaViewer({ deal: initialDeal }: Props) {
               {deal.buyerSigned ? (
                 <div className="bg-emerald-50 border border-emerald-300 p-2.5 rounded-lg text-center space-y-0.5">
                   <span className="text-emerald-700 font-bold block text-xs">✓ DIGITALLY SIGNED & EXECUTED</span>
+                  {savedSignatureUrl && signingRole === "buyer" && (
+                    <img src={savedSignatureUrl} alt="Buyer Signature" className="h-10 mx-auto object-contain my-1 border-b border-emerald-200" />
+                  )}
                   <p className="text-[10px] text-emerald-800 font-medium">{deal.buyerSignerName}</p>
                   <p className="text-[9px] text-slate-500 font-mono">{deal.buyerSignedAt?.slice(0, 19).replace("T", " ")} UTC</p>
                 </div>
@@ -467,6 +551,9 @@ export default function ProFormaViewer({ deal: initialDeal }: Props) {
               {deal.supplierSigned ? (
                 <div className="bg-emerald-50 border border-emerald-300 p-2.5 rounded-lg text-center space-y-0.5">
                   <span className="text-emerald-700 font-bold block text-xs">✓ DIGITALLY SIGNED & EXECUTED</span>
+                  {savedSignatureUrl && signingRole === "supplier" && (
+                    <img src={savedSignatureUrl} alt="Seller Signature" className="h-10 mx-auto object-contain my-1 border-b border-emerald-200" />
+                  )}
                   <p className="text-[10px] text-emerald-800 font-medium">{deal.supplierSignerName}</p>
                   <p className="text-[9px] text-slate-500 font-mono">{deal.supplierSignedAt?.slice(0, 19).replace("T", " ")} UTC</p>
                 </div>
@@ -504,7 +591,7 @@ export default function ProFormaViewer({ deal: initialDeal }: Props) {
 
           {/* INTERACTIVE E-SIGN BOX (IF NOT YET SIGNED BY VIEWER) */}
           {(!deal.buyerSigned || !deal.supplierSigned) && (
-            <div className="print:hidden bg-slate-900 text-white p-6 rounded-2xl shadow-xl mt-6 space-y-4">
+            <div id="signature-section" className="print:hidden bg-slate-900 text-white p-6 rounded-2xl shadow-xl mt-6 space-y-4">
               <div className="flex items-center gap-2">
                 <span className="text-xl">✍️</span>
                 <div>
@@ -556,6 +643,49 @@ export default function ProFormaViewer({ deal: initialDeal }: Props) {
                   </select>
                 </div>
 
+                {/* Touch / Stylus Drawing Canvas */}
+                <div className="sm:col-span-3 space-y-1.5 pt-2">
+                  <div className="flex justify-between items-center text-slate-400">
+                    <label className="flex items-center gap-1.5 font-medium">
+                      <span>✍️</span>
+                      <span>
+                        {lang === "he"
+                          ? "חתימת אצבע / עט מגע / עכבר ישירות על המסך:"
+                          : "Draw Legal Signature (Touch / Finger / Stylus):"}
+                      </span>
+                    </label>
+                    <button
+                      type="button"
+                      onClick={clearCanvas}
+                      className="text-[10px] text-amber-400 hover:text-amber-300 font-semibold underline cursor-pointer"
+                    >
+                      {lang === "he" ? "נקה לוח" : "Clear Pad"}
+                    </button>
+                  </div>
+                  <div className="relative bg-white rounded-xl border border-slate-700 overflow-hidden shadow-inner">
+                    <canvas
+                      ref={canvasRef}
+                      width={600}
+                      height={120}
+                      onMouseDown={startDrawing}
+                      onMouseMove={draw}
+                      onMouseUp={stopDrawing}
+                      onMouseLeave={stopDrawing}
+                      onTouchStart={startDrawingTouch}
+                      onTouchMove={drawTouch}
+                      onTouchEnd={stopDrawing}
+                      className="w-full h-28 bg-white cursor-crosshair touch-none"
+                    />
+                    {!hasDrawn && (
+                      <div className="absolute inset-0 pointer-events-none flex items-center justify-center text-slate-400/60 text-xs italic">
+                        {lang === "he"
+                          ? "חתום כאן באצבע או בעט מגע..."
+                          : "Draw your signature here with finger or mouse..."}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
                 <div className="sm:col-span-3 flex justify-end pt-2">
                   <button
                     type="submit"
@@ -568,6 +698,42 @@ export default function ProFormaViewer({ deal: initialDeal }: Props) {
               </form>
             </div>
           )}
+        </div>
+      </div>
+
+      {/* ── STICKY MOBILE ACTION DOCK (ANCHORED AT BOTTOM OF SCREEN) ── */}
+      <div
+        className="fixed bottom-0 inset-x-0 bg-slate-950/95 backdrop-blur-xl border-t border-slate-800 p-3 z-40 sm:hidden print:hidden shadow-2xl flex items-center justify-between gap-2"
+        dir={lang === "he" ? "rtl" : "ltr"}
+      >
+        <div className="min-w-0 flex-1">
+          <p className="text-[10px] text-slate-400 font-mono truncate">
+            {deal.poNumber} · <strong className="text-white">€{deal.grossContractValue.toLocaleString()}</strong>
+          </p>
+          <p className="text-[11px] text-amber-400 font-bold truncate">
+            {lang === "he" ? "30% מקדמה: " : "30% Wire: "}€{deal.advanceDeposit30.toLocaleString()}
+          </p>
+        </div>
+
+        <div className="flex items-center gap-2 shrink-0">
+          <button
+            onClick={() => {
+              const el = document.getElementById("signature-section");
+              el?.scrollIntoView({ behavior: "smooth" });
+            }}
+            className="px-3.5 py-2 bg-gradient-to-r from-orange-500 to-amber-500 active:from-orange-600 active:to-amber-600 text-white font-bold text-xs rounded-xl shadow-lg shadow-orange-500/30 transition flex items-center gap-1.5"
+          >
+            <span>✍️</span>
+            <span>{deal.buyerSigned ? (lang === "he" ? "הסכם נחתם ✓" : "Signed ✓") : (lang === "he" ? "חתימה על הזמנה" : "Sign PO")}</span>
+          </button>
+
+          <button
+            onClick={handlePrint}
+            className="p-2 bg-slate-800 text-slate-200 border border-slate-700 rounded-xl text-xs active:scale-95 transition"
+            title="Download PDF"
+          >
+            🖨️
+          </button>
         </div>
       </div>
     </div>

@@ -4,6 +4,7 @@ import { SampleKitProvider } from "@/context/SampleKitContext";
 import FloatingSampleKitBar from "@/components/samples/FloatingSampleKitBar";
 import SampleKitModal from "@/components/samples/SampleKitModal";
 import FoodXchangeCopilot from "@/components/ai/FoodXchangeCopilot";
+import MobileBottomNav from "@/components/mobile/MobileBottomNav";
 
 const baseUrl =
   process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
@@ -73,6 +74,7 @@ export default function RootLayout({
           <FloatingSampleKitBar />
           <SampleKitModal />
           <FoodXchangeCopilot />
+          <MobileBottomNav />
         </SampleKitProvider>
       </body>
     </html>
