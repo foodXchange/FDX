@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import WorkflowVideoPlayer from "@/components/video/WorkflowVideoPlayer";
 
 interface Props {
   lang: "he" | "en";
@@ -643,6 +644,27 @@ export default function BuyerGuideView({ lang }: Props) {
               </Link>
             </div>
           </div>
+        </div>
+      </section>
+
+      {/* ── VIDEO MASTERCLASS & SOFTWARE DEMO ── */}
+      <section className="py-16 px-6 border-t border-slate-800 bg-slate-900/60 no-print">
+        <div className="max-w-6xl mx-auto">
+          <div className="text-center max-w-3xl mx-auto mb-10">
+            <span className="px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400 text-xs font-bold uppercase tracking-wider mb-3 inline-block">
+              {isHe ? "סרטוני הדרכה והדגמה" : "Video Masterclass & Live Walkthrough"}
+            </span>
+            <h2 className="text-2xl sm:text-4xl font-extrabold text-white mb-3">
+              {isHe ? "סרטוני הדגמה: צעד-אחר-צעד במערכת" : "Guided Video Tours: Step-by-Step Software Walkthrough"}
+            </h2>
+            <p className="text-xs sm:text-sm text-slate-400">
+              {isHe
+                ? "צפו בסרטוני הדרכה קצרים הממחישים כיצד לאתר 5,000+ מפעלים, להזמין ערכות טעימה לשולחן העבודה, ולחשב עלות שער מחסן."
+                : "Watch 60-second guided video walkthroughs covering factory discovery, sample box dispatches, and landed cost simulation."}
+            </p>
+          </div>
+
+          <WorkflowVideoPlayer lang={lang} />
         </div>
       </section>
 

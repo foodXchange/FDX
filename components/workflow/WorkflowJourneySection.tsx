@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import WorkflowVideoPlayer from "@/components/video/WorkflowVideoPlayer";
 
 interface Props {
   lang?: "he" | "en";
@@ -542,36 +543,8 @@ export default function WorkflowJourneySection({ lang = "he" }: Props) {
             </div>
 
             {/* Video Player Box */}
-            <div className="relative aspect-video bg-black flex flex-col items-center justify-center p-8 text-center">
-              {/* Ready for embed iframe or direct HTML5 video */}
-              <div className="max-w-md mx-auto">
-                <div className="w-16 h-16 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-400 mx-auto mb-4 flex items-center justify-center">
-                  <PlayIcon className="w-8 h-8 ml-0.5" />
-                </div>
-                <h4 className="text-lg font-bold text-white mb-2">
-                  {isHe ? "סרטון הדרכה והדגמת פלטפורמה" : "FoodXchange Live Demo Tour"}
-                </h4>
-                <p className="text-xs text-slate-400 leading-relaxed mb-6">
-                  {isHe
-                    ? "סרטון ההדגמה של FoodXchange מציג את תהליך איתור 5,000+ המפעלים, משלוח ערכות הטעימה ישירות לשולחן הקניין, ובדיקת התקינה של ת״י 1145."
-                    : "The 60-second walkthrough demonstrates factory discovery across 5,000+ plants, express tasting kits dispatched to your desk, and automated SI 1145 compliance."}
-                </p>
-                <div className="flex items-center justify-center gap-3">
-                  <Link
-                    href={isHe ? "/he/products" : "/en/products"}
-                    onClick={() => setVideoModalOpen(false)}
-                    className="px-4 py-2 rounded-xl bg-amber-500 text-slate-950 font-bold text-xs hover:bg-amber-400 transition"
-                  >
-                    {isHe ? "התחל סיור בקטלוג המוצרים" : "Explore Live Catalog"}
-                  </Link>
-                  <button
-                    onClick={() => setVideoModalOpen(false)}
-                    className="px-4 py-2 rounded-xl bg-slate-800 text-slate-300 font-medium text-xs hover:text-white transition"
-                  >
-                    {isHe ? "סגור חלון" : "Close"}
-                  </button>
-                </div>
-              </div>
+            <div className="p-2 sm:p-4 bg-slate-950">
+              <WorkflowVideoPlayer lang={lang} />
             </div>
           </div>
         </div>

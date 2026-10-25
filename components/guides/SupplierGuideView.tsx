@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import WorkflowVideoPlayer from "@/components/video/WorkflowVideoPlayer";
 
 function BuildingIcon({ className = "w-4 h-4" }: { className?: string }) {
   return (
@@ -661,6 +662,25 @@ TERMS OF DELIVERY: DDP / CIP Tel Aviv Airport`;
               dispute resolution governed under Swiss or English commercial arbitration, protecting both parties.
             </div>
           </div>
+        </div>
+      </section>
+
+      {/* ── VIDEO MASTERCLASS & LIVE DEMO ── */}
+      <section className="py-16 px-6 border-t border-slate-800 bg-slate-900/60 no-print">
+        <div className="max-w-6xl mx-auto">
+          <div className="text-center max-w-3xl mx-auto mb-10">
+            <span className="px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-bold uppercase tracking-wider mb-3 inline-block">
+              Factory Video Masterclass
+            </span>
+            <h2 className="text-2xl sm:text-4xl font-extrabold text-white mb-3">
+              Guided Video Tours: How to Export to Israeli Supermarkets
+            </h2>
+            <p className="text-xs sm:text-sm text-slate-400">
+              Watch 60-second operational walkthroughs covering CIF container quoting, DHL sample clearance waivers, and kosher production campaigns.
+            </p>
+          </div>
+
+          <WorkflowVideoPlayer lang="en" />
         </div>
       </section>
 

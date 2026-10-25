@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 function formatBatchDate(date: Date | string): string {
   const d = new Date(date);
@@ -114,8 +115,20 @@ export function ScraperConsole({
   }, []);
 
   // Autonomous Queue State
+  type MetricTab = "all" | "done" | "ok" | "skipped" | "failed" | "products";
   const [queueRunning, setQueueRunning] = useState(false);
   const [showQueueHelp, setShowQueueHelp] = useState(false);
+  const [activeStatusTab, setActiveStatusTab] = useState<MetricTab>("all");
+  const guideBoxRef = useRef<HTMLDivElement>(null);
+
+  const openStatusGuide = (tab: MetricTab) => {
+    setActiveStatusTab(tab);
+    setShowQueueHelp(true);
+    setTimeout(() => {
+      guideBoxRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }, 60);
+  };
+
   const [queueState, setQueueState] = useState<{
     currentSupplier: string | null;
     currentBatch: string | null;
@@ -497,31 +510,281 @@ export function ScraperConsole({
             </span>
           </div>
 
-          {/* Interactive Guide Box */}
+          {/* Interactive Guide Box & Status Drill-Down */}
           {showQueueHelp && (
-            <div className="mb-2.5 p-3 bg-white/95 rounded-lg border border-emerald-200 text-[11px] text-slate-700 space-y-1.5 shadow-xs">
-              <div className="font-bold text-emerald-950 flex items-center justify-between">
-                <span>Autonomous Queue Legend:</span>
+            <div
+              ref={guideBoxRef}
+              className="mb-2.5 p-3.5 bg-white/98 rounded-xl border border-emerald-300 text-[11px] text-slate-700 space-y-2.5 shadow-md animate-fade-in"
+            >
+              {/* Header & Tabs */}
+              <div className="flex items-center justify-between gap-2 border-b border-emerald-100 pb-2 flex-wrap">
+                <div className="flex items-center gap-1.5">
+                  <span className="font-bold text-emerald-950 text-xs">
+                    Queue Status Explorer & Root Causes:
+                  </span>
+                  <span className="text-[10px] text-slate-400">
+                    (Click any tab to see why status occurred)
+                  </span>
+                </div>
                 <button
                   type="button"
                   onClick={() => setShowQueueHelp(false)}
-                  className="text-slate-400 hover:text-slate-600 text-xs px-1 cursor-pointer"
+                  className="text-slate-400 hover:text-slate-700 text-xs px-1.5 py-0.5 rounded hover:bg-slate-100 cursor-pointer"
+                  title="Close explanation"
                 >
-                  ✕
+                  ✕ Close
                 </button>
               </div>
-              <ul className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1.5 text-[10.5px]">
-                <li><strong className="text-slate-900">Done:</strong> Total suppliers evaluated in this run (OK + Skipped + Failed).</li>
-                <li><strong className="text-green-800">OK:</strong> Verified food/beverage producers with catalog products extracted.</li>
-                <li><strong className="text-amber-800">Skipped:</strong> Non-food entities (packaging, machinery, POS printers, insurance) filtered out by AI.</li>
-                <li><strong className="text-red-700">Failed:</strong> Inaccessible websites (DNS expired, network timeout, or bot-block).</li>
-                <li><strong className="text-blue-800">Products:</strong> Total new food catalog items extracted & vector embedded.</li>
-                <li><strong className="text-slate-900">Pending Left:</strong> Remaining suppliers waiting in the queue.</li>
-              </ul>
+
+              {/* Status Tab Pills */}
+              <div className="flex flex-wrap gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => setActiveStatusTab("all")}
+                  className={`px-2.5 py-1 rounded-md text-[10.5px] font-bold transition cursor-pointer ${
+                    activeStatusTab === "all"
+                      ? "bg-slate-900 text-white shadow-xs"
+                      : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                  }`}
+                >
+                  All (Summary)
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setActiveStatusTab("failed")}
+                  className={`px-2.5 py-1 rounded-md text-[10.5px] font-bold transition cursor-pointer flex items-center gap-1 ${
+                    activeStatusTab === "failed"
+                      ? "bg-red-600 text-white shadow-xs"
+                      : "bg-red-50 text-red-700 border border-red-200 hover:bg-red-100"
+                  }`}
+                >
+                  <span>🔴 Failed ({queueState.failedCount})</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setActiveStatusTab("ok")}
+                  className={`px-2.5 py-1 rounded-md text-[10.5px] font-bold transition cursor-pointer flex items-center gap-1 ${
+                    activeStatusTab === "ok"
+                      ? "bg-emerald-600 text-white shadow-xs"
+                      : "bg-emerald-50 text-emerald-800 border border-emerald-200 hover:bg-emerald-100"
+                  }`}
+                >
+                  <span>🟢 OK ({queueState.successCount})</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setActiveStatusTab("skipped")}
+                  className={`px-2.5 py-1 rounded-md text-[10.5px] font-bold transition cursor-pointer flex items-center gap-1 ${
+                    activeStatusTab === "skipped"
+                      ? "bg-amber-600 text-white shadow-xs"
+                      : "bg-amber-50 text-amber-800 border border-amber-200 hover:bg-amber-100"
+                  }`}
+                >
+                  <span>🟡 Skipped ({queueState.skippedCount})</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setActiveStatusTab("products")}
+                  className={`px-2.5 py-1 rounded-md text-[10.5px] font-bold transition cursor-pointer flex items-center gap-1 ${
+                    activeStatusTab === "products"
+                      ? "bg-blue-600 text-white shadow-xs"
+                      : "bg-blue-50 text-blue-800 border border-blue-200 hover:bg-blue-100"
+                  }`}
+                >
+                  <span>📦 Products ({queueState.productsFound})</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setActiveStatusTab("done")}
+                  className={`px-2.5 py-1 rounded-md text-[10.5px] font-bold transition cursor-pointer ${
+                    activeStatusTab === "done"
+                      ? "bg-slate-700 text-white shadow-xs"
+                      : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                  }`}
+                >
+                  ⚪ Done ({queueState.processedCount})
+                </button>
+              </div>
+
+              {/* Dynamic Drill-Down Content */}
+              {activeStatusTab === "failed" && (
+                <div className="p-3 bg-red-50/70 rounded-lg border border-red-200 space-y-2">
+                  <div className="font-bold text-red-900 text-xs flex items-center gap-1.5">
+                    <span>❌ Why Did These Websites Fail?</span>
+                  </div>
+                  <p className="text-[11px] text-red-800 leading-relaxed">
+                    A supplier is marked <strong>Failed</strong> when our web crawlers cannot extract content from their domain. The 4 root causes are:
+                  </p>
+                  <ul className="list-disc list-inside space-y-1 text-[10.5px] text-red-900">
+                    <li><strong>Dead / Expired Domain:</strong> The company domain no longer resolves (DNS ENOTFOUND) or points to a registrar parking page.</li>
+                    <li><strong>WAF Anti-Bot Challenge:</strong> Cloudflare 403, Incapsula, or Datadome actively blocking automated HTTP scraping requests.</li>
+                    <li><strong>Gateway Timeout (&gt;15s):</strong> The factory web server is down or extremely slow to respond.</li>
+                    <li><strong>Bot Protection / Captcha:</strong> JavaScript-only splash pages that block standard headless fetching.</li>
+                  </ul>
+                  <div className="flex items-center gap-2 pt-1 border-t border-red-200/60">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setFilterStatus("failed");
+                        setShowQueueHelp(false);
+                      }}
+                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-red-600 text-white font-bold text-[10.5px] hover:bg-red-700 transition cursor-pointer"
+                    >
+                      <span>↻ Switch Console to &quot;Failed Only&quot; to Retry</span>
+                    </button>
+                    <a
+                      href="#status=failed"
+                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-white text-red-700 border border-red-300 font-semibold text-[10.5px] hover:bg-red-50 transition"
+                    >
+                      <span>📋 Filter Table for Failed Rows</span>
+                    </a>
+                  </div>
+                </div>
+              )}
+
+              {activeStatusTab === "ok" && (
+                <div className="p-3 bg-emerald-50/70 rounded-lg border border-emerald-200 space-y-2">
+                  <div className="font-bold text-emerald-950 text-xs flex items-center gap-1.5">
+                    <span>✅ What Does OK Mean?</span>
+                  </div>
+                  <p className="text-[11px] text-emerald-900 leading-relaxed">
+                    <strong>OK</strong> indicates a verified Food &amp; Beverage factory. The crawler successfully reached their domain, confirmed genuine food production, and cataloged discrete retail/foodservice items.
+                  </p>
+                  <ul className="list-disc list-inside space-y-1 text-[10.5px] text-emerald-900">
+                    <li>Factory identity confirmed (IFS/BRC food standards detected).</li>
+                    <li>Product catalog scraped and vector-embedded via Voyage AI (<code className="font-mono text-[10px]">voyage-3</code>).</li>
+                    <li>Images saved to permanent Supabase CDN storage.</li>
+                  </ul>
+                  <div className="pt-1 border-t border-emerald-200/60">
+                    <Link
+                      href="/admin/products"
+                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-emerald-600 text-white font-bold text-[10.5px] hover:bg-emerald-700 transition"
+                    >
+                      <span>📦 Open Product Catalog (/admin/products) →</span>
+                    </Link>
+                  </div>
+                </div>
+              )}
+
+              {activeStatusTab === "skipped" && (
+                <div className="p-3 bg-amber-50/70 rounded-lg border border-amber-200 space-y-2">
+                  <div className="font-bold text-amber-950 text-xs flex items-center gap-1.5">
+                    <span>🟡 Why Were These Suppliers Skipped?</span>
+                  </div>
+                  <p className="text-[11px] text-amber-900 leading-relaxed">
+                    Trade show exhibitor lists (e.g. Alimentaria, Anuga, SIAL) contain many non-food companies:
+                  </p>
+                  <ul className="list-disc list-inside space-y-1 text-[10.5px] text-amber-900">
+                    <li><strong>Packaging &amp; Glass:</strong> e.g. glass bottles, cardboard, labeling machinery (like Cerve glass division).</li>
+                    <li><strong>Machinery &amp; Equipment:</strong> e.g. commercial ovens, refrigeration, POS receipt printers (like Epson, Irinox).</li>
+                    <li><strong>Services &amp; Government:</strong> e.g. insurance brokers (Mapfre), logistics, regional trade pavilions.</li>
+                  </ul>
+                  <p className="text-[10.5px] text-amber-800">
+                    💡 Our AI classifier automatically tags them as <code className="font-mono text-[10px]">skipped</code> so your food buyer catalog remains 100% pure food products!
+                  </p>
+                </div>
+              )}
+
+              {activeStatusTab === "products" && (
+                <div className="p-3 bg-blue-50/70 rounded-lg border border-blue-200 space-y-2">
+                  <div className="font-bold text-blue-950 text-xs flex items-center gap-1.5">
+                    <span>📦 Extracted Products Breakdown</span>
+                  </div>
+                  <p className="text-[11px] text-blue-900 leading-relaxed">
+                    Total discrete food and beverage SKUs parsed from scraped European factory catalogs:
+                  </p>
+                  <ul className="list-disc list-inside space-y-1 text-[10.5px] text-blue-900">
+                    <li>Each product includes title, description, package weight, and format.</li>
+                    <li>85%+ assigned to deep taxonomy (Pasta, Olive Oil, Bakery, Dairy, Frozen, etc.).</li>
+                    <li>93%+ vector-embedded to power natural language semantic buyer searches.</li>
+                  </ul>
+                  <div className="pt-1 border-t border-blue-200/60">
+                    <Link
+                      href="/admin/products"
+                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-blue-600 text-white font-bold text-[10.5px] hover:bg-blue-700 transition"
+                    >
+                      <span>View All Products in Catalog →</span>
+                    </Link>
+                  </div>
+                </div>
+              )}
+
+              {activeStatusTab === "done" && (
+                <div className="p-3 bg-slate-100 rounded-lg border border-slate-200 space-y-1.5">
+                  <div className="font-bold text-slate-900 text-xs">
+                    ⚪ Done: Session Evaluation Progress
+                  </div>
+                  <p className="text-[11px] text-slate-700 leading-relaxed">
+                    <strong>Done ({queueState.processedCount})</strong> represents the total suppliers evaluated in this background run. It is calculated as:
+                  </p>
+                  <div className="p-2 rounded bg-white font-mono text-[11px] text-slate-800 border border-slate-200">
+                    Done ({queueState.processedCount}) = OK ({queueState.successCount}) + Skipped ({queueState.skippedCount}) + Failed ({queueState.failedCount})
+                  </div>
+                </div>
+              )}
+
+              {activeStatusTab === "all" && (
+                <ul className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2 text-[10.5px]">
+                  <li>
+                    <button
+                      type="button"
+                      onClick={() => setActiveStatusTab("done")}
+                      className="text-left hover:underline cursor-pointer"
+                    >
+                      <strong className="text-slate-900">Done:</strong> Total suppliers evaluated in this run (OK + Skipped + Failed).
+                    </button>
+                  </li>
+                  <li>
+                    <button
+                      type="button"
+                      onClick={() => setActiveStatusTab("ok")}
+                      className="text-left hover:underline cursor-pointer"
+                    >
+                      <strong className="text-green-800">OK:</strong> Verified food/beverage producers with catalog products extracted.
+                    </button>
+                  </li>
+                  <li>
+                    <button
+                      type="button"
+                      onClick={() => setActiveStatusTab("skipped")}
+                      className="text-left hover:underline cursor-pointer"
+                    >
+                      <strong className="text-amber-800">Skipped:</strong> Non-food entities (packaging, machinery, POS printers, insurance) filtered by AI.
+                    </button>
+                  </li>
+                  <li>
+                    <button
+                      type="button"
+                      onClick={() => setActiveStatusTab("failed")}
+                      className="text-left hover:underline cursor-pointer"
+                    >
+                      <strong className="text-red-700">Failed:</strong> Inaccessible websites (DNS expired, network timeout, or bot-block).
+                    </button>
+                  </li>
+                  <li>
+                    <button
+                      type="button"
+                      onClick={() => setActiveStatusTab("products")}
+                      className="text-left hover:underline cursor-pointer"
+                    >
+                      <strong className="text-blue-800">Products:</strong> Total new food catalog items extracted &amp; vector embedded.
+                    </button>
+                  </li>
+                  <li>
+                    <strong className="text-slate-900">Pending Left:</strong> Remaining suppliers waiting in the queue.
+                  </li>
+                </ul>
+              )}
             </div>
           )}
 
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-[11px] font-medium text-emerald-800 bg-white/95 px-3 py-2 rounded-lg border border-emerald-200">
+          {/* Interactive Metric Pills Strip (Clickable!) */}
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-[11px] font-medium text-emerald-800 bg-white/95 px-3 py-2 rounded-lg border border-emerald-200">
             {/* Now */}
             <div className="relative group/tip cursor-help">
               <span className="text-slate-500">Now:</span>{" "}
@@ -544,64 +807,89 @@ export function ScraperConsole({
               </div>
             </div>
 
-            {/* Done */}
-            <div className="relative group/tip cursor-help">
+            {/* Done (CLICKABLE) */}
+            <button
+              type="button"
+              onClick={() => openStatusGuide("done")}
+              title="Click to view explanation of Done count"
+              className="relative group/tip cursor-pointer hover:bg-emerald-100/80 rounded px-1.5 py-0.5 transition text-left"
+            >
               <span className="text-slate-500">Done:</span>{" "}
               <span className="font-bold text-slate-900 underline decoration-dotted decoration-slate-400">
                 {queueState.processedCount}
               </span>
               <div className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 hidden group-hover/tip:flex flex-col items-center z-50 w-56 p-2 bg-slate-900 text-white text-[11px] rounded-lg shadow-xl leading-snug text-center">
-                <span>Total suppliers evaluated in this background run (OK + Skipped + Failed).</span>
+                <span>Click to view why Done is incremented (OK + Skipped + Failed).</span>
               </div>
-            </div>
+            </button>
 
-            {/* OK */}
-            <div className="relative group/tip cursor-help">
+            {/* OK (CLICKABLE) */}
+            <button
+              type="button"
+              onClick={() => openStatusGuide("ok")}
+              title="Click to view explanation of OK verified food factories"
+              className="relative group/tip cursor-pointer hover:bg-green-100/80 rounded px-1.5 py-0.5 transition text-left"
+            >
               <span className="text-slate-500">OK:</span>{" "}
               <span className="text-green-700 font-bold underline decoration-dotted decoration-green-400">
                 {queueState.successCount}
               </span>
               <div className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 hidden group-hover/tip:flex flex-col items-center z-50 w-60 p-2 bg-slate-900 text-white text-[11px] rounded-lg shadow-xl leading-snug text-center">
-                <span>Food & Beverage manufacturers successfully cataloged with extracted products.</span>
+                <span>Click to see what OK means (verified Food &amp; Beverage producers).</span>
               </div>
-            </div>
+            </button>
 
-            {/* Skipped */}
+            {/* Skipped (CLICKABLE) */}
             {queueState.skippedCount > 0 && (
-              <div className="relative group/tip cursor-help">
+              <button
+                type="button"
+                onClick={() => openStatusGuide("skipped")}
+                title="Click to view why non-food exhibitors were skipped"
+                className="relative group/tip cursor-pointer hover:bg-amber-100/80 rounded px-1.5 py-0.5 transition text-left"
+              >
                 <span className="text-slate-500">Skipped:</span>{" "}
                 <span className="text-amber-700 font-bold underline decoration-dotted decoration-amber-400">
                   {queueState.skippedCount}
                 </span>
                 <div className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 hidden group-hover/tip:flex flex-col items-center z-50 w-64 p-2 bg-slate-900 text-white text-[11px] rounded-lg shadow-xl leading-snug text-center">
-                  <span>Non-food entities (packaging, machinery, POS printers, insurance) filtered out by AI to protect your food catalog.</span>
+                  <span>Click to view why non-food entities (machinery, POS printers) were skipped.</span>
                 </div>
-              </div>
+              </button>
             )}
 
-            {/* Failed */}
+            {/* Failed (CLICKABLE) */}
             {queueState.failedCount > 0 && (
-              <div className="relative group/tip cursor-help">
+              <button
+                type="button"
+                onClick={() => openStatusGuide("failed")}
+                title="Click to view why websites failed (DNS, timeout, bot-block) and retry"
+                className="relative group/tip cursor-pointer hover:bg-red-100/80 rounded px-1.5 py-0.5 transition text-left"
+              >
                 <span className="text-slate-500">Failed:</span>{" "}
                 <span className="text-red-600 font-bold underline decoration-dotted decoration-red-400">
                   {queueState.failedCount}
                 </span>
                 <div className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 hidden group-hover/tip:flex flex-col items-center z-50 w-56 p-2 bg-slate-900 text-white text-[11px] rounded-lg shadow-xl leading-snug text-center">
-                  <span>Inaccessible websites (DNS expired, network timeout, or bot-block).</span>
+                  <span>Click to see why websites failed and how to retry them.</span>
                 </div>
-              </div>
+              </button>
             )}
 
-            {/* Products */}
-            <div className="relative group/tip cursor-help">
+            {/* Products (CLICKABLE) */}
+            <button
+              type="button"
+              onClick={() => openStatusGuide("products")}
+              title="Click to view product catalog breakdown"
+              className="relative group/tip cursor-pointer hover:bg-blue-100/80 rounded px-1.5 py-0.5 transition text-left"
+            >
               <span className="text-slate-500">Products:</span>{" "}
               <span className="text-blue-700 font-bold underline decoration-dotted decoration-blue-400">
                 {queueState.productsFound}
               </span>
               <div className="pointer-events-none absolute bottom-full right-0 mb-1.5 hidden group-hover/tip:flex flex-col items-end z-50 w-60 p-2 bg-slate-900 text-white text-[11px] rounded-lg shadow-xl leading-snug text-center">
-                <span>Total new food/beverage catalog items extracted, categorized, and vector-embedded in this session.</span>
+                <span>Click to view how products are extracted &amp; vector-embedded.</span>
               </div>
-            </div>
+            </button>
           </div>
 
           {queueState.lastMessage && (

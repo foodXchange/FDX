@@ -421,7 +421,8 @@ export default async function ScraperPage() {
               pct={Math.round(
                 (globalCounts.scraped / Math.max(globalCounts.total, 1)) * 100
               )}
-              tooltip="Confirmed manufacturers with extracted products & profile"
+              tooltip="Confirmed manufacturers with extracted products & profile (Click to filter table)"
+              href="#status=scraped"
             />
             <KpiPill
               color="orange"
@@ -430,7 +431,8 @@ export default async function ScraperPage() {
               pct={Math.round(
                 (globalCounts.pending / Math.max(globalCounts.total, 1)) * 100
               )}
-              tooltip="Waiting to be scraped"
+              tooltip="Waiting to be scraped (Click to filter table)"
+              href="#status=pending"
             />
             <KpiPill
               color="red"
@@ -439,19 +441,22 @@ export default async function ScraperPage() {
               pct={Math.round(
                 (globalCounts.failed / Math.max(globalCounts.total, 1)) * 100
               )}
-              tooltip="Website blocked or unreachable — eligible for retry"
+              tooltip="Website blocked or unreachable — eligible for retry (Click to filter table)"
+              href="#status=failed"
             />
             <KpiPill
               color="gray"
               label="Skipped"
               count={globalCounts.skipped}
-              tooltip="Non-manufacturers (distributors, retailers, associations) automatically filtered out"
+              tooltip="Non-manufacturers (distributors, retailers, packaging) automatically filtered out (Click to filter table)"
+              href="#status=skipped"
             />
             <KpiPill
               color="blue"
               label="Products"
               count={totalProducts}
-              tooltip={`Total extracted products in supplier_products (${factories.length.toLocaleString()} factories mapped)`}
+              tooltip={`Total extracted products in supplier_products (${factories.length.toLocaleString()} factories mapped) — Click to open Catalog`}
+              href="/admin/products"
             />
           </div>
 
@@ -907,27 +912,31 @@ function KpiPill({
   count,
   pct,
   tooltip,
+  href,
 }: {
   color: "slate" | "emerald" | "green" | "orange" | "red" | "gray" | "blue";
   label: string;
   count: number;
   pct?: number;
   tooltip: string;
+  href?: string;
 }) {
   const styles = {
-    slate: "bg-slate-100 text-slate-800 border-slate-200",
-    emerald: "bg-emerald-50 text-emerald-800 border-emerald-200",
-    green: "bg-green-50 text-green-700 border-green-200",
-    orange: "bg-orange-50 text-orange-700 border-orange-200",
-    red: "bg-red-50 text-red-700 border-red-200",
-    gray: "bg-slate-50 text-slate-600 border-slate-200",
-    blue: "bg-blue-50 text-blue-700 border-blue-200",
+    slate: "bg-slate-100 text-slate-800 border-slate-200 hover:bg-slate-200",
+    emerald: "bg-emerald-50 text-emerald-800 border-emerald-200 hover:bg-emerald-100",
+    green: "bg-green-50 text-green-700 border-green-200 hover:bg-green-100",
+    orange: "bg-orange-50 text-orange-700 border-orange-200 hover:bg-orange-100",
+    red: "bg-red-50 text-red-700 border-red-200 hover:bg-red-100",
+    gray: "bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100",
+    blue: "bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100",
   };
 
-  return (
+  const pillContent = (
     <span
       title={tooltip}
-      className={`inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full border cursor-help ${styles[color]}`}
+      className={`inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full border transition-all ${
+        href ? "cursor-pointer hover:shadow-xs active:scale-95" : "cursor-help"
+      } ${styles[color]}`}
     >
       <span>{count.toLocaleString()}</span>
       <span className="font-medium opacity-85">{label}</span>
@@ -936,6 +945,11 @@ function KpiPill({
       )}
     </span>
   );
+
+  if (href) {
+    return <a href={href}>{pillContent}</a>;
+  }
+  return pillContent;
 }
 
 function ParamChip({
