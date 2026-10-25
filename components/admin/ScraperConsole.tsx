@@ -479,31 +479,77 @@ export function ScraperConsole({
       {queueRunning && queueState && (
         <div className="rounded-xl border border-emerald-300 bg-emerald-50 p-3 text-xs text-emerald-900 shadow-2xs">
           <div className="flex items-center justify-between font-semibold mb-1.5">
-            <span className="flex items-center gap-2">
+            <span
+              className="flex items-center gap-2 cursor-help"
+              title="Autonomous background crawler continuously processes pending suppliers using Firecrawl, Gemini 2.5 Flash, and Voyage AI."
+            >
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
               Autonomous Queue Active (Pending Only)
             </span>
-            <span className="font-mono bg-emerald-100 px-2 py-0.5 rounded text-emerald-800">
+            <span
+              className="font-mono bg-emerald-100 px-2 py-0.5 rounded text-emerald-800 cursor-help"
+              title="Total pending suppliers waiting to be analyzed across all batches."
+            >
               {queueState.totalPending} pending left
             </span>
           </div>
-          <div className="flex flex-wrap gap-3 text-[11px] font-medium text-emerald-800 bg-white/80 px-2.5 py-1.5 rounded-lg border border-emerald-200">
-            <div>
-              Now: <span className="font-bold">{queueState.currentSupplier || "Next..."}</span>
+          <div className="flex flex-wrap items-center gap-x-3.5 gap-y-1.5 text-[11px] font-medium text-emerald-800 bg-white/90 px-3 py-2 rounded-lg border border-emerald-200">
+            <div title="Current supplier being crawled or verified right now">
+              <span className="text-slate-500">Now:</span>{" "}
+              <span className="font-bold text-slate-800">{queueState.currentSupplier || "Next..."}</span>
             </div>
-            <div>
-              Batch: <span className="font-mono">{queueState.currentBatch || "All"}</span>
+            <div title="The CSV import batch this supplier originated from">
+              <span className="text-slate-500">Batch:</span>{" "}
+              <span className="font-mono font-medium text-slate-700">{queueState.currentBatch || "All"}</span>
             </div>
-            <div>
-              Done: <span className="font-bold">{queueState.processedCount}</span>
+            <div
+              className="cursor-help border-b border-dotted border-slate-400"
+              title="Done = Total suppliers evaluated in this background run (OK + Skipped + Failed)"
+            >
+              <span className="text-slate-500">Done:</span>{" "}
+              <span className="font-bold text-slate-900">{queueState.processedCount}</span>
             </div>
-            <div>
-              OK: <span className="text-green-700 font-bold">{queueState.successCount}</span>
+            <div
+              className="cursor-help border-b border-dotted border-green-500"
+              title="OK = Food & Beverage producers successfully scraped and cataloged with products"
+            >
+              <span className="text-slate-500">OK:</span>{" "}
+              <span className="text-green-700 font-bold">{queueState.successCount}</span>
             </div>
-            <div>
-              Products: <span className="text-blue-700 font-bold">{queueState.productsFound}</span>
+            {queueState.skippedCount > 0 && (
+              <div
+                className="cursor-help border-b border-dotted border-amber-500"
+                title="Skipped = Non-food entities (packaging, machinery, insurance, government booths) filtered out by AI to keep your food catalog clean"
+              >
+                <span className="text-slate-500">Skipped:</span>{" "}
+                <span className="text-amber-700 font-bold">{queueState.skippedCount}</span>
+              </div>
+            )}
+            {queueState.failedCount > 0 && (
+              <div
+                className="cursor-help border-b border-dotted border-red-500"
+                title="Failed = Inaccessible domains (DNS expired, network timeout, or bot-block)"
+              >
+                <span className="text-slate-500">Failed:</span>{" "}
+                <span className="text-red-600 font-bold">{queueState.failedCount}</span>
+              </div>
+            )}
+            <div
+              className="cursor-help border-b border-dotted border-blue-500"
+              title="Products = Total new food/beverage catalog items extracted, categorized, and vector-embedded in this session"
+            >
+              <span className="text-slate-500">Products:</span>{" "}
+              <span className="text-blue-700 font-bold">{queueState.productsFound}</span>
             </div>
           </div>
+          {queueState.lastMessage && (
+            <div
+              className="mt-1.5 text-[10px] text-emerald-700 font-mono truncate px-1 cursor-default"
+              title={queueState.lastMessage}
+            >
+              ↳ {queueState.lastMessage}
+            </div>
+          )}
         </div>
       )}
 
