@@ -133,6 +133,115 @@ export default function AdminDocsHub({ categories, articles }: Props) {
         </div>
       </div>
 
+      {/* ── 3-PILLAR OPERATING GUIDES QUICK-ACCESS ── */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {/* Buyer Guide Card */}
+        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-sm hover:border-amber-500/40 transition-all flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <span className="px-2.5 py-0.5 rounded-md bg-amber-500/10 text-amber-400 border border-amber-500/20 text-[10px] font-bold uppercase tracking-wider">
+                🛒 Retail Buyers
+              </span>
+              <span className="text-[11px] text-slate-400">Bilingual (HE / EN)</span>
+            </div>
+            <h3 className="text-sm font-bold text-white mb-1.5">
+              Retail Buyer Sourcing Guide
+            </h3>
+            <p className="text-xs text-slate-400 leading-relaxed mb-4">
+              Step-by-step buyer journey: catalog filtering, express courier tasting sample hub, project tracking (/track/[id]), and SI 1145 compliance.
+            </p>
+          </div>
+          <div className="flex items-center gap-2 pt-3 border-t border-slate-800">
+            <Link
+              href="/he/guide"
+              target="_blank"
+              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-amber-500 text-slate-950 font-bold text-xs hover:bg-amber-400 transition"
+            >
+              <span>עברית (RTL)</span>
+              <span className="text-[10px]">↗</span>
+            </Link>
+            <Link
+              href="/en/guide"
+              target="_blank"
+              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-slate-800 text-slate-200 border border-slate-700 font-medium text-xs hover:text-white hover:border-slate-500 transition"
+            >
+              <span>English</span>
+              <span className="text-[10px]">↗</span>
+            </Link>
+          </div>
+        </div>
+
+        {/* Supplier Guide Card */}
+        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-sm hover:border-emerald-500/40 transition-all flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <span className="px-2.5 py-0.5 rounded-md bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[10px] font-bold uppercase tracking-wider">
+                🏭 European Suppliers
+              </span>
+              <span className="text-[11px] text-slate-400">English / Global</span>
+            </div>
+            <h3 className="text-sm font-bold text-white mb-1.5">
+              European Supplier Export Guide
+            </h3>
+            <p className="text-xs text-slate-400 leading-relaxed mb-4">
+              Factory export playbook: quoting CIF Haifa, courier customs waiver invoice template, Chief Rabbinate Kosher, and 30/70 payment security.
+            </p>
+          </div>
+          <div className="flex items-center gap-2 pt-3 border-t border-slate-800">
+            <Link
+              href="/en/supplier-guide"
+              target="_blank"
+              className="inline-flex items-center gap-1 px-3.5 py-1.5 rounded-lg bg-emerald-500 text-slate-950 font-bold text-xs hover:bg-emerald-400 transition"
+            >
+              <span>Open Export Guide</span>
+              <span className="text-[10px]">↗</span>
+            </Link>
+            <Link
+              href="/en/suppliers/register"
+              target="_blank"
+              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-slate-800 text-slate-200 border border-slate-700 font-medium text-xs hover:text-white transition"
+            >
+              <span>Intake Form</span>
+              <span className="text-[10px]">↗</span>
+            </Link>
+          </div>
+        </div>
+
+        {/* Admin SOP Card */}
+        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-sm hover:border-sky-500/40 transition-all flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <span className="px-2.5 py-0.5 rounded-md bg-sky-500/10 text-sky-400 border border-sky-500/20 text-[10px] font-bold uppercase tracking-wider">
+                👑 Deal Desk Operations
+              </span>
+              <span className="text-[11px] text-slate-400">Internal SOP</span>
+            </div>
+            <h3 className="text-sm font-bold text-white mb-1.5">
+              6-Stage Deal Desk & Compliance
+            </h3>
+            <p className="text-xs text-slate-400 leading-relaxed mb-4">
+              Standard Operating Procedures for inquiry matching, bulk RFQs, sample testing scores, Google Meet AI summaries, and SI 1145 label audits.
+            </p>
+          </div>
+          <div className="flex items-center gap-2 pt-3 border-t border-slate-800">
+            <Link
+              href="/admin/pipeline"
+              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-sky-500 text-slate-950 font-bold text-xs hover:bg-sky-400 transition"
+            >
+              <span>Deal Pipeline</span>
+              <span className="text-[10px]">→</span>
+            </Link>
+            <Link
+              href="/admin/compliance/label-checker"
+              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-slate-800 text-slate-200 border border-slate-700 font-medium text-xs hover:text-white transition"
+            >
+              <span>Label Checker</span>
+              <span className="text-[10px]">→</span>
+            </Link>
+          </div>
+        </div>
+      </div>
+
       {/* ── CONTROLS: AUDIENCE TABS & SEARCH ── */}
       <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">

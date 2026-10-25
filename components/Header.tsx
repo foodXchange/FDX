@@ -61,6 +61,8 @@ export default function Header() {
     } else if (pathname.startsWith('/he/import-guide')) {
       const sub = pathname.replace('/he/import-guide', '');
       enTarget = '/en/import-guide' + sub;
+    } else if (pathname === '/he/guide') {
+      enTarget = '/en/guide';
     } else enTarget = '/';
     heTarget = pathname;
   } else {
@@ -74,6 +76,8 @@ export default function Header() {
     else if (pathname === '/en/contact') heTarget = '/he/contact';
     else if (pathname === '/en/blog') heTarget = '/he/blog';
     else if (pathname === '/en/newsletter') heTarget = '/he/newsletter';
+    else if (pathname === '/en/guide') heTarget = '/he/guide';
+    else if (pathname === '/en/supplier-guide') heTarget = '/en/supplier-guide';
     else if (pathname.startsWith('/en/products')) {
       const sub = pathname.replace('/en/products', '');
       heTarget = '/he/products' + sub;
@@ -118,6 +122,18 @@ export default function Header() {
       desc: 'Track tasting sample boxes, DHL air waybills, and ocean containers',
     },
     {
+      href: '/en/guide',
+      label: 'Retail Buyer Sourcing Guide',
+      icon: '📖',
+      desc: 'Step-by-step playbook: factory discovery, sample box & SI 1145',
+    },
+    {
+      href: '/en/supplier-guide',
+      label: 'European Supplier Export Guide',
+      icon: '🏭',
+      desc: 'Quoting CIF Haifa, courier sample protocol & Kosher compliance',
+    },
+    {
       href: '/en/calculator',
       label: 'Landed Cost Calculator',
       icon: '⚡',
@@ -144,6 +160,18 @@ export default function Header() {
   ];
 
   const toolsItemsHe: ToolDropdownItem[] = [
+    {
+      href: '/he/guide',
+      label: 'מדריך קניינים למותג פרטי',
+      icon: '📖',
+      desc: 'שלבי עבודה מול מפעלי אירופה: סינון, דוגמאות טעימה ורגולציה',
+    },
+    {
+      href: '/en/supplier-guide',
+      label: 'מדריך יצוא ליצרנים באירופה',
+      icon: '🏭',
+      desc: 'מדריך מקיף למפעלי מזון אירופאיים המייצאים לרשתות בישראל',
+    },
     {
       href: '/he/benchmark',
       label: 'מטריצת החלפת מותגי מדף',
