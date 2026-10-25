@@ -4,6 +4,50 @@ import React, { useState, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { generatePriorityErpCsv } from "@/lib/documents/erpAsnGenerator";
+import TourGuide, { type TourStep } from "@/components/tour/TourGuide";
+
+const CONTAINER_TOUR_STEPS: TourStep[] = [
+  {
+    targetSelector: "#tour-container-spec",
+    titleHe: "1. בחירת סוג מכולה ימית",
+    titleEn: "1. Select Container Specification",
+    descHe: "בחר בין מכולת 20ft (עד 11 משטחים), מכולת 40ft High Cube (עד 24-25 משטחים), או מכולת קירור (Reefer) למוצרי חלב וקפואים.",
+    descEn: "Toggle between 20ft Dry (11 pallets), 40ft High Cube (24-25 pallets), or 40ft Reefer for chilled/frozen foods.",
+    icon: "📐",
+  },
+  {
+    targetSelector: "#tour-consolidation-hub",
+    titleHe: "2. מרכז איחוד יצרנים באירופה",
+    titleEn: "2. European Consolidation Depot",
+    descHe: "בחר את מחסן האיחוד הקרוב ביותר למפעלים (סלרנו/גנואה באיטליה, ולנסיה בספרד, או פיראוס ביוון). המשטחים נאספים מכל מפעל ומאוחדים במכולה אחת.",
+    descEn: "Select your regional groupage hub in Italy, Spain, or Greece where pallets from different factories are gathered into one container.",
+    icon: "📍",
+  },
+  {
+    targetSelector: "#tour-container-bay",
+    titleHe: "3. הדמיית מפרץ מכולה חי בדו-ממד",
+    titleEn: "3. Live 2D Container Bay Visualization",
+    descHe: "צפה בניצולת המכולה בזמן אמת. המערכת מציגה כל משטח בצבע המפעל שלו, ומתריעה אוטומטית אם חורגים ממגבלות הנפח (CBM) או המשקל המרבי (26 טון).",
+    descEn: "Watch your container fill up in real time. Each factory's pallets are color-coded, with automated volume (CBM) and weight cap alerts.",
+    icon: "📦",
+  },
+  {
+    targetSelector: "#tour-factory-skus",
+    titleHe: "4. הוספה והתאמת כמויות משטחים ליצרן",
+    titleEn: "4. Pallet Steppers & Multi-Factory Mix",
+    descHe: "השתמש בכפתורי ה-+ וה-- להגדלה והקטנה של כמויות המשטחים מכל יצרן. ניתן להוסיף מפעלים נוספים בלחיצה אחת.",
+    descEn: "Use the enlarged touch steppers to adjust pallet counts for each European factory. Add more products with one click.",
+    icon: "🏭",
+  },
+  {
+    targetSelector: "#tour-savings-banner",
+    titleHe: "5. חיסכון דרמטי באיחוד מכולה מול שילוח חלקי (LCL)",
+    titleEn: "5. Multi-Factory Groupage Savings",
+    descHe: "איחוד מטענים חוסך בממוצע €5,250 (מעל 50% חיסכון בעלויות שילוח ימי מול שילוח משטחים בודדים ב-LCL).",
+    descEn: "Consolidation saves an average of €5,250 (over 50% maritime freight savings vs. shipping loose LCL pallets).",
+    icon: "💰",
+  },
+];
 
 export interface ContainerSkuItem {
   id: string;
@@ -368,6 +412,13 @@ export default function MixedContainerBuilder({ initialLang = "he" }: Props) {
               </button>
             </div>
 
+            <TourGuide
+              tourId="mixed_container_builder"
+              steps={CONTAINER_TOUR_STEPS}
+              lang={lang}
+              autoStart={false}
+            />
+
             <Link
               href={isHe ? "/he/calculator" : "/en/calculator"}
               className="px-3.5 py-2 rounded-xl bg-slate-900 text-slate-300 hover:text-white text-xs font-semibold border border-slate-800 transition"
@@ -380,7 +431,7 @@ export default function MixedContainerBuilder({ initialLang = "he" }: Props) {
         {/* CONTAINER CONFIG & CONSOLIDATION HUB SELECTOR */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           {/* Container Type */}
-          <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-5 space-y-3">
+          <div id="tour-container-spec" className="bg-slate-900/80 border border-slate-800 rounded-2xl p-5 space-y-3">
             <label className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
               <span>📐</span> {isHe ? "סוג מכולה ימית:" : "1. Container Specification:"}
             </label>
@@ -411,7 +462,7 @@ export default function MixedContainerBuilder({ initialLang = "he" }: Props) {
           </div>
 
           {/* Consolidation Hub */}
-          <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-5 space-y-3">
+          <div id="tour-consolidation-hub" className="bg-slate-900/80 border border-slate-800 rounded-2xl p-5 space-y-3">
             <label className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
               <span>📍</span> {isHe ? "מרכז איחוד לוגיסטי באירופה:" : "2. European Consolidation Depot:"}
             </label>
@@ -481,7 +532,7 @@ export default function MixedContainerBuilder({ initialLang = "he" }: Props) {
         </div>
 
         {/* ── VISUAL 2D CONTAINER BAY LAYOUT & CAPACITY METERS ── */}
-        <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-6 space-y-6 shadow-2xl">
+        <div id="tour-container-bay" className="bg-slate-900/90 border border-slate-800 rounded-3xl p-6 space-y-6 shadow-2xl">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800 pb-4">
             <div>
               <h2 className="text-lg font-bold text-white flex items-center gap-2">
@@ -679,7 +730,7 @@ export default function MixedContainerBuilder({ initialLang = "he" }: Props) {
         </div>
 
         {/* ── MULTI-SKU PALLET CONFIGURATION TABLE ── */}
-        <div className="bg-slate-900/80 border border-slate-800 rounded-3xl p-6 space-y-4">
+        <div id="tour-factory-skus" className="bg-slate-900/80 border border-slate-800 rounded-3xl p-6 space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
               <h2 className="text-lg font-bold text-white flex items-center gap-2">
@@ -874,7 +925,7 @@ export default function MixedContainerBuilder({ initialLang = "he" }: Props) {
         </div>
 
         {/* ── COMMERCIAL CONSOLIDATED SUMMARY & ACTION DESK ── */}
-        <div className="bg-gradient-to-r from-slate-900 via-slate-900 to-slate-950 border border-orange-500/30 rounded-3xl p-6 sm:p-8 shadow-2xl">
+        <div id="tour-savings-banner" className="bg-gradient-to-r from-slate-900 via-slate-900 to-slate-950 border border-orange-500/30 rounded-3xl p-6 sm:p-8 shadow-2xl">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
             {/* Financial Summary */}
             <div className="lg:col-span-7 space-y-4">

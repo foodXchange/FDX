@@ -12,6 +12,42 @@ import {
 } from "@/app/admin/deals/actions";
 import { generatePriorityErpCsv } from "@/lib/documents/erpAsnGenerator";
 import type { FormattedTripartiteMessage, TripartiteEventType } from "@/lib/notifications/tripartiteDispatchEngine";
+import TourGuide, { type TourStep } from "@/components/tour/TourGuide";
+
+const DEAL_DESK_TOUR_STEPS: TourStep[] = [
+  {
+    targetSelector: "#tour-deal-kpis",
+    titleHe: "מדדי עסקאות ומחזור B2B",
+    titleEn: "1. Deal Pipeline & Escrow Metrics",
+    descHe: "מעקב אחר שווי חוזים כולל (GMV), מקדמות 30% בהמתנה להעברה, ורווחי עמלת תיווך לפודאקסצ'יינג'.",
+    descEn: "Track total contract GMV, 30% advance escrow pending, active factory production runs, and broker pool earnings.",
+    icon: "📊",
+  },
+  {
+    targetSelector: "#tour-deals-list",
+    titleHe: "רשימת עסקאות מסחריות ושטרי מטען",
+    titleEn: "2. Commercial Deals & PO Manifests",
+    descHe: "כל עסקה מכילה את תנאי ה-Incoterms, תקני הכשרות, פירוט מכולה, ומעקב אחר אבני הדרך הכספיות 30/70.",
+    descEn: "Each deal itemizes Incoterms, kosher certifications, container specs, and 30/70 financial escrow milestones.",
+    icon: "📑",
+  },
+  {
+    targetSelector: "#tour-tripartite-btn",
+    titleHe: "מוקד התראות וואטסאפ ואימייל משולש",
+    titleEn: "3. Tripartite Automated Dispatch Hub",
+    descHe: "שיגור אוטומטי של הודעות וואטסאפ ואימייל לקניין הישראלי, למפעל באירופה, ולעמיל המכס בנמל אשדוד בכל שלב בעסקה.",
+    descEn: "Dispatch automated WhatsApp and email alerts to the Israeli Buyer, European Factory, and Customs Broker at every milestone.",
+    icon: "🔔",
+  },
+  {
+    targetSelector: "#tour-asn-btn",
+    titleHe: "ייצוא פריוריטי ERP ASN לקליטה ברשת",
+    titleEn: "4. Priority ERP Inbound Receiving ASN",
+    descHe: "הורדת קובץ CSV בתקן פריוריטי ERP הכולל ברקודי משטחים SSCC, תאריכי תפוגה ומספרי אצווה לקליטה אוטומטית במרלו״ג.",
+    descEn: "Download Priority ERP Inbound Receiving CSVs with SSCC barcodes, expiry dates, and lot numbers for supermarket DC intake.",
+    icon: "📥",
+  },
+];
 
 interface Props {
   initialDeals: DealRecord[];
@@ -359,6 +395,12 @@ export default function DealsDeskClient({ initialDeals }: Props) {
         </div>
 
         <div className="flex items-center gap-3">
+          <TourGuide
+            tourId="deals_desk_tour"
+            steps={DEAL_DESK_TOUR_STEPS}
+            lang="en"
+            autoStart={false}
+          />
           <Link
             href="/admin/finance"
             className="px-3.5 py-2 rounded-xl text-xs font-medium bg-slate-800 text-slate-300 hover:text-white border border-slate-700 transition"
@@ -376,7 +418,7 @@ export default function DealsDeskClient({ initialDeals }: Props) {
       </div>
 
       {/* KPI METRIC CARDS */}
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3.5">
+      <div id="tour-deal-kpis" className="grid grid-cols-2 lg:grid-cols-5 gap-3.5">
         <div className="bg-slate-900/80 border border-slate-800/80 rounded-2xl p-4">
           <p className="text-[11px] font-medium text-slate-400 uppercase tracking-wider">Active Deals</p>
           <p className="text-2xl font-bold text-white mt-1">{metrics.totalCount}</p>
@@ -458,7 +500,7 @@ export default function DealsDeskClient({ initialDeals }: Props) {
           </button>
         </div>
       ) : (
-        <div className="space-y-3.5">
+        <div id="tour-deals-list" className="space-y-3.5">
           {filteredDeals.map((deal) => {
             const stageCfg = STAGE_CONFIG[deal.currentStage] || STAGE_CONFIG.order_po_issued;
             const ilsVal = Math.round(deal.grossContractValue * 4.05);
@@ -570,6 +612,7 @@ export default function DealsDeskClient({ initialDeals }: Props) {
                     </button>
 
                     <button
+                      id="tour-tripartite-btn"
                       onClick={() => openNotifyModal(deal)}
                       className="px-3.5 py-1.5 text-xs font-semibold bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 border border-emerald-500/30 rounded-xl transition flex items-center justify-center gap-1.5 shadow-xs"
                       title="Preview and dispatch automated WhatsApp & Email tripartite alerts to Buyer, Factory, or Customs"
@@ -579,6 +622,7 @@ export default function DealsDeskClient({ initialDeals }: Props) {
                     </button>
 
                     <button
+                      id="tour-asn-btn"
                       onClick={() => handleDownloadErpCsv(deal)}
                       className="px-3 py-1.5 text-[11px] font-medium bg-slate-800/80 hover:bg-slate-700 text-cyan-300 rounded-xl border border-slate-700/80 transition flex items-center justify-center gap-1.5"
                       title="Download Priority ERP Inbound ASN manifest CSV"
