@@ -43,6 +43,8 @@ export function generatePriorityErpCsv(data: ErpAsnPayload): string {
   // Header line in Priority ERP standard format
   const headers = [
     "מספר הזמנת רכש (PO)",
+    "רשת רוכשת (Buyer)",
+    "מזהה משטח (Pallet ID)",
     "קוד פריט (SKU)",
     "ברקוד בינלאומי (EAN-13)",
     "תיאור פריט בעברית",
@@ -66,9 +68,12 @@ export function generatePriorityErpCsv(data: ErpAsnPayload): string {
   const grossPalletKg = Math.round(data.unitsPerPallet * data.grossWeightKgPerUnit + 25); // +25kg EPAL wooden pallet
 
   for (let i = 1; i <= data.palletCount; i++) {
+    const palletId = `PALLET-${i.toString().padStart(2, "0")}`;
     const palletSscc = `03729${data.containerNumber.replace(/[^0-9]/g, "").padEnd(7, "0").slice(0, 7)}${i.toString().padStart(4, "0")}`;
     const row = [
       `"${data.poNumber}"`,
+      `"${data.buyerCompany}"`,
+      `"${palletId}"`,
       `"${sku}"`,
       `"${barcode}"`,
       `"${data.hebrewName}"`,

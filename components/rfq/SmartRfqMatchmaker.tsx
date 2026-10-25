@@ -66,7 +66,7 @@ const POPULAR_BENCHMARKS = [
 
 export default function SmartRfqMatchmaker({ initialLang = "he" }: Props) {
   const router = useRouter();
-  const { addItem, openModal } = useSampleKit();
+  const { addItem, openKit } = useSampleKit();
   const [lang, setLang] = useState<"he" | "en">(initialLang);
   const isHe = lang === "he";
 
@@ -120,15 +120,13 @@ export default function SmartRfqMatchmaker({ initialLang = "he" }: Props) {
   const handleAddSample = (factory: MatchedFactoryOption) => {
     addItem({
       id: factory.supplierId,
-      name: factory.productHebrewName || factory.productName,
+      product_name: factory.productHebrewName || factory.productName,
       category: category,
-      brand: factory.supplierName,
       supplier_name: factory.supplierName,
       image_url: factory.packshotUrl,
-      unit_size: "Consumer Shelf Pack",
-      origin_country: factory.country,
-      kosher_classification: factory.kosherStatus,
-      source: "search",
+      country_of_origin: factory.country,
+      certifications: [factory.kosherStatus],
+      sample_format: "Consumer Shelf Pack",
     });
 
     setAddedSampleIds((prev) => [...prev, factory.supplierId]);
@@ -140,19 +138,17 @@ export default function SmartRfqMatchmaker({ initialLang = "he" }: Props) {
     result.topMatches.forEach((m) => {
       addItem({
         id: m.supplierId,
-        name: m.productHebrewName || m.productName,
+        product_name: m.productHebrewName || m.productName,
         category: category,
-        brand: m.supplierName,
         supplier_name: m.supplierName,
         image_url: m.packshotUrl,
-        unit_size: "Evaluation Sample Pack",
-        origin_country: m.country,
-        kosher_classification: m.kosherStatus,
-        source: "search",
+        country_of_origin: m.country,
+        certifications: [m.kosherStatus],
+        sample_format: "Evaluation Sample Pack",
       });
     });
 
-    openModal();
+    openKit();
   };
 
   // Transfer to Commercial Pro-Forma Deal Desk

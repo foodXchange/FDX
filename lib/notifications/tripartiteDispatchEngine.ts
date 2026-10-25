@@ -63,6 +63,14 @@ export interface FormattedTripartiteMessage {
 
 const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://foodxchange.com";
 
+export function buildWhatsAppUrl(phone: string | undefined, text: string): string {
+  const cleanPhone = phone ? phone.replace(/[^0-9]/g, "") : "";
+  if (cleanPhone) {
+    return `https://wa.me/${cleanPhone}?text=${encodeURIComponent(text)}`;
+  }
+  return `https://wa.me/?text=${encodeURIComponent(text)}`;
+}
+
 export function formatTripartiteMessage(payload: TripartiteEventPayload): FormattedTripartiteMessage {
   const buyerPortalUrl = `${BASE_URL}/track/${payload.requestId}`;
   const customsPortalUrl = `${BASE_URL}/customs/${payload.requestId}`;
@@ -87,7 +95,7 @@ export function formatTripartiteMessage(payload: TripartiteEventPayload): Format
         recipientContact: payload.buyerPhone || payload.buyerEmail || "Buyer Procurement Desk",
         subject: `[FoodXchange] הזמנת רכש #${po} נחתמה בהצלחה - נדרשת הסדרת מקדמת 30% להפעלת הייצור`,
         whatsappText: text,
-        whatsappUrl: `https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`,
+        whatsappUrl: buildWhatsAppUrl(payload.buyerPhone, text),
         portalUrl: buyerPortalUrl,
         emailHtml: `
           <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:24px;color:#1e293b;line-height:1.6;" dir="rtl">
@@ -117,7 +125,7 @@ export function formatTripartiteMessage(payload: TripartiteEventPayload): Format
         recipientContact: payload.supplierEmail || payload.supplierPhone || "Export Sales Director",
         subject: `[FoodXchange] Advance 30% Confirmed - Production Authorized for PO #${po} (${payload.productName})`,
         whatsappText: text,
-        whatsappUrl: `https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`,
+        whatsappUrl: buildWhatsAppUrl(payload.supplierPhone, text),
         portalUrl: supplierPortalUrl,
         emailHtml: `
           <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:24px;color:#1e293b;line-height:1.6;" dir="ltr">
@@ -147,7 +155,7 @@ export function formatTripartiteMessage(payload: TripartiteEventPayload): Format
         recipientContact: payload.buyerPhone || payload.buyerEmail || "Buyer Logistics Team",
         subject: `[FoodXchange] מכולה ${cont} הועמסה על אוניית ${vessel} ויצאה לדרכה לנמל אשדוד`,
         whatsappText: text,
-        whatsappUrl: `https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`,
+        whatsappUrl: buildWhatsAppUrl(payload.buyerPhone, text),
         portalUrl: buyerPortalUrl,
         emailHtml: `
           <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:24px;color:#1e293b;line-height:1.6;" dir="rtl">
@@ -178,7 +186,7 @@ export function formatTripartiteMessage(payload: TripartiteEventPayload): Format
         recipientContact: "Ashdod Port Customs Desk",
         subject: `[שער עולמי] תיק שחרור מכס מוכן למכולה ${cont} עבור ${payload.buyerCompany} (נמל אשדוד)`,
         whatsappText: text,
-        whatsappUrl: `https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`,
+        whatsappUrl: buildWhatsAppUrl(undefined, text),
         portalUrl: customsPortalUrl,
         emailHtml: `
           <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:24px;color:#1e293b;line-height:1.6;" dir="rtl">
@@ -210,7 +218,7 @@ export function formatTripartiteMessage(payload: TripartiteEventPayload): Format
         recipientContact: payload.buyerPhone || payload.buyerEmail || "Distribution Center Hub",
         subject: `[מכס ישראל] מכולה ${cont} שוחררה במסלול ירוק (רשימון #${dec}) - בדרך למרלוג`,
         whatsappText: text,
-        whatsappUrl: `https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`,
+        whatsappUrl: buildWhatsAppUrl(payload.buyerPhone, text),
         portalUrl: buyerPortalUrl,
         emailHtml: `
           <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:24px;color:#1e293b;line-height:1.6;" dir="rtl">
@@ -242,7 +250,7 @@ export function formatTripartiteMessage(payload: TripartiteEventPayload): Format
         recipientContact: payload.buyerContact || payload.buyerCompany,
         subject: `[FoodXchange] תעודת קבלת טובין רשמית (${grn}) - עסקת ${payload.productName} הושלמה במלואה!`,
         whatsappText: text,
-        whatsappUrl: `https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`,
+        whatsappUrl: buildWhatsAppUrl(payload.buyerPhone, text),
         portalUrl: buyerPortalUrl,
         emailHtml: `
           <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:24px;color:#1e293b;line-height:1.6;" dir="rtl">
