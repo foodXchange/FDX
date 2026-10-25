@@ -49,6 +49,7 @@ export default function Header() {
     if (pathname === '/he') enTarget = '/';
     else if (pathname === '/he/buyers') enTarget = '/en/buyers';
     else if (pathname === '/he/sourcing') enTarget = '/en/sourcing';
+    else if (pathname === '/he/rfq') enTarget = '/en/rfq';
     else if (pathname === '/he/calculator/container') enTarget = '/en/calculator/container';
     else if (pathname === '/he/calculator') enTarget = '/en/calculator';
     else if (pathname === '/he/benchmark') enTarget = '/en/benchmark';
@@ -71,6 +72,7 @@ export default function Header() {
     if (pathname === '/') heTarget = '/he';
     else if (pathname === '/en/buyers') heTarget = '/he/buyers';
     else if (pathname === '/en/sourcing') heTarget = '/he/sourcing';
+    else if (pathname === '/en/rfq') heTarget = '/he/rfq';
     else if (pathname === '/en/calculator/container') heTarget = '/he/calculator/container';
     else if (pathname === '/en/calculator') heTarget = '/he/calculator';
     else if (pathname === '/en/benchmark') heTarget = '/he/benchmark';
@@ -136,6 +138,12 @@ export default function Header() {
       desc: 'Quoting CIF Haifa, courier sample protocol & Kosher compliance',
     },
     {
+      href: '/en/rfq',
+      label: 'Smart RFQ Matchmaker',
+      icon: '🎯',
+      desc: 'Match 5,000+ European plants to retail benchmarks',
+    },
+    {
       href: '/en/calculator',
       label: 'Landed Cost Calculator',
       icon: '⚡',
@@ -168,6 +176,12 @@ export default function Header() {
   ];
 
   const toolsItemsHe: ToolDropdownItem[] = [
+    {
+      href: '/he/rfq',
+      label: 'מערכת התאמת מותג פרטי (Smart RFQ)',
+      icon: '🎯',
+      desc: 'איתור חלופות מותג פרטי מול מותגי מדף יקרים ומצגות סורסינג',
+    },
     {
       href: '/he/guide',
       label: 'מדריך קניינים למותג פרטי',
