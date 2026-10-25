@@ -3,8 +3,15 @@
 import React, { useState, useMemo, useEffect } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { type DealRecord, saveProFormaDeal, advanceDealStage } from "@/app/admin/deals/actions";
+import { 
+  type DealRecord, 
+  saveProFormaDeal, 
+  advanceDealStage,
+  getDealNotificationPreview,
+  dispatchDealNotification,
+} from "@/app/admin/deals/actions";
 import { generatePriorityErpCsv } from "@/lib/documents/erpAsnGenerator";
+import type { FormattedTripartiteMessage, TripartiteEventType } from "@/lib/notifications/tripartiteDispatchEngine";
 
 interface Props {
   initialDeals: DealRecord[];
@@ -19,6 +26,15 @@ const STAGE_CONFIG: Record<string, { label: string; badge: string; desc: string 
   customs_warehouse: { label: "Port Customs & SI 1145", badge: "bg-orange-500/15 text-orange-400 border border-orange-500/30", desc: "MoH release & customs inspection" },
   completed: { label: "Delivered & Cleared", badge: "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30", desc: "Received at buyer DC, final settlement" },
 };
+
+const NOTIFY_EVENTS: { id: TripartiteEventType; label: string; recipient: string; icon: string }[] = [
+  { id: "po_signed_advance_due", label: "PO Signed & 30% Advance Due", recipient: "Buyer (RTL WhatsApp & Wire Instructions)", icon: "✍️" },
+  { id: "advance_verified_production_released", label: "30% Wire Confirmed → Release Production", recipient: "Factory (English Bottling & Run Order)", icon: "🏭" },
+  { id: "container_loaded_vessel_departed", label: "Vessel Departed & B/L Issued (70% Due)", recipient: "Buyer (B/L Inspection & Balance Due)", icon: "🚢" },
+  { id: "vessel_approaching_customs_dispatch", label: "Vessel Approaching Ashdod / Customs Alert", recipient: "Customs Broker (EUR.1 & Clearance Package)", icon: "🛃" },
+  { id: "customs_cleared_inland_trucking", label: "Customs Cleared → Inland Trucking Dispatched", recipient: "Buyer Logistics (Delivery ETA & Dock ASN)", icon: "🚚" },
+  { id: "grn_dock_accepted_deal_closed", label: "Dock Acceptance (GRN) & Escrow Settled", recipient: "All Parties (Deal Closed & Archive)", icon: "✅" },
+];
 
 export default function DealsDeskClient({ initialDeals }: Props) {
   const router = useRouter();
@@ -68,6 +84,16 @@ export default function DealsDeskClient({ initialDeals }: Props) {
   const [advBlNumber, setAdvBlNumber] = useState("MSCU-8849201");
   const [advCustomsDec, setAdvCustomsDec] = useState("CUSTOMS-IL-260481");
   const [isAdvancing, setIsAdvancing] = useState(false);
+
+  // Tripartite Notification Modal State
+  const [notifyModalDeal, setNotifyModalDeal] = useState<DealRecord | null>(null);
+  const [notifyEventType, setNotifyEventType] = useState<TripartiteEventType>("po_signed_advance_due");
+  const [notifyChannel, setNotifyChannel] = useState<"whatsapp" | "email" | "both">("both");
+  const [notifyPreview, setNotifyPreview] = useState<FormattedTripartiteMessage | null>(null);
+  const [isLoadingPreview, setIsLoadingPreview] = useState<boolean>(false);
+  const [isDispatchingNotify, setIsDispatchingNotify] = useState<boolean>(false);
+  const [notifySuccessMsg, setNotifySuccessMsg] = useState<string | null>(null);
+  const [notifyDirectWhatsappUrl, setNotifyDirectWhatsappUrl] = useState<string | null>(null);
 
   // Check URL params
   useEffect(() => {
@@ -248,6 +274,68 @@ export default function DealsDeskClient({ initialDeals }: Props) {
       setAdvanceModalDeal(null);
     } else {
       alert(`Error advancing stage: ${res.error}`);
+    }
+  };
+
+  // Open Tripartite Modal
+  const openNotifyModal = (deal: DealRecord) => {
+    setNotifyModalDeal(deal);
+    setNotifySuccessMsg(null);
+    setNotifyDirectWhatsappUrl(null);
+
+    // Pick contextual default event
+    let defaultEvt: TripartiteEventType = "po_signed_advance_due";
+    if (deal.currentStage === "manufacturing") defaultEvt = "advance_verified_production_released";
+    else if (deal.currentStage === "shipping_customs_warehouse") defaultEvt = "container_loaded_vessel_departed";
+    else if (deal.currentStage === "customs_warehouse") defaultEvt = "vessel_approaching_customs_dispatch";
+    else if (deal.currentStage === "completed") defaultEvt = "grn_dock_accepted_deal_closed";
+
+    setNotifyEventType(defaultEvt);
+    void loadPreview(deal.id, defaultEvt);
+  };
+
+  const loadPreview = async (dealId: string, eventType: TripartiteEventType) => {
+    setIsLoadingPreview(true);
+    try {
+      const res = await getDealNotificationPreview(dealId, eventType);
+      if (res.ok && res.formatted) {
+        setNotifyPreview(res.formatted);
+        setNotifyDirectWhatsappUrl(res.formatted.whatsappUrl);
+      }
+    } catch (err) {
+      console.error("Preview load failed:", err);
+    } finally {
+      setIsLoadingPreview(false);
+    }
+  };
+
+  const handleSelectEventType = (evt: TripartiteEventType) => {
+    setNotifyEventType(evt);
+    setNotifySuccessMsg(null);
+    if (notifyModalDeal) {
+      void loadPreview(notifyModalDeal.id, evt);
+    }
+  };
+
+  const handleDispatchNotify = async () => {
+    if (!notifyModalDeal) return;
+    setIsDispatchingNotify(true);
+    setNotifySuccessMsg(null);
+
+    try {
+      const res = await dispatchDealNotification(notifyModalDeal.id, notifyEventType, notifyChannel);
+      if (res.ok) {
+        setNotifySuccessMsg(res.message || "Notification successfully dispatched and logged in deal record!");
+        if (res.whatsappUrl) {
+          setNotifyDirectWhatsappUrl(res.whatsappUrl);
+        }
+      } else {
+        alert(`Dispatch failed: ${res.error || "Unknown error"}`);
+      }
+    } catch (err: any) {
+      alert(`Dispatch error: ${err.message}`);
+    } finally {
+      setIsDispatchingNotify(false);
     }
   };
 
@@ -479,6 +567,15 @@ export default function DealsDeskClient({ initialDeals }: Props) {
                     >
                       <span>🔗</span>
                       <span>{copiedId === deal.id ? "Copied Link!" : "Copy Sign Link"}</span>
+                    </button>
+
+                    <button
+                      onClick={() => openNotifyModal(deal)}
+                      className="px-3.5 py-1.5 text-xs font-semibold bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 border border-emerald-500/30 rounded-xl transition flex items-center justify-center gap-1.5 shadow-xs"
+                      title="Preview and dispatch automated WhatsApp & Email tripartite alerts to Buyer, Factory, or Customs"
+                    >
+                      <span>🔔</span>
+                      <span>Dispatch Alerts</span>
                     </button>
 
                     <button
@@ -929,6 +1026,199 @@ export default function DealsDeskClient({ initialDeals }: Props) {
               >
                 {isAdvancing ? "Updating..." : "Confirm Stage Progression"}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* TRIPARTITE NOTIFICATION MODAL */}
+      {notifyModalDeal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-xs p-4 overflow-y-auto">
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl max-w-3xl w-full p-6 space-y-5 shadow-2xl my-8">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between border-b border-slate-800 pb-4">
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xl">🔔</span>
+                  <h3 className="font-bold text-white text-base">
+                    Tripartite Dispatch Hub: {notifyModalDeal.poNumber}
+                  </h3>
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                    Live Escrow & Milestone Sync
+                  </span>
+                </div>
+                <p className="text-xs text-slate-400 mt-1">
+                  Automated multichannel dispatch to Israeli Retail Buyer, European Factory, and Port Customs Broker.
+                </p>
+              </div>
+              <button
+                onClick={() => setNotifyModalDeal(null)}
+                className="text-slate-400 hover:text-white text-lg p-1"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Select Milestone Event */}
+            <div>
+              <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">
+                1. Select Lifecycle Milestone Event
+              </label>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs">
+                {NOTIFY_EVENTS.map((evt) => {
+                  const isSelected = notifyEventType === evt.id;
+                  return (
+                    <button
+                      key={evt.id}
+                      type="button"
+                      onClick={() => handleSelectEventType(evt.id)}
+                      className={`p-3 rounded-xl border text-left transition flex items-start gap-2.5 ${
+                        isSelected
+                          ? "bg-orange-500/10 border-orange-500 text-white shadow-xs"
+                          : "bg-slate-950/60 border-slate-800 text-slate-300 hover:bg-slate-800/60"
+                      }`}
+                    >
+                      <span className="text-base">{evt.icon}</span>
+                      <div className="space-y-0.5">
+                        <p className={`font-semibold ${isSelected ? "text-orange-400" : "text-white"}`}>
+                          {evt.label}
+                        </p>
+                        <p className="text-[11px] text-slate-400">
+                          {evt.recipient}
+                        </p>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Delivery Channel Radio */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-950/70 p-3 rounded-2xl border border-slate-800">
+              <span className="text-xs font-medium text-slate-300">
+                2. Notification Delivery Channels:
+              </span>
+              <div className="flex items-center gap-2 text-xs">
+                {(
+                  [
+                    { id: "both", label: "💬 WhatsApp + 📧 Email", desc: "Dual Delivery" },
+                    { id: "whatsapp", label: "💬 WhatsApp Only", desc: "Direct Instant" },
+                    { id: "email", label: "📧 Email Only", desc: "Formal PDF" },
+                  ] as const
+                ).map((ch) => {
+                  const active = notifyChannel === ch.id;
+                  return (
+                    <button
+                      key={ch.id}
+                      type="button"
+                      onClick={() => setNotifyChannel(ch.id)}
+                      className={`px-3 py-1.5 rounded-xl font-medium transition ${
+                        active
+                          ? "bg-emerald-500 text-white font-semibold shadow-xs"
+                          : "bg-slate-900 text-slate-400 hover:text-white"
+                      }`}
+                    >
+                      {ch.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Live Message Preview Box */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold text-slate-300 uppercase tracking-wider">
+                  3. Live Multichannel Preview
+                </span>
+                {notifyPreview && (
+                  <span className="text-[11px] font-mono text-cyan-400 bg-cyan-950/60 border border-cyan-800/40 px-2 py-0.5 rounded-md">
+                    Target: {notifyPreview.recipientRole.toUpperCase()} · {notifyPreview.recipientContact}
+                  </span>
+                )}
+              </div>
+
+              {isLoadingPreview ? (
+                <div className="bg-slate-950/80 border border-slate-800 rounded-2xl p-8 text-center text-xs text-slate-400">
+                  <span className="inline-block animate-spin mr-2">⚙️</span>
+                  Generating dynamic WhatsApp & Email copy from deal parameters...
+                </div>
+              ) : notifyPreview ? (
+                <div className="space-y-3">
+                  {/* Email Subject Header */}
+                  <div className="bg-slate-950/60 border border-slate-800/80 rounded-xl p-2.5 text-xs flex items-center gap-2">
+                    <span className="text-slate-400 font-semibold shrink-0">Subject:</span>
+                    <span className="text-slate-200 font-medium truncate">{notifyPreview.subject}</span>
+                  </div>
+
+                  {/* WhatsApp Bubble Preview */}
+                  <div className="bg-[#0b141a] border border-[#202c33] rounded-2xl p-4 shadow-inner">
+                    <div className="flex items-center justify-between border-b border-[#202c33] pb-2 mb-3 text-[11px] text-slate-400">
+                      <div className="flex items-center gap-1.5">
+                        <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                        <span className="font-semibold text-emerald-400">WhatsApp Dispatch Preview</span>
+                        <span className="text-slate-500">({notifyPreview.recipientName})</span>
+                      </div>
+                      <span className="text-slate-500 font-mono text-[10px]">End-to-End Encrypted</span>
+                    </div>
+
+                    <div
+                      dir={notifyPreview.recipientRole === "buyer" || notifyPreview.recipientRole === "customs" ? "rtl" : "ltr"}
+                      className="bg-[#1f2c34] text-[#e9edef] rounded-2xl p-3.5 text-xs font-sans leading-relaxed whitespace-pre-wrap max-w-xl mx-auto shadow-md"
+                    >
+                      {notifyPreview.whatsappText}
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="bg-slate-950/80 border border-slate-800 rounded-2xl p-6 text-center text-xs text-slate-500">
+                  No preview generated yet.
+                </div>
+              )}
+            </div>
+
+            {/* Success Banner */}
+            {notifySuccessMsg && (
+              <div className="bg-emerald-950/70 border border-emerald-500/50 rounded-2xl p-3.5 text-xs text-emerald-300 flex items-center gap-2">
+                <span className="text-lg">✅</span>
+                <span className="font-medium">{notifySuccessMsg}</span>
+              </div>
+            )}
+
+            {/* Modal Actions */}
+            <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-slate-800">
+              <div className="flex items-center gap-2">
+                {notifyDirectWhatsappUrl && (
+                  <a
+                    href={notifyDirectWhatsappUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="px-3.5 py-2 text-xs font-semibold bg-[#25D366]/20 hover:bg-[#25D366]/30 text-[#25D366] border border-[#25D366]/40 rounded-xl transition flex items-center gap-1.5"
+                  >
+                    <span>💬</span>
+                    <span>Open in WhatsApp Direct</span>
+                  </a>
+                )}
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setNotifyModalDeal(null)}
+                  className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs transition"
+                >
+                  Close
+                </button>
+                <button
+                  type="button"
+                  onClick={handleDispatchNotify}
+                  disabled={isDispatchingNotify || isLoadingPreview}
+                  className="px-5 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-semibold rounded-xl text-xs shadow-lg shadow-emerald-500/20 transition flex items-center gap-2 disabled:opacity-50"
+                >
+                  <span>🚀</span>
+                  <span>{isDispatchingNotify ? "Dispatching..." : "Dispatch Automated Alert"}</span>
+                </button>
+              </div>
             </div>
           </div>
         </div>

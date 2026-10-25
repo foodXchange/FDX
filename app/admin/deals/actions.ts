@@ -4,6 +4,14 @@ import { revalidatePath } from "next/cache";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import type { CommercialOrderLifecycle, FinancialClearanceLifecycle } from "@/app/admin/requests/actions";
 import { generatePriorityErpCsv, type ErpAsnPayload } from "@/lib/documents/erpAsnGenerator";
+import {
+  dispatchTripartiteEvent,
+  formatTripartiteMessage,
+  type TripartiteEventType,
+  type TripartiteEventPayload,
+  type FormattedTripartiteMessage,
+  type TripartiteNotificationLog,
+} from "@/lib/notifications/tripartiteDispatchEngine";
 
 export interface DealRecord {
   id: string; // sourcing_request id
@@ -471,6 +479,11 @@ export async function signCommercialDeal(
 
     if (updErr) throw updErr;
 
+    // Auto-dispatch notification when buyer signs
+    if (role === "buyer") {
+      void dispatchDealNotification(dealId, "po_signed_advance_due", "both");
+    }
+
     try {
       revalidatePath(`/proforma/${dealId}`);
       revalidatePath("/admin/deals");
@@ -549,12 +562,108 @@ export async function advanceDealStage(
 
     if (updErr) throw updErr;
 
+    // Auto-dispatch notification for advance milestone
+    if (nextStage === "manufacturing") {
+      void dispatchDealNotification(dealId, "advance_verified_production_released", "both");
+    } else if (nextStage === "shipping_customs_warehouse") {
+      void dispatchDealNotification(dealId, "container_loaded_vessel_departed", "both");
+    } else if (nextStage === "customs_warehouse") {
+      void dispatchDealNotification(dealId, "vessel_approaching_customs_dispatch", "both");
+    } else if (nextStage === "completed") {
+      void dispatchDealNotification(dealId, "grn_dock_accepted_deal_closed", "both");
+    }
+
     try {
       revalidatePath("/admin/deals");
       revalidatePath(`/proforma/${dealId}`);
     } catch {}
 
     return { ok: true };
+  } catch (err: any) {
+    return { ok: false, error: err.message };
+  }
+}
+
+export async function getDealNotificationPreview(
+  dealId: string,
+  eventType: TripartiteEventType
+): Promise<{ ok: boolean; formatted?: FormattedTripartiteMessage; error?: string }> {
+  try {
+    const { deal } = await fetchDealById(dealId);
+    if (!deal) return { ok: false, error: "Deal not found" };
+
+    const payload: TripartiteEventPayload = {
+      requestId: deal.id,
+      eventType,
+      poNumber: deal.poNumber,
+      buyerCompany: deal.buyerCompany,
+      buyerContact: deal.buyerContact,
+      buyerEmail: deal.buyerEmail,
+      buyerPhone: deal.buyerPhone,
+      supplierName: deal.supplierName,
+      supplierCountry: deal.supplierCountry,
+      supplierEmail: deal.supplierEmail,
+      supplierPhone: deal.supplierPhone,
+      productName: deal.productName,
+      orderVolume: `${deal.totalUnits.toLocaleString()} Units (${deal.palletCount} Pallets)`,
+      totalOrderValueEur: deal.grossContractValue,
+      advance30Eur: deal.advanceDeposit30,
+      balance70Eur: deal.balanceAgainstBl70,
+      containerNumber: deal.containerNumber,
+      billOfLading: deal.billOfLading,
+      vesselName: deal.vesselName,
+      shippingLine: deal.shippingLine,
+      customsDeclarationNumber: deal.customsDeclaration,
+      warehousePalletCount: deal.palletCount,
+    };
+
+    const formatted = formatTripartiteMessage(payload);
+    return { ok: true, formatted };
+  } catch (err: any) {
+    return { ok: false, error: err.message };
+  }
+}
+
+export async function dispatchDealNotification(
+  dealId: string,
+  eventType: TripartiteEventType,
+  channel: "whatsapp" | "email" | "both" = "both"
+): Promise<{ ok: boolean; whatsappUrl?: string; message?: string; error?: string }> {
+  try {
+    const { deal } = await fetchDealById(dealId);
+    if (!deal) return { ok: false, error: "Deal not found" };
+
+    const payload: TripartiteEventPayload = {
+      requestId: deal.id,
+      eventType,
+      poNumber: deal.poNumber,
+      buyerCompany: deal.buyerCompany,
+      buyerContact: deal.buyerContact,
+      buyerEmail: deal.buyerEmail,
+      buyerPhone: deal.buyerPhone,
+      supplierName: deal.supplierName,
+      supplierCountry: deal.supplierCountry,
+      supplierEmail: deal.supplierEmail,
+      supplierPhone: deal.supplierPhone,
+      productName: deal.productName,
+      orderVolume: `${deal.totalUnits.toLocaleString()} Units (${deal.palletCount} Pallets)`,
+      totalOrderValueEur: deal.grossContractValue,
+      advance30Eur: deal.advanceDeposit30,
+      balance70Eur: deal.balanceAgainstBl70,
+      containerNumber: deal.containerNumber,
+      billOfLading: deal.billOfLading,
+      vesselName: deal.vesselName,
+      shippingLine: deal.shippingLine,
+      customsDeclarationNumber: deal.customsDeclaration,
+      warehousePalletCount: deal.palletCount,
+    };
+
+    const res = await dispatchTripartiteEvent(payload, channel);
+    if (res.ok) {
+      return { ok: true, whatsappUrl: res.whatsappUrl, message: res.message };
+    } else {
+      return { ok: false, error: res.error };
+    }
   } catch (err: any) {
     return { ok: false, error: err.message };
   }
