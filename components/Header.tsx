@@ -138,6 +138,12 @@ export default function Header() {
       desc: 'Quoting CIF Haifa, courier sample protocol & Kosher compliance',
     },
     {
+      href: '/supplier/onboarding',
+      label: 'Factory Self-Onboarding Wizard',
+      icon: '✨',
+      desc: 'Verify EU GFSI credentials, Kosher audits & register for Israeli supermarket export',
+    },
+    {
       href: '/en/rfq',
       label: 'Smart RFQ Matchmaker',
       icon: '🎯',
@@ -193,6 +199,12 @@ export default function Header() {
       label: 'מדריך יצוא ליצרנים באירופה',
       icon: '🏭',
       desc: 'מדריך מקיף למפעלי מזון אירופאיים המייצאים לרשתות בישראל',
+    },
+    {
+      href: '/supplier/onboarding',
+      label: 'פורטל רישום עצמי למפעלים (Factory Onboarding)',
+      icon: '✨',
+      desc: 'אימות נתוני מפעל, תעודות GFSI וכשרות ליצוא ישיר לרשתות השיווק',
     },
     {
       href: '/he/benchmark',
