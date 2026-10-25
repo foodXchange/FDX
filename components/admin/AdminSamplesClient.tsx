@@ -2,6 +2,7 @@
 
 import React, { useState, useMemo } from "react";
 import Image from "next/image";
+import Link from "next/link";
 
 export interface SampleKitRow {
   id: string;
@@ -509,6 +510,16 @@ export default function AdminSamplesClient({ initialSamples }: Props) {
                       <span>💬</span>
                       <span>WhatsApp Buyer</span>
                     </a>
+
+                    {status === "feedback_approved" && (
+                      <Link
+                        href={`/admin/deals?new=1&from_sample=${first.id}&buyer=${encodeURIComponent(first.company || "")}&product=${encodeURIComponent(first.product_name || "")}&supplier=${encodeURIComponent(first.ai_analysis?.supplier_name || "")}`}
+                        className="bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white text-xs font-bold px-3.5 py-1.5 rounded-lg transition shadow-md flex items-center gap-1.5 cursor-pointer"
+                      >
+                        <span>⚡</span>
+                        <span>Issue Commercial Pro-Forma PO</span>
+                      </Link>
+                    )}
                   </div>
 
                   <span className="text-[11px] text-slate-400">
