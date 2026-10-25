@@ -3,6 +3,7 @@ import Image from "next/image";
 import type { Metadata } from "next";
 import Reveal from "@/components/Reveal";
 import FAQAccordion from "@/components/FAQAccordion";
+import WorkflowJourneySection from "@/components/workflow/WorkflowJourneySection";
 
 export const metadata: Metadata = {
   title: "איתור יצרני מזון אירופאים לרשתות השיווק בישראל | FoodXchange",
@@ -292,65 +293,8 @@ export default function HebrewBuyersHomePage() {
           </div>
         </section>
 
-        {/* ── 3-STEP PROCESS ── */}
-        <section className="px-6 py-20 bg-slate-950 border-b border-white/10">
-          <div className="max-w-5xl mx-auto">
-            <Reveal>
-              <div className="text-center mb-12">
-                <span className="text-xs font-bold text-orange-500 uppercase tracking-widest mb-2 block">
-                  איך זה עובד
-                </span>
-                <h2 className="text-3xl md:text-4xl font-bold text-white">שלושה צעדים — ללא בירוקרטיה מיותרת</h2>
-                <p className="text-slate-400 mt-3 max-w-xl mx-auto text-sm sm:text-base">
-                  תהליך מובנה וממוקד שמביא אותך לדוגמאות והצעת מחיר בזמן שיא.
-                </p>
-              </div>
-            </Reveal>
-
-            <div className="grid md:grid-cols-3 gap-6">
-              {[
-                {
-                  n: "1",
-                  title: "הגדרת הצורך והמפרט",
-                  body: "שתף אותנו במוצר המבוקש (או תמונות בנצ׳מרק מהמדף), נפח מכולות שנתי משוער, דרישות כשרות (רבנות / בד״ץ) וסוג מיתוג (מותג פרטי או מותג יצרן).",
-                },
-                {
-                  n: "2",
-                  title: "איתור ואימות המפעל המתאים",
-                  body: "אנו סורקים את רשת המפעלים המאומתים באירופה (איטליה, ספרד, בלגיה, צרפת, פולין ויוון), מוודאים תקני איכות (BRC / IFS) ובודקים את מסלול הכשרות.",
-                },
-                {
-                  n: "3",
-                  title: "הצעת מחיר ודוגמאות טעימה",
-                  body: "קבלת פירוט מסחרי מלא (מפרט טכני, עלויות CIF Haifa, תנאי תשלום), תיאום משלוח דוגמאות בדיקה לישראל, וליווי ישיר במשא ומתן עד לחתימת ההזמנה.",
-                },
-              ].map((step, i) => (
-                <Reveal key={i}>
-                  <div className="bg-slate-800/60 border border-white/10 rounded-2xl p-7 h-full flex flex-col">
-                    <div className="w-10 h-10 mb-4 bg-orange-500 text-white rounded-xl flex items-center justify-center font-black text-lg shadow-md shadow-orange-500/20">
-                      {step.n}
-                    </div>
-                    <h3 className="font-bold text-white text-base mb-2">{step.title}</h3>
-                    <p className="text-sm text-slate-300 leading-relaxed flex-1">{step.body}</p>
-                  </div>
-                </Reveal>
-              ))}
-            </div>
-
-            <Reveal>
-              <div className="relative w-full mt-10 rounded-2xl overflow-hidden border border-white/10 shadow-2xl" style={{ minHeight: "300px" }}>
-                <Image
-                  src="/images/buyer-product-review.png"
-                  alt="קניין מזון ישראלי בודק דוגמאות של מוצרי מזון אירופאים"
-                  fill
-                  className="object-cover"
-                  sizes="(max-width: 1024px) 100vw, 1024px"
-                  quality={85}
-                />
-              </div>
-            </Reveal>
-          </div>
-        </section>
+        {/* ── 5-STAGE INTERACTIVE WORKFLOW & VIDEO SHOWCASE ── */}
+        <WorkflowJourneySection lang="he" />
 
         {/* ── REAL COMMERCIAL CASE STUDY ── */}
         <section className="px-6 py-20 bg-slate-900 border-b border-white/10">

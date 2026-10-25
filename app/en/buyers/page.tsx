@@ -2,6 +2,7 @@ import Image from "next/image";
 import type { Metadata } from "next";
 import Reveal from "@/components/Reveal";
 import BuyerRequestSection from "@/components/buyers/BuyerRequestSection";
+import WorkflowJourneySection from "@/components/workflow/WorkflowJourneySection";
 
 export const metadata: Metadata = {
   title: "Buyers — Find Verified Food Suppliers | FoodXchange",
@@ -70,6 +71,8 @@ export default function BuyersPage() {
         </section>
 
         <BuyerRequestSection />
+
+        <WorkflowJourneySection lang="en" />
 
       </main>
     </>
