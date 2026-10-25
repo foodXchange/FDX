@@ -144,6 +144,12 @@ export default function Header() {
       desc: 'Verify EU GFSI credentials, Kosher audits & register for Israeli supermarket export',
     },
     {
+      href: '/en/buyer/onboarding',
+      label: 'Retail Buyer Fast-Pass Onboarding',
+      icon: '⚡',
+      desc: '60-sec category lead setup with free HQ tasting kit delivery',
+    },
+    {
       href: '/en/rfq',
       label: 'Smart RFQ Matchmaker',
       icon: '🎯',
@@ -211,6 +217,12 @@ export default function Header() {
       label: 'פורטל רישום עצמי למפעלים (Factory Onboarding)',
       icon: '✨',
       desc: 'אימות נתוני מפעל, תעודות GFSI וכשרות ליצוא ישיר לרשתות השיווק',
+    },
+    {
+      href: '/he/buyer/onboarding',
+      label: 'מעבר מהיר לקנייני רשתות (Buyer Fast-Pass)',
+      icon: '⚡',
+      desc: 'הגדרת יעדי מרווח מדף וקבלת ערכת דוגמאות אישית למטה הרשת',
     },
     {
       href: '/he/benchmark',

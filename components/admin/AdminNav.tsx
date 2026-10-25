@@ -33,6 +33,7 @@ const sections: { title: string; links: NavItem[] }[] = [
     title: "Catalog & Directory",
     links: [
       { href: "/admin/buyers", label: "Buyers Directory", icon: "👥" },
+      { href: "/he/buyer/onboarding", label: "Retail Buyer Fast-Pass", icon: "⚡", badge: "Pass" },
       { href: "/admin/suppliers", label: "Supplier Network", icon: "🏭" },
       { href: "/supplier/onboarding", label: "Supplier Onboarding Wizard", icon: "✨", badge: "Live" },
       { href: "/admin/ecosystem", label: "Trade Partners & Enablers", icon: "🤝" },
