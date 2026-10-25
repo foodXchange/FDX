@@ -115,6 +115,7 @@ export function ScraperConsole({
 
   // Autonomous Queue State
   const [queueRunning, setQueueRunning] = useState(false);
+  const [showQueueHelp, setShowQueueHelp] = useState(false);
   const [queueState, setQueueState] = useState<{
     currentSupplier: string | null;
     currentBatch: string | null;
@@ -478,70 +479,131 @@ export function ScraperConsole({
       {/* Autonomous Background Queue Active Banner */}
       {queueRunning && queueState && (
         <div className="rounded-xl border border-emerald-300 bg-emerald-50 p-3 text-xs text-emerald-900 shadow-2xs">
-          <div className="flex items-center justify-between font-semibold mb-1.5">
-            <span
-              className="flex items-center gap-2 cursor-help"
-              title="Autonomous background crawler continuously processes pending suppliers using Firecrawl, Gemini 2.5 Flash, and Voyage AI."
-            >
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
-              Autonomous Queue Active (Pending Only)
-            </span>
-            <span
-              className="font-mono bg-emerald-100 px-2 py-0.5 rounded text-emerald-800 cursor-help"
-              title="Total pending suppliers waiting to be analyzed across all batches."
-            >
+          <div className="flex items-center justify-between font-semibold mb-2 flex-wrap gap-2">
+            <div className="flex items-center gap-2">
+              <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping shrink-0" />
+              <span>Autonomous Queue Active (Pending Only)</span>
+              <button
+                type="button"
+                onClick={() => setShowQueueHelp(!showQueueHelp)}
+                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-emerald-100 hover:bg-emerald-200 text-emerald-800 transition-colors cursor-pointer border border-emerald-300/60"
+              >
+                <span>ℹ️</span>
+                <span>{showQueueHelp ? "Hide guide" : "What do these mean?"}</span>
+              </button>
+            </div>
+            <span className="font-mono bg-emerald-100 px-2.5 py-0.5 rounded text-emerald-800 font-bold">
               {queueState.totalPending} pending left
             </span>
           </div>
-          <div className="flex flex-wrap items-center gap-x-3.5 gap-y-1.5 text-[11px] font-medium text-emerald-800 bg-white/90 px-3 py-2 rounded-lg border border-emerald-200">
-            <div title="Current supplier being crawled or verified right now">
+
+          {/* Interactive Guide Box */}
+          {showQueueHelp && (
+            <div className="mb-2.5 p-3 bg-white/95 rounded-lg border border-emerald-200 text-[11px] text-slate-700 space-y-1.5 shadow-xs">
+              <div className="font-bold text-emerald-950 flex items-center justify-between">
+                <span>Autonomous Queue Legend:</span>
+                <button
+                  type="button"
+                  onClick={() => setShowQueueHelp(false)}
+                  className="text-slate-400 hover:text-slate-600 text-xs px-1 cursor-pointer"
+                >
+                  ✕
+                </button>
+              </div>
+              <ul className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1.5 text-[10.5px]">
+                <li><strong className="text-slate-900">Done:</strong> Total suppliers evaluated in this run (OK + Skipped + Failed).</li>
+                <li><strong className="text-green-800">OK:</strong> Verified food/beverage producers with catalog products extracted.</li>
+                <li><strong className="text-amber-800">Skipped:</strong> Non-food entities (packaging, machinery, POS printers, insurance) filtered out by AI.</li>
+                <li><strong className="text-red-700">Failed:</strong> Inaccessible websites (DNS expired, network timeout, or bot-block).</li>
+                <li><strong className="text-blue-800">Products:</strong> Total new food catalog items extracted & vector embedded.</li>
+                <li><strong className="text-slate-900">Pending Left:</strong> Remaining suppliers waiting in the queue.</li>
+              </ul>
+            </div>
+          )}
+
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-[11px] font-medium text-emerald-800 bg-white/95 px-3 py-2 rounded-lg border border-emerald-200">
+            {/* Now */}
+            <div className="relative group/tip cursor-help">
               <span className="text-slate-500">Now:</span>{" "}
-              <span className="font-bold text-slate-800">{queueState.currentSupplier || "Next..."}</span>
+              <span className="font-bold text-slate-800 underline decoration-dotted decoration-slate-300">
+                {queueState.currentSupplier || "Next..."}
+              </span>
+              <div className="pointer-events-none absolute bottom-full left-0 mb-1.5 hidden group-hover/tip:flex flex-col items-start z-50 w-52 p-2 bg-slate-900 text-white text-[11px] rounded-lg shadow-xl leading-snug">
+                <span>Supplier currently being crawled and analyzed right now.</span>
+              </div>
             </div>
-            <div title="The CSV import batch this supplier originated from">
+
+            {/* Batch */}
+            <div className="relative group/tip cursor-help">
               <span className="text-slate-500">Batch:</span>{" "}
-              <span className="font-mono font-medium text-slate-700">{queueState.currentBatch || "All"}</span>
+              <span className="font-mono font-medium text-slate-700 underline decoration-dotted decoration-slate-300">
+                {queueState.currentBatch || "All"}
+              </span>
+              <div className="pointer-events-none absolute bottom-full left-0 mb-1.5 hidden group-hover/tip:flex flex-col items-start z-50 w-52 p-2 bg-slate-900 text-white text-[11px] rounded-lg shadow-xl leading-snug">
+                <span>The originating CSV import batch this supplier belongs to.</span>
+              </div>
             </div>
-            <div
-              className="cursor-help border-b border-dotted border-slate-400"
-              title="Done = Total suppliers evaluated in this background run (OK + Skipped + Failed)"
-            >
+
+            {/* Done */}
+            <div className="relative group/tip cursor-help">
               <span className="text-slate-500">Done:</span>{" "}
-              <span className="font-bold text-slate-900">{queueState.processedCount}</span>
+              <span className="font-bold text-slate-900 underline decoration-dotted decoration-slate-400">
+                {queueState.processedCount}
+              </span>
+              <div className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 hidden group-hover/tip:flex flex-col items-center z-50 w-56 p-2 bg-slate-900 text-white text-[11px] rounded-lg shadow-xl leading-snug text-center">
+                <span>Total suppliers evaluated in this background run (OK + Skipped + Failed).</span>
+              </div>
             </div>
-            <div
-              className="cursor-help border-b border-dotted border-green-500"
-              title="OK = Food & Beverage producers successfully scraped and cataloged with products"
-            >
+
+            {/* OK */}
+            <div className="relative group/tip cursor-help">
               <span className="text-slate-500">OK:</span>{" "}
-              <span className="text-green-700 font-bold">{queueState.successCount}</span>
+              <span className="text-green-700 font-bold underline decoration-dotted decoration-green-400">
+                {queueState.successCount}
+              </span>
+              <div className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 hidden group-hover/tip:flex flex-col items-center z-50 w-60 p-2 bg-slate-900 text-white text-[11px] rounded-lg shadow-xl leading-snug text-center">
+                <span>Food & Beverage manufacturers successfully cataloged with extracted products.</span>
+              </div>
             </div>
+
+            {/* Skipped */}
             {queueState.skippedCount > 0 && (
-              <div
-                className="cursor-help border-b border-dotted border-amber-500"
-                title="Skipped = Non-food entities (packaging, machinery, insurance, government booths) filtered out by AI to keep your food catalog clean"
-              >
+              <div className="relative group/tip cursor-help">
                 <span className="text-slate-500">Skipped:</span>{" "}
-                <span className="text-amber-700 font-bold">{queueState.skippedCount}</span>
+                <span className="text-amber-700 font-bold underline decoration-dotted decoration-amber-400">
+                  {queueState.skippedCount}
+                </span>
+                <div className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 hidden group-hover/tip:flex flex-col items-center z-50 w-64 p-2 bg-slate-900 text-white text-[11px] rounded-lg shadow-xl leading-snug text-center">
+                  <span>Non-food entities (packaging, machinery, POS printers, insurance) filtered out by AI to protect your food catalog.</span>
+                </div>
               </div>
             )}
+
+            {/* Failed */}
             {queueState.failedCount > 0 && (
-              <div
-                className="cursor-help border-b border-dotted border-red-500"
-                title="Failed = Inaccessible domains (DNS expired, network timeout, or bot-block)"
-              >
+              <div className="relative group/tip cursor-help">
                 <span className="text-slate-500">Failed:</span>{" "}
-                <span className="text-red-600 font-bold">{queueState.failedCount}</span>
+                <span className="text-red-600 font-bold underline decoration-dotted decoration-red-400">
+                  {queueState.failedCount}
+                </span>
+                <div className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 hidden group-hover/tip:flex flex-col items-center z-50 w-56 p-2 bg-slate-900 text-white text-[11px] rounded-lg shadow-xl leading-snug text-center">
+                  <span>Inaccessible websites (DNS expired, network timeout, or bot-block).</span>
+                </div>
               </div>
             )}
-            <div
-              className="cursor-help border-b border-dotted border-blue-500"
-              title="Products = Total new food/beverage catalog items extracted, categorized, and vector-embedded in this session"
-            >
+
+            {/* Products */}
+            <div className="relative group/tip cursor-help">
               <span className="text-slate-500">Products:</span>{" "}
-              <span className="text-blue-700 font-bold">{queueState.productsFound}</span>
+              <span className="text-blue-700 font-bold underline decoration-dotted decoration-blue-400">
+                {queueState.productsFound}
+              </span>
+              <div className="pointer-events-none absolute bottom-full right-0 mb-1.5 hidden group-hover/tip:flex flex-col items-end z-50 w-60 p-2 bg-slate-900 text-white text-[11px] rounded-lg shadow-xl leading-snug text-center">
+                <span>Total new food/beverage catalog items extracted, categorized, and vector-embedded in this session.</span>
+              </div>
             </div>
           </div>
+
           {queueState.lastMessage && (
             <div
               className="mt-1.5 text-[10px] text-emerald-700 font-mono truncate px-1 cursor-default"
