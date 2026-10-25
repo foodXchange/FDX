@@ -327,7 +327,7 @@ async function runBackgroundQueue() {
               await saveClassification(supabaseAdmin, supplier.id, cls, "crawl");
 
               if (cls.route !== "food_pipeline") {
-                await supabaseAdmin
+                const { error: skipErr } = await supabaseAdmin
                   .from("supplier_offerings")
                   .update({
                     scrape_status: "skipped",
@@ -335,11 +335,11 @@ async function runBackgroundQueue() {
                       cls.route === "invalid"
                         ? `Invalid site: ${cls.reason}`
                         : `Profiled: ${cls.sector}/${cls.businessRole ?? "unknown"} — ${cls.reason}`,
-                    ...(cls.route === "profiled" && cls.sector !== "food_beverage"
-                      ? { supplier_type: "non_food" }
-                      : {}),
                   })
                   .eq("id", supplier.id);
+                if (skipErr) {
+                  console.error(`[Queue] Failed to update skipped status for ${supplier.company_name}:`, skipErr.message);
+                }
                 globalQueueState.skippedCount++;
                 return;
               }

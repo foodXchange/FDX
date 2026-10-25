@@ -562,14 +562,16 @@ export async function GET(req: NextRequest) {
                 if (cls.offeringsSummary) {
                   send({ type: "log", message: `     ${cls.offeringsSummary}` });
                 }
-                await supabaseAdmin
+                const { error: skipErr } = await supabaseAdmin
                   .from("supplier_offerings")
                   .update({
                     scrape_status: "skipped",
                     internal_notes: `Profiled: ${cls.sector}/${cls.businessRole ?? "unknown"} — ${cls.reason}`,
-                    ...(cls.sector !== "food_beverage" ? { supplier_type: "non_food" } : {}),
                   })
                   .eq("id", supplier.id);
+                if (skipErr) {
+                  console.error(`[Stream] Failed to update skipped status for ${supplier.company_name}:`, skipErr.message);
+                }
                 skippedList.push({
                   name: supplier.company_name,
                   type: `${cls.sector}/${cls.businessRole ?? "unknown"}`,
