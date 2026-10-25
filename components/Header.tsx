@@ -49,6 +49,7 @@ export default function Header() {
     if (pathname === '/he') enTarget = '/';
     else if (pathname === '/he/buyers') enTarget = '/en/buyers';
     else if (pathname === '/he/sourcing') enTarget = '/en/sourcing';
+    else if (pathname === '/he/calculator/container') enTarget = '/en/calculator/container';
     else if (pathname === '/he/calculator') enTarget = '/en/calculator';
     else if (pathname === '/he/benchmark') enTarget = '/en/benchmark';
     else if (pathname === '/he/track') enTarget = '/track';
@@ -70,6 +71,7 @@ export default function Header() {
     if (pathname === '/') heTarget = '/he';
     else if (pathname === '/en/buyers') heTarget = '/he/buyers';
     else if (pathname === '/en/sourcing') heTarget = '/he/sourcing';
+    else if (pathname === '/en/calculator/container') heTarget = '/he/calculator/container';
     else if (pathname === '/en/calculator') heTarget = '/he/calculator';
     else if (pathname === '/en/benchmark') heTarget = '/he/benchmark';
     else if (pathname === '/track' || pathname === '/en/track') heTarget = '/he/track';
@@ -140,6 +142,12 @@ export default function Header() {
       desc: 'Simulate shelf margins, freight & import duties',
     },
     {
+      href: '/en/calculator/container',
+      label: 'Mixed Container Optimizer',
+      icon: '🚢',
+      desc: 'Consolidate multiple European factories into 20ft/40ft containers',
+    },
+    {
       href: '/en/import-guide',
       label: 'Food Import Guide',
       icon: '📋',
@@ -195,6 +203,12 @@ export default function Header() {
       label: 'מחשבון עלות נחיתה ורווחיות',
       icon: '⚡',
       desc: 'תחשיב עלות במרלו״ג, מרווחי מדף והשוואת בנצ׳מרק',
+    },
+    {
+      href: '/he/calculator/container',
+      label: 'מחשבון מכולה משולבת (איחוד יצרנים)',
+      icon: '🚢',
+      desc: 'איחוד משטחים ממספר מפעלי מזון באירופה וחיסכון בעלויות שילוח',
     },
     {
       href: '/he/import-guide',

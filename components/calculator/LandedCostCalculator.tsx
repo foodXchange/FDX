@@ -445,6 +445,20 @@ Annual Consumer Savings: ${formatIls(calculations.annualConsumerSavings, 0)}`;
                 ? "המרת מחירי מפעל באירופה (€/$) לעלות נחיתה מדויקת במרלו״ג (ILS ₪), כולל הובלה, אגרות נמל, עמילות מכס, רווחיות גולמית והשוואת בנצ׳מרק למותגים מובילים."
                 : "Translate European factory quotes (€/$) into landed cost at Israeli distribution centers, with freight, port clearance, retailer gross margins, and brand benchmark savings."}
             </p>
+
+            {/* Mode Switcher Tabs */}
+            <div className="flex items-center gap-2 pt-3">
+              <span className="px-3 py-1.5 rounded-xl bg-orange-500 text-white text-xs font-bold shadow-xs">
+                📦 {isHe ? "חישוב פריט בודד" : "Single SKU Landed Cost"}
+              </span>
+              <Link
+                href={isHe ? "/he/calculator/container" : "/en/calculator/container"}
+                className="px-3.5 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-cyan-400 hover:text-cyan-300 text-xs font-bold border border-cyan-500/30 transition flex items-center gap-1.5 shadow-sm"
+              >
+                <span>🚢</span>
+                <span>{isHe ? "מחשבון מכולה משולבת (איחוד יצרנים) ↗" : "Mixed Container Builder (Consolidation) ↗"}</span>
+              </Link>
+            </div>
           </div>
 
           <div className="flex items-center gap-2 self-end md:self-auto">
