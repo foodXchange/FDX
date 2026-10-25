@@ -168,6 +168,12 @@ export default function Header() {
       desc: 'EU reform, Israeli SI 1145 & kosher pathways',
     },
     {
+      href: '/en/tools/spec-extractor',
+      label: 'AI Spec Sheet & SI 1145 Label Extractor',
+      icon: '🔬',
+      desc: 'Parse European scheda tecnica into Israeli SI 1145 food labels',
+    },
+    {
       href: '/en/blog',
       label: 'Market Blog & Insights',
       icon: '📰',
@@ -241,6 +247,12 @@ export default function Header() {
       label: 'מדריך יבוא ומרכז רגולציה',
       icon: '📋',
       desc: 'רפורמת היבוא האירופאי, ת״י 1145 ואישורי כשרות',
+    },
+    {
+      href: '/he/tools/spec-extractor',
+      label: 'מפענח מפרטים טכניים (ת״י 1145 AI)',
+      icon: '🔬',
+      desc: 'פענוח מפרט אירופאי ויצירת מדבקת סימון מזון ותווית עברית',
     },
     {
       href: '/he/blog',

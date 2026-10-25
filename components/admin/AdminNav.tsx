@@ -37,6 +37,7 @@ const sections: { title: string; links: NavItem[] }[] = [
       { href: "/supplier/onboarding", label: "Supplier Onboarding Wizard", icon: "✨", badge: "Live" },
       { href: "/admin/ecosystem", label: "Trade Partners & Enablers", icon: "🤝" },
       { href: "/admin/products", label: "Product Catalog", icon: "📦" },
+      { href: "/admin/tools/spec-extractor", label: "AI Spec Sheet to SI 1145", icon: "🔬", badge: "AI" },
       { href: "/admin/data-quality", label: "Data Quality & Dups", icon: "🏷️" },
       { href: "/admin/scraper", label: "Web Scraper", icon: "🕷️" },
     ],
