@@ -148,9 +148,28 @@ async function insertProducts(
   const qualification_status =
     product_count >= 3 ? "strong" : product_count >= 1 ? "thin" : "empty";
 
+  // Roll up distinct categories, certifications, and kosher types to the supplier profile
+  const distinctCategories = Array.from(
+    new Set(products.map((p) => p.category).filter(Boolean))
+  );
+  const distinctCerts = Array.from(
+    new Set(products.flatMap((p) => p.certifications || []).filter(Boolean))
+  );
+  const distinctKosher = Array.from(
+    new Set(products.flatMap((p) => p.kosher_types || []).filter(Boolean))
+  );
+
   await supabaseAdmin
     .from("supplier_offerings")
-    .update({ product_count, qualification_status, status: "approved", verified: true })
+    .update({
+      product_count,
+      qualification_status,
+      status: "approved",
+      verified: true,
+      ...(distinctCategories.length > 0 ? { categories: distinctCategories } : {}),
+      ...(distinctCerts.length > 0 ? { certifications: distinctCerts } : {}),
+      ...(distinctKosher.length > 0 ? { kosher_types: distinctKosher } : {}),
+    })
     .eq("id", supplierId);
 
   return rows.length;

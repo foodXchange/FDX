@@ -98,17 +98,36 @@ async function insertProducts(
   if (products.length === 0) return { count: 0, imagesSaved: 0 };
 
   async function recomputeSupplierQualification(supplierId: string) {
-    const { count, error } = await supabaseAdmin
+    const { data: prods, count, error } = await supabaseAdmin
       .from("supplier_products")
-      .select("id", { count: "exact", head: true })
+      .select("category, certifications, kosher_types", { count: "exact" })
       .eq("supplier_id", supplierId);
     if (error) return;
     const product_count = count ?? 0;
     const qualification_status =
       product_count >= 3 ? "strong" : product_count >= 1 ? "thin" : "empty";
+
+    const distinctCategories = Array.from(
+      new Set(prods?.map((p) => p.category).filter(Boolean) || [])
+    );
+    const distinctCerts = Array.from(
+      new Set(prods?.flatMap((p) => p.certifications || []).filter(Boolean) || [])
+    );
+    const distinctKosher = Array.from(
+      new Set(prods?.flatMap((p) => p.kosher_types || []).filter(Boolean) || [])
+    );
+
     await supabaseAdmin
       .from("supplier_offerings")
-      .update({ product_count, qualification_status, status: "approved", verified: true })
+      .update({
+        product_count,
+        qualification_status,
+        status: "approved",
+        verified: true,
+        ...(distinctCategories.length > 0 ? { categories: distinctCategories } : {}),
+        ...(distinctCerts.length > 0 ? { certifications: distinctCerts } : {}),
+        ...(distinctKosher.length > 0 ? { kosher_types: distinctKosher } : {}),
+      })
       .eq("id", supplierId);
   }
 
