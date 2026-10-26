@@ -41,7 +41,11 @@ export async function generateGeminiWithFallback(
   const clients: GoogleGenAI[] = [ai];
   if (process.env.GEMINI_API_KEY) seenKeys.add(process.env.GEMINI_API_KEY);
 
-  for (const extraKey of [process.env.GEMINI_API_KEY_2, process.env.GEMINI_API_KEY_BACKUP]) {
+  for (const extraKey of [
+    process.env.GEMINI_API_KEY_2,
+    process.env.GEMINI_API_KEY_3,
+    process.env.GEMINI_API_KEY_BACKUP,
+  ]) {
     if (extraKey && !seenKeys.has(extraKey)) {
       seenKeys.add(extraKey);
       clients.push(new GoogleGenAI({ apiKey: extraKey }));
