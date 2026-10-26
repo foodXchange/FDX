@@ -77,6 +77,12 @@ async function insertProducts(
 ): Promise<number> {
   if (products.length === 0) return 0;
 
+  await supabaseAdmin
+    .from("supplier_products")
+    .delete()
+    .eq("supplier_id", supplierId)
+    .eq("manually_verified", false);
+
   const { productImages } = extractImagesFromCrawledContent(
     crawledContent,
     supplierWebsite
