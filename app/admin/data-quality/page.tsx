@@ -2,6 +2,7 @@ import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import CategoryMappingTable from "./CategoryMappingTable";
 import DuplicateTable, { DuplicateRow } from "./DuplicateTable";
 import CompletenessTable from "./CompletenessTable";
+import { CatalogTelemetryWidget } from "@/components/admin/CatalogTelemetryWidget";
 
 type UnmappedRow = { category: string; count: number };
 type CategoryOption = { id: string; name: string };
@@ -322,6 +323,9 @@ export default async function DataQualityPage() {
 
       {/* Main Content Sections */}
       <div className="max-w-7xl mx-auto p-6 space-y-8">
+        {/* Live 6-Pillar Completeness Scorecard & Scraper Telemetry */}
+        <CatalogTelemetryWidget />
+
         {/* Section 1: Category Mapping */}
         <section id="categories" className="bg-white border border-gray-200 rounded-2xl p-6 shadow-xs">
           <div className="flex items-center justify-between mb-4">

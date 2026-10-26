@@ -10,47 +10,78 @@ let lastGeminiCheck: { isTripped: boolean; reason: string | null; checkedAt: num
   checkedAt: 0,
 };
 
+// 15-second in-memory cache for fast sub-5ms dashboard polling
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let cachedStatusPayload: { data: any; fetchedAt: number } | null = null;
+const STATUS_CACHE_TTL_MS = 15_000;
+
 export async function GET() {
   try {
+    if (cachedStatusPayload && Date.now() - cachedStatusPayload.fetchedAt < STATUS_CACHE_TTL_MS) {
+      return NextResponse.json(cachedStatusPayload.data);
+    }
+
     const hasVoyage = Boolean(process.env.VOYAGE_API_KEY);
     const hasFirecrawl = Boolean(process.env.FIRECRAWL_API_KEY);
     const hasGemini = Boolean(process.env.GEMINI_API_KEY);
     const hasAnthropic = Boolean(process.env.ANTHROPIC_API_KEY);
 
-    // Fast catalog & supplier counts in parallel
+    // Fast catalog & supplier counts in parallel using indexed id column
     const [
       totalRes,
       missingCatRes,
       embeddedRes,
+      imagesRes,
+      tempRes,
       totalSuppliersRes,
       pendingRes,
       scrapedRes,
       failedRes,
       skippedRes,
+      suppliersWithEmailRes,
+      suppliersWithLogoRes,
     ] = await Promise.all([
-      supabaseAdmin.from("supplier_products").select("*", { count: "exact", head: true }),
-      supabaseAdmin.from("supplier_products").select("*", { count: "exact", head: true }).is("category_id", null),
-      supabaseAdmin.from("supplier_products").select("*", { count: "exact", head: true }).not("embedding", "is", null),
-      supabaseAdmin.from("supplier_offerings").select("*", { count: "exact", head: true }),
-      supabaseAdmin.from("supplier_offerings").select("*", { count: "exact", head: true }).eq("scrape_status", "pending"),
-      supabaseAdmin.from("supplier_offerings").select("*", { count: "exact", head: true }).eq("scrape_status", "scraped"),
-      supabaseAdmin.from("supplier_offerings").select("*", { count: "exact", head: true }).eq("scrape_status", "failed"),
-      supabaseAdmin.from("supplier_offerings").select("*", { count: "exact", head: true }).eq("scrape_status", "skipped"),
+      supabaseAdmin.from("supplier_products").select("id", { count: "exact", head: true }),
+      supabaseAdmin.from("supplier_products").select("id", { count: "exact", head: true }).is("category_id", null),
+      supabaseAdmin.from("supplier_products").select("id", { count: "exact", head: true }).not("embedding", "is", null),
+      supabaseAdmin.from("supplier_products").select("id", { count: "exact", head: true }).not("image_url", "is", null),
+      supabaseAdmin.from("supplier_products").select("id", { count: "exact", head: true }).not("storage_temp", "is", null),
+      supabaseAdmin.from("supplier_offerings").select("id", { count: "exact", head: true }),
+      supabaseAdmin.from("supplier_offerings").select("id", { count: "exact", head: true }).eq("scrape_status", "pending"),
+      supabaseAdmin.from("supplier_offerings").select("id", { count: "exact", head: true }).eq("scrape_status", "scraped"),
+      supabaseAdmin.from("supplier_offerings").select("id", { count: "exact", head: true }).eq("scrape_status", "failed"),
+      supabaseAdmin.from("supplier_offerings").select("id", { count: "exact", head: true }).eq("scrape_status", "skipped"),
+      supabaseAdmin.from("supplier_offerings").select("id", { count: "exact", head: true }).eq("scrape_status", "scraped").not("contact_email", "is", null),
+      supabaseAdmin.from("supplier_offerings").select("id", { count: "exact", head: true }).eq("scrape_status", "scraped").not("logo_url", "is", null),
     ]);
 
     const totalProducts = totalRes.count ?? 0;
     const uncategorized = missingCatRes.count ?? 0;
     const categorized = Math.max(0, totalProducts - uncategorized);
     const embedded = embeddedRes.count ?? 0;
+    const withImages = imagesRes.count ?? 0;
+    const withStorageTemp = tempRes.count ?? 0;
     const catRate = totalProducts > 0 ? Number(((categorized / totalProducts) * 100).toFixed(1)) : 0;
     const embedRate = totalProducts > 0 ? Number(((embedded / totalProducts) * 100).toFixed(1)) : 0;
+    const imageRate = totalProducts > 0 ? Number(((withImages / totalProducts) * 100).toFixed(1)) : 0;
+    const tempRate = totalProducts > 0 ? Number(((withStorageTemp / totalProducts) * 100).toFixed(1)) : 0;
+
+    const scrapedCount = scrapedRes.count ?? 0;
+    const suppliersWithEmail = suppliersWithEmailRes.count ?? 0;
+    const suppliersWithLogo = suppliersWithLogoRes.count ?? 0;
+    const emailRate = scrapedCount > 0 ? Number(((suppliersWithEmail / scrapedCount) * 100).toFixed(1)) : 0;
+    const logoRate = scrapedCount > 0 ? Number(((suppliersWithLogo / scrapedCount) * 100).toFixed(1)) : 0;
 
     const supplierStatus = {
       pending: pendingRes.count ?? 0,
-      scraped: scrapedRes.count ?? 0,
+      scraped: scrapedCount,
       failed: failedRes.count ?? 0,
       skipped: skippedRes.count ?? 0,
       total: totalSuppliersRes.count ?? 0,
+      withEmail: suppliersWithEmail,
+      emailRate,
+      withLogo: suppliersWithLogo,
+      logoRate,
     };
 
     // Dynamic Circuit breaker check (cached for 60 seconds)
@@ -94,7 +125,7 @@ export async function GET() {
       ? "GEMINI_API_KEY is not configured."
       : lastGeminiCheck.reason;
 
-    return NextResponse.json({
+    const payload = {
       ok: true,
       timestamp: new Date().toISOString(),
       providers: {
@@ -132,13 +163,20 @@ export async function GET() {
         categorizationRate: catRate,
         embeddedProducts: embedded,
         embeddingRate: embedRate,
+        withImagesProducts: withImages,
+        imageRate,
+        withStorageTempProducts: withStorageTemp,
+        tempRate,
       },
       suppliers: supplierStatus,
       circuitBreaker: {
         isTripped: circuitBreakerTripped,
         reason: circuitBreakerReason,
       },
-    });
+    };
+
+    cachedStatusPayload = { data: payload, fetchedAt: Date.now() };
+    return NextResponse.json(payload);
   } catch (err: unknown) {
     const errorMsg = err instanceof Error ? err.message : String(err);
     return NextResponse.json({ ok: false, error: errorMsg }, { status: 500 });

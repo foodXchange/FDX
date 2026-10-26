@@ -1,10 +1,38 @@
 import Link from "next/link";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import DigestButton from "./pipeline/DigestButton";
+import { CatalogTelemetryWidget } from "@/components/admin/CatalogTelemetryWidget";
 
 export const dynamic = "force-dynamic";
 
-export default async function AdminHome() {
+type TopMatchRow = {
+  id: string;
+  product_name: string;
+  company_name: string;
+  country: string | null;
+  match_score: number;
+  status: string;
+  sourcing_requests: { company: string | null; product_name: string | null } | null;
+};
+
+let cachedAdminHomeData: {
+  requestsCount: number;
+  matchesCount: number;
+  highScoreCount: number;
+  suppliersCount: number;
+  productsCount: number;
+  buyersCount: number;
+  mappedProductsCount: number;
+  taxonomyPct: number;
+  topMatches: TopMatchRow[];
+  fetchedAt: number;
+} | null = null;
+
+async function getAdminHomeData() {
+  if (cachedAdminHomeData && Date.now() - cachedAdminHomeData.fetchedAt < 30_000) {
+    return cachedAdminHomeData;
+  }
+
   const [
     requestsResult,
     matchesResult,
@@ -22,7 +50,6 @@ export default async function AdminHome() {
     supabaseAdmin.from("supplier_products").select("id", { count: "exact", head: true }),
     supabaseAdmin.from("buyers").select("id", { count: "exact", head: true }),
     supabaseAdmin.from("supplier_products").select("id", { count: "exact", head: true }).not("category_id", "is", null),
-    // Top 5 highest match score deals in pipeline
     supabaseAdmin
       .from("sourcing_matches")
       .select("id, product_name, company_name, country, match_score, status, sourcing_requests(company, product_name)")
@@ -38,18 +65,36 @@ export default async function AdminHome() {
   const buyersCount = buyersResult.count ?? 0;
   const mappedProductsCount = mappedProductsResult.count ?? 0;
   const taxonomyPct = productsCount > 0 ? Math.round((mappedProductsCount / productsCount) * 100) : 0;
+  const topMatches = (topPendingMatchesResult.data ?? []) as unknown as TopMatchRow[];
 
-  type TopMatchRow = {
-    id: string;
-    product_name: string;
-    company_name: string;
-    country: string | null;
-    match_score: number;
-    status: string;
-    sourcing_requests: { company: string | null; product_name: string | null } | null;
+  cachedAdminHomeData = {
+    requestsCount,
+    matchesCount,
+    highScoreCount,
+    suppliersCount,
+    productsCount,
+    buyersCount,
+    mappedProductsCount,
+    taxonomyPct,
+    topMatches,
+    fetchedAt: Date.now(),
   };
 
-  const topMatches = (topPendingMatchesResult.data ?? []) as unknown as TopMatchRow[];
+  return cachedAdminHomeData;
+}
+
+export default async function AdminHome() {
+  const {
+    requestsCount,
+    matchesCount,
+    highScoreCount,
+    suppliersCount,
+    productsCount,
+    buyersCount,
+    mappedProductsCount,
+    taxonomyPct,
+    topMatches,
+  } = await getAdminHomeData();
 
   return (
     <main className="min-h-screen bg-slate-50/70 p-6 lg:p-8 space-y-8">
@@ -162,6 +207,9 @@ export default async function AdminHome() {
           </div>
         </div>
       </div>
+
+      {/* Live 6-Pillar Catalog Completeness & Autonomous Scraper Telemetry */}
+      <CatalogTelemetryWidget />
 
       {/* Top Priority Deal Watch & Action Queue */}
       {topMatches.length > 0 && (

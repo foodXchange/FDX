@@ -92,10 +92,18 @@ function extractBatchNumber(filename?: string): string | undefined {
   return undefined;
 }
 
+let cachedSuppliers: { rows: FullSupplierRow[]; fetchedAt: number } | null = null;
+let cachedFactories: { rows: FactoryRow[]; fetchedAt: number } | null = null;
+const SCRAPER_PAGE_CACHE_TTL_MS = 20_000;
+
 async function fetchAllSuppliers(): Promise<FullSupplierRow[]> {
+  if (cachedSuppliers && Date.now() - cachedSuppliers.fetchedAt < SCRAPER_PAGE_CACHE_TTL_MS) {
+    return cachedSuppliers.rows;
+  }
+
   const { count } = await supabaseAdmin
     .from("supplier_offerings")
-    .select("*", { count: "exact", head: true });
+    .select("id", { count: "exact", head: true });
 
   const total = count ?? 0;
   const pageSize = 1000;
@@ -121,13 +129,18 @@ async function fetchAllSuppliers(): Promise<FullSupplierRow[]> {
   for (const r of results) {
     if (r.data) all.push(...(r.data as FullSupplierRow[]));
   }
+  cachedSuppliers = { rows: all, fetchedAt: Date.now() };
   return all;
 }
 
 async function fetchAllFactories(): Promise<FactoryRow[]> {
+  if (cachedFactories && Date.now() - cachedFactories.fetchedAt < SCRAPER_PAGE_CACHE_TTL_MS) {
+    return cachedFactories.rows;
+  }
+
   const { count } = await supabaseAdmin
     .from("supplier_factories")
-    .select("*", { count: "exact", head: true });
+    .select("supplier_id", { count: "exact", head: true });
 
   const total = count ?? 0;
   const pageSize = 1000;
@@ -150,6 +163,7 @@ async function fetchAllFactories(): Promise<FactoryRow[]> {
   for (const r of results) {
     if (r.data) all.push(...(r.data as FactoryRow[]));
   }
+  cachedFactories = { rows: all, fetchedAt: Date.now() };
   return all;
 }
 
