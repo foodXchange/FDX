@@ -1,5 +1,6 @@
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
-import ScraperTableClient, { classifyRowFailure } from "@/components/admin/ScraperTableClient";
+import ScraperTableClient from "@/components/admin/ScraperTableClient";
+import { classifyRowFailure } from "@/lib/scraper/classifyFailure";
 import { ProviderHealthBar } from "@/components/admin/scraper/ProviderHealthBar";
 import { ScraperWorkspaceClient } from "@/components/admin/scraper/ScraperWorkspaceClient";
 import {

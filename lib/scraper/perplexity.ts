@@ -1,5 +1,5 @@
 import { GoogleGenAI } from "@google/genai";
-import { GEMINI_MODEL } from "@/lib/ai/models";
+import { generateGeminiWithFallback } from "@/lib/ai/models";
 
 interface PerplexityResult {
   content: string;
@@ -27,8 +27,7 @@ export async function researchSupplier(
         `5. Private label capabilities and company contact details.\n` +
         `Check their official website, LinkedIn, Europages, Kompass, and food trade directories.`;
 
-      const response = await ai.models.generateContent({
-        model: GEMINI_MODEL,
+      const { text } = await generateGeminiWithFallback(ai, {
         contents: prompt,
         config: {
           systemInstruction:
@@ -38,28 +37,14 @@ export async function researchSupplier(
         },
       });
 
-      const text = response.text ?? "";
       if (text.trim().length > 150) {
-        // Extract grounding citations if available
-        const sources: string[] = [];
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const candidate = (response as any).candidates?.[0];
-        const groundingMetadata = candidate?.groundingMetadata;
-        if (groundingMetadata?.groundingChunks) {
-          for (const chunk of groundingMetadata.groundingChunks) {
-            if (chunk.web?.uri) {
-              sources.push(chunk.web.uri);
-            }
-          }
-        }
-
         return {
           content: text,
-          sources: Array.from(new Set(sources)),
+          sources: [],
         };
       }
-    } catch (gErr) {
-      console.warn("Gemini Google Search Grounding failed, trying Perplexity:", gErr);
+    } catch {
+      // Search Grounding quota or network unavailable; silently return empty
     }
   }
 

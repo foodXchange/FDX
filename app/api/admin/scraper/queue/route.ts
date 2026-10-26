@@ -189,13 +189,15 @@ async function runBackgroundQueue() {
 
   try {
     while (!globalQueueState.shouldStop) {
-      // Fetch next batch of pending suppliers across ALL batches
+      // Fetch next batch of pending suppliers across ALL batches (prioritizing re-queued food_pipeline & cached-snapshot suppliers first)
       const { data: pendingSuppliers, error } = await supabaseAdmin
         .from("supplier_offerings")
         .select("id, company_name, website, country_of_origin, categories, certifications, csv_import_batch")
         .eq("scrape_status", "pending")
         .not("website", "is", null)
         .neq("website", "")
+        .order("classified_at", { ascending: false, nullsFirst: false })
+        .order("updated_at", { ascending: false, nullsFirst: false })
         .limit(20);
 
       if (error || !pendingSuppliers || pendingSuppliers.length === 0) {
@@ -316,11 +318,29 @@ async function runBackgroundQueue() {
           await Promise.race([
             (async () => {
               const crawlUrl = getHomepage(supplier.website!);
-              const content = await crawlSupplier(
-                crawlUrl,
-                supplier.company_name,
-                supplier.country_of_origin
-              );
+              let content = "";
+              let usedCachedSnapshot = false;
+
+              const { data: existingSnap } = await supabaseAdmin
+                .from("crawl_snapshots")
+                .select("content, content_chars")
+                .eq("supplier_id", supplier.id)
+                .maybeSingle();
+
+              if (
+                existingSnap?.content &&
+                existingSnap.content.length >= 250
+              ) {
+                content = existingSnap.content;
+                usedCachedSnapshot = true;
+                globalQueueState.lastMessage = `⚡ Using cached website snapshot for ${supplier.company_name} (0 Firecrawl credits)...`;
+              } else {
+                content = await crawlSupplier(
+                  crawlUrl,
+                  supplier.company_name,
+                  supplier.country_of_origin
+                );
+              }
               if (isTimedOut) return;
               const isGroundedSearch = content.startsWith("[PERPLEXITY RESEARCH]");
 
@@ -334,13 +354,15 @@ async function runBackgroundQueue() {
               }
 
               // Classification (sector · role · category)
-              await saveCrawlSnapshot(
-                supabaseAdmin,
-                supplier.id,
-                content,
-                crawlUrl,
-                isGroundedSearch ? "perplexity" : "firecrawl"
-              );
+              if (!usedCachedSnapshot) {
+                await saveCrawlSnapshot(
+                  supabaseAdmin,
+                  supplier.id,
+                  content,
+                  crawlUrl,
+                  isGroundedSearch ? "perplexity" : "firecrawl"
+                );
+              }
               const cls = await classifyCompany(content, supplier.company_name);
               if (isTimedOut) return;
               await saveClassification(supabaseAdmin, supplier.id, cls, "crawl");
@@ -371,6 +393,40 @@ async function runBackgroundQueue() {
                 categories: supplier.categories ?? [],
               });
               if (isTimedOut) return;
+
+              // Fallback for confirmed food producers whose site only describes general product lines
+              if (
+                products.length === 0 &&
+                !cls.failed &&
+                (cls.sector === "food_beverage" || cls.sector === "ingredients_additives") &&
+                (cls.offeringsSummary || cls.category || profile.company_description)
+              ) {
+                const synthesizedName =
+                  cls.offeringsSummary?.split(/[.;,]/)[0]?.trim()?.slice(0, 80) ||
+                  (cls.category ? `${cls.category} Products` : `${supplier.company_name} Food Line`);
+                products.push({
+                  product_name: synthesizedName,
+                  category: cls.category || (supplier.categories?.[0] ?? "Other"),
+                  subcategory: null,
+                  description:
+                    cls.offeringsSummary ||
+                    profile.company_description?.slice(0, 240) ||
+                    null,
+                  formats: [],
+                  sizes: [],
+                  brix_level: null,
+                  shelf_life_months: null,
+                  certifications: supplier.certifications ?? [],
+                  kosher_types: [],
+                  product_type: "processed_food",
+                  primary_ingredients: [],
+                  private_label: cls.capabilities?.includes("private_label") ?? false,
+                  tags: cls.tags ?? [],
+                  markets_suitable: ["Retail", "Foodservice"],
+                  confidence: 0.55,
+                  needs_review: true,
+                });
+              }
 
               if (products.length === 0) {
                 await supabaseAdmin
