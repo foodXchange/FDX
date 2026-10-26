@@ -5,6 +5,7 @@ import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import RequestsList, { type PortalRequest } from "@/components/portal/RequestsList";
 import SupportForm from "@/components/portal/SupportForm";
 import BuyerPortalGuidanceHeader from "@/components/buyer-portal/BuyerPortalGuidanceHeader";
+import WorkflowVideoPlayer from "@/components/video/WorkflowVideoPlayer";
 
 export default async function PortalDashboardPage() {
   const supabase = await createClient();
@@ -74,6 +75,22 @@ export default async function PortalDashboardPage() {
         )}
 
         <SupportForm />
+
+        {/* Interactive Buyer Video Walkthrough */}
+        <div className="mt-12 pt-8 border-t border-slate-800">
+          <div className="mb-4">
+            <span className="text-xs font-bold uppercase tracking-wider text-amber-400">
+              Interactive Buyer Academy
+            </span>
+            <h2 className="text-lg font-bold text-white mt-0.5">
+              End-to-End Sourcing, SI 1145 Compliance &amp; Container Tracking Walkthroughs
+            </h2>
+            <p className="text-xs text-slate-400">
+              Switch between tracks to review sample box ordering, warehouse landed-cost simulation, and ocean container tracking.
+            </p>
+          </div>
+          <WorkflowVideoPlayer lang="en" initialVideoId="sourcing-samples" />
+        </div>
       </div>
     </section>
   );

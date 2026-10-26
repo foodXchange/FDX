@@ -5,6 +5,7 @@ import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import StatusBadge from "@/components/supplier-portal/StatusBadge";
 import NoCompanyState from "@/components/supplier-portal/NoCompanyState";
 import OnboardingChecklist from "@/components/supplier-portal/OnboardingChecklist";
+import WorkflowVideoPlayer from "@/components/video/WorkflowVideoPlayer";
 import { logEvent } from "@/lib/events/logEvent";
 
 const SENT_STATUSES = ["sent", "responded", "closed"];
@@ -73,7 +74,7 @@ export default async function SupplierPortalDashboardPage() {
 
   return (
     <section className="px-6 py-12">
-      <div className="max-w-4xl mx-auto">
+      <div className="max-w-5xl mx-auto">
         <div className="flex items-center justify-between flex-wrap gap-4 mb-8">
           <div>
             <h1 className="text-2xl font-bold text-white">Welcome back, {companyName}</h1>
@@ -138,6 +139,25 @@ export default async function SupplierPortalDashboardPage() {
           <Link href="/en/supplier-portal/profile" className="btn-ghost px-5 py-2.5 rounded-md text-sm font-medium">
             Edit profile
           </Link>
+          <Link href="/factory-portal/demo" className="px-5 py-2.5 rounded-md text-sm font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 hover:bg-emerald-500/30 transition">
+            🏭 Preview Factory Production Deal Desk
+          </Link>
+        </div>
+
+        {/* Interactive Supplier & Factory Video Walkthrough */}
+        <div className="mt-12 pt-8 border-t border-slate-800">
+          <div className="mb-4">
+            <span className="text-xs font-bold uppercase tracking-wider text-emerald-400">
+              Interactive Supplier Academy
+            </span>
+            <h2 className="text-lg font-bold text-white mt-0.5">
+              How FoodXchange Works for Global Manufacturers (01:20)
+            </h2>
+            <p className="text-xs text-slate-400">
+              See how your factory receives matched Israeli supermarket RFQs, dispatches tasting boxes, locks 30% T/T deposits, and hands over export documents.
+            </p>
+          </div>
+          <WorkflowVideoPlayer lang="en" initialVideoId="supplier-factory-onboarding" />
         </div>
       </div>
     </section>

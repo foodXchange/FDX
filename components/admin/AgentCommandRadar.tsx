@@ -3,7 +3,41 @@
 import { useState, useMemo } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import TourGuide, { type TourStep } from "@/components/tour/TourGuide";
 import type { RequestRow } from "@/app/admin/requests/page";
+
+const AGENT_TOUR_STEPS: TourStep[] = [
+  {
+    targetSelector: "#agent-kpi-metrics",
+    titleEn: "1. Live Portfolio & Brokerage Commission Tracker",
+    titleHe: "1. מעקב תיק עסקאות ועמלות תיווך בזמן אמת",
+    descEn:
+      "Monitor your total active sourcing deals, estimated container cargo value (€), projected ~5% brokerage spread, and urgent bottlenecks requiring your immediate nudge.",
+    descHe:
+      "עקוב אחר כלל הפרויקטים הפעילים, שווי המכולות המשוער (€), עמלת הסוכן הצפויה (~5%) וצווארי בקבוק דחופים.",
+    icon: "💰",
+  },
+  {
+    targetSelector: "#agent-bottleneck-bar",
+    titleEn: "2. 1-Click Bottleneck Filtering (Who Holds the Ball?)",
+    titleHe: "2. סינון צווארי בקבוק בלחיצה (אצל מי הכדור?)",
+    descEn:
+      "Instantly filter deals waiting on the Retail Buyer (sample scoring / PO signature), the Factory (CIF quote / EUR.1 docs), or Regulatory/Logistics.",
+    descHe:
+      "סנן בלחיצה עסקאות הממתינות לקניין הרשת (טעימה/חתימת PO), למפעל (הצעת מחיר/מסמכי יצוא), או לעמיל המכס.",
+    icon: "🎯",
+  },
+  {
+    targetSelector: "#agent-stage-pipeline",
+    titleEn: "3. Multi-Stage Deal Cards & Anti-Circumvention Tags",
+    titleHe: "3. כרטיסי עסקה ומגני עקיפה (Anti-Circumvention)",
+    descEn:
+      "Every deal has a unique project reference tag ([FDX-REQ-...]) and direct links to the Buyer Deal Desk, Factory Portal, Customs Portal, and Margin Pitch Simulator.",
+    descHe:
+      "לכל עסקה תג ייחודי וקישורים ישירים לפורטל הקניין, פורטל המפעל, פורטל המכס וסימולטור הרווחיות.",
+    icon: "🛡️",
+  },
+];
 import {
   deriveAgentProjectStage,
   STAGE_DEFINITIONS,
@@ -123,12 +157,13 @@ export default function AgentCommandRadar({ requests }: Props) {
       <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-indigo-950 rounded-2xl p-6 text-white shadow-xl mb-6 border border-slate-700/60">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 pb-6 border-b border-slate-700/50">
           <div>
-            <div className="flex items-center gap-2 mb-1">
+            <div className="flex items-center gap-2 mb-1 flex-wrap">
               <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
                 Live Agent Operations
               </span>
               <span className="text-xs text-slate-400">Trade Broker & Intermediary Desk</span>
+              <TourGuide tourId="agent_command_radar_tour" steps={AGENT_TOUR_STEPS} lang="en" />
             </div>
             <h1 className="text-2xl font-bold tracking-tight text-white flex items-center gap-2">
               Multi-Project Sourcing Radar
@@ -140,7 +175,7 @@ export default function AgentCommandRadar({ requests }: Props) {
           </div>
 
           {/* Quick Metrics */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div id="agent-kpi-metrics" className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <div className="bg-slate-800/80 backdrop-blur rounded-xl p-3 border border-slate-700/70 text-center">
               <div className="text-xs font-medium text-slate-400">Active Deals</div>
               <div className="text-2xl font-extrabold text-white mt-0.5">{stats.totalProjects}</div>
@@ -175,7 +210,7 @@ export default function AgentCommandRadar({ requests }: Props) {
         </div>
 
         {/* Action Priority Quick Bar */}
-        <div className="flex flex-wrap items-center justify-between gap-4 pt-4 text-xs">
+        <div id="agent-bottleneck-bar" className="flex flex-wrap items-center justify-between gap-4 pt-4 text-xs">
           <div className="flex items-center gap-3 flex-wrap">
             <span className="text-slate-400 font-medium">Bottleneck Breakdown:</span>
             <button
