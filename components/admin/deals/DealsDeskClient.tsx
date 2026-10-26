@@ -402,6 +402,22 @@ export default function DealsDeskClient({ initialDeals }: Props) {
             autoStart={false}
           />
           <Link
+            href="/simulator/margin"
+            className="px-3.5 py-2 rounded-xl text-xs font-semibold bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/30 transition flex items-center gap-1.5"
+            title="Open Supermarket Retail Category Margin & Landed Cost Simulator"
+          >
+            <span>🛒</span>
+            <span>Margin Simulator</span>
+          </Link>
+          <Link
+            href="/compliance/coa-checker"
+            className="px-3.5 py-2 rounded-xl text-xs font-semibold bg-teal-600/20 hover:bg-teal-600/30 text-teal-300 border border-teal-500/30 transition flex items-center gap-1.5"
+            title="Open Ministry of Health Automated COA Assay Compliance Checker"
+          >
+            <span>🧪</span>
+            <span>MOH COA Checker</span>
+          </Link>
+          <Link
             href="/radar"
             className="px-3.5 py-2 rounded-xl text-xs font-semibold bg-cyan-600/20 hover:bg-cyan-600/30 text-cyan-300 border border-cyan-500/30 transition flex items-center gap-1.5"
             title="Open Live Maritime AIS Vessel Radar & Ashdod Port Anchorage"

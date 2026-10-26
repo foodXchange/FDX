@@ -600,6 +600,16 @@ Delivery Order authorized. Please assign inland container hauler.`;
               </Link>
             </div>
 
+            {/* MOH COA Checker Link */}
+            <Link
+              href="/compliance/coa-checker"
+              className="text-xs font-bold px-3 py-1.5 bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/30 rounded-xl transition flex items-center gap-1.5 cursor-pointer shadow-xs"
+              title={isHe ? "אישור מעבדה משרד הבריאות Green Pass" : "MOH COA Green Pass"}
+            >
+              <span>🧪</span>
+              <span>{isHe ? "אישור מזון COA" : "MOH COA"}</span>
+            </Link>
+
             {/* Live AIS Maritime Radar Link */}
             <Link
               href={`/radar/${requestId}`}
