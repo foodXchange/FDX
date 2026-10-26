@@ -53,6 +53,8 @@ export interface ExtractedProduct {
   detected_language?: string;
   needs_review?: boolean;
   image_url?: string | null;
+  storage_temp?: string | null;
+  source_url?: string | null;
 }
 
 export interface ManufacturerDetectionResult {
@@ -574,37 +576,40 @@ export async function extractSupplierFull(
     `Country: ${supplier.country_of_origin ?? "Unknown"}\n` +
     `Known certifications: ${(supplier.certifications ?? []).join(", ") || "None stated"}\n` +
     `${sourceNote}\n\n` +
-    `IMPORTANT FOR B2B FOOD MANUFACTURERS:\n` +
+    `IMPORTANT FOR B2B FOOD MANUFACTURERS & MULTILINGUAL SITES:\n` +
     `- Many B2B food manufacturers describe their product lines, bulk ingredients, or product families (e.g., "Private Label Crackers", "Extruded Corn Snacks", "Organic Extra Virgin Olive Oil", "IQF Frozen Berries") rather than individual retail SKU names.\n` +
     `- If individual SKUs are not listed, ALWAYS extract each food product line, category offering, or bulk food product mentioned on the website as an entry in the "products" array.\n` +
-    `- Read content in ANY language (Italian, Spanish, French, German, Dutch, Polish, Latvian, Turkish, Greek, etc.) and translate all extracted fields into English.\n\n` +
+    `- Read content in ANY language (Italian, Spanish, French, German, Dutch, Polish, Latvian, Turkish, Greek, etc.) and translate all extracted text fields into English (keep brand names as written).\n` +
+    `- IMAGE MATCHING: Look carefully for markdown images ![alt](url) near each product section. Even if the image filename or alt text is in Italian/Spanish/French/German, match the direct photo URL to "image_url" (exclude logos, flags, or icons). For "logo_url", pick the company's main brand logo URL or OG_IMAGE if it represents the brand.\n` +
+    `- CERTIFICATIONS & KOSHER: Scan headers, footers, and quality sections for BRC (and grade AA/A), IFS, ISO 22000, FSSC 22000, HACCP, Organic (Bio/Biologico/Ecológico), Halal, Gluten-Free, Vegan, and Kosher (OU, OK, Star-K, KF, Badatz, Rabbinate, Kasher, Casher, כשר). Propagate factory-wide certifications to the products manufactured there.\n` +
+    `- PACKAGING & SPECS: Extract all packaging formats (Bottle, Jar, Can, Tin, Pouch, Bag, Carton, Bulk Drum, IBC, HoReCa) and sizes/weights (e.g., 250ml, 400g, 5kg, 200L) mentioned in titles or text.\n\n` +
     `Website Content:\n${cleaned}\n\n` +
     `Return ONLY a JSON object with this exact structure:\n` +
     `{\n` +
     `  "profile": {\n` +
-    `    "company_description": "concise description of production activities and specialties",\n` +
+    `    "company_description": "concise description of production activities, specialties, and B2B/private-label capabilities",\n` +
     `    "founded_year": number or null,\n` +
     `    "employees_range": "e.g. 50-200" or null,\n` +
-    `    "export_markets": ["EU", "Middle East", "USA"],\n` +
-    `    "production_capacity": "e.g. 5,000 tons/year" or null,\n` +
-    `    "contact_email": "email" or null,\n` +
-    `    "contact_phone": "phone" or null,\n` +
-    `    "contact_name": "contact name" or null,\n` +
-    `    "linkedin_url": null,\n` +
-    `    "logo_url": null,\n` +
+    `    "export_markets": ["EU", "Middle East", "USA", "Asia"],\n` +
+    `    "production_capacity": "e.g. 5,000 tons/year or 20,000 bottles/day if stated, or null",\n` +
+    `    "contact_email": "export or general email@domain.com if found, or null",\n` +
+    `    "contact_phone": "+xx xxx xxx xxxx if found, or null",\n` +
+    `    "contact_name": "contact person name if stated, or null",\n` +
+    `    "linkedin_url": "https://www.linkedin.com/company/... if found in content, or null",\n` +
+    `    "logo_url": "direct image URL of the company brand logo from markdown ![logo](url) or OG_IMAGE, or null",\n` +
     `    "factories": [\n` +
     `      {\n` +
-    `        "factory_name": "Main Plant",\n` +
+    `        "factory_name": "Main Plant or stated facility name",\n` +
     `        "country": "${supplier.country_of_origin ?? "Unknown"}",\n` +
-    `        "city": string or null,\n` +
+    `        "city": "city/region name if stated in address/footer, or null",\n` +
     `        "is_primary": true,\n` +
-    `        "kosher_types": ["Chief Rabbinate", "Badatz Beit Yosef", "OU", "OK", "Star-K"] or [],\n` +
-    `        "kosher_certifying_body": string or null,\n` +
-    `        "certifications_quality": ["BRC", "IFS", "ISO 22000", "HACCP"],\n` +
-    `        "certifications_dietary": ["Organic", "Halal", "Vegan", "Gluten-Free"],\n` +
-    `        "brc_grade": null,\n` +
-    `        "ifs_grade": null,\n` +
-    `        "production_capacity": null\n` +
+    `        "kosher_types": ["Chief Rabbinate", "Badatz Beit Yosef", "OU", "OK", "Star-K", "KF"] or [],\n` +
+    `        "kosher_certifying_body": "OU | OK | Star-K | KF | Badatz | Rabbinate or null",\n` +
+    `        "certifications_quality": ["BRC", "IFS", "ISO 22000", "FSSC 22000", "HACCP"],\n` +
+    `        "certifications_dietary": ["Organic", "Halal", "Vegan", "Gluten-Free", "Kosher", "PDO", "PGI"],\n` +
+    `        "brc_grade": "AA+ | AA | A | B if stated, or null",\n` +
+    `        "ifs_grade": "Higher Level | Foundation if stated, or null",\n` +
+    `        "production_capacity": "stated plant output or null"\n` +
     `      }\n` +
     `    ]\n` +
     `  },\n` +
@@ -612,24 +617,26 @@ export async function extractSupplierFull(
     `    {\n` +
     `      "product_name": "specific product name in English",\n` +
     `      "category": "one of: Tomato Products | Pasta & Grains | Snacks | Dairy | Beverages | Sauces & Condiments | Canned Foods | Frozen Foods | Oils & Fats | Fish & Seafood | Bakery | Spices & Herbs | Meat & Poultry | Pulses & Legumes | Organic & Natural | Ingredients & Additives | Other",\n` +
-    `      "subcategory": string or null,\n` +
-    `      "description": string or null,\n` +
-    `      "formats": ["Bottle 500ml", "Jar 350g", "Bag 1kg", "Tin 400g"],\n` +
-    `      "sizes": ["500ml", "350g"],\n` +
-    `      "brix_level": null,\n` +
-    `      "shelf_life_months": number or null,\n` +
-    `      "certifications": ["BRC", "IFS", "Kosher", "Organic"],\n` +
-    `      "kosher_types": [],\n` +
-    `      "processing_type": "canned | dried | frozen | fresh | vacuum | ambient | other or null",\n` +
+    `      "subcategory": "specific subcategory (e.g. Extra Virgin Olive Oil, Canned Tuna, Durum Wheat Pasta) or null",\n` +
+    `      "description": "1-2 sentence factual description including key characteristics and B2B/retail suitability",\n` +
+    `      "formats": ["Bottle 500ml", "Jar 350g", "Bag 1kg", "Tin 400g", "Bulk Foodservice 5kg"],\n` +
+    `      "sizes": ["500ml", "350g", "1kg"],\n` +
+    `      "brix_level": "e.g. 28-30° (if stated for tomato/fruit/syrup products) or null",\n` +
+    `      "shelf_life_months": "number of months if stated (e.g. 12, 18, 24, 36) or null",\n` +
+    `      "storage_temp": "ambient | chilled | frozen (infer from product & processing_type: e.g. frozen foods -> frozen, fresh dairy/meat -> chilled, canned/dry/oil/snacks -> ambient)",\n` +
+    `      "certifications": ["BRC", "IFS", "Kosher", "Organic", "Halal", "Gluten-Free", "PDO", "PGI"],\n` +
+    `      "kosher_types": ["OU", "OK", "Badatz", "Chief Rabbinate"] or [],\n` +
+    `      "processing_type": "canned | dried | frozen | smoked | fresh | vacuum | ambient | other",\n` +
     `      "ingredients": "comma-separated main ingredients in English",\n` +
-    `      "product_type": "pure_ingredient or processed_food or semi_processed",\n` +
-    `      "primary_ingredients": ["ingredient"],\n` +
+    `      "product_type": "pure_ingredient | processed_food | semi_processed",\n` +
+    `      "primary_ingredients": ["ingredient1", "ingredient2"],\n` +
     `      "private_label": true or false,\n` +
-    `      "tags": ["tag1", "tag2"],\n` +
-    `      "markets_suitable": ["Retail", "Foodservice"],\n` +
-    `      "confidence": 0.8,\n` +
-    `      "detected_language": "english" or "italian" or "spanish" or "french" or "german" or "other",\n` +
-    `      "image_url": null\n` +
+    `      "tags": ["tag1", "tag2", "tag3"],\n` +
+    `      "markets_suitable": ["Retail", "Foodservice", "Industry"],\n` +
+    `      "confidence": 0.85,\n` +
+    `      "detected_language": "english | italian | spanish | french | german | polish | greek | other",\n` +
+    `      "source_url": "specific URL from the 'URL: https://...' section where this product appears, or null",\n` +
+    `      "image_url": "direct product photo URL from markdown ![alt](url) corresponding to this product (NOT a logo, icon, or flag), or null"\n` +
     `    }\n` +
     `  ]\n` +
     `}`;

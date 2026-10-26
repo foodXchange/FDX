@@ -16,11 +16,11 @@ export function cleanScrapedContent(rawContent: string, maxChars: number = 22000
     .replace(/<(script|style|noscript)[\s\S]*?<\/\1>/gi, "")
     // Remove cookie banners / privacy boilerplate lines
     .replace(/^.*(cookie|gdpr|privacy policy|terms of use|all rights reserved|informativa privacy|todos los derechos).*$/gim, "")
-    // Remove social link spam
-    .replace(/\[(facebook|instagram|twitter|youtube|linkedin|tiktok)\]\([^)]+\)/gi, "")
+    // Remove social link spam (preserve linkedin for B2B company profile extraction)
+    .replace(/\[(facebook|instagram|twitter|youtube|tiktok)\]\([^)]+\)/gi, "")
     // Convert long markdown links [Product Name](https://domain.com/long/url...) -> "Product Name"
-    // Preserves image links ![]() so product photos can still be extracted
-    .replace(/(^|[^!])\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/gi, "$1$2")
+    // Preserves image links ![]() and LinkedIn company URLs so photos & B2B profiles can be extracted
+    .replace(/(^|[^!])\[([^\]]+)\]\((https?:\/\/(?!www\.linkedin\.com|linkedin\.com)[^\s)]+)\)/gi, "$1$2")
     // Normalize excessive multiple newlines / whitespace
     .replace(/\n{3,}/g, "\n\n")
     .trim();

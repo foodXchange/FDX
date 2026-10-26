@@ -140,15 +140,16 @@ export function matchProductToCrawledImage(
 
   if (candidates.length === 0) return null;
 
-  const words = (product.product_name ?? "")
-    .toLowerCase()
-    .split(/[^a-z0-9]+/)
-    .filter((w) => w.length >= 3);
+  const words = [
+    ...(product.product_name ?? "").toLowerCase().split(/[^a-z0-9]+/),
+    ...(product.subcategory ?? "").toLowerCase().split(/[^a-z0-9]+/),
+    ...(product.primary_ingredients ?? []).flatMap((ing) => ing.toLowerCase().split(/[^a-z0-9]+/)),
+  ].filter((w) => w.length >= 3);
 
-  const catWords = (product.category ?? "")
-    .toLowerCase()
-    .split(/[^a-z0-9]+/)
-    .filter((w) => w.length >= 3);
+  const catWords = [
+    ...(product.category ?? "").toLowerCase().split(/[^a-z0-9]+/),
+    ...(product.tags ?? []).flatMap((t) => t.toLowerCase().split(/[^a-z0-9]+/)),
+  ].filter((w) => w.length >= 3);
 
   let bestUrl: string | null = null;
   let bestScore = 0;
@@ -173,6 +174,109 @@ export function matchProductToCrawledImage(
   }
 
   return bestScore >= 2 ? bestUrl : null;
+}
+
+/**
+ * Derives normalized dietary booleans, temperature regime, ingredients text, and source_url
+ * from an ExtractedProduct so Buyer Portal & AI Sourcing filters work out-of-the-box.
+ */
+export function deriveProductQualityFields(
+  p: ExtractedProduct,
+  supplierWebsite: string | null
+) {
+  const certsAndTags = [
+    ...(p.certifications ?? []),
+    ...(p.tags ?? []),
+    p.product_name ?? "",
+    p.category ?? "",
+    p.subcategory ?? "",
+    p.description ?? "",
+  ]
+    .join(" ")
+    .toLowerCase();
+
+  const is_organic = /\b(organic|bio|biologico|biologique|ecologico|ecológico|eu organic|usda organic)\b/i.test(
+    certsAndTags
+  );
+  const is_halal = /\b(halal)\b/i.test(certsAndTags);
+  const is_gluten_free = /\b(gluten[- ]?free|senza glutine|sin gluten|sans gluten)\b/i.test(
+    certsAndTags
+  );
+  const is_sugar_free = /\b(sugar[- ]?free|no added sugar|zero sugar|senza zucchero|sin azucar)\b/i.test(
+    certsAndTags
+  );
+
+  const kosherText = [
+    ...(p.kosher_types ?? []),
+    ...(p.certifications ?? []),
+  ]
+    .join(" ")
+    .toLowerCase();
+
+  let kosher_level: string | null = null;
+  if (/\b(badatz|mehadrin|beit yosef|edah hachareidis|landau|rubin)\b/i.test(kosherText)) {
+    kosher_level = "mehadrin";
+  } else if (
+    (p.kosher_types && p.kosher_types.length > 0) ||
+    /\b(kosher|kasher|casher|ou|ok|star-k|kf|rabbinate)\b/i.test(kosherText)
+  ) {
+    kosher_level = "regular";
+  }
+
+  const rawTemp = (p.storage_temp ?? p.processing_type ?? p.category ?? "").toLowerCase();
+  let storage_temp: string = "ambient";
+  if (/\b(frozen|iqf|-18|deep freeze|ice cream|gelato)\b/i.test(`${rawTemp} ${certsAndTags}`)) {
+    storage_temp = "frozen";
+  } else if (
+    /\b(chilled|refrigerated|fresh|dairy|cheese|yogurt|fresh meat|fresh fish|0-4)\b/i.test(
+      `${rawTemp} ${p.category ?? ""} ${p.subcategory ?? ""}`
+    )
+  ) {
+    storage_temp = "chilled";
+  }
+
+  const ingredients =
+    typeof p.ingredients === "string" && p.ingredients.trim().length > 0
+      ? p.ingredients.trim()
+      : Array.isArray(p.primary_ingredients) && p.primary_ingredients.length > 0
+        ? p.primary_ingredients.join(", ")
+        : null;
+
+  const source_url =
+    toAbsoluteUrl(p.source_url ?? null, supplierWebsite) ?? supplierWebsite ?? null;
+
+  return {
+    storage_temp,
+    temperature_regime: storage_temp,
+    processing_type: p.processing_type ?? null,
+    ingredients,
+    source_url,
+    is_organic,
+    is_halal,
+    is_gluten_free,
+    is_sugar_free,
+    kosher_level,
+  };
+}
+
+/**
+ * Builds a rich semantic embedding string for a product including category, ingredients,
+ * packaging formats, and certifications so vector search matches B2B buyer specs.
+ */
+export function buildRichProductEmbeddingText(p: ExtractedProduct): string {
+  const parts = [
+    p.product_name?.trim(),
+    p.category?.trim(),
+    p.subcategory?.trim(),
+    p.description?.trim(),
+    p.primary_ingredients?.length ? `Ingredients: ${p.primary_ingredients.join(", ")}` : null,
+    p.formats?.length ? `Packaging: ${p.formats.join(", ")}` : null,
+    p.certifications?.length ? `Certifications: ${p.certifications.join(", ")}` : null,
+    p.tags?.filter(Boolean).join(". ").trim() || null,
+  ]
+    .filter(Boolean)
+    .join(". ");
+  return (parts.replace(/\.{2,}/g, ".").replace(/\.\s*$/, "") + ".").replace(/\s+\./g, ".");
 }
 
 function sanitizeFilename(url: string): string {

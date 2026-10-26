@@ -63,6 +63,8 @@ import {
   rehostSupplierLogoToStorage,
   toAbsoluteUrl,
   getDomainFaviconUrl,
+  deriveProductQualityFields,
+  buildRichProductEmbeddingText,
 } from "@/lib/scraper/mediaHelper";
 
 async function insertProducts(
@@ -94,48 +96,53 @@ async function insertProducts(
 
   let vectors: (number[] | null)[] = [];
   try {
-    const embedTexts = products.map((p) => {
-      const parts = [
-        p.product_name?.trim(),
-        p.description?.trim(),
-        p.subcategory?.trim(),
-        p.tags?.filter(Boolean).join(". ").trim() || null,
-      ].filter(Boolean).join(". ");
-      return (parts.replace(/\.{2,}/g, ".").replace(/\.\s*$/, "") + ".").replace(/\s+\./g, ".");
-    });
+    const embedTexts = products.map((p) => buildRichProductEmbeddingText(p));
     vectors = await embedBatch(embedTexts, "document");
   } catch (e) {
     console.warn("Auto-embedding failed in queue worker:", e);
   }
 
-  const rows = products.map((p, i) => ({
-    supplier_id: supplierId,
-    product_name: p.product_name,
-    category: p.category,
-    category_id: mapScraperCategoryToCanonicalId(p.category),
-    subcategory: p.subcategory ?? null,
-    description: p.description ?? null,
-    formats: p.formats ?? [],
-    sizes: p.sizes ?? [],
-    brix_level: p.brix_level ?? null,
-    shelf_life_months: p.shelf_life_months ?? null,
-    certifications: p.certifications ?? [],
-    kosher_types: p.kosher_types ?? [],
-    product_type: p.product_type ?? null,
-    primary_ingredients: p.primary_ingredients ?? [],
-    private_label: p.private_label ?? false,
-    tags: p.tags ?? [],
-    markets_suitable: p.markets_suitable ?? [],
-    scrape_source: scrapeSource,
-    scrape_confidence: p.confidence ?? 0.5,
-    last_scraped_at: new Date().toISOString(),
-    manually_verified: false,
-    needs_review: p.needs_review ?? false,
-    is_published: true,
-    image_url: resolvedImages[i] ?? null,
-    image_source: resolvedImages[i] ? "scraper" : null,
-    embedding: vectors[i] ? JSON.stringify(vectors[i]) : null,
-  }));
+  const rows = products.map((p, i) => {
+    const enriched = deriveProductQualityFields(p, supplierWebsite);
+    return {
+      supplier_id: supplierId,
+      product_name: p.product_name,
+      category: p.category,
+      category_id: mapScraperCategoryToCanonicalId(p.category),
+      subcategory: p.subcategory ?? null,
+      description: p.description ?? null,
+      formats: p.formats ?? [],
+      sizes: p.sizes ?? [],
+      brix_level: p.brix_level ?? null,
+      shelf_life_months: typeof p.shelf_life_months === "number" ? p.shelf_life_months : null,
+      storage_temp: enriched.storage_temp,
+      temperature_regime: enriched.temperature_regime,
+      processing_type: enriched.processing_type,
+      ingredients: enriched.ingredients,
+      source_url: enriched.source_url,
+      is_organic: enriched.is_organic,
+      is_halal: enriched.is_halal,
+      is_gluten_free: enriched.is_gluten_free,
+      is_sugar_free: enriched.is_sugar_free,
+      kosher_level: enriched.kosher_level,
+      certifications: p.certifications ?? [],
+      kosher_types: p.kosher_types ?? [],
+      product_type: p.product_type ?? null,
+      primary_ingredients: p.primary_ingredients ?? [],
+      private_label: p.private_label ?? false,
+      tags: p.tags ?? [],
+      markets_suitable: p.markets_suitable ?? [],
+      scrape_source: scrapeSource,
+      scrape_confidence: p.confidence ?? 0.5,
+      last_scraped_at: new Date().toISOString(),
+      manually_verified: false,
+      needs_review: p.needs_review ?? false,
+      is_published: true,
+      image_url: resolvedImages[i] ?? null,
+      image_source: resolvedImages[i] ? "scraper" : null,
+      embedding: vectors[i] ? JSON.stringify(vectors[i]) : null,
+    };
+  });
 
   const { error } = await supabaseAdmin.from("supplier_products").insert(rows);
   if (error) return 0;
