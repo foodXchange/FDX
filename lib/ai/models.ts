@@ -17,9 +17,13 @@ export const GEMINI_FALLBACK_MODELS = [
 export const CLAUDE_MODEL = "claude-sonnet-4-5";
 export const CLAUDE_HAIKU_MODEL = "claude-haiku-4-5-20251001";
 
+// Sticky index of the last healthy (clientIdx, model) pair so we never waste latency on exhausted models
+let stickyClientIdx = 0;
+let stickyModelIdx = 0;
+
 /**
  * Calls Gemini generateContent with automatic model pool AND multi-key failover
- * if a single model or project hits a 429 quota limit.
+ * (GEMINI_API_KEY -> GEMINI_API_KEY_2 -> GEMINI_API_KEY_BACKUP) if a single model or project hits a 429 quota limit.
  */
 export async function generateGeminiWithFallback(
   ai: GoogleGenAI,
@@ -33,51 +37,62 @@ export async function generateGeminiWithFallback(
     ? [params.preferredModel, ...GEMINI_FALLBACK_MODELS.filter((m) => m !== params.preferredModel)]
     : GEMINI_FALLBACK_MODELS;
 
+  const seenKeys = new Set<string>();
   const clients: GoogleGenAI[] = [ai];
-  const backupKey = process.env.GEMINI_API_KEY_BACKUP;
-  if (backupKey && backupKey !== process.env.GEMINI_API_KEY) {
-    clients.push(new GoogleGenAI({ apiKey: backupKey }));
+  if (process.env.GEMINI_API_KEY) seenKeys.add(process.env.GEMINI_API_KEY);
+
+  for (const extraKey of [process.env.GEMINI_API_KEY_2, process.env.GEMINI_API_KEY_BACKUP]) {
+    if (extraKey && !seenKeys.has(extraKey)) {
+      seenKeys.add(extraKey);
+      clients.push(new GoogleGenAI({ apiKey: extraKey }));
+    }
+  }
+
+  // Build ordered candidate pairs starting from the sticky healthy pair
+  const candidates: Array<{ cIdx: number; mIdx: number }> = [];
+  for (let c = 0; c < clients.length; c++) {
+    const cIdx = (stickyClientIdx + c) % clients.length;
+    for (let m = 0; m < pool.length; m++) {
+      const mIdx = c === 0 ? (stickyModelIdx + m) % pool.length : m;
+      candidates.push({ cIdx, mIdx });
+    }
   }
 
   let lastError: unknown = null;
 
-  for (const client of clients) {
-    for (const model of pool) {
-      try {
-        const response = await client.models.generateContent({
-          model,
-          contents: params.contents,
-          config: params.config,
-        });
-        return {
-          text: response.text?.trim() ?? "",
-          modelUsed: model,
-        };
-      } catch (err: any) {
-        lastError = err;
-        const msg = err?.message || String(err);
-        // If it's a 402 billing account block, break to next client/key
-        if (
-          msg.includes("402") ||
-          msg.includes("prepayment credits are depleted") ||
-          msg.includes("organization_on_hold")
-        ) {
-          break;
-        }
-        // If 429 quota, 503 high demand, or 404 model unavailable, try next model in pool
-        if (
-          msg.includes("429") ||
-          msg.includes("503") ||
-          msg.includes("UNAVAILABLE") ||
-          msg.includes("RESOURCE_EXHAUSTED") ||
-          msg.includes("quota") ||
-          msg.includes("404") ||
-          msg.includes("NOT_FOUND")
-        ) {
-          continue;
-        }
-        throw err;
+  for (const { cIdx, mIdx } of candidates) {
+    const client = clients[cIdx];
+    const model = pool[mIdx];
+    try {
+      const response = await client.models.generateContent({
+        model,
+        contents: params.contents,
+        config: params.config,
+      });
+      stickyClientIdx = cIdx;
+      stickyModelIdx = mIdx;
+      return {
+        text: response.text?.trim() ?? "",
+        modelUsed: model,
+      };
+    } catch (err: any) {
+      lastError = err;
+      const msg = err?.message || String(err);
+      // If 429 quota, 503 high demand, 402 billing, or 404 model unavailable, try next candidate in pool
+      if (
+        msg.includes("429") ||
+        msg.includes("503") ||
+        msg.includes("402") ||
+        msg.includes("UNAVAILABLE") ||
+        msg.includes("RESOURCE_EXHAUSTED") ||
+        msg.includes("quota") ||
+        msg.includes("404") ||
+        msg.includes("NOT_FOUND") ||
+        msg.includes("prepayment credits")
+      ) {
+        continue;
       }
+      throw err;
     }
   }
 
