@@ -574,6 +574,10 @@ export async function extractSupplierFull(
     `Country: ${supplier.country_of_origin ?? "Unknown"}\n` +
     `Known certifications: ${(supplier.certifications ?? []).join(", ") || "None stated"}\n` +
     `${sourceNote}\n\n` +
+    `IMPORTANT FOR B2B FOOD MANUFACTURERS:\n` +
+    `- Many B2B food manufacturers describe their product lines, bulk ingredients, or product families (e.g., "Private Label Crackers", "Extruded Corn Snacks", "Organic Extra Virgin Olive Oil", "IQF Frozen Berries") rather than individual retail SKU names.\n` +
+    `- If individual SKUs are not listed, ALWAYS extract each food product line, category offering, or bulk food product mentioned on the website as an entry in the "products" array.\n` +
+    `- Read content in ANY language (Italian, Spanish, French, German, Dutch, Polish, Latvian, Turkish, Greek, etc.) and translate all extracted fields into English.\n\n` +
     `Website Content:\n${cleaned}\n\n` +
     `Return ONLY a JSON object with this exact structure:\n` +
     `{\n` +

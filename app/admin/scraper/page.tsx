@@ -1,7 +1,11 @@
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
-import ScraperTableClient from "@/components/admin/ScraperTableClient";
+import ScraperTableClient, { classifyRowFailure } from "@/components/admin/ScraperTableClient";
 import { ProviderHealthBar } from "@/components/admin/scraper/ProviderHealthBar";
 import { ScraperWorkspaceClient } from "@/components/admin/scraper/ScraperWorkspaceClient";
+import {
+  FailedDiagnosticsPanel,
+  type FailureBreakdownStats,
+} from "@/components/admin/scraper/FailedDiagnosticsPanel";
 
 export const dynamic = "force-dynamic";
 
@@ -30,6 +34,8 @@ type FullSupplierRow = {
   contact_phone: string | null;
   certifications: string[] | null;
   kosher_types: string[] | null;
+  internal_notes: string | null;
+  website_domain: string | null;
 };
 
 type ScrapeBatchRow = {
@@ -103,7 +109,7 @@ async function fetchAllSuppliers(): Promise<FullSupplierRow[]> {
       supabaseAdmin
         .from("supplier_offerings")
         .select(
-          "id, company_name, website, country_of_origin, scrape_status, last_scraped_at, products_found, product_count, status, source, categories, csv_import_batch, created_at, product_description, contact_email, contact_phone, certifications, kosher_types"
+          "id, company_name, website, website_domain, country_of_origin, scrape_status, last_scraped_at, products_found, product_count, status, source, categories, csv_import_batch, created_at, product_description, contact_email, contact_phone, certifications, kosher_types, internal_notes"
         )
         .order("id", { ascending: true })
         .range(from, to)
@@ -383,7 +389,41 @@ export default async function ScraperPage() {
       scrape_source: s.source,
       categories: s.categories,
       csv_import_batch: s.csv_import_batch,
+      internal_notes: s.internal_notes,
     }));
+
+  // Compute root-cause breakdown for all failed records
+  const scrapedDomainsSet = new Set<string>();
+  for (const s of allSuppliers) {
+    if (s.scrape_status === "scraped" && s.website_domain) {
+      scrapedDomainsSet.add(s.website_domain);
+    }
+  }
+
+  const failureStats: FailureBreakdownStats = {
+    totalFailed: globalCounts.failed,
+    noProductsCount: 0,
+    emptyOrBlockedCount: 0,
+    timeoutCount: 0,
+    aiBillingCount: 0,
+    otherCount: 0,
+    duplicateOfScrapedCount: 0,
+  };
+
+  for (const s of allSuppliers) {
+    if (s.scrape_status === "failed") {
+      const cat = classifyRowFailure(s.internal_notes).cat;
+      if (cat === "no_products") failureStats.noProductsCount++;
+      else if (cat === "empty_or_blocked") failureStats.emptyOrBlockedCount++;
+      else if (cat === "timeout") failureStats.timeoutCount++;
+      else if (cat === "ai_billing") failureStats.aiBillingCount++;
+      else failureStats.otherCount++;
+
+      if (s.website_domain && scrapedDomainsSet.has(s.website_domain)) {
+        failureStats.duplicateOfScrapedCount++;
+      }
+    }
+  }
 
   const doneGlobal = globalCounts.scraped + globalCounts.skipped;
   const doneGlobalPct =
@@ -510,6 +550,11 @@ export default async function ScraperPage() {
       <div className="p-6 max-w-7xl mx-auto space-y-6">
         {/* Provider Health & Circuit Breaker Status Bar */}
         <ProviderHealthBar />
+
+        {/* Interactive Failed Records Root-Cause Inspector & 1-Click Recovery */}
+        {globalCounts.failed > 0 && (
+          <FailedDiagnosticsPanel stats={failureStats} />
+        )}
 
         {/* Unified Ingestion & Scraper Workspace */}
         <ScraperWorkspaceClient

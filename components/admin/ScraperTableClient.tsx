@@ -17,7 +17,81 @@ export type Supplier = {
   scrape_source: string | null;
   categories: string[] | null;
   csv_import_batch?: string | null;
+  internal_notes?: string | null;
 };
+
+export type FailureCat =
+  | "all"
+  | "no_products"
+  | "empty_or_blocked"
+  | "timeout"
+  | "ai_billing"
+  | "other";
+
+export function classifyRowFailure(notes: string | null | undefined): {
+  cat: Exclude<FailureCat, "all">;
+  badge: string;
+  detail: string;
+  tone: string;
+} {
+  const raw = (notes ?? "").trim();
+  const lower = raw.toLowerCase();
+
+  if (
+    lower.includes("prepayment credits") ||
+    lower.includes("credit balance is too low") ||
+    lower.includes("resource_exhausted") ||
+    lower.includes("organization has been disabled") ||
+    lower.includes("402") ||
+    lower.includes("quota")
+  ) {
+    return {
+      cat: "ai_billing",
+      badge: "AI Credit/Quota (402)",
+      detail: "Failed during past run when old AI key ran out of credits — ready to re-scrape",
+      tone: "bg-blue-50 text-blue-700 border-blue-200",
+    };
+  }
+
+  if (lower.includes("no products extracted") || lower.includes("no product urls")) {
+    return {
+      cat: "no_products",
+      badge: "No SKUs on Page",
+      detail: raw || "Website loaded, but no individual retail SKUs were extracted",
+      tone: "bg-amber-50 text-amber-800 border-amber-200",
+    };
+  }
+
+  if (lower.includes("timeout") || lower.includes("network error")) {
+    return {
+      cat: "timeout",
+      badge: "Timeout (>90s)",
+      detail: raw || "Website server timed out during crawl",
+      tone: "bg-orange-50 text-orange-800 border-orange-200",
+    };
+  }
+
+  if (
+    !raw ||
+    lower.includes("no content returned") ||
+    lower.includes("website blocked") ||
+    lower.includes("bot challenge")
+  ) {
+    return {
+      cat: "empty_or_blocked",
+      badge: raw.toLowerCase().includes("blocked") ? "Bot/Cloudflare Block" : "Dead / Empty URL",
+      detail: raw || "Domain unreachable, SSL expired, or returned empty content",
+      tone: "bg-slate-100 text-slate-700 border-slate-300",
+    };
+  }
+
+  return {
+    cat: "other",
+    badge: "Crawl Error",
+    detail: raw,
+    tone: "bg-red-50 text-red-700 border-red-200",
+  };
+}
 
 type RowState = {
   scrape_status: string | null;
@@ -222,7 +296,27 @@ function ScraperRow({
         </td>
 
         <td className="px-3 py-2.5">
-          <StatusBadge status={state.scrape_status} />
+          <div className="flex flex-col items-start gap-1">
+            <StatusBadge status={state.scrape_status} />
+            {state.scrape_status === "failed" && (
+              <span
+                title={classifyRowFailure(supplier.internal_notes).detail}
+                className={`inline-block text-[10px] font-semibold px-2 py-0.5 rounded border cursor-help max-w-[180px] truncate ${
+                  classifyRowFailure(supplier.internal_notes).tone
+                }`}
+              >
+                Reason: {classifyRowFailure(supplier.internal_notes).badge}
+              </span>
+            )}
+            {state.scrape_status === "skipped" && supplier.internal_notes && (
+              <span
+                title={supplier.internal_notes}
+                className="inline-block text-[10px] text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded max-w-[180px] truncate cursor-help"
+              >
+                {supplier.internal_notes}
+              </span>
+            )}
+          </div>
         </td>
 
         <td className="px-3 py-2.5">
@@ -307,6 +401,7 @@ export default function ScraperTableClient({
 }) {
   const router = useRouter();
   const [statusFilter, setStatusFilter] = useState<StatusKey>("all");
+  const [failureCatFilter, setFailureCatFilter] = useState<FailureCat>("all");
   const [countryFilter, setCountryFilter] = useState("all");
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
@@ -314,6 +409,50 @@ export default function ScraperTableClient({
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkLoading, setBulkLoading] = useState(false);
   const selectAllRef = useRef<HTMLInputElement>(null);
+
+  // Sync statusFilter & failureCatFilter when URL hash changes (e.g. clicking top KPI pills)
+  useEffect(() => {
+    const syncFromHash = () => {
+      if (typeof window === "undefined") return;
+      const hash = window.location.hash;
+      if (!hash || hash === "#") return;
+      const params = new URLSearchParams(hash.slice(1));
+      const st = params.get("status");
+      const failCat = params.get("failCat") as FailureCat | null;
+
+      if (st === "failed" || st === "pending" || st === "scraped" || st === "skipped") {
+        setStatusFilter(st);
+        setPage(1);
+      }
+      if (failCat) {
+        setFailureCatFilter(failCat);
+        setPage(1);
+      } else if (st === "failed") {
+        setFailureCatFilter("all");
+      }
+    };
+
+    syncFromHash();
+    window.addEventListener("hashchange", syncFromHash);
+    return () => window.removeEventListener("hashchange", syncFromHash);
+  }, []);
+
+  const failureCounts = useMemo(() => {
+    const acc = {
+      no_products: 0,
+      empty_or_blocked: 0,
+      timeout: 0,
+      ai_billing: 0,
+      other: 0,
+    };
+    for (const s of suppliers) {
+      if ((s.scrape_status ?? "pending") === "failed") {
+        const c = classifyRowFailure(s.internal_notes).cat;
+        acc[c]++;
+      }
+    }
+    return acc;
+  }, [suppliers]);
 
   const counts = useMemo(
     () =>
@@ -353,6 +492,13 @@ export default function ScraperTableClient({
         (s.scrape_status ?? "pending") !== statusFilter
       )
         return false;
+      if (
+        statusFilter === "failed" &&
+        failureCatFilter !== "all" &&
+        classifyRowFailure(s.internal_notes).cat !== failureCatFilter
+      ) {
+        return false;
+      }
       if (countryFilter !== "all" && s.country_of_origin !== countryFilter)
         return false;
       if (
@@ -363,11 +509,12 @@ export default function ScraperTableClient({
       if (q) {
         const matchName = s.company_name.toLowerCase().includes(q);
         const matchWeb = (s.website ?? "").toLowerCase().includes(q);
-        if (!matchName && !matchWeb) return false;
+        const matchNote = (s.internal_notes ?? "").toLowerCase().includes(q);
+        if (!matchName && !matchWeb && !matchNote) return false;
       }
       return true;
     });
-  }, [suppliers, statusFilter, countryFilter, categoryFilter, searchQuery]);
+  }, [suppliers, statusFilter, failureCatFilter, countryFilter, categoryFilter, searchQuery]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const currentPage = Math.min(page, totalPages);
@@ -479,7 +626,7 @@ export default function ScraperTableClient({
   ];
 
   return (
-    <div className="space-y-3">
+    <div id="suppliers-directory-table" className="space-y-3 scroll-mt-20">
       {/* Filters row */}
       <div className="flex gap-2 flex-wrap items-center justify-between">
         <div className="flex gap-1.5 flex-wrap items-center">
@@ -488,6 +635,7 @@ export default function ScraperTableClient({
               key={p.key}
               onClick={() => {
                 setStatusFilter(p.key);
+                if (p.key !== "failed") setFailureCatFilter("all");
                 setPage(1);
               }}
               className={`px-3 py-1 rounded-lg text-xs font-semibold transition-colors ${
@@ -509,8 +657,8 @@ export default function ScraperTableClient({
               setSearchQuery(e.target.value);
               setPage(1);
             }}
-            placeholder="Search company or domain…"
-            className="px-3 py-1 text-xs border border-gray-200 rounded-lg bg-white text-slate-700 w-48"
+            placeholder="Search company, domain, or error…"
+            className="px-3 py-1 text-xs border border-gray-200 rounded-lg bg-white text-slate-700 w-56"
           />
 
           {uniqueCountries.length > 0 && (
@@ -550,6 +698,53 @@ export default function ScraperTableClient({
           )}
         </div>
       </div>
+
+      {/* Failure Reason Sub-Filter Bar when Failed tab is active */}
+      {statusFilter === "failed" && (
+        <div className="flex flex-wrap items-center gap-1.5 p-2.5 bg-red-50/60 border border-red-200 rounded-xl">
+          <span className="text-[11px] font-bold text-red-800 uppercase tracking-wider mr-1">
+            Filter by Failure Reason:
+          </span>
+          {[
+            { key: "all" as FailureCat, label: `All Failed (${counts.failed.toLocaleString()})` },
+            {
+              key: "no_products" as FailureCat,
+              label: `No SKUs on Page (${failureCounts.no_products.toLocaleString()})`,
+            },
+            {
+              key: "empty_or_blocked" as FailureCat,
+              label: `Dead / Blocked URL (${failureCounts.empty_or_blocked.toLocaleString()})`,
+            },
+            {
+              key: "timeout" as FailureCat,
+              label: `Timeout >90s (${failureCounts.timeout.toLocaleString()})`,
+            },
+            {
+              key: "ai_billing" as FailureCat,
+              label: `Old AI Credit Error 402 (${failureCounts.ai_billing.toLocaleString()})`,
+            },
+            ...(failureCounts.other > 0
+              ? [{ key: "other" as FailureCat, label: `Other (${failureCounts.other.toLocaleString()})` }]
+              : []),
+          ].map((fc) => (
+            <button
+              key={fc.key}
+              type="button"
+              onClick={() => {
+                setFailureCatFilter(fc.key);
+                setPage(1);
+              }}
+              className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold transition ${
+                failureCatFilter === fc.key
+                  ? "bg-red-600 text-white shadow-2xs"
+                  : "bg-white border border-red-200 text-slate-700 hover:bg-red-50"
+              }`}
+            >
+              {fc.label}
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Bulk action bar */}
       {selectedIds.size > 0 && (

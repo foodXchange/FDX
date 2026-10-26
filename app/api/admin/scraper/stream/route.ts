@@ -624,6 +624,44 @@ export async function GET(req: NextRequest) {
               });
               if (isTimedOut) return;
 
+              // Fallback for confirmed food producers whose site only describes general product lines
+              if (
+                products.length === 0 &&
+                !cls.failed &&
+                (cls.sector === "food_beverage" || cls.sector === "ingredients_additives") &&
+                (cls.offeringsSummary || cls.category || profile.company_description)
+              ) {
+                const synthesizedName =
+                  cls.offeringsSummary?.split(/[.;,]/)[0]?.trim()?.slice(0, 80) ||
+                  (cls.category ? `${cls.category} Products` : `${supplier.company_name} Food Line`);
+                products.push({
+                  product_name: synthesizedName,
+                  category: cls.category || (supplier.categories?.[0] ?? "Other"),
+                  subcategory: null,
+                  description:
+                    cls.offeringsSummary ||
+                    profile.company_description?.slice(0, 240) ||
+                    null,
+                  formats: [],
+                  sizes: [],
+                  brix_level: null,
+                  shelf_life_months: null,
+                  certifications: supplier.certifications ?? [],
+                  kosher_types: [],
+                  product_type: "processed_food",
+                  primary_ingredients: [],
+                  private_label: cls.capabilities?.includes("private_label") ?? false,
+                  tags: cls.tags ?? [],
+                  markets_suitable: ["Retail", "Foodservice"],
+                  confidence: 0.55,
+                  needs_review: true,
+                });
+                send({
+                  type: "log",
+                  message: `  ℹ Synthesized B2B product line from company profile: "${synthesizedName}"`,
+                });
+              }
+
               if (products.length === 0) {
                 send({ type: "error", message: "  ✗ No products extracted" });
                 await supabaseAdmin
