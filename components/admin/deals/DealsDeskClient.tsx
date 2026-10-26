@@ -402,6 +402,14 @@ export default function DealsDeskClient({ initialDeals }: Props) {
             autoStart={false}
           />
           <Link
+            href="/admin/tools/contract-generator"
+            className="px-3.5 py-2 rounded-xl text-xs font-semibold bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 border border-indigo-500/30 transition flex items-center gap-1.5"
+            title="Open B2B Sales Purchase Agreement (SPA) & E-Signature Studio"
+          >
+            <span>⚖️</span>
+            <span>Contract Studio</span>
+          </Link>
+          <Link
             href="/admin/finance"
             className="px-3.5 py-2 rounded-xl text-xs font-medium bg-slate-800 text-slate-300 hover:text-white border border-slate-700 transition"
           >
@@ -601,6 +609,16 @@ export default function DealsDeskClient({ initialDeals }: Props) {
                     >
                       <span>📄</span>
                       <span>View & Print Pro-Forma</span>
+                    </Link>
+
+                    <Link
+                      href={`/contract/${deal.id}`}
+                      target="_blank"
+                      className="px-3.5 py-1.5 text-xs font-semibold bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 border border-indigo-500/30 rounded-xl transition text-center flex items-center justify-center gap-1.5 shadow-xs"
+                      title="Open B2B Sales Purchase Agreement (SPA) & Digital Signature Studio"
+                    >
+                      <span>⚖️</span>
+                      <span>B2B Contract & SPA</span>
                     </Link>
 
                     <button
