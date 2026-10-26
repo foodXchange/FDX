@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
 export const dynamic = "force-dynamic";
@@ -89,22 +90,16 @@ export async function POST(req: NextRequest) {
 
     const total = count ?? 0;
     const pages = Math.ceil(total / 1000);
-    const failedRows: Array<{
-      id: string;
-      company_name: string;
-      website: string | null;
-      website_domain: string | null;
-      internal_notes: string | null;
-    }> = [];
-
-    for (let i = 0; i < pages; i++) {
-      const { data } = await supabaseAdmin
-        .from("supplier_offerings")
-        .select("id, company_name, website, website_domain, internal_notes")
-        .eq("scrape_status", "failed")
-        .range(i * 1000, (i + 1) * 1000 - 1);
-      if (data) failedRows.push(...data);
-    }
+    const pageResults = await Promise.all(
+      Array.from({ length: pages }, (_, i) =>
+        supabaseAdmin
+          .from("supplier_offerings")
+          .select("id, company_name, website, website_domain, internal_notes")
+          .eq("scrape_status", "failed")
+          .range(i * 1000, (i + 1) * 1000 - 1)
+      )
+    );
+    const failedRows = pageResults.flatMap((r) => r.data ?? []);
 
     if (body.action === "requeue_ai_billing") {
       const targetIds = failedRows
@@ -182,52 +177,118 @@ export async function POST(req: NextRequest) {
     }
 
     if (body.action === "sync_scraped_duplicates") {
-      const { data: scrapedRows } = await supabaseAdmin
+      const { count: scrapedTotal } = await supabaseAdmin
         .from("supplier_offerings")
-        .select(
-          "id, website_domain, product_count, qualification_status, product_description, contact_email, contact_phone, contact_name, linkedin_url, export_markets, founded_year, employees_range"
-        )
-        .eq("scrape_status", "scraped")
-        .not("website_domain", "is", null);
+        .select("*", { count: "exact", head: true })
+        .eq("scrape_status", "scraped");
 
-      const domainMap = new Map<string, NonNullable<typeof scrapedRows>[number]>();
-      for (const s of scrapedRows ?? []) {
-        if (s.website_domain && !domainMap.has(s.website_domain)) {
-          domainMap.set(s.website_domain, s);
+      const scrapedPages = Math.ceil((scrapedTotal ?? 0) / 1000);
+      const scrapedPageResults = await Promise.all(
+        Array.from({ length: scrapedPages }, (_, i) =>
+          supabaseAdmin
+            .from("supplier_offerings")
+            .select(
+              "id, website, website_domain, product_count, products_found, qualification_status, product_description, contact_email, contact_phone, contact_name, linkedin_url, export_markets, founded_year, employees_range"
+            )
+            .eq("scrape_status", "scraped")
+            .range(i * 1000, (i + 1) * 1000 - 1)
+        )
+      );
+      const scrapedRows = scrapedPageResults.flatMap((r) => r.data ?? []);
+
+      const normalizeDomain = (dom: string | null, web: string | null): string | null => {
+        if (dom && dom.trim()) return dom.trim().toLowerCase().replace(/^www\./, "");
+        if (!web) return null;
+        try {
+          const u = new URL(web.startsWith("http") ? web : `http://${web}`);
+          return u.hostname.toLowerCase().replace(/^www\./, "").trim();
+        } catch {
+          return null;
+        }
+      };
+
+      const domainMap = new Map<string, (typeof scrapedRows)[number]>();
+      for (const s of scrapedRows) {
+        const d = normalizeDomain(s.website_domain, s.website);
+        if (!d) continue;
+        const existing = domainMap.get(d);
+        if (!existing || (s.products_found ?? s.product_count ?? 0) > (existing.products_found ?? existing.product_count ?? 0)) {
+          domainMap.set(d, s);
         }
       }
 
-      const toSync = failedRows.filter(
-        (r) => r.website_domain && domainMap.has(r.website_domain)
-      );
+      const toSync = failedRows.filter((r) => {
+        const d = normalizeDomain(r.website_domain, r.website);
+        return d && domainMap.has(d);
+      });
 
       let synced = 0;
-      for (const row of toSync) {
-        const src = domainMap.get(row.website_domain!);
-        if (!src) continue;
+      for (let i = 0; i < toSync.length; i += 15) {
+        const chunk = toSync.slice(i, i + 15);
+        const results = await Promise.all(
+          chunk.map(async (row) => {
+            const d = normalizeDomain(row.website_domain, row.website);
+            const src = d ? domainMap.get(d) : null;
+            if (!src) return false;
 
-        const { error } = await supabaseAdmin
-          .from("supplier_offerings")
-          .update({
-            scrape_status: "scraped",
-            qualification_status: src.qualification_status ?? "strong",
-            product_count: src.product_count ?? 0,
-            products_found: src.product_count ?? 0,
-            product_description: src.product_description,
-            contact_email: src.contact_email,
-            contact_phone: src.contact_phone,
-            contact_name: src.contact_name,
-            linkedin_url: src.linkedin_url,
-            export_markets: src.export_markets,
-            founded_year: src.founded_year,
-            employees_range: src.employees_range,
-            internal_notes: `Auto-synced duplicate domain from scraped supplier (${src.id})`,
-            last_scraped_at: new Date().toISOString(),
+            const { count: targetProdCount } = await supabaseAdmin
+              .from("supplier_products")
+              .select("id", { count: "exact", head: true })
+              .eq("supplier_id", row.id);
+
+            let copiedCount = targetProdCount ?? 0;
+            if (copiedCount === 0) {
+              const { data: srcProducts } = await supabaseAdmin
+                .from("supplier_products")
+                .select(
+                  "product_name, category, category_id, subcategory, description, formats, sizes, brix_level, shelf_life_months, storage_temp, temperature_regime, processing_type, ingredients, source_url, is_organic, is_halal, is_gluten_free, is_sugar_free, kosher_level, certifications, kosher_types, product_type, primary_ingredients, private_label, tags, markets_suitable, scrape_source, scrape_confidence, image_url, image_source, embedding"
+                )
+                .eq("supplier_id", src.id);
+
+              if (srcProducts && srcProducts.length > 0) {
+                const newProducts = srcProducts.map((p) => ({
+                  ...p,
+                  supplier_id: row.id,
+                  manually_verified: false,
+                  needs_review: false,
+                  is_published: true,
+                  created_at: new Date().toISOString(),
+                  updated_at: new Date().toISOString(),
+                }));
+                await supabaseAdmin.from("supplier_products").insert(newProducts);
+                copiedCount = newProducts.length;
+              }
+            }
+
+            const finalCount = copiedCount || src.products_found || src.product_count || 0;
+
+            const { error } = await supabaseAdmin
+              .from("supplier_offerings")
+              .update({
+                scrape_status: "scraped",
+                qualification_status: src.qualification_status ?? (finalCount >= 3 ? "strong" : "thin"),
+                product_count: finalCount,
+                products_found: finalCount,
+                product_description: src.product_description,
+                contact_email: src.contact_email,
+                contact_phone: src.contact_phone,
+                contact_name: src.contact_name,
+                linkedin_url: src.linkedin_url,
+                export_markets: src.export_markets,
+                founded_year: src.founded_year,
+                employees_range: src.employees_range,
+                internal_notes: `Auto-synced duplicate domain from scraped supplier (${src.id})`,
+                last_scraped_at: new Date().toISOString(),
+              })
+              .eq("id", row.id);
+
+            return !error;
           })
-          .eq("id", row.id);
-
-        if (!error) synced++;
+        );
+        synced += results.filter(Boolean).length;
       }
+
+      revalidatePath("/admin/scraper");
 
       return NextResponse.json({
         ok: true,

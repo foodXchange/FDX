@@ -22,6 +22,11 @@ export function FailedDiagnosticsPanel({ stats }: FailedDiagnosticsPanelProps) {
   const [isOpen, setIsOpen] = useState(true);
   const [loadingAction, setLoadingAction] = useState<string | null>(null);
   const [bannerMessage, setBannerMessage] = useState<string | null>(null);
+  const [localStats, setLocalStats] = useState<FailureBreakdownStats>(stats);
+
+  useEffect(() => {
+    setLocalStats(stats);
+  }, [stats]);
 
   // Automatically open panel when URL hash has #status=failed or when user clicks the top Failed pill
   useEffect(() => {
@@ -80,6 +85,19 @@ export function FailedDiagnosticsPanel({ stats }: FailedDiagnosticsPanelProps) {
       const data = await res.json();
       if (data.ok) {
         setBannerMessage(`✓ ${data.message}`);
+        const delta = typeof data.updated === "number" ? data.updated : 0;
+        setLocalStats((prev) => ({
+          ...prev,
+          totalFailed: Math.max(0, prev.totalFailed - delta),
+          duplicateOfScrapedCount:
+            action === "sync_scraped_duplicates" ? 0 : prev.duplicateOfScrapedCount,
+          aiBillingCount:
+            action === "requeue_ai_billing" ? 0 : prev.aiBillingCount,
+          timeoutCount:
+            action === "requeue_timeouts" ? 0 : prev.timeoutCount,
+          noProductsCount:
+            action === "requeue_no_products" ? 0 : prev.noProductsCount,
+        }));
         router.refresh();
       } else {
         setBannerMessage(`✗ Error: ${data.error ?? "Action failed"}`);
@@ -101,7 +119,7 @@ export function FailedDiagnosticsPanel({ stats }: FailedDiagnosticsPanelProps) {
     }
   }
 
-  const total = Math.max(stats.totalFailed, 1);
+  const total = Math.max(localStats.totalFailed, 1);
   const pct = (n: number) => Math.round((n / total) * 100);
 
   return (
@@ -118,17 +136,17 @@ export function FailedDiagnosticsPanel({ stats }: FailedDiagnosticsPanelProps) {
           <div>
             <div className="flex items-center gap-2 flex-wrap">
               <h2 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
-                Failed Scrape Root-Cause Inspector ({stats.totalFailed.toLocaleString()} Records)
+                Failed Scrape Root-Cause Inspector ({localStats.totalFailed.toLocaleString()} Records)
               </h2>
               <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-white border border-red-200 text-red-700">
-                {(stats.aiBillingCount + stats.timeoutCount + stats.duplicateOfScrapedCount).toLocaleString()} Immediately Recoverable
+                {(localStats.aiBillingCount + localStats.timeoutCount + localStats.duplicateOfScrapedCount).toLocaleString()} Immediately Recoverable
               </span>
             </div>
             <p className="text-xs text-slate-600 mt-0.5">
-              Breakdown: <strong>{stats.noProductsCount.toLocaleString()}</strong> No SKUs on Homepage ({pct(stats.noProductsCount)}%) ·{" "}
-              <strong>{stats.emptyOrBlockedCount.toLocaleString()}</strong> Dead/Blocked URLs ({pct(stats.emptyOrBlockedCount)}%) ·{" "}
-              <strong>{stats.timeoutCount.toLocaleString()}</strong> Timeouts ({pct(stats.timeoutCount)}%) ·{" "}
-              <strong>{stats.aiBillingCount.toLocaleString()}</strong> Old AI Billing 402/400 ({pct(stats.aiBillingCount)}%)
+              Breakdown: <strong>{localStats.noProductsCount.toLocaleString()}</strong> No SKUs on Homepage ({pct(localStats.noProductsCount)}%) ·{" "}
+              <strong>{localStats.emptyOrBlockedCount.toLocaleString()}</strong> Dead/Blocked URLs ({pct(localStats.emptyOrBlockedCount)}%) ·{" "}
+              <strong>{localStats.timeoutCount.toLocaleString()}</strong> Timeouts ({pct(localStats.timeoutCount)}%) ·{" "}
+              <strong>{localStats.aiBillingCount.toLocaleString()}</strong> Old AI Billing 402/400 ({pct(localStats.aiBillingCount)}%)
             </p>
           </div>
         </div>
@@ -320,11 +338,11 @@ export function FailedDiagnosticsPanel({ stats }: FailedDiagnosticsPanelProps) {
           </div>
 
           {/* Instant Zero-Credit Duplicate Domain Sync Bar */}
-          {stats.duplicateOfScrapedCount > 0 && (
+          {localStats.duplicateOfScrapedCount > 0 && (
             <div className="rounded-xl bg-emerald-50 border border-emerald-200 px-4 py-3 flex flex-wrap items-center justify-between gap-3">
               <div className="text-xs text-emerald-900">
                 <strong>⚡ Instant Zero-Credit Recovery Available:</strong>{" "}
-                <strong>{stats.duplicateOfScrapedCount}</strong> of these failed records share a website domain with a supplier that is <strong>already successfully scraped</strong> in your database.
+                <strong>{localStats.duplicateOfScrapedCount}</strong> of these failed records share a website domain with a supplier that is <strong>already successfully scraped</strong> in your database.
               </div>
               <button
                 type="button"
@@ -334,7 +352,7 @@ export function FailedDiagnosticsPanel({ stats }: FailedDiagnosticsPanelProps) {
               >
                 {loadingAction === "sync_scraped_duplicates"
                   ? "Syncing…"
-                  : `⚡ Auto-Heal ${stats.duplicateOfScrapedCount} Duplicate Domains Now (0 Credits)`}
+                  : `⚡ Auto-Heal ${localStats.duplicateOfScrapedCount} Duplicate Domains Now (0 Credits)`}
               </button>
             </div>
           )}
