@@ -1,7 +1,7 @@
 import { GoogleGenAI } from "@google/genai";
 import Anthropic from "@anthropic-ai/sdk";
 import type { ContactPage } from "./firecrawlPipeline";
-import { GEMINI_MODEL } from "@/lib/ai/models";
+import { generateGeminiWithFallback } from "@/lib/ai/models";
 
 export interface ExtractedContact {
   name?: string | null;
@@ -62,8 +62,7 @@ async function extractFromPage(
     let raw = "";
 
     if (gemini) {
-      const response = await gemini.models.generateContent({
-        model: GEMINI_MODEL,
+      const { text } = await generateGeminiWithFallback(gemini, {
         contents: userPrompt,
         config: {
           systemInstruction:
@@ -71,7 +70,7 @@ async function extractFromPage(
           responseMimeType: "application/json",
         },
       });
-      raw = response.text?.trim() ?? "";
+      raw = text;
     } else if (anthropic) {
       const response = await anthropic.messages.create({
         model: "claude-sonnet-4-5",

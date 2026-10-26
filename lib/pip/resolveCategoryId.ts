@@ -1,6 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { GoogleGenAI } from "@google/genai";
-import { GEMINI_MODEL } from "@/lib/ai/models";
+import { generateGeminiWithFallback } from "@/lib/ai/models";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
 // Canonical 21-leaf taxonomy — the ONLY ids the classifier may return.
@@ -80,15 +80,14 @@ Output STRICT JSON only:
   if (geminiKey) {
     try {
       const ai = new GoogleGenAI({ apiKey: geminiKey });
-      const response = await ai.models.generateContent({
-        model: GEMINI_MODEL,
+      const { text } = await generateGeminiWithFallback(ai, {
         contents: `${SYSTEM_PROMPT}\n\n${userPrompt}`,
         config: {
           temperature: 0,
           responseMimeType: "application/json",
         },
       });
-      raw = (response.text ?? "").trim();
+      raw = text;
     } catch {
       raw = "";
     }

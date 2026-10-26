@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
-import { GEMINI_MODEL } from "@/lib/ai/models";
+import {
+  GEMINI_MODEL,
+  generateGeminiWithFallback,
+  getGeminiPoolTelemetry,
+} from "@/lib/ai/models";
 
 export const dynamic = "force-dynamic";
 
@@ -84,13 +88,12 @@ export async function GET() {
       logoRate,
     };
 
-    // Dynamic Circuit breaker check (cached for 60 seconds)
+    // Dynamic Circuit breaker check (cached for 60 seconds) across the 3-key failover pool
     if (hasGemini && Date.now() - lastGeminiCheck.checkedAt > 60_000) {
       try {
         const { GoogleGenAI } = await import("@google/genai");
         const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
-        await ai.models.generateContent({
-          model: GEMINI_MODEL,
+        await generateGeminiWithFallback(ai, {
           contents: "ping",
         });
         lastGeminiCheck = { isTripped: false, reason: null, checkedAt: Date.now() };
@@ -99,11 +102,11 @@ export async function GET() {
         if (msg.includes("402") || msg.includes("RESOURCE_EXHAUSTED") || msg.includes("depleted")) {
           const isSpendCap = msg.includes("spending cap") || msg.includes("monthly spending cap");
           const isFreeQuota = msg.includes("free_tier_requests") || msg.includes("GenerateRequestsPerDay");
-          let reason = "Google AI Studio prepayment credit is depleted (HTTP 402 RESOURCE_EXHAUSTED). Please top up balance at https://ai.studio/projects.";
+          let reason = "Google AI Studio prepayment credit is depleted across all configured keys (HTTP 402 RESOURCE_EXHAUSTED).";
           if (isSpendCap) {
             reason = "Google Gemini monthly spending cap reached (or billing propagation pending). Adjust spend cap at https://ai.studio/billing.";
           } else if (isFreeQuota) {
-            reason = `Google AI Studio Free Tier daily quota reached for model ${GEMINI_MODEL}.`;
+            reason = `Google AI Studio Free Tier daily quota reached across all configured keys (${GEMINI_MODEL} + failover pool).`;
           }
           lastGeminiCheck = {
             isTripped: true,
@@ -124,6 +127,8 @@ export async function GET() {
     const circuitBreakerReason = !hasGemini
       ? "GEMINI_API_KEY is not configured."
       : lastGeminiCheck.reason;
+
+    const geminiPool = getGeminiPoolTelemetry();
 
     const payload = {
       ok: true,
@@ -146,8 +151,11 @@ export async function GET() {
           name: "Google Gemini",
           configured: hasGemini,
           status: circuitBreakerTripped ? "circuit_breaker_active" : "operational",
-          model: GEMINI_MODEL,
-          note: circuitBreakerTripped ? (circuitBreakerReason || "Quota depleted") : "Ready",
+          model: `${geminiPool.activeModel} [${geminiPool.activeTier}]`,
+          note: circuitBreakerTripped
+            ? (circuitBreakerReason || "Quota depleted")
+            : `Ready (${geminiPool.activeTier} active · ${geminiPool.totalKeysConfigured} keys in auto-failover pool)`,
+          pool: geminiPool,
         },
         anthropic: {
           name: "Claude AI",
