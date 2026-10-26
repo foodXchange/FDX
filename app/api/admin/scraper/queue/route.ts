@@ -189,15 +189,14 @@ async function runBackgroundQueue() {
 
   try {
     while (!globalQueueState.shouldStop) {
-      // Fetch next batch of pending suppliers across ALL batches (prioritizing re-queued food_pipeline & cached-snapshot suppliers first)
+      // Fetch next batch of pending suppliers across ALL batches (fresh unclassified food manufacturers first!)
       const { data: pendingSuppliers, error } = await supabaseAdmin
         .from("supplier_offerings")
         .select("id, company_name, website, country_of_origin, categories, certifications, csv_import_batch")
         .eq("scrape_status", "pending")
         .not("website", "is", null)
         .neq("website", "")
-        .order("classified_at", { ascending: false, nullsFirst: false })
-        .order("updated_at", { ascending: false, nullsFirst: false })
+        .order("classified_at", { ascending: true, nullsFirst: true })
         .limit(20);
 
       if (error || !pendingSuppliers || pendingSuppliers.length === 0) {
@@ -251,33 +250,16 @@ async function runBackgroundQueue() {
         if (normalizedHost && normalizedHost.length > 3) {
           const { data: existingScraped } = await supabaseAdmin
             .from("supplier_offerings")
-            .select("id, product_count, qualification_status, product_description, contact_email, contact_phone, contact_name, linkedin_url, export_markets, founded_year, employees_range")
+            .select("id, product_count, products_found, qualification_status, product_description, contact_email, contact_phone, contact_name, linkedin_url, export_markets, founded_year, employees_range")
             .ilike("website", `%${normalizedHost}%`)
             .eq("scrape_status", "scraped")
+            .gt("products_found", 0)
             .neq("id", supplier.id)
+            .order("products_found", { ascending: false })
             .limit(1);
 
           if (existingScraped && existingScraped.length > 0) {
             const src = existingScraped[0];
-            await supabaseAdmin
-              .from("supplier_offerings")
-              .update({
-                scrape_status: "scraped",
-                qualification_status: src.qualification_status ?? "strong",
-                product_count: src.product_count ?? 0,
-                product_description: src.product_description,
-                contact_email: src.contact_email,
-                contact_phone: src.contact_phone,
-                contact_name: src.contact_name,
-                linkedin_url: src.linkedin_url,
-                export_markets: src.export_markets,
-                founded_year: src.founded_year,
-                employees_range: src.employees_range,
-                internal_notes: `Synced duplicate domain from supplier (${src.id})`,
-                last_scraped_at: new Date().toISOString(),
-              })
-              .eq("id", supplier.id);
-
             const { data: srcProducts } = await supabaseAdmin
               .from("supplier_products")
               .select("product_name, category, subcategory, description, formats, sizes, brix_level, shelf_life_months, certifications, kosher_types, product_type, primary_ingredients, private_label, tags, markets_suitable, scrape_source, scrape_confidence, embedding")
@@ -294,12 +276,33 @@ async function runBackgroundQueue() {
                 updated_at: new Date().toISOString(),
               }));
               await supabaseAdmin.from("supplier_products").insert(newProducts);
-              globalQueueState.productsFound += newProducts.length;
-            }
+              const copiedCount = newProducts.length;
+              globalQueueState.productsFound += copiedCount;
 
-            globalQueueState.successCount++;
-            globalQueueState.processedCount++;
-            continue;
+              await supabaseAdmin
+                .from("supplier_offerings")
+                .update({
+                  scrape_status: "scraped",
+                  qualification_status: src.qualification_status ?? "strong",
+                  product_count: copiedCount,
+                  products_found: copiedCount,
+                  product_description: src.product_description,
+                  contact_email: src.contact_email,
+                  contact_phone: src.contact_phone,
+                  contact_name: src.contact_name,
+                  linkedin_url: src.linkedin_url,
+                  export_markets: src.export_markets,
+                  founded_year: src.founded_year,
+                  employees_range: src.employees_range,
+                  internal_notes: `Synced duplicate domain from supplier (${src.id})`,
+                  last_scraped_at: new Date().toISOString(),
+                })
+                .eq("id", supplier.id);
+
+              globalQueueState.successCount++;
+              globalQueueState.processedCount++;
+              continue;
+            }
           }
         }
 
