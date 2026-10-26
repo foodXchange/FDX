@@ -157,6 +157,7 @@ const SCRAPER_CATEGORY_MAP: Record<string, string> = {
 
   // Snacks & Confectionery
   "Snacks": CANONICAL_LEAVES["Savory Snacks & Cereals"],
+  "Snack": CANONICAL_LEAVES["Savory Snacks & Cereals"],
   "Savory Snacks & Cereals": CANONICAL_LEAVES["Savory Snacks & Cereals"],
   "Nuts & Dried Fruit": CANONICAL_LEAVES["Savory Snacks & Cereals"],
   "Biscuits & Confectionery": CANONICAL_LEAVES["Sweet Biscuits & Bars"],
@@ -187,6 +188,7 @@ const SCRAPER_CATEGORY_MAP: Record<string, string> = {
 
   // Dairy
   "Dairy": CANONICAL_LEAVES["Dairy Products & Analogues"],
+  "Dairy & Cheese": CANONICAL_LEAVES["Dairy Products & Analogues"],
   "Dairy & Alternatives": CANONICAL_LEAVES["Dairy Products & Analogues"],
   "Dairy Products & Analogues": CANONICAL_LEAVES["Dairy Products & Analogues"],
   "Dairy-Free Desserts": CANONICAL_LEAVES["Dairy-Free Desserts"],
@@ -231,9 +233,78 @@ const SCRAPER_CATEGORY_MAP: Record<string, string> = {
   "Plant-Based Proteins": CANONICAL_LEAVES["Plant-Based Proteins"],
 };
 
-export function mapScraperCategoryToCanonicalId(category?: string | null): string | null {
-  if (!category) return null;
-  return SCRAPER_CATEGORY_MAP[category.trim()] ?? null;
+export function mapScraperCategoryToCanonicalId(
+  category?: string | null,
+  subcategory?: string | null,
+  productName?: string | null
+): string | null {
+  if (category) {
+    const direct = SCRAPER_CATEGORY_MAP[category.trim()];
+    if (direct) return direct;
+  }
+
+  const hay = [category, subcategory, productName].filter(Boolean).join(" ").toLowerCase();
+  if (!hay.trim()) return null;
+
+  if (/\b(chocolate|cocoa|praline|truffle|candy|candies|caramel|confection|toffee|gummy|halva|nougat|marzipan)\b/.test(hay)) {
+    return CANONICAL_LEAVES["Confectionery & Chocolate"];
+  }
+  if (/\b(honey|syrup|sugar|sweetener|jam|marmalade|compote)\b/.test(hay)) {
+    return CANONICAL_LEAVES["Sugars & Sweeteners"];
+  }
+  if (/\b(biscuit|cookie|wafer|cake|pastry|croissant|muffin|tart|waffle)\b/.test(hay)) {
+    return CANONICAL_LEAVES["Sweet Biscuits & Bars"];
+  }
+  if (/\b(bread|bakery|baguette|focaccia|pita|tortilla|flatbread|bun|roll|grissini|dough)\b/.test(hay)) {
+    return CANONICAL_LEAVES["Bakery & Bread Products"];
+  }
+  if (/\b(oat|muesli|granola|cornflakes|cereal)\b/.test(hay)) {
+    return CANONICAL_LEAVES["Breakfast Cereals"];
+  }
+  if (/\b(pasta|spaghetti|penne|noodle|ravioli|gnocchi|couscous)\b/.test(hay)) {
+    return CANONICAL_LEAVES["Pasta/Noodles"];
+  }
+  if (/\b(tomato paste|peeled tomato|passata|tomato puree)\b/.test(hay)) {
+    return CANONICAL_LEAVES["Tomato Products"];
+  }
+  if (/\b(sauce|ketchup|mayonnaise|mustard|dressing|vinegar|balsamic|pesto|condiment|tahini|hummus)\b/.test(hay)) {
+    return CANONICAL_LEAVES["Specialty Sauces & Condiments"];
+  }
+  if (/\b(oil|margarine|ghee|butter spread)\b/.test(hay)) {
+    return CANONICAL_LEAVES["Fats, Oils & Spreads"];
+  }
+  if (/\b(cheese|milk|yogurt|butter|cream|dairy|whey)\b/.test(hay)) {
+    return CANONICAL_LEAVES["Dairy Products & Analogues"];
+  }
+  if (/\b(beef|pork|chicken|poultry|turkey|meat|sausage|salami|ham|chorizo|bacon|charcuterie)\b/.test(hay)) {
+    return CANONICAL_LEAVES["Raw Meat & Poultry"];
+  }
+  if (/\b(fish|salmon|tuna|sardine|anchovy|seafood|shrimp|squid|caviar)\b/.test(hay)) {
+    return CANONICAL_LEAVES["Fresh & Frozen Fish"];
+  }
+  if (/\b(tea|coffee|juice|nectar|soda|water|beverage|drink|smoothie|wine|beer|cider|spirits|liqueur)\b/.test(hay)) {
+    return CANONICAL_LEAVES["Beverages (Non-Alcoholic)"];
+  }
+  if (/\b(spice|herb|pepper|paprika|seasoning|salt|curry)\b/.test(hay)) {
+    return CANONICAL_LEAVES["Herbs"];
+  }
+  if (/\b(tofu|tempeh|vegan|plant-based|soy protein|pea protein)\b/.test(hay)) {
+    return CANONICAL_LEAVES["Plant-Based Proteins"];
+  }
+  if (/\b(chickpea|lentil|bean|pea|legume|pulse|olive|pickle|capers|artichoke|corn|mushroom)\b/.test(hay)) {
+    return CANONICAL_LEAVES["Canned Vegetables & Pulses"];
+  }
+  if (/\b(chip|crisp|pretzel|cracker|popcorn|snack|nut|almond|pistachio|walnut|cashew|hazelnut|peanut|seed|dried fruit|raisin|date|fig)\b/.test(hay)) {
+    return CANONICAL_LEAVES["Savory Snacks & Cereals"];
+  }
+  if (/\b(frozen|iqf|ready meal|soup|broth|pizza|risotto)\b/.test(hay)) {
+    return CANONICAL_LEAVES["Prepared Meals (Frozen & Shelf-Stable)"];
+  }
+  if (/\b(extract|flavor|flavour|aroma|starch|pectin|powder|concentrate|puree|flour|semolina|malt|ingredient)\b/.test(hay)) {
+    return CANONICAL_LEAVES["Ingredients & Additives"];
+  }
+
+  return CANONICAL_LEAVES["Canned & Preserved Goods"];
 }
 
 // Looks up the Unclassified category id from the DB (used in reclass scripts).
@@ -245,4 +316,3 @@ export async function getUnclassifiedId(): Promise<string | null> {
     .maybeSingle();
   return (data as { id: string } | null)?.id ?? null;
 }
-

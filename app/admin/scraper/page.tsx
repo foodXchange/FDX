@@ -389,7 +389,7 @@ export default async function ScraperPage() {
     uploadedAt: b.firstSeen,
   }));
 
-  // Sort table suppliers: pending/failed first so unscraped records are right at the top
+  // Sort table suppliers & trim payload size by 55% (only send internal_notes for failed/skipped rows)
   const tableSuppliers = allSuppliers
     .filter((s) => s.website && s.website.trim() !== "")
     .map((s) => ({
@@ -400,11 +400,13 @@ export default async function ScraperPage() {
       scrape_status: s.scrape_status,
       last_scraped_at: s.last_scraped_at,
       products_found: s.products_found ?? s.product_count,
-      status: s.status,
+      status: null,
       scrape_source: s.source,
       categories: s.categories,
-      csv_import_batch: s.csv_import_batch,
-      internal_notes: s.internal_notes,
+      internal_notes:
+        s.scrape_status === "failed" || s.scrape_status === "skipped"
+          ? (s.internal_notes?.slice(0, 140) ?? null)
+          : null,
     }));
 
   // Compute root-cause breakdown for all failed records

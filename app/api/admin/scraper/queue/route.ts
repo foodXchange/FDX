@@ -108,7 +108,7 @@ async function insertProducts(
       supplier_id: supplierId,
       product_name: p.product_name,
       category: p.category,
-      category_id: mapScraperCategoryToCanonicalId(p.category),
+      category_id: mapScraperCategoryToCanonicalId(p.category, p.subcategory, p.product_name),
       subcategory: p.subcategory ?? null,
       description: p.description ?? null,
       formats: p.formats ?? [],
