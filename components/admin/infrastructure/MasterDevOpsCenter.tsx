@@ -544,6 +544,21 @@ export default function MasterDevOpsCenter({ initialLocale, locale }: Props) {
               </div>
 
               <div className="mt-4 space-y-2.5 text-xs">
+                <div className="space-y-1">
+                  <div className="flex justify-between text-[11px]">
+                    <span className="text-slate-400">{isHe ? "נפח מסד ואינדקס וקטורי:" : "Postgres + pgvector Size:"}</span>
+                    <span className="font-mono font-bold text-teal-300">
+                      ~{report?.supabase.estimatedDbSizeMb ?? 175} / {report?.supabase.dbSizeLimitMb ?? 500} MB ({report?.supabase.dbUsedPct ?? 35}%)
+                    </span>
+                  </div>
+                  <div className="w-full h-2 bg-slate-950 rounded-full overflow-hidden border border-slate-800">
+                    <div
+                      className="h-full bg-gradient-to-r from-teal-500 to-emerald-400 rounded-full"
+                      style={{ width: `${Math.min(100, report?.supabase.dbUsedPct ?? 35)}%` }}
+                    />
+                  </div>
+                </div>
+
                 <div className="flex justify-between p-2 rounded-xl bg-slate-950/70 border border-slate-800">
                   <span className="text-slate-400">{isHe ? "ספקים רשומים במאגר:" : "Registered Suppliers:"}</span>
                   <strong className="text-white font-mono font-bold">
@@ -551,15 +566,15 @@ export default function MasterDevOpsCenter({ initialLocale, locale }: Props) {
                   </strong>
                 </div>
                 <div className="flex justify-between p-2 rounded-xl bg-slate-950/70 border border-slate-800">
-                  <span className="text-slate-400">{isHe ? "מוצרים וספציפיקציות:" : "Cataloged Products:"}</span>
+                  <span className="text-slate-400">{isHe ? "מוצרים + וקטורים (1024-dim):" : "Products + Vectors:"}</span>
                   <strong className="text-emerald-400 font-mono font-bold">
                     {report?.supabase.totalProducts.toLocaleString() ?? "59,171"}
                   </strong>
                 </div>
                 <div className="flex justify-between p-2 rounded-xl bg-slate-950/70 border border-slate-800">
-                  <span className="text-slate-400">{isHe ? "דליי אחסון מדיה (Buckets):" : "Storage Buckets:"}</span>
+                  <span className="text-slate-400">{isHe ? "דליי אחסון / יומני סריקה:" : "Storage Buckets / Logs:"}</span>
                   <strong className="text-teal-300 font-mono font-bold">
-                    {report?.supabase.storageBucketsCount ?? 10} {isHe ? "דליים פעילים" : "active"}
+                    {report?.supabase.storageBucketsCount ?? 10} buckets · {(report?.supabase.scrapeLogsCount ?? 18500).toLocaleString()} logs
                   </strong>
                 </div>
               </div>

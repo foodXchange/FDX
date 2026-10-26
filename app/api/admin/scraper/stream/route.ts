@@ -16,7 +16,7 @@ import {
 import { embedBatch } from "@/lib/ai/embed";
 import { mapScraperCategoryToCanonicalId } from "@/lib/pip/resolveCategoryId";
 import { isBlockedOrEmptyContent } from "@/lib/scraper/cleanContent";
-import { GEMINI_MODEL } from "@/lib/ai/models";
+import { GEMINI_MODEL, generateGeminiWithFallback } from "@/lib/ai/models";
 
 export const dynamic = "force-dynamic";
 
@@ -340,10 +340,10 @@ export async function GET(req: NextRequest) {
         try {
           const { GoogleGenAI } = await import("@google/genai");
           const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-          await ai.models.generateContent({
-            model: GEMINI_MODEL,
+          const { modelUsed } = await generateGeminiWithFallback(ai, {
             contents: "ping",
           });
+          send({ type: "log", message: `✓ AI Pre-flight passed (${modelUsed} active)` });
         } catch (err: any) {
           const msg = err?.message || String(err);
           if (
@@ -358,7 +358,7 @@ export async function GET(req: NextRequest) {
             if (isSpendCap) {
               breakerNotice = "⚡ CIRCUIT BREAKER: Monthly spending cap reached on Google AI Studio (or newly upgraded billing is still propagating). Please check or raise your Spend Cap at https://ai.studio/billing (or wait 5-15m for Google billing sync). Pausing scraper safely — no suppliers were modified.";
             } else if (isFreeQuota) {
-              breakerNotice = `⚡ CIRCUIT BREAKER: Gemini Free Tier daily limit reached for model ${GEMINI_MODEL}. Pausing scraper safely — no suppliers were modified.`;
+              breakerNotice = `⚡ CIRCUIT BREAKER: Gemini Free Tier daily limit reached across all models (${GEMINI_MODEL} + fallback pool). Pausing scraper safely — no suppliers were modified.`;
             }
             send({
               type: "error",

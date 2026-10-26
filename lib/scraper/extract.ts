@@ -1,7 +1,7 @@
 import { GoogleGenAI } from "@google/genai";
 import Anthropic from "@anthropic-ai/sdk";
 import { cleanScrapedContent } from "./cleanContent";
-import { GEMINI_MODEL } from "@/lib/ai/models";
+import { GEMINI_MODEL, generateGeminiWithFallback } from "@/lib/ai/models";
 
 export interface ExtractedFactory {
   factory_name: string;
@@ -142,8 +142,7 @@ export async function detectManufacturerType(
     let raw = "";
 
     if (gemini) {
-      const response = await gemini.models.generateContent({
-        model: GEMINI_MODEL,
+      const { text } = await generateGeminiWithFallback(gemini, {
         contents: userPrompt,
         config: {
           systemInstruction:
@@ -151,7 +150,7 @@ export async function detectManufacturerType(
           responseMimeType: "application/json",
         },
       });
-      raw = response.text?.trim() ?? "";
+      raw = text;
     } else if (anthropic) {
       const response = await anthropic.messages.create({
         model: "claude-sonnet-4-5",
@@ -322,15 +321,14 @@ export async function extractProducts(
     let raw = "";
 
     if (gemini) {
-      const response = await gemini.models.generateContent({
-        model: GEMINI_MODEL,
+      const { text } = await generateGeminiWithFallback(gemini, {
         contents: userPrompt,
         config: {
           systemInstruction: EXTRACT_SYSTEM_PROMPT,
           responseMimeType: "application/json",
         },
       });
-      raw = response.text?.trim() ?? "";
+      raw = text;
     } else if (anthropic) {
       const response = await anthropic.messages.create({
         model: "claude-sonnet-4-5",
@@ -446,8 +444,7 @@ export async function extractSupplierProfile(
     let raw = "";
 
     if (gemini) {
-      const response = await gemini.models.generateContent({
-        model: GEMINI_MODEL,
+      const { text } = await generateGeminiWithFallback(gemini, {
         contents: userPrompt,
         config: {
           systemInstruction:
@@ -455,7 +452,7 @@ export async function extractSupplierProfile(
           responseMimeType: "application/json",
         },
       });
-      raw = response.text?.trim() ?? "";
+      raw = text;
     } else if (anthropic) {
       const response = await anthropic.messages.create({
         model: "claude-sonnet-4-5",
@@ -639,15 +636,14 @@ export async function extractSupplierFull(
   let raw = "";
   if (gemini) {
     try {
-      const response = await gemini.models.generateContent({
-        model: GEMINI_MODEL,
+      const { text } = await generateGeminiWithFallback(gemini, {
         contents: prompt,
         config: {
           systemInstruction: "Extract structured B2B food products and company profile. Output JSON only.",
           responseMimeType: "application/json",
         },
       });
-      raw = response.text?.trim() ?? "";
+      raw = text;
     } catch (e: any) {
       const msg = e?.message || String(e);
       if (

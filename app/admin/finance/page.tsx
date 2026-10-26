@@ -1,4 +1,5 @@
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { getFullInfrastructureReport } from "@/lib/admin/infrastructureEngine";
 import FinanceTreasuryDashboard, {
   type DealFinancialRecord,
   type TreasuryMetrics,
@@ -7,33 +8,36 @@ import FinanceTreasuryDashboard, {
 export const dynamic = "force-dynamic";
 
 export default async function AdminFinancePage() {
-  // 1. Fetch sourcing requests
-  const { data: requests, error: reqErr } = await supabaseAdmin
-    .from("sourcing_requests")
-    .select(`
-      id,
-      company,
-      name,
-      email,
-      phone,
-      product_name,
-      category,
-      created_at,
-      ai_analysis,
-      matches:sourcing_matches(
+  // 1. Fetch sourcing requests and live cloud infrastructure telemetry in parallel
+  const [{ data: requests, error: reqErr }, infrastructure] = await Promise.all([
+    supabaseAdmin
+      .from("sourcing_requests")
+      .select(`
         id,
-        supplier_id,
-        company_name,
+        company,
+        name,
+        email,
+        phone,
         product_name,
-        status,
-        match_breakdown,
-        supplier:supplier_offerings(country_of_origin, contact_email, contact_phone)
-      )
-    `)
-    .order("created_at", { ascending: false });
+        category,
+        created_at,
+        ai_analysis,
+        matches:sourcing_matches(
+          id,
+          supplier_id,
+          company_name,
+          product_name,
+          country,
+          status,
+          match_breakdown
+        )
+      `)
+      .order("created_at", { ascending: false }),
+    getFullInfrastructureReport(),
+  ]);
 
   if (reqErr) {
-    console.error("AdminFinancePage fetch error:", reqErr);
+    console.error("AdminFinancePage fetch error:", reqErr.message || reqErr);
   }
 
   const allRequests = requests || [];
@@ -57,9 +61,12 @@ export default async function AdminFinancePage() {
           m.company_name === ow?.selected_supplier_name
       ) || matchesList[0];
 
-    const supplierObj = Array.isArray(awardedMatch?.supplier)
-      ? awardedMatch.supplier[0]
-      : awardedMatch?.supplier;
+    const supplierObj = {
+      country_of_origin:
+        (awardedMatch as Record<string, unknown> | undefined)?.country as string | undefined,
+      contact_email: (ow?.supplier_email as string | undefined) || undefined,
+      contact_phone: (ow?.supplier_phone as string | undefined) || undefined,
+    };
 
     const fc = (ow?.financial_clearance as Record<string, unknown> | null) ?? {};
     const adv30 = (fc.advance_milestone_30 as Record<string, unknown> | null) ?? {};
@@ -221,7 +228,7 @@ export default async function AdminFinancePage() {
 
   return (
     <div className="p-6 max-w-7xl mx-auto">
-      <FinanceTreasuryDashboard deals={deals} metrics={metrics} />
+      <FinanceTreasuryDashboard deals={deals} metrics={metrics} infrastructure={infrastructure} />
     </div>
   );
 }
