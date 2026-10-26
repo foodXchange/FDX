@@ -7,6 +7,12 @@ export const metadata = {
   description: "Live quota tracking for Netlify, Firecrawl, and Supabase, with secure API key vault and controlled Git deployments.",
 };
 
-export default function AdminInfrastructurePage() {
-  return <MasterDevOpsCenter locale="he" />;
+export default async function AdminInfrastructurePage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ lang?: string; locale?: string }>;
+}) {
+  const sp = searchParams ? await searchParams : {};
+  const initialLocale = (sp.lang === "he" || sp.locale === "he") ? "he" : "en";
+  return <MasterDevOpsCenter initialLocale={initialLocale} />;
 }

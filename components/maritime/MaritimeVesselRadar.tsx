@@ -16,9 +16,47 @@ interface Props {
 
 export default function MaritimeVesselRadar({
   initialVesselId = "msc_leanne",
-  lang = "he",
+  lang = "en",
 }: Props) {
-  const isHe = lang === "he";
+  const [currentLang, setCurrentLang] = useState<"he" | "en">(lang);
+  const isHe = currentLang === "he";
+
+  // Sync with localStorage or URL query params on mount
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const sp = new URLSearchParams(window.location.search);
+      const urlLang = sp.get("lang") || sp.get("locale");
+      if (urlLang === "he" || urlLang === "en") {
+        setCurrentLang(urlLang);
+        return;
+      }
+      const saved = localStorage.getItem("fdx_admin_locale");
+      if (saved === "he" || saved === "en") {
+        setCurrentLang(saved);
+      }
+    }
+  }, []);
+
+  // Listen to global admin_locale_change events
+  useEffect(() => {
+    const handleGlobal = (e: Event) => {
+      const ce = e as CustomEvent<"he" | "en">;
+      if (ce.detail === "he" || ce.detail === "en") {
+        setCurrentLang(ce.detail);
+      }
+    };
+    window.addEventListener("admin_locale_change", handleGlobal);
+    return () => window.removeEventListener("admin_locale_change", handleGlobal);
+  }, []);
+
+  const handleToggleLang = (newLoc: "he" | "en") => {
+    setCurrentLang(newLoc);
+    try {
+      localStorage.setItem("fdx_admin_locale", newLoc);
+      document.cookie = `fdx_admin_locale=${newLoc}; path=/; max-age=31536000`;
+      window.dispatchEvent(new CustomEvent("admin_locale_change", { detail: newLoc }));
+    } catch {}
+  };
 
   // Selected vessel
   const [selectedVesselId, setSelectedVesselId] = useState<string>(initialVesselId);
@@ -206,22 +244,24 @@ Please activate Green Lane release and inland container hauler dispatch.`;
 
             {/* Language Switcher */}
             <div className="bg-slate-950 border border-slate-800 rounded-xl p-0.5 flex items-center text-xs">
-              <Link
-                href={`/he/radar`}
-                className={`px-2.5 py-1 rounded-lg transition font-medium ${
-                  isHe ? "bg-cyan-600 text-white font-bold" : "text-slate-400 hover:text-white"
-                }`}
-              >
-                עברית
-              </Link>
-              <Link
-                href={`/en/radar`}
-                className={`px-2.5 py-1 rounded-lg transition font-medium ${
+              <button
+                type="button"
+                onClick={() => handleToggleLang("en")}
+                className={`px-2.5 py-1 rounded-lg transition font-medium cursor-pointer ${
                   !isHe ? "bg-cyan-600 text-white font-bold" : "text-slate-400 hover:text-white"
                 }`}
               >
-                English
-              </Link>
+                🇺🇸 English
+              </button>
+              <button
+                type="button"
+                onClick={() => handleToggleLang("he")}
+                className={`px-2.5 py-1 rounded-lg transition font-medium cursor-pointer ${
+                  isHe ? "bg-cyan-600 text-white font-bold" : "text-slate-400 hover:text-white"
+                }`}
+              >
+                🇮🇱 עברית
+              </button>
             </div>
 
             {/* WhatsApp Port Coordination */}

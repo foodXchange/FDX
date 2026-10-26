@@ -11,11 +11,50 @@ import {
 } from "../../lib/calculator/retailMarginEngine";
 
 interface Props {
+  initialLocale?: "he" | "en";
   locale?: "he" | "en";
 }
 
-export default function RetailMarginSimulator({ locale = "he" }: Props) {
-  const isHe = locale === "he";
+export default function RetailMarginSimulator({ initialLocale, locale }: Props) {
+  const [currentLocale, setCurrentLocale] = useState<"he" | "en">(() => initialLocale || locale || "en");
+  const isHe = currentLocale === "he";
+
+  // Sync with localStorage or URL query params on mount
+  React.useEffect(() => {
+    if (typeof window !== "undefined") {
+      const sp = new URLSearchParams(window.location.search);
+      const urlLang = sp.get("lang") || sp.get("locale");
+      if (urlLang === "he" || urlLang === "en") {
+        setCurrentLocale(urlLang);
+        return;
+      }
+      const saved = localStorage.getItem("fdx_admin_locale");
+      if (saved === "he" || saved === "en") {
+        setCurrentLocale(saved);
+      }
+    }
+  }, []);
+
+  // Listen to global admin_locale_change events
+  React.useEffect(() => {
+    const handleGlobal = (e: Event) => {
+      const ce = e as CustomEvent<"he" | "en">;
+      if (ce.detail === "he" || ce.detail === "en") {
+        setCurrentLocale(ce.detail);
+      }
+    };
+    window.addEventListener("admin_locale_change", handleGlobal);
+    return () => window.removeEventListener("admin_locale_change", handleGlobal);
+  }, []);
+
+  const handleToggleLocale = (newLoc: "he" | "en") => {
+    setCurrentLocale(newLoc);
+    try {
+      localStorage.setItem("fdx_admin_locale", newLoc);
+      document.cookie = `fdx_admin_locale=${newLoc}; path=/; max-age=31536000`;
+      window.dispatchEvent(new CustomEvent("admin_locale_change", { detail: newLoc }));
+    } catch {}
+  };
 
   // Selected Preset
   const [selectedPresetId, setSelectedPresetId] = useState<string>("olive_oil_evoo");
@@ -148,7 +187,37 @@ export default function RetailMarginSimulator({ locale = "he" }: Props) {
             </p>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
+            {/* Bilingual Language Switcher */}
+            <div className="flex items-center bg-slate-900 border border-slate-700/80 rounded-xl p-1 text-xs font-semibold shadow-xs">
+              <button
+                type="button"
+                onClick={() => handleToggleLocale("en")}
+                className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer flex items-center gap-1.5 ${
+                  !isHe
+                    ? "bg-emerald-500 text-white shadow-xs font-bold"
+                    : "text-slate-400 hover:text-slate-200"
+                }`}
+                title="Switch UI to English"
+              >
+                <span>🇺🇸</span>
+                <span>English</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => handleToggleLocale("he")}
+                className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer flex items-center gap-1.5 ${
+                  isHe
+                    ? "bg-emerald-500 text-white shadow-xs font-bold"
+                    : "text-slate-400 hover:text-slate-200"
+                }`}
+                title="החלף ממשק לעברית"
+              >
+                <span>🇮🇱</span>
+                <span>עברית</span>
+              </button>
+            </div>
+
             <Link
               href="/edi/connectors"
               className="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-blue-600/20 hover:bg-blue-600/30 text-blue-300 font-medium text-sm border border-blue-500/40 transition"

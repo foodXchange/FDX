@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import AdminNav from "@/components/admin/AdminNav";
 import NotificationBell from "@/components/admin/NotificationBell";
 import AdminUserMenu from "@/components/admin/AdminUserMenu";
+import AdminLocaleSwitcher from "@/components/admin/AdminLocaleSwitcher";
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -118,6 +119,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             </div>
 
             <div className="h-4 w-px bg-slate-200 hidden md:block" />
+
+            <AdminLocaleSwitcher />
 
             <NotificationBell />
 

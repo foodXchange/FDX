@@ -61,6 +61,7 @@ const sections: { title: string; links: NavItem[] }[] = [
   {
     title: "Configuration",
     links: [
+      { href: "/admin/infrastructure", label: "DevOps & API Vault", icon: "🛠️", badge: "Live" },
       { href: "/admin/settings/category-images", label: "Category Images", icon: "🖼️" },
       { href: "/admin/settings/email-templates", label: "Email Templates", icon: "📧" },
       { href: "/admin/settings/audit-log", label: "Audit Log", icon: "📜" },
