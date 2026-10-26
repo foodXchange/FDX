@@ -574,9 +574,10 @@ async function runBackgroundQueue() {
                   ...(profile.contact_phone ? { contact_phone: profile.contact_phone } : {}),
                   ...(profile.contact_name ? { contact_name: profile.contact_name } : {}),
                   ...(profile.linkedin_url ? { linkedin_url: profile.linkedin_url } : {}),
-                  ...(profile.export_markets.length > 0 ? { export_markets: profile.export_markets } : {}),
-                  ...(profile.founded_year ? { founded_year: profile.founded_year } : {}),
+                  ...(profile.export_markets.length > 0 ? { export_markets: profile.export_markets, markets_served: profile.export_markets } : {}),
+                  ...(profile.founded_year ? { founded_year: profile.founded_year, founded: String(profile.founded_year) } : {}),
                   ...(profile.employees_range ? { employees_range: profile.employees_range } : {}),
+                  ...(normalizedHost ? { website_domain: normalizedHost } : {}),
                 })
                 .eq("id", supplier.id);
 
