@@ -600,6 +600,16 @@ Delivery Order authorized. Please assign inland container hauler.`;
               </Link>
             </div>
 
+            {/* Live AIS Maritime Radar Link */}
+            <Link
+              href={`/radar/${requestId}`}
+              className="text-xs font-bold px-3 py-1.5 bg-cyan-600/20 hover:bg-cyan-600/30 text-cyan-300 border border-cyan-500/30 rounded-xl transition flex items-center gap-1.5 cursor-pointer shadow-xs"
+              title={isHe ? "רדאר ימי חי AIS לנמל אשדוד" : "Live AIS Maritime Radar"}
+            >
+              <span>🛰️</span>
+              <span>{isHe ? "רדאר ימי חי" : "AIS Vessel Radar"}</span>
+            </Link>
+
             {/* XML Generator Modal Button */}
             <button
               type="button"
