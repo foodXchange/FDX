@@ -77,6 +77,16 @@ async function insertProducts(
 ): Promise<number> {
   if (products.length === 0) return 0;
 
+  // Never-Downgrade Guard: if supplier already has MORE products than this run extracted, keep existing products
+  const { count: existingProdCount } = await supabaseAdmin
+    .from("supplier_products")
+    .select("id", { count: "exact", head: true })
+    .eq("supplier_id", supplierId);
+
+  if ((existingProdCount ?? 0) > products.length) {
+    return existingProdCount ?? products.length;
+  }
+
   await supabaseAdmin
     .from("supplier_products")
     .delete()
@@ -361,6 +371,23 @@ async function runBackgroundQueue() {
               const isGroundedSearch = content.startsWith("[PERPLEXITY RESEARCH]");
 
               if (!content || content.length < 50) {
+                const { count: prevProds } = await supabaseAdmin
+                  .from("supplier_products")
+                  .select("id", { count: "exact", head: true })
+                  .eq("supplier_id", supplier.id);
+                if ((prevProds ?? 0) > 0) {
+                  await supabaseAdmin
+                    .from("supplier_offerings")
+                    .update({
+                      scrape_status: "scraped",
+                      products_found: prevProds,
+                      product_count: prevProds,
+                      last_scraped_at: new Date().toISOString(),
+                    })
+                    .eq("id", supplier.id);
+                  globalQueueState.successCount++;
+                  return;
+                }
                 await supabaseAdmin
                   .from("supplier_offerings")
                   .update({ scrape_status: "failed", internal_notes: "No content returned from scraper" })
@@ -445,6 +472,23 @@ async function runBackgroundQueue() {
               }
 
               if (products.length === 0) {
+                const { count: prevProds } = await supabaseAdmin
+                  .from("supplier_products")
+                  .select("id", { count: "exact", head: true })
+                  .eq("supplier_id", supplier.id);
+                if ((prevProds ?? 0) > 0) {
+                  await supabaseAdmin
+                    .from("supplier_offerings")
+                    .update({
+                      scrape_status: "scraped",
+                      products_found: prevProds,
+                      product_count: prevProds,
+                      last_scraped_at: new Date().toISOString(),
+                    })
+                    .eq("id", supplier.id);
+                  globalQueueState.successCount++;
+                  return;
+                }
                 await supabaseAdmin
                   .from("supplier_offerings")
                   .update({ scrape_status: "failed", internal_notes: "No products extracted from content" })
@@ -550,11 +594,28 @@ async function runBackgroundQueue() {
             globalQueueState.successCount++;
             globalQueueState.productsFound += productsSavedCount;
           } else {
-            await supabaseAdmin
-              .from("supplier_offerings")
-              .update({ scrape_status: "failed", internal_notes: "Timeout or network error" })
-              .eq("id", supplier.id);
-            globalQueueState.failedCount++;
+            const { count: prevProds } = await supabaseAdmin
+              .from("supplier_products")
+              .select("id", { count: "exact", head: true })
+              .eq("supplier_id", supplier.id);
+            if ((prevProds ?? 0) > 0) {
+              await supabaseAdmin
+                .from("supplier_offerings")
+                .update({
+                  scrape_status: "scraped",
+                  products_found: prevProds,
+                  product_count: prevProds,
+                  last_scraped_at: new Date().toISOString(),
+                })
+                .eq("id", supplier.id);
+              globalQueueState.successCount++;
+            } else {
+              await supabaseAdmin
+                .from("supplier_offerings")
+                .update({ scrape_status: "failed", internal_notes: "Timeout or network error" })
+                .eq("id", supplier.id);
+              globalQueueState.failedCount++;
+            }
           }
         } finally {
           if (timerHandle) clearTimeout(timerHandle);
