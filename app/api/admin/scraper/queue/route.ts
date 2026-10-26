@@ -77,21 +77,57 @@ async function insertProducts(
 ): Promise<number> {
   if (products.length === 0) return 0;
 
-  // Never-Downgrade Guard: if supplier already has MORE products than this run extracted, keep existing products
-  const { count: existingProdCount } = await supabaseAdmin
+  // Additive Smart-Merge & Never-Downgrade Guard:
+  // Preserve any existing products that were not re-extracted in this run, and only replace
+  // unverified rows that match newly extracted product names (upgrading their photos, specs & embeddings).
+  const { data: existingRows } = await supabaseAdmin
     .from("supplier_products")
-    .select("id", { count: "exact", head: true })
+    .select("id, product_name, manually_verified, image_url")
     .eq("supplier_id", supplierId);
 
-  if ((existingProdCount ?? 0) > products.length) {
-    return existingProdCount ?? products.length;
+  const existingImageByNormName = new Map<string, string>();
+  const verifiedNames = new Set<string>();
+  const duplicateUnverifiedIdsToDelete: string[] = [];
+  const incomingNormNames = new Set(
+    products
+      .map((p) => (typeof p?.product_name === "string" ? p.product_name.trim().toLowerCase() : ""))
+      .filter(Boolean)
+  );
+
+  for (const row of existingRows || []) {
+    const norm = (row.product_name || "").trim().toLowerCase();
+    if (!norm) continue;
+    if (row.image_url && !existingImageByNormName.has(norm)) {
+      existingImageByNormName.set(norm, row.image_url);
+    }
+    if (row.manually_verified) {
+      verifiedNames.add(norm);
+    } else if (incomingNormNames.has(norm)) {
+      duplicateUnverifiedIdsToDelete.push(row.id);
+    }
   }
 
-  await supabaseAdmin
-    .from("supplier_products")
-    .delete()
-    .eq("supplier_id", supplierId)
-    .eq("manually_verified", false);
+  // Filter out incoming products that already exist as manually_verified
+  const dedupedProducts: any[] = [];
+  const seenIncoming = new Set<string>();
+  for (const p of products) {
+    const norm = (typeof p?.product_name === "string" ? p.product_name.trim().toLowerCase() : "");
+    if (!norm || verifiedNames.has(norm) || seenIncoming.has(norm)) continue;
+    seenIncoming.add(norm);
+    dedupedProducts.push(p);
+  }
+
+  if (dedupedProducts.length === 0) {
+    return existingRows?.length ?? 0;
+  }
+  products = dedupedProducts;
+
+  if (duplicateUnverifiedIdsToDelete.length > 0) {
+    await supabaseAdmin
+      .from("supplier_products")
+      .delete()
+      .in("id", duplicateUnverifiedIdsToDelete);
+  }
 
   const { productImages } = extractImagesFromCrawledContent(
     crawledContent,
@@ -154,14 +190,17 @@ async function insertProducts(
       manually_verified: false,
       needs_review: p.needs_review ?? false,
       is_published: true,
-      image_url: resolvedImages[i] ?? null,
+      image_url:
+        resolvedImages[i] ??
+        existingImageByNormName.get((p.product_name || "").trim().toLowerCase()) ??
+        null,
       image_source: resolvedImages[i] ? "scraper" : null,
       embedding: vectors[i] ? JSON.stringify(vectors[i]) : null,
     };
   });
 
   const { error } = await supabaseAdmin.from("supplier_products").insert(rows);
-  if (error) return 0;
+  if (error) return existingRows?.length ?? 0;
 
   const { count } = await supabaseAdmin
     .from("supplier_products")
@@ -186,6 +225,7 @@ async function insertProducts(
     .from("supplier_offerings")
     .update({
       product_count,
+      products_found: product_count,
       qualification_status,
       status: "approved",
       verified: true,
@@ -195,7 +235,7 @@ async function insertProducts(
     })
     .eq("id", supplierId);
 
-  return rows.length;
+  return product_count;
 }
 
 // Background processing loop that runs asynchronously
