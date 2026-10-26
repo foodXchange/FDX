@@ -70,7 +70,11 @@ const sections: { title: string; links: NavItem[] }[] = [
   },
 ];
 
-export default function AdminNav() {
+interface AdminNavProps {
+  collapsed?: boolean;
+}
+
+export default function AdminNav({ collapsed = false }: AdminNavProps) {
   const pathname = usePathname();
 
   function isLinkActive(href: string): boolean {
@@ -79,27 +83,33 @@ export default function AdminNav() {
   }
 
   return (
-    <nav className="px-3 py-3 space-y-4 flex-1 overflow-y-auto">
+    <nav className="px-2 py-3 space-y-3 flex-1 overflow-y-auto overflow-x-hidden">
       {/* Quick Dashboard Home Link */}
       <div>
         <Link
           href="/admin"
-          className={`flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all ${
+          title={collapsed ? "Mission Control" : undefined}
+          className={`flex items-center ${collapsed ? "justify-center px-2 py-2" : "gap-2.5 px-3 py-2"} rounded-xl text-xs font-semibold transition-all ${
             pathname === "/admin"
               ? "bg-orange-500 text-white shadow-xs"
               : "text-slate-300 hover:text-white hover:bg-slate-800/80"
           }`}
         >
-          <span className="text-sm">🏠</span>
-          <span>Mission Control</span>
+          <span className="text-sm shrink-0">🏠</span>
+          {!collapsed && <span className="truncate">Mission Control</span>}
         </Link>
       </div>
 
       {sections.map((section) => (
         <div key={section.title} className="space-y-1">
-          <p className="px-3 text-[10px] font-bold uppercase tracking-wider text-slate-500">
-            {section.title}
-          </p>
+          {!collapsed ? (
+            <p className="px-3 text-[10px] font-bold uppercase tracking-wider text-slate-500">
+              {section.title}
+            </p>
+          ) : (
+            <div className="h-px bg-slate-800/60 my-2 mx-1" />
+          )}
+
           <div className="space-y-0.5">
             {section.links.map((link) => {
               const active = isLinkActive(link.href);
@@ -107,19 +117,22 @@ export default function AdminNav() {
                 <Link
                   key={link.href}
                   href={link.href}
-                  className={`flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium transition-all group ${
+                  title={collapsed ? link.label : undefined}
+                  className={`flex items-center ${
+                    collapsed ? "justify-center px-2 py-2" : "justify-between px-3 py-2"
+                  } rounded-lg text-xs font-medium transition-all group ${
                     active
-                      ? "bg-slate-800 text-white border-l-2 border-orange-500 pl-2.5 font-semibold"
+                      ? "bg-slate-800 text-white border-l-2 border-orange-500 font-semibold" + (collapsed ? "" : " pl-2.5")
                       : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/60"
                   }`}
                 >
-                  <div className="flex items-center gap-2.5 truncate">
+                  <div className={`flex items-center ${collapsed ? "justify-center" : "gap-2.5"} truncate`}>
                     <span className="text-xs shrink-0 group-hover:scale-110 transition-transform">
                       {link.icon}
                     </span>
-                    <span className="truncate">{link.label}</span>
+                    {!collapsed && <span className="truncate">{link.label}</span>}
                   </div>
-                  {link.badge && (
+                  {!collapsed && link.badge && (
                     <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-slate-700 text-slate-300 font-bold shrink-0">
                       {link.badge}
                     </span>
