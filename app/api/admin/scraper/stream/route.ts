@@ -499,14 +499,36 @@ export async function GET(req: NextRequest) {
 
           await Promise.race([
             (async () => {
-              // ── CRAWL ─────────────────────────────────────────────────────
-              send({ type: "log", message: "  → Crawling website..." });
+              // ── CRAWL (WITH ZERO-CREDIT SNAPSHOT CACHE CHECK) ─────────────
               const crawlUrl = getHomepage(supplier.website!);
-              const content = await crawlSupplier(
-                crawlUrl,
-                supplier.company_name,
-                supplier.country_of_origin
-              );
+              let content = "";
+              let usedCachedSnapshot = false;
+
+              const { data: existingSnap } = await supabaseAdmin
+                .from("crawl_snapshots")
+                .select("content, content_chars")
+                .eq("supplier_id", supplier.id)
+                .maybeSingle();
+
+              if (
+                existingSnap?.content &&
+                existingSnap.content.length >= 250 &&
+                !isBlockedOrEmptyContent(existingSnap.content)
+              ) {
+                content = existingSnap.content;
+                usedCachedSnapshot = true;
+                send({
+                  type: "log",
+                  message: `  ⚡ Loaded cached website snapshot (${content.length.toLocaleString()} chars — 0 Firecrawl credits used)`,
+                });
+              } else {
+                send({ type: "log", message: "  → Crawling website..." });
+                content = await crawlSupplier(
+                  crawlUrl,
+                  supplier.company_name,
+                  supplier.country_of_origin
+                );
+              }
               if (isTimedOut) return;
               const isGroundedSearch = content.startsWith("[PERPLEXITY RESEARCH]");
 
@@ -525,35 +547,38 @@ export async function GET(req: NextRequest) {
                 return;
               }
 
-              if (isGroundedSearch) {
-                perplexityCount++;
-                send({
-                  type: "log",
-                  message: `  ✓ Content from Google Search Grounding (${content.length.toLocaleString()} chars)`,
-                });
-                await logEvent(
-                  "search_grounding_fallback",
+              if (!usedCachedSnapshot) {
+                if (isGroundedSearch) {
+                  perplexityCount++;
+                  send({
+                    type: "log",
+                    message: `  ✓ Content from Google Search Grounding (${content.length.toLocaleString()} chars)`,
+                  });
+                  await logEvent(
+                    "search_grounding_fallback",
+                    supplier.id,
+                    `Fetched ${content.length.toLocaleString()} chars via Google Search Grounding`,
+                    0,
+                    "google_search"
+                  );
+                } else {
+                  const pageCount = content.split("---PAGE BREAK---").length;
+                  send({
+                    type: "log",
+                    message: `  ✓ Fetched ${content.length.toLocaleString()} chars across ${pageCount} page${pageCount !== 1 ? "s" : ""}`,
+                  });
+                }
+
+                await saveCrawlSnapshot(
+                  supabaseAdmin,
                   supplier.id,
-                  `Fetched ${content.length.toLocaleString()} chars via Google Search Grounding`,
-                  0,
-                  "google_search"
+                  content,
+                  crawlUrl,
+                  isGroundedSearch ? "search_grounding" : "firecrawl"
                 );
-              } else {
-                const pageCount = content.split("---PAGE BREAK---").length;
-                send({
-                  type: "log",
-                  message: `  ✓ Fetched ${content.length.toLocaleString()} chars across ${pageCount} page${pageCount !== 1 ? "s" : ""}`,
-                });
               }
 
               // ── CLASSIFICATION (sector · role · category) ─────────────────
-              await saveCrawlSnapshot(
-                supabaseAdmin,
-                supplier.id,
-                content,
-                crawlUrl,
-                isGroundedSearch ? "search_grounding" : "firecrawl"
-              );
               send({ type: "log", message: "  → Classifying company..." });
               const cls = await classifyCompany(content, supplier.company_name);
               if (isTimedOut) return;
