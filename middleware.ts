@@ -15,8 +15,33 @@ const SUPPLIER_PORTAL_AUTH_PATHS = [
   "/en/supplier-portal/auth/callback",
 ];
 
+const PUBLIC_ADMIN_API_PATHS = [
+  "/api/admin/login",
+  "/api/admin/logout",
+  "/api/admin/forgot-password",
+  "/api/admin/magic-link",
+  "/api/admin/impersonate/exit",
+];
+
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
+
+  if (pathname.startsWith("/api/admin")) {
+    const isPublicAdminApi = PUBLIC_ADMIN_API_PATHS.some(
+      (p) => pathname === p || pathname.startsWith(`${p}/`)
+    );
+    if (isPublicAdminApi) {
+      return NextResponse.next();
+    }
+    const cookie = req.cookies.get(COOKIE_NAME)?.value;
+    if (!cookie || !(await verifySession(cookie))) {
+      return NextResponse.json(
+        { ok: false, error: "Unauthorized: valid admin session required" },
+        { status: 401 }
+      );
+    }
+    return NextResponse.next();
+  }
 
   const isAdminRoute =
     pathname.startsWith("/admin") || pathname.startsWith("/en/admin");
@@ -74,6 +99,7 @@ export const config = {
   matcher: [
     "/admin/:path*",
     "/en/admin/:path*",
+    "/api/admin/:path*",
     "/en/portal/:path*",
     "/en/supplier-portal/:path*",
   ],

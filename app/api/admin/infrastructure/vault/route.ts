@@ -5,6 +5,16 @@ export const dynamic = "force-dynamic";
 
 export async function POST(req: NextRequest) {
   try {
+    if (process.env.NODE_ENV === "production") {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: "Direct .env.local mutation is disabled in production builds. Update secrets via Netlify/Supabase dashboard.",
+        },
+        { status: 403 }
+      );
+    }
+
     const body = await req.json();
     const { key, value } = body;
 

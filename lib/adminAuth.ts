@@ -2,10 +2,14 @@ const COOKIE_NAME = "admin_session";
 const MAX_AGE_DAYS = 7;
 
 async function hmac(message: string): Promise<string> {
+  const secret = process.env.ADMIN_SESSION_SECRET;
+  if (!secret || secret.length < 16) {
+    throw new Error("ADMIN_SESSION_SECRET is missing or too short");
+  }
   const enc = new TextEncoder();
   const key = await globalThis.crypto.subtle.importKey(
     "raw",
-    enc.encode(process.env.ADMIN_SESSION_SECRET!),
+    enc.encode(secret),
     { name: "HMAC", hash: "SHA-256" },
     false,
     ["sign"]
