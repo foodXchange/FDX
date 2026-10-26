@@ -418,6 +418,14 @@ export default function DealsDeskClient({ initialDeals }: Props) {
             <span>MOH COA Checker</span>
           </Link>
           <Link
+            href="/edi/connectors"
+            className="px-3.5 py-2 rounded-xl text-xs font-semibold bg-blue-600/20 hover:bg-blue-600/30 text-blue-300 border border-blue-500/30 transition flex items-center gap-1.5"
+            title="Open Supermarket Chain ERP & StoreNext EDI Connectors Studio"
+          >
+            <span>🔌</span>
+            <span>EDI Connectors</span>
+          </Link>
+          <Link
             href="/radar"
             className="px-3.5 py-2 rounded-xl text-xs font-semibold bg-cyan-600/20 hover:bg-cyan-600/30 text-cyan-300 border border-cyan-500/30 transition flex items-center gap-1.5"
             title="Open Live Maritime AIS Vessel Radar & Ashdod Port Anchorage"

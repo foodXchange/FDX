@@ -149,6 +149,15 @@ export default function RetailMarginSimulator({ locale = "he" }: Props) {
           </div>
 
           <div className="flex items-center gap-3">
+            <Link
+              href="/edi/connectors"
+              className="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-blue-600/20 hover:bg-blue-600/30 text-blue-300 font-medium text-sm border border-blue-500/40 transition"
+              title={isHe ? "ייצוא נתוני המחירון והרכש למערכות EDI של רשתות השיווק" : "Export to Supermarket EDI Connectors"}
+            >
+              <span>🔌</span>
+              <span>{isHe ? "ממשקי EDI לרשתות" : "Supermarket EDI"}</span>
+            </Link>
+
             <button
               id="deck-export-button"
               onClick={() => setShowDeckModal(true)}
