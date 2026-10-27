@@ -9,8 +9,10 @@ export const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-3.5-flash-lite";
 
 export const GEMINI_FALLBACK_MODELS = [
   "gemini-3.5-flash-lite",
-  "gemini-3.1-flash-lite-preview",
+  "gemini-3.5-flash",
+  "gemini-3.6-flash",
   "gemini-3-flash-preview",
+  "gemini-3.1-flash-lite-preview",
   "gemini-flash-lite-latest",
 ];
 
