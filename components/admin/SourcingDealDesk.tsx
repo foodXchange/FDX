@@ -7,6 +7,8 @@ import {
   createRequestForBuyer,
   createQuickBuyer,
   type CreateQuickBuyerInput,
+  getQuickMatchesAction,
+  sendBriefConfirmationEmailAction,
 } from "@/app/admin/requests/actions";
 import type { RequestRow } from "@/app/admin/requests/page";
 import RequestsTable from "@/components/admin/RequestsTable";
@@ -194,6 +196,27 @@ export default function SourcingDealDesk({ buyers: initialBuyers, requests, init
     }
   }
 
+  // Helper to safely parse JSON responses and avoid SyntaxError on HTML errors
+  async function safeJsonParse<T = any>(res: Response): Promise<{ ok: boolean; data?: T; error?: string }> {
+    try {
+      const text = await res.text();
+      let parsed: any = null;
+      try {
+        parsed = JSON.parse(text);
+      } catch {
+        return {
+          ok: false,
+          error: res.ok
+            ? "Invalid server response format"
+            : `Server returned error (${res.status}): ${text.slice(0, 100).replace(/<[^>]+>/g, "").trim() || res.statusText}`,
+        };
+      }
+      return { ok: res.ok, data: parsed, error: parsed?.error || parsed?.message };
+    } catch (e: any) {
+      return { ok: false, error: e?.message || "Request failed" };
+    }
+  }
+
   // Handle File Uploads (Multiple files, No Auto-Analyze)
   async function handleFileUpload(files: FileList | null) {
     if (!files || files.length === 0) return;
@@ -207,9 +230,11 @@ export default function SourcingDealDesk({ buyers: initialBuyers, requests, init
         const fd = new FormData();
         fd.append("file", file);
         const uploadRes = await fetch("/api/sourcing/upload-image", { method: "POST", body: fd });
-        const uploadData = await uploadRes.json();
-        if (uploadRes.ok && uploadData.url) {
-          newUrls.push(uploadData.url);
+        const parsed = await safeJsonParse<{ url?: string; filename?: string }>(uploadRes);
+        if (parsed.ok && parsed.data?.url) {
+          newUrls.push(parsed.data.url);
+        } else if (parsed.error) {
+          setErrorMsg(parsed.error);
         }
       }
       if (newUrls.length > 0) {
@@ -261,7 +286,8 @@ export default function SourcingDealDesk({ buyers: initialBuyers, requests, init
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ imageUrl: url }),
         });
-        const data = await visionRes.json();
+        const parsed = await safeJsonParse<{ analysis?: any }>(visionRes);
+        const data = parsed.data;
         if (data?.analysis) {
           const a = data.analysis;
           lastAnalysis = a;
@@ -339,38 +365,33 @@ export default function SourcingDealDesk({ buyers: initialBuyers, requests, init
     setSendingEmail(true);
 
     try {
-      const res = await fetch("/api/admin/requests/confirm-brief", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          buyerEmail: selectedBuyer.contact_email,
-          buyerName: selectedBuyer.contact_name,
-          buyerCompany: selectedBuyer.company_name,
-          projectTitle,
-          benchmarkBrands,
-          category,
-          packagingFormat,
-          estimatedVolume,
-          brandingModel,
-          targetMarket,
-          selectedTags,
-          naturalBrief,
-          imageUrls,
-          customSubject: emailSubject,
-          customNotes: emailCustomNotes,
-        }),
+      const res = await sendBriefConfirmationEmailAction({
+        buyerEmail: selectedBuyer.contact_email,
+        buyerName: selectedBuyer.contact_name,
+        buyerCompany: selectedBuyer.company_name,
+        projectTitle,
+        benchmarkBrands,
+        category,
+        packagingFormat,
+        estimatedVolume,
+        brandingModel,
+        targetMarket,
+        selectedTags,
+        naturalBrief,
+        imageUrls,
+        customSubject: emailSubject,
+        customNotes: emailCustomNotes,
       });
 
-      const data = await res.json();
-      if (!res.ok || !data.ok) {
-        throw new Error(data.error || "Failed to dispatch confirmation email");
+      if (!res.ok) {
+        throw new Error(res.error || "Failed to dispatch confirmation email");
       }
 
       setShowEmailModal(false);
       setEmailCustomNotes("");
       setEmailNotice({
         type: "success",
-        text: `Confirmation email successfully sent to ${selectedBuyer.contact_email}${data.simulated ? " (simulated)" : ""}!`,
+        text: `Confirmation email successfully sent to ${selectedBuyer.contact_email}${res.simulated ? " (simulated)" : ""}!`,
       });
     } catch (err: any) {
       setEmailNotice({
@@ -497,12 +518,15 @@ export default function SourcingDealDesk({ buyers: initialBuyers, requests, init
 
         setCreatedRequestId(res.id);
 
-        // Fetch live matches immediately
-        setFetchingMatches(true);
-        const matchRes = await fetch(`/api/admin/requests/quick-matches?request_id=${res.id}`);
-        const matchJson = await matchRes.json();
-        setLiveMatches(matchJson.matches || []);
-        setFetchingMatches(false);
+        // Populate live matches immediately from Server Action without fragile API fetch
+        if (Array.isArray(res.matches) && res.matches.length > 0) {
+          setLiveMatches(res.matches);
+        } else {
+          setFetchingMatches(true);
+          const matchResult = await getQuickMatchesAction(res.id);
+          setLiveMatches(matchResult.matches || []);
+          setFetchingMatches(false);
+        }
       } catch (err: any) {
         setErrorMsg(err.message || "Failed to submit request");
       }
