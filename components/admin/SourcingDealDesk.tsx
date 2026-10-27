@@ -114,8 +114,12 @@ export default function SourcingDealDesk({ buyers: initialBuyers, requests, init
 
   // Machine Vision & Upload state
   const [uploadingImage, setUploadingImage] = useState(false);
+  const [analysingVision, setAnalysingVision] = useState(false);
   const [imageUrls, setImageUrls] = useState<string[]>([]);
+  const [pasteUrlInput, setPasteUrlInput] = useState("");
+  const [showUrlInput, setShowUrlInput] = useState(false);
   const [visionData, setVisionData] = useState<any>(null);
+  const [visionSummary, setVisionSummary] = useState<string | null>(null);
 
   // AI Pitch & Spec generation state
   const [generatingPitch, setGeneratingPitch] = useState(false);
@@ -189,43 +193,112 @@ export default function SourcingDealDesk({ buyers: initialBuyers, requests, init
     }
   }
 
-  // Machine Vision File Drop
-  async function handleFileUpload(file: File) {
-    if (!file) return;
+  // Handle File Uploads (Multiple files, No Auto-Analyze)
+  async function handleFileUpload(files: FileList | null) {
+    if (!files || files.length === 0) return;
     setUploadingImage(true);
     setErrorMsg(null);
 
     try {
-      const fd = new FormData();
-      fd.append("file", file);
-      const uploadRes = await fetch("/api/sourcing/upload-image", { method: "POST", body: fd });
-      const uploadData = await uploadRes.json();
-      if (!uploadRes.ok || !uploadData.url) throw new Error("Upload failed");
-
-      const url = uploadData.url;
-      setImageUrls((prev) => [...prev, url]);
-
-      // Trigger Gemini 3.8 Flash analysis
-      const visionRes = await fetch("/api/sourcing/analyse-image", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ imageUrl: url }),
-      });
-      const data = await visionRes.json();
-      if (data?.analysis) {
-        const a = data.analysis;
-        setVisionData(a);
-        if (!projectTitle) {
-          setProjectTitle(a.product_name?.value || a.product_name || a.product_noun?.value || "");
-        }
-        if (!benchmarkBrands && (a.benchmark_brand?.value || a.brand?.value)) {
-          setBenchmarkBrands(a.benchmark_brand?.value || a.brand?.value);
+      const newUrls: string[] = [];
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        const fd = new FormData();
+        fd.append("file", file);
+        const uploadRes = await fetch("/api/sourcing/upload-image", { method: "POST", body: fd });
+        const uploadData = await uploadRes.json();
+        if (uploadRes.ok && uploadData.url) {
+          newUrls.push(uploadData.url);
         }
       }
+      if (newUrls.length > 0) {
+        setImageUrls((prev) => [...prev, ...newUrls]);
+      }
+    } catch (err: any) {
+      setErrorMsg(err.message || "Upload error");
+    } finally {
+      setUploadingImage(false);
+    }
+  }
+
+  // Handle Pasting Image URL directly
+  function handleAddImageUrl() {
+    const trimmed = pasteUrlInput.trim();
+    if (!trimmed) return;
+    if (!trimmed.startsWith("http://") && !trimmed.startsWith("https://")) {
+      setErrorMsg("Please enter a valid HTTP or HTTPS image URL.");
+      return;
+    }
+    setImageUrls((prev) => [...prev, trimmed]);
+    setPasteUrlInput("");
+    setShowUrlInput(false);
+    setErrorMsg(null);
+  }
+
+  // Remove uploaded image from list
+  function handleRemoveImage(idxToRemove: number) {
+    setImageUrls((prev) => prev.filter((_, idx) => idx !== idxToRemove));
+  }
+
+  // Explicit Button-Triggered Analysis for 1 or more images
+  async function handleAnalyzeImages() {
+    if (imageUrls.length === 0) {
+      setErrorMsg("Please upload files or paste at least one image URL first.");
+      return;
+    }
+    setAnalysingVision(true);
+    setErrorMsg(null);
+
+    try {
+      const extractedNotes: string[] = [];
+      let lastAnalysis: any = null;
+
+      for (let i = 0; i < imageUrls.length; i++) {
+        const url = imageUrls[i];
+        const visionRes = await fetch("/api/sourcing/analyse-image", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ imageUrl: url }),
+        });
+        const data = await visionRes.json();
+        if (data?.analysis) {
+          const a = data.analysis;
+          lastAnalysis = a;
+          const pName = a.product_name?.value || a.product_name || a.product_noun?.value || "";
+          const pBrand = a.benchmark_brand?.value || a.brand?.value || "";
+          const certs = a.certifications_visible?.value || a.certifications_visible || [];
+          const kMarks = a.kosher_marks_visible?.value || a.kosher_marks_visible || [];
+          const rawOcr = a.raw_text_ocr ? ` (OCR: ${a.raw_text_ocr.slice(0, 150)}...)` : "";
+
+          extractedNotes.push(
+            `• Visual Spec #${i + 1}: ${[pName, pBrand ? `Brand: ${pBrand}` : "", certs.length ? `Certs: ${certs.join(",")}` : "", kMarks.length ? `Kosher: ${kMarks.join(",")}` : ""].filter(Boolean).join(" | ")}${rawOcr}`
+          );
+
+          if (!projectTitle && pName) {
+            setProjectTitle(pName);
+          }
+          if (!benchmarkBrands && pBrand) {
+            setBenchmarkBrands(pBrand);
+          }
+        }
+      }
+
+      setVisionData(lastAnalysis);
+      const combinedSummary = extractedNotes.join("\n");
+      setVisionSummary(combinedSummary);
+
+      // Append extracted visual specifications directly into Project Brief
+      setNaturalBrief((prev) => {
+        const header = "\n\n[📸 Extracted Visual Product Specifications]:\n";
+        if (prev.includes("[📸 Extracted Visual Product Specifications]")) {
+          return prev;
+        }
+        return prev ? `${prev}${header}${combinedSummary}` : combinedSummary;
+      });
     } catch (err: any) {
       setErrorMsg(err.message || "Vision extraction error");
     } finally {
-      setUploadingImage(false);
+      setAnalysingVision(false);
     }
   }
 
@@ -640,34 +713,141 @@ export default function SourcingDealDesk({ buyers: initialBuyers, requests, init
                 className="w-full text-xs sm:text-sm bg-slate-50 border border-slate-200 rounded-xl p-3 text-slate-800 outline-none focus:border-orange-500 focus:bg-white leading-relaxed"
               />
 
-              {/* Machine Vision Dropzone Pill */}
-              <div
-                onClick={() => fileInputRef.current?.click()}
-                className="p-3 border border-dashed border-slate-300 rounded-xl bg-slate-50/50 hover:bg-orange-50/40 hover:border-orange-300 cursor-pointer flex items-center justify-between transition text-xs"
-              >
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*,application/pdf"
-                  className="hidden"
-                  onChange={(e) => {
-                    const f = e.target.files?.[0];
-                    if (f) handleFileUpload(f);
-                  }}
-                />
-                <div className="flex items-center gap-2 text-slate-600">
-                  <span>📸</span>
-                  <span>
-                    {uploadingImage
-                      ? "Uploading & analyzing with Gemini Vision..."
-                      : imageUrls.length > 0
-                      ? `✓ ${imageUrls.length} packaging images analyzed`
-                      : "Optional: Drop product packaging photo or shelf benchmark"}
-                  </span>
+              {/* ── ROBUST MULTI-IMAGE & URL MACHINE VISION STUDIO ── */}
+              <div className="p-3.5 border border-slate-200 rounded-xl bg-slate-50/70 space-y-3 text-xs">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm">📸</span>
+                    <span className="font-bold text-slate-800">Product Packaging & Visual Assets</span>
+                    <span className="text-[10px] bg-orange-100 text-orange-700 px-2 py-0.5 rounded-md font-semibold">
+                      Gemini 3.8 Flash Vision
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      multiple
+                      accept="image/*,application/pdf"
+                      className="hidden"
+                      onChange={(e) => {
+                        handleFileUpload(e.target.files);
+                        if (e.target) e.target.value = "";
+                      }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={uploadingImage}
+                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 font-semibold cursor-pointer shadow-2xs transition"
+                    >
+                      <span>📁</span>
+                      <span>{uploadingImage ? "Uploading..." : "+ Upload Images"}</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setShowUrlInput(!showUrlInput)}
+                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 font-semibold cursor-pointer shadow-2xs transition"
+                    >
+                      <span>🔗</span>
+                      <span>+ Paste Image URL</span>
+                    </button>
+                  </div>
                 </div>
-                <span className="text-[11px] font-bold text-orange-600 bg-orange-100/60 px-2 py-0.5 rounded-md">
-                  Gemini 3.8 Flash Vision
-                </span>
+
+                {/* Direct Image URL Paste Input Bar */}
+                {showUrlInput && (
+                  <div className="flex items-center gap-2 pt-1 animate-in fade-in duration-150">
+                    <input
+                      type="url"
+                      placeholder="Paste direct image link (e.g. https://domain.com/choczero-pack.jpg)..."
+                      value={pasteUrlInput}
+                      onChange={(e) => setPasteUrlInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          handleAddImageUrl();
+                        }
+                      }}
+                      className="flex-1 bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-xs text-slate-800 outline-none focus:border-orange-500"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleAddImageUrl}
+                      className="px-3 py-1.5 bg-orange-600 text-white rounded-lg font-bold hover:bg-orange-700 cursor-pointer text-xs"
+                    >
+                      Add URL
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setShowUrlInput(false)}
+                      className="text-slate-400 hover:text-slate-600 text-xs px-1"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                )}
+
+                {/* Staged Images Gallery with Delete Controls */}
+                {imageUrls.length > 0 ? (
+                  <div className="space-y-2 pt-2 border-t border-slate-200/80">
+                    <div className="flex items-center justify-between text-[11px] text-slate-500">
+                      <span>{imageUrls.length} image(s) staged for analysis</span>
+                      <button
+                        type="button"
+                        onClick={handleAnalyzeImages}
+                        disabled={analysingVision}
+                        className="inline-flex items-center gap-1 px-3 py-1 rounded-lg bg-gradient-to-r from-orange-600 to-amber-600 text-white font-bold hover:opacity-95 shadow-xs cursor-pointer disabled:opacity-50 transition"
+                      >
+                        <span>✨</span>
+                        <span>{analysingVision ? "Analyzing Images with AI..." : "Run AI Vision Analysis & Insert to Brief"}</span>
+                      </button>
+                    </div>
+
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                      {imageUrls.map((url, idx) => (
+                        <div
+                          key={idx}
+                          className="relative group rounded-lg overflow-hidden border border-slate-200 bg-white aspect-video flex items-center justify-center shadow-2xs"
+                        >
+                          <img
+                            src={url}
+                            alt={`Product visual ${idx + 1}`}
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              // Fallback display if URL image cannot be previewed
+                              (e.target as HTMLElement).style.display = "none";
+                            }}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveImage(idx)}
+                            className="absolute top-1 right-1 w-5 h-5 rounded-full bg-slate-900/80 text-white text-[11px] flex items-center justify-center opacity-80 hover:opacity-100 hover:bg-rose-600 transition cursor-pointer"
+                            title="Delete image"
+                          >
+                            ✕
+                          </button>
+                          <span className="absolute bottom-1 left-1 bg-black/60 text-[9px] text-white px-1.5 py-0.5 rounded-sm">
+                            #{idx + 1}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-[11px] text-slate-400 italic">
+                    Upload pack shots or paste image URLs. Click "Run AI Vision Analysis" when ready to extract OCR labels, brand, and kosher marks into the project brief.
+                  </p>
+                )}
+
+                {visionSummary && (
+                  <div className="p-2.5 bg-emerald-50 border border-emerald-200 rounded-lg text-[11px] text-emerald-900 leading-relaxed">
+                    <strong className="block font-bold mb-0.5">✓ Visual Specs Added to Project Brief:</strong>
+                    <div className="whitespace-pre-wrap text-emerald-800">{visionSummary}</div>
+                  </div>
+                )}
               </div>
 
               {/* AI Pitch Display Card */}
