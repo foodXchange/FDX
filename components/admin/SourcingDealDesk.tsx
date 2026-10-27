@@ -1,0 +1,825 @@
+"use client";
+
+import { useState, useTransition, useRef, useMemo } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import {
+  createRequestForBuyer,
+  createQuickBuyer,
+  type CreateQuickBuyerInput,
+} from "@/app/admin/requests/actions";
+import type { RequestRow } from "@/app/admin/requests/page";
+import RequestsTable from "@/components/admin/RequestsTable";
+import AgentCommandRadar from "@/components/admin/AgentCommandRadar";
+
+export type BuyerOption = {
+  id: string;
+  company_name: string;
+  contact_name: string | null;
+  contact_email: string | null;
+  contact_whatsapp?: string | null;
+  country?: string | null;
+  buyer_type?: string | null;
+  website?: string | null;
+};
+
+interface Props {
+  buyers: BuyerOption[];
+  requests: RequestRow[];
+  initialCounts: {
+    total: number;
+    matched: number;
+    unmatched: number;
+    highScore: number;
+    awaiting: number;
+  };
+}
+
+const COMMON_DIETARY_TAGS = [
+  "Gluten Free",
+  "Sugar Free",
+  "Keto Friendly",
+  "Kosher (Chief Rabbinate)",
+  "Kosher (Badatz)",
+  "BRC",
+  "IFS",
+  "Organic",
+  "Vegan",
+  "Non-GMO",
+];
+
+const CATEGORY_PRESETS = [
+  "Savory Snacks & Cereals",
+  "Sweet Biscuits & Bars",
+  "Confectionery & Chocolate",
+  "Canned Goods & Tomatoes",
+  "Dairy & Plant-Based Analogues",
+  "Pasta & Noodles",
+  "Oils, Fats & Condiments",
+  "Beverages",
+  "Other Specialty",
+];
+
+export default function SourcingDealDesk({ buyers: initialBuyers, requests, initialCounts }: Props) {
+  const router = useRouter();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Active View mode: Unified Split-Screen vs Full Tabular Registry
+  const [activeTab, setActiveTab] = useState<"intake_desk" | "registry_table">("intake_desk");
+
+  // 1. Buyer Selection State
+  const [buyersList, setBuyersList] = useState<BuyerOption[]>(initialBuyers);
+  const [buyerSearchQuery, setBuyerSearchQuery] = useState("");
+  const [selectedBuyer, setSelectedBuyer] = useState<BuyerOption | null>(null);
+  const [showQuickAddBuyer, setShowQuickAddBuyer] = useState(false);
+  const [quickBuyerPending, setQuickBuyerPending] = useState(false);
+  const [quickBuyerError, setQuickBuyerError] = useState<string | null>(null);
+  const [quickForm, setQuickForm] = useState<CreateQuickBuyerInput>({
+    company_name: "",
+    contact_name: "",
+    contact_email: "",
+    contact_whatsapp: "",
+    country: "Israel",
+    buyer_type: "importer",
+    website: "",
+  });
+
+  // Filtered buyers for instant combobox search
+  const filteredBuyers = useMemo(() => {
+    if (!buyerSearchQuery.trim()) return buyersList.slice(0, 8);
+    const q = buyerSearchQuery.toLowerCase();
+    return buyersList.filter(
+      (b) =>
+        b.company_name.toLowerCase().includes(q) ||
+        (b.contact_name && b.contact_name.toLowerCase().includes(q)) ||
+        (b.website && b.website.toLowerCase().includes(q))
+    ).slice(0, 10);
+  }, [buyersList, buyerSearchQuery]);
+
+  // 2. Project & Sourcing Form State
+  const [projectTitle, setProjectTitle] = useState("");
+  const [benchmarkBrands, setBenchmarkBrands] = useState("");
+  const [category, setCategory] = useState("");
+  const [packagingFormat, setPackagingFormat] = useState("Retail Shelf Packs (Consolidated Mixed Container)");
+  const [estimatedVolume, setEstimatedVolume] = useState("1 x 40ft HQ FCL / month (Mixed Pallets)");
+  const [brandingModel, setBrandingModel] = useState<"supplier_brand" | "private_label" | "open">("supplier_brand");
+  const [targetMarket, setTargetMarket] = useState("Israel");
+  const [selectedTags, setSelectedTags] = useState<string[]>([
+    "Gluten Free",
+    "Sugar Free",
+    "Kosher (Chief Rabbinate)",
+    "BRC",
+  ]);
+  const [naturalBrief, setNaturalBrief] = useState("");
+
+  // Machine Vision & Upload state
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [imageUrls, setImageUrls] = useState<string[]>([]);
+  const [visionData, setVisionData] = useState<any>(null);
+
+  // AI Pitch & Spec generation state
+  const [generatingPitch, setGeneratingPitch] = useState(false);
+  const [aiPitchResult, setAiPitchResult] = useState<{
+    buyer_spec: string;
+    fdx_pitch: string;
+    whatsapp_summary: string;
+  } | null>(null);
+  const [copiedPitch, setCopiedPitch] = useState(false);
+
+  // Submission & Live Matches display
+  const [isSubmitting, startTransition] = useTransition();
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [createdRequestId, setCreatedRequestId] = useState<string | null>(null);
+  const [liveMatches, setLiveMatches] = useState<any[]>([]);
+  const [fetchingMatches, setFetchingMatches] = useState(false);
+
+  // Select a buyer from combobox
+  function handleSelectBuyer(b: BuyerOption) {
+    setSelectedBuyer(b);
+    setBuyerSearchQuery(b.company_name);
+    setTargetMarket(b.country || "Israel");
+  }
+
+  // Toggle dietary / certification tag
+  function toggleTag(tag: string) {
+    setSelectedTags((prev) =>
+      prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]
+    );
+  }
+
+  // Quick Buyer Registration
+  async function handleQuickAddBuyer(e: React.FormEvent) {
+    e.preventDefault();
+    setQuickBuyerError(null);
+    setQuickBuyerPending(true);
+
+    try {
+      const res = await createQuickBuyer(quickForm);
+      if (!res.ok) {
+        setQuickBuyerError(res.error);
+        return;
+      }
+
+      const newB: BuyerOption = {
+        id: res.buyer.id,
+        company_name: res.buyer.company_name,
+        contact_name: res.buyer.contact_name,
+        contact_email: res.buyer.contact_email,
+        country: res.buyer.country,
+        buyer_type: res.buyer.buyer_type,
+        website: res.buyer.website,
+      };
+
+      setBuyersList((prev) => [newB, ...prev]);
+      handleSelectBuyer(newB);
+      setShowQuickAddBuyer(false);
+      setQuickForm({
+        company_name: "",
+        contact_name: "",
+        contact_email: "",
+        contact_whatsapp: "",
+        country: "Israel",
+        buyer_type: "importer",
+        website: "",
+      });
+    } catch (err: any) {
+      setQuickBuyerError(err?.message || "Failed to create buyer");
+    } finally {
+      setQuickBuyerPending(false);
+    }
+  }
+
+  // Machine Vision File Drop
+  async function handleFileUpload(file: File) {
+    if (!file) return;
+    setUploadingImage(true);
+    setErrorMsg(null);
+
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const uploadRes = await fetch("/api/sourcing/upload-image", { method: "POST", body: fd });
+      const uploadData = await uploadRes.json();
+      if (!uploadRes.ok || !uploadData.url) throw new Error("Upload failed");
+
+      const url = uploadData.url;
+      setImageUrls((prev) => [...prev, url]);
+
+      // Trigger Gemini 3.8 Flash analysis
+      const visionRes = await fetch("/api/sourcing/analyse-image", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ imageUrl: url }),
+      });
+      const data = await visionRes.json();
+      if (data?.analysis) {
+        const a = data.analysis;
+        setVisionData(a);
+        if (!projectTitle) {
+          setProjectTitle(a.product_name?.value || a.product_name || a.product_noun?.value || "");
+        }
+        if (!benchmarkBrands && (a.benchmark_brand?.value || a.brand?.value)) {
+          setBenchmarkBrands(a.benchmark_brand?.value || a.brand?.value);
+        }
+      }
+    } catch (err: any) {
+      setErrorMsg(err.message || "Vision extraction error");
+    } finally {
+      setUploadingImage(false);
+    }
+  }
+
+  // AI Spec & Pitch Generator
+  async function handleGeneratePitch() {
+    if (!projectTitle && !naturalBrief && !benchmarkBrands) {
+      setErrorMsg("Please specify a project/product title, benchmark brand, or brief notes first.");
+      return;
+    }
+    setGeneratingPitch(true);
+    setErrorMsg(null);
+
+    try {
+      const res = await fetch("/api/admin/requests/generate-pitch", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          buyerCompany: selectedBuyer?.company_name || "Israeli Retail Buyer",
+          contactName: selectedBuyer?.contact_name || "Procurement Manager",
+          productName: projectTitle || "Specialty Health Foods Sourcing",
+          benchmarkBrand: benchmarkBrands,
+          category,
+          packaging: packagingFormat,
+          privateLabel: brandingModel === "private_label" ? true : brandingModel === "supplier_brand" ? false : null,
+          certifications: selectedTags,
+          targetMarket,
+          existingBrief: naturalBrief,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.ok) throw new Error(data.error || "Failed to generate pitch");
+
+      setAiPitchResult({
+        buyer_spec: data.buyer_spec,
+        fdx_pitch: data.fdx_pitch,
+        whatsapp_summary: data.whatsapp_summary,
+      });
+
+      if (!naturalBrief) {
+        setNaturalBrief(data.buyer_spec);
+      }
+    } catch (err: any) {
+      setErrorMsg(err.message || "Failed to generate AI pitch");
+    } finally {
+      setGeneratingPitch(false);
+    }
+  }
+
+  // Submit Project & Run Real-Time Reverse Match
+  async function handleSubmitProject(e: React.FormEvent) {
+    e.preventDefault();
+    if (!selectedBuyer) {
+      setErrorMsg("Please select or quick-register a buyer first.");
+      return;
+    }
+    if (!projectTitle.trim()) {
+      setErrorMsg("Please enter a product title or general project description.");
+      return;
+    }
+
+    setErrorMsg(null);
+    startTransition(async () => {
+      try {
+        const res = await createRequestForBuyer({
+          buyer_id: selectedBuyer.id,
+          name: selectedBuyer.contact_name || selectedBuyer.company_name,
+          email: selectedBuyer.contact_email,
+          company: selectedBuyer.company_name,
+          product_name: projectTitle,
+          category: category || null,
+          benchmark_brand: benchmarkBrands || null,
+          packaging_preference: packagingFormat || null,
+          volume_per_year: estimatedVolume || null,
+          message: naturalBrief || null,
+          certifications: selectedTags,
+          target_market: targetMarket || "Israel",
+          private_label: brandingModel === "private_label" ? true : brandingModel === "supplier_brand" ? false : null,
+          image_urls: imageUrls,
+          ai_analysis: visionData || (aiPitchResult ? { fdx_pitch: aiPitchResult.fdx_pitch } : null),
+        });
+
+        if (!res.ok) {
+          setErrorMsg(res.error);
+          return;
+        }
+
+        setCreatedRequestId(res.id);
+
+        // Fetch live matches immediately
+        setFetchingMatches(true);
+        const matchRes = await fetch(`/api/admin/requests/quick-matches?request_id=${res.id}`);
+        const matchJson = await matchRes.json();
+        setLiveMatches(matchJson.matches || []);
+        setFetchingMatches(false);
+      } catch (err: any) {
+        setErrorMsg(err.message || "Failed to submit request");
+      }
+    });
+  }
+
+  return (
+    <main className="min-h-screen bg-slate-50/70">
+      {/* ── TOP STICKY OPERATIONAL BAR ── */}
+      <div className="border-b border-slate-200 bg-white/95 backdrop-blur-xs px-4 sm:px-6 py-3 sticky top-0 z-20 shadow-2xs">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5">
+            <span className="w-8 h-8 rounded-xl bg-orange-500/10 border border-orange-500/20 text-orange-600 flex items-center justify-center font-bold text-sm">
+              ⚡
+            </span>
+            <div>
+              <div className="flex items-center gap-2">
+                <h1 className="text-sm sm:text-base font-bold text-slate-900 tracking-tight">
+                  Sourcing Deal Desk
+                </h1>
+                <span className="text-[10px] bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded-full font-semibold">
+                  Unified Console
+                </span>
+              </div>
+              <p className="text-[11px] text-slate-500">
+                Capture buyer briefs, drop packaging shots, generate AI pitches, and match 80k+ European factories
+              </p>
+            </div>
+          </div>
+
+          {/* Mode Switcher Tabs */}
+          <div className="flex items-center gap-1.5 p-1 bg-slate-100 rounded-xl border border-slate-200/80 shrink-0">
+            <button
+              onClick={() => setActiveTab("intake_desk")}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer flex items-center gap-1.5 ${
+                activeTab === "intake_desk"
+                  ? "bg-white text-slate-900 shadow-2xs border border-slate-200/60 font-bold"
+                  : "text-slate-600 hover:text-slate-900"
+              }`}
+            >
+              <span>✨</span>
+              <span>Quick Intake & Matcher</span>
+            </button>
+            <button
+              onClick={() => setActiveTab("registry_table")}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer flex items-center gap-1.5 ${
+                activeTab === "registry_table"
+                  ? "bg-white text-slate-900 shadow-2xs border border-slate-200/60 font-bold"
+                  : "text-slate-600 hover:text-slate-900"
+              }`}
+            >
+              <span>📋</span>
+              <span>All Requests Registry ({initialCounts.total})</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* ── VIEW 1: UNIFIED SPLIT-SCREEN WORKSPACE ── */}
+      {activeTab === "intake_desk" ? (
+        <div className="p-4 sm:p-6 max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+          {/* ── LEFT PANEL: INTAKE & BRIEF COMPOSER (col 7) ── */}
+          <form
+            onSubmit={handleSubmitProject}
+            className="lg:col-span-7 bg-white border border-slate-200/90 rounded-2xl p-5 sm:p-6 shadow-xs space-y-5"
+          >
+            {/* Step 1: Buyer Search & Auto-Fill */}
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <label className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                  <span>1. Select or Register Buyer</span>
+                  {selectedBuyer && (
+                    <span className="text-emerald-600 normal-case font-semibold">
+                      (✓ Selected: {selectedBuyer.company_name})
+                    </span>
+                  )}
+                </label>
+                <button
+                  type="button"
+                  onClick={() => setShowQuickAddBuyer(!showQuickAddBuyer)}
+                  className="text-xs font-bold text-orange-600 hover:text-orange-700 bg-orange-50 hover:bg-orange-100 border border-orange-200 px-2.5 py-1 rounded-lg transition cursor-pointer"
+                >
+                  {showQuickAddBuyer ? "✕ Close" : "+ Quick Register Buyer"}
+                </button>
+              </div>
+
+              {/* Quick Add Buyer Drawer */}
+              {showQuickAddBuyer && (
+                <div className="p-4 mb-4 bg-orange-50/50 border border-orange-200 rounded-xl space-y-3 animate-in fade-in duration-150">
+                  <div className="text-xs font-bold text-orange-950 uppercase">⚡ Register New Lead</div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs">
+                    <input
+                      placeholder="Company Name * (e.g. Intergood)"
+                      className="bg-white border border-slate-200 rounded-lg px-3 py-2 text-slate-800 outline-none focus:border-orange-500"
+                      value={quickForm.company_name}
+                      onChange={(e) => setQuickForm((q) => ({ ...q, company_name: e.target.value }))}
+                      required
+                    />
+                    <input
+                      placeholder="Contact Email * (e.g. sharon@intergood.co)"
+                      type="email"
+                      className="bg-white border border-slate-200 rounded-lg px-3 py-2 text-slate-800 outline-none focus:border-orange-500"
+                      value={quickForm.contact_email}
+                      onChange={(e) => setQuickForm((q) => ({ ...q, contact_email: e.target.value }))}
+                      required
+                    />
+                    <input
+                      placeholder="Contact Person (e.g. Sharon Avidor)"
+                      className="bg-white border border-slate-200 rounded-lg px-3 py-2 text-slate-800 outline-none focus:border-orange-500"
+                      value={quickForm.contact_name}
+                      onChange={(e) => setQuickForm((q) => ({ ...q, contact_name: e.target.value }))}
+                    />
+                    <input
+                      placeholder="Company Website (e.g. https://intergood.co)"
+                      type="url"
+                      className="bg-white border border-slate-200 rounded-lg px-3 py-2 text-slate-800 outline-none focus:border-orange-500"
+                      value={quickForm.website ?? ""}
+                      onChange={(e) => setQuickForm((q) => ({ ...q, website: e.target.value }))}
+                    />
+                  </div>
+                  {quickBuyerError && <p className="text-xs text-red-600">{quickBuyerError}</p>}
+                  <div className="flex justify-end">
+                    <button
+                      type="button"
+                      disabled={quickBuyerPending}
+                      onClick={handleQuickAddBuyer}
+                      className="text-xs font-bold px-4 py-1.5 bg-orange-600 text-white rounded-lg hover:bg-orange-700 disabled:opacity-50"
+                    >
+                      {quickBuyerPending ? "Saving..." : "Save & Use Lead"}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Combobox Search Input */}
+              <div className="relative">
+                <input
+                  type="text"
+                  placeholder="🔍 Type buyer name, contact, or domain (e.g. Intergood, Rami Levy)..."
+                  value={buyerSearchQuery}
+                  onChange={(e) => {
+                    setBuyerSearchQuery(e.target.value);
+                    if (selectedBuyer && e.target.value !== selectedBuyer.company_name) {
+                      setSelectedBuyer(null);
+                    }
+                  }}
+                  className="w-full text-xs sm:text-sm bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-orange-500 focus:bg-white"
+                />
+
+                {/* Combobox Suggestions List */}
+                {buyerSearchQuery && !selectedBuyer && (
+                  <div className="absolute top-full left-0 right-0 mt-1 max-h-48 overflow-y-auto bg-white border border-slate-200 rounded-xl shadow-lg z-30 divide-y divide-slate-100">
+                    {filteredBuyers.length > 0 ? (
+                      filteredBuyers.map((b) => (
+                        <div
+                          key={b.id}
+                          onClick={() => handleSelectBuyer(b)}
+                          className="px-3.5 py-2 hover:bg-orange-50 cursor-pointer flex items-center justify-between text-xs"
+                        >
+                          <div>
+                            <span className="font-bold text-slate-900">{b.company_name}</span>
+                            {b.contact_name && <span className="text-slate-500 ml-1.5">({b.contact_name})</span>}
+                          </div>
+                          <span className="text-[11px] text-slate-400">{b.country || "Israel"}</span>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="p-3 text-xs text-slate-400 flex items-center justify-between">
+                        <span>No buyer found matching "{buyerSearchQuery}"</span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setQuickForm((q) => ({ ...q, company_name: buyerSearchQuery }));
+                            setShowQuickAddBuyer(true);
+                          }}
+                          className="text-orange-600 font-bold hover:underline"
+                        >
+                          + Add "{buyerSearchQuery}"
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Selected Buyer Capsule Badge */}
+              {selectedBuyer && (
+                <div className="mt-2.5 p-2.5 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between text-xs">
+                  <div className="flex items-center gap-2">
+                    <span className="w-6 h-6 rounded-full bg-orange-100 text-orange-700 font-bold flex items-center justify-center text-[10px]">
+                      {selectedBuyer.company_name.slice(0, 2).toUpperCase()}
+                    </span>
+                    <div>
+                      <span className="font-bold text-slate-900">{selectedBuyer.company_name}</span>
+                      <span className="text-slate-500 ml-2">{selectedBuyer.contact_email}</span>
+                      {selectedBuyer.website && (
+                        <a
+                          href={selectedBuyer.website}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-orange-600 ml-2 hover:underline text-[11px]"
+                        >
+                          {selectedBuyer.website.replace("https://", "").replace("http://", "")} ↗
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedBuyer(null);
+                      setBuyerSearchQuery("");
+                    }}
+                    className="text-slate-400 hover:text-slate-600 text-xs px-2 py-0.5"
+                  >
+                    Change
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Step 2: Project Scope & Product Title */}
+            <div className="space-y-3 pt-2 border-t border-slate-100">
+              <label className="text-xs font-bold text-slate-800 uppercase tracking-wider block">
+                2. Sourcing Project & Target Products
+              </label>
+
+              <div>
+                <input
+                  type="text"
+                  placeholder="e.g. Branded Keto, Sugar-Free & Gluten-Free Snack Assortment (or Chopped Tomatoes 400g)"
+                  value={projectTitle}
+                  onChange={(e) => setProjectTitle(e.target.value)}
+                  className="w-full text-xs sm:text-sm font-semibold bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-orange-500"
+                  required
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-600 mb-1">
+                    Benchmark Brands (Quality Profile)
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Gullon Zero, Dr. Schär, Nutrifree, Barilla"
+                    value={benchmarkBrands}
+                    onChange={(e) => setBenchmarkBrands(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-slate-800 outline-none focus:border-orange-500 focus:bg-white"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-600 mb-1">Branding Model</label>
+                  <select
+                    value={brandingModel}
+                    onChange={(e: any) => setBrandingModel(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-slate-800 outline-none focus:border-orange-500 focus:bg-white"
+                  >
+                    <option value="supplier_brand">Factory Branded Line (Strong Brand Equity)</option>
+                    <option value="private_label">Private Label (Buyer's Own Label OEM)</option>
+                    <option value="open">Open to Both</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Dietary & Certifications Quick Tags */}
+              <div>
+                <label className="block text-[11px] font-bold text-slate-600 mb-1.5">
+                  Dietary Attributes & Audit Certifications
+                </label>
+                <div className="flex flex-wrap gap-1.5">
+                  {COMMON_DIETARY_TAGS.map((tag) => {
+                    const active = selectedTags.includes(tag);
+                    return (
+                      <button
+                        key={tag}
+                        type="button"
+                        onClick={() => toggleTag(tag)}
+                        className={`text-xs font-semibold px-2.5 py-1 rounded-lg border transition cursor-pointer ${
+                          active
+                            ? "bg-orange-100 text-orange-900 border-orange-300"
+                            : "bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100"
+                        }`}
+                      >
+                        {active ? "✓ " : "+ "}
+                        {tag}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+
+            {/* Step 3: Natural Chat Brief & Machine Vision */}
+            <div className="space-y-3 pt-2 border-t border-slate-100">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+                  3. Project Brief & FDX Commercial Pitch
+                </label>
+                <button
+                  type="button"
+                  onClick={handleGeneratePitch}
+                  disabled={generatingPitch}
+                  className="inline-flex items-center gap-1.5 text-xs font-bold text-orange-600 hover:text-orange-700 bg-orange-50 hover:bg-orange-100 border border-orange-200 px-3 py-1 rounded-lg transition cursor-pointer shadow-2xs disabled:opacity-50"
+                >
+                  <span>✨</span>
+                  <span>{generatingPitch ? "Synthesizing AI Pitch..." : "Generate AI Pitch & Spec"}</span>
+                </button>
+              </div>
+
+              <textarea
+                rows={3}
+                placeholder="Describe what the buyer asked (e.g. Sharon from Intergood wants a consolidated 40ft mixed container with branded Keto, Sugar-Free and Gluten-Free snacks from large manufacturers, CIF Ashdod terms)..."
+                value={naturalBrief}
+                onChange={(e) => setNaturalBrief(e.target.value)}
+                className="w-full text-xs sm:text-sm bg-slate-50 border border-slate-200 rounded-xl p-3 text-slate-800 outline-none focus:border-orange-500 focus:bg-white leading-relaxed"
+              />
+
+              {/* Machine Vision Dropzone Pill */}
+              <div
+                onClick={() => fileInputRef.current?.click()}
+                className="p-3 border border-dashed border-slate-300 rounded-xl bg-slate-50/50 hover:bg-orange-50/40 hover:border-orange-300 cursor-pointer flex items-center justify-between transition text-xs"
+              >
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*,application/pdf"
+                  className="hidden"
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    if (f) handleFileUpload(f);
+                  }}
+                />
+                <div className="flex items-center gap-2 text-slate-600">
+                  <span>📸</span>
+                  <span>
+                    {uploadingImage
+                      ? "Uploading & analyzing with Gemini Vision..."
+                      : imageUrls.length > 0
+                      ? `✓ ${imageUrls.length} packaging images analyzed`
+                      : "Optional: Drop product packaging photo or shelf benchmark"}
+                  </span>
+                </div>
+                <span className="text-[11px] font-bold text-orange-600 bg-orange-100/60 px-2 py-0.5 rounded-md">
+                  Gemini 3.8 Flash Vision
+                </span>
+              </div>
+
+              {/* AI Pitch Display Card */}
+              {aiPitchResult && (
+                <div className="p-4 rounded-xl bg-gradient-to-br from-amber-50/90 via-orange-50/50 to-white border border-amber-200/80 space-y-3 animate-in fade-in duration-200">
+                  <div className="flex items-center justify-between border-b border-amber-200/60 pb-2">
+                    <span className="text-xs font-bold text-amber-950 flex items-center gap-1.5">
+                      <span>✨</span>
+                      <span>Synthesized Commercial Proposal</span>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        navigator.clipboard.writeText(aiPitchResult.whatsapp_summary || aiPitchResult.fdx_pitch);
+                        setCopiedPitch(true);
+                        setTimeout(() => setCopiedPitch(false), 2000);
+                      }}
+                      className="text-[11px] font-semibold text-emerald-700 bg-emerald-100 hover:bg-emerald-200 px-2.5 py-1 rounded-md transition cursor-pointer"
+                    >
+                      {copiedPitch ? "✓ Copied to Clipboard!" : "📋 Copy WhatsApp Pitch"}
+                    </button>
+                  </div>
+
+                  <div className="text-xs space-y-2">
+                    <div className="p-2.5 bg-white/80 rounded-lg border border-orange-100 text-slate-700 leading-relaxed">
+                      <strong className="text-orange-950 block mb-0.5">🎯 FDX Pitch to Buyer:</strong>
+                      {aiPitchResult.fdx_pitch}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {errorMsg && (
+              <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-700 font-medium">
+                ⚠️ {errorMsg}
+              </div>
+            )}
+
+            {/* Submit Action Button */}
+            <div className="pt-2">
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className="w-full py-3 px-5 rounded-xl bg-gradient-to-r from-orange-600 to-amber-600 text-white font-bold text-sm hover:opacity-95 shadow-md shadow-orange-500/20 disabled:opacity-50 transition cursor-pointer flex items-center justify-center gap-2"
+              >
+                {isSubmitting ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    <span>Matching across 80,000+ European Catalog Items...</span>
+                  </>
+                ) : (
+                  <>
+                    <span>🚀</span>
+                    <span>Create Sourcing Request & Run Reverse-Match</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </form>
+
+          {/* ── RIGHT PANEL: LIVE MATCHES & RECENT PROJECTS (col 5) ── */}
+          <div className="lg:col-span-5 space-y-5">
+            {/* Live Matches Card */}
+            <div className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-xs">
+              <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-3">
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                  <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
+                    {liveMatches.length > 0 ? "🎯 Factory Reverse-Matches" : "Live Sourcing Feed"}
+                  </h3>
+                </div>
+                {createdRequestId && (
+                  <Link
+                    href={`/admin/requests/${createdRequestId}`}
+                    className="text-xs font-bold text-orange-600 hover:underline"
+                  >
+                    Open Workspace →
+                  </Link>
+                )}
+              </div>
+
+              {fetchingMatches ? (
+                <div className="py-8 text-center text-xs text-slate-500 space-y-2">
+                  <div className="w-6 h-6 border-2 border-orange-500 border-t-transparent rounded-full animate-spin mx-auto" />
+                  <p>Ranking European factories by certifications & specs...</p>
+                </div>
+              ) : liveMatches.length > 0 ? (
+                <div className="space-y-3">
+                  {liveMatches.map((m) => (
+                    <div
+                      key={m.id}
+                      className="p-3 rounded-xl bg-slate-50 hover:bg-orange-50/50 border border-slate-200/80 transition text-xs space-y-1.5"
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="font-bold text-slate-900">{m.company_name}</span>
+                        <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-bold text-[11px]">
+                          {m.match_score}% Match
+                        </span>
+                      </div>
+                      <div className="text-slate-600">{m.product_name}</div>
+                      <div className="flex items-center gap-2 text-[10px] text-slate-400">
+                        <span>📍 {m.country || "Europe"}</span>
+                        <span>·</span>
+                        <span className="text-emerald-700 font-semibold">BRC / IFS Verified</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="py-6 text-center text-xs text-slate-400 space-y-2">
+                  <span className="text-2xl">🏭</span>
+                  <p>Select a buyer, write a project brief, and hit run to see instant matched factories right here.</p>
+                </div>
+              )}
+            </div>
+
+            {/* Quick Sourcing Metrics Card */}
+            <div className="bg-slate-900 text-white rounded-2xl p-5 shadow-sm space-y-3">
+              <div className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+                Deal Operations Overview
+              </div>
+              <div className="grid grid-cols-2 gap-3 pt-1">
+                <div className="p-3 bg-slate-800/80 rounded-xl">
+                  <div className="text-lg font-black text-amber-400">{initialCounts.total}</div>
+                  <div className="text-[11px] text-slate-400">Active Requests</div>
+                </div>
+                <div className="p-3 bg-slate-800/80 rounded-xl">
+                  <div className="text-lg font-black text-emerald-400">{initialCounts.matched}</div>
+                  <div className="text-[11px] text-slate-400">Matched with Factories</div>
+                </div>
+                <div className="p-3 bg-slate-800/80 rounded-xl">
+                  <div className="text-lg font-black text-sky-400">{initialCounts.highScore}</div>
+                  <div className="text-[11px] text-slate-400">High Score ≥70%</div>
+                </div>
+                <div className="p-3 bg-slate-800/80 rounded-xl">
+                  <div className="text-lg font-black text-rose-400">{initialCounts.unmatched}</div>
+                  <div className="text-[11px] text-slate-400">Awaiting Matching</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : (
+        /* ── VIEW 2: FULL TABULAR REGISTRY & MULTI-PROJECT RADAR ── */
+        <div className="p-4 sm:p-6 max-w-7xl mx-auto space-y-6">
+          <AgentCommandRadar requests={requests} />
+          <div className="pt-6 border-t border-slate-200">
+            <RequestsTable requests={requests} />
+          </div>
+        </div>
+      )}
+    </main>
+  );
+}

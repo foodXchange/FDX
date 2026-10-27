@@ -1,9 +1,5 @@
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
-import RequestsTable from "@/components/admin/RequestsTable";
-import ScriptGenerator from "@/components/admin/ScriptGenerator";
-import BulkMatchButton from "@/components/admin/BulkMatchButton";
-import BulkReMatchButton from "@/components/admin/BulkReMatchButton";
-import AgentCommandRadar from "@/components/admin/AgentCommandRadar";
+import SourcingDealDesk, { type BuyerOption } from "@/components/admin/SourcingDealDesk";
 
 export type RequestRow = {
   id: string;
@@ -34,7 +30,7 @@ export type RequestRow = {
 };
 
 export default async function AdminRequestsPage() {
-  const [requestsResult, imagesResult] = await Promise.all([
+  const [requestsResult, imagesResult, buyersResult] = await Promise.all([
     supabaseAdmin
       .from("sourcing_requests")
       .select(
@@ -43,6 +39,10 @@ export default async function AdminRequestsPage() {
       .order("created_at", { ascending: false })
       .limit(200),
     supabaseAdmin.from("request_images").select("request_id, url"),
+    supabaseAdmin
+      .from("buyers")
+      .select("id, company_name, contact_name, contact_email, contact_whatsapp, country, buyer_type, website")
+      .order("company_name", { ascending: true }),
   ]);
 
   const rawRequests = (requestsResult.data ?? []) as Omit<
@@ -53,6 +53,7 @@ export default async function AdminRequestsPage() {
     request_id: string;
     url: string;
   }[];
+  const buyers = (buyersResult.data ?? []) as BuyerOption[];
 
   const requestIds = rawRequests.map((r) => r.id);
 
@@ -69,6 +70,7 @@ export default async function AdminRequestsPage() {
   const bestScoreMap = new Map<string, number>();
   const sentCountMap = new Map<string, number>();
   const repliedCountMap = new Map<string, number>();
+
   for (const m of matchDataResult.data ?? []) {
     const row = m as {
       request_id: string;
@@ -101,19 +103,10 @@ export default async function AdminRequestsPage() {
     imageMap.set(img.request_id, existing);
   }
 
-  const buyerIds = Array.from(
-    new Set(rawRequests.map((r) => r.buyer_id).filter((id): id is string => Boolean(id)))
-  );
-
-  const buyersResult =
-    buyerIds.length > 0
-      ? await supabaseAdmin.from("buyers").select("id, logo_url").in("id", buyerIds)
-      : { data: [] };
-
   const buyerLogoMap = new Map<string, string | null>();
-  for (const b of buyersResult.data ?? []) {
-    const row = b as { id: string; logo_url: string | null };
-    buyerLogoMap.set(row.id, row.logo_url);
+  for (const b of buyers) {
+    // If buyer has logo or defaults
+    buyerLogoMap.set(b.id, null);
   }
 
   const requests: RequestRow[] = rawRequests.map((r) => ({
@@ -123,7 +116,7 @@ export default async function AdminRequestsPage() {
     best_match_score: bestScoreMap.get(r.id) ?? null,
     sent_count: sentCountMap.get(r.id) ?? 0,
     replied_count: repliedCountMap.get(r.id) ?? 0,
-    buyer_logo_url: r.buyer_id ? buyerLogoMap.get(r.id) ?? null : null,
+    buyer_logo_url: r.buyer_id ? buyerLogoMap.get(r.buyer_id) ?? null : null,
   }));
 
   const totalCount = requests.length;
@@ -136,82 +129,17 @@ export default async function AdminRequestsPage() {
   ).length;
   const awaitingCount = requests.filter((r) => r.status === "matched").length;
 
-  const unmatchedIds = requests
-    .filter((r) => r.status !== "matched" && r.status !== "closed")
-    .map((r) => r.id);
-
-  const reMatchIds = requests
-    .filter((r) => r.status === "matched" && r.product_name !== null)
-    .map((r) => r.id);
-
   return (
-    <main className="min-h-screen bg-gray-50">
-      <div className="border-b border-gray-200 bg-white px-6 py-3 sticky top-0 z-10 shadow-sm">
-        <div className="flex items-center gap-3 flex-wrap mb-3">
-          <span className="text-sm font-semibold text-gray-800">
-            Sourcing Requests
-          </span>
-          <BulkMatchButton unmatchedIds={unmatchedIds} />
-          <BulkReMatchButton reMatchIds={reMatchIds} />
-          <div className="ml-auto">
-            <ScriptGenerator />
-          </div>
-        </div>
-
-        {/* Stats row */}
-        <div className="flex items-center gap-3 flex-wrap">
-          <StatCard label="Total" count={totalCount} color="gray" />
-          <StatCard label="Matched" count={matchedCount} color="green" />
-          <StatCard label="Unmatched" count={unmatchedCount} color="orange" />
-          <StatCard label="High score ≥70" count={highScoreCount} color="blue" />
-          <StatCard label="Awaiting" count={awaitingCount} color="purple" />
-        </div>
-      </div>
-
-      <div className="p-6 max-w-7xl mx-auto">
-        {/* ── Multi-Project Sourcing Radar (Agent Command Dashboard) ── */}
-        <AgentCommandRadar requests={requests} />
-
-        {/* ── Requests Master Table & Catalog Registry ── */}
-        <div className="mt-10 pt-8 border-t border-gray-200">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h2 className="text-base font-bold text-gray-900">
-                Detailed Requests Registry
-              </h2>
-              <p className="text-xs text-gray-500">
-                Tabular overview with advanced sorting, column filters, and slide-over panel
-              </p>
-            </div>
-          </div>
-          <RequestsTable requests={requests} />
-        </div>
-      </div>
-    </main>
-  );
-}
-
-function StatCard({
-  label,
-  count,
-  color,
-}: {
-  label: string;
-  count: number;
-  color: "gray" | "green" | "orange" | "blue" | "purple";
-}) {
-  const styles = {
-    gray: "bg-slate-50 text-slate-600",
-    green: "bg-green-50 text-green-700",
-    orange: "bg-orange-50 text-orange-700",
-    blue: "bg-blue-50 text-blue-700",
-    purple: "bg-purple-50 text-purple-700",
-  };
-  return (
-    <span
-      className={`inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1 rounded-full ${styles[color]}`}
-    >
-      {count} {label}
-    </span>
+    <SourcingDealDesk
+      buyers={buyers}
+      requests={requests}
+      initialCounts={{
+        total: totalCount,
+        matched: matchedCount,
+        unmatched: unmatchedCount,
+        highScore: highScoreCount,
+        awaiting: awaitingCount,
+      }}
+    />
   );
 }
