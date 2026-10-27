@@ -18,6 +18,7 @@ type SearchParams = {
   format?: string;  // Bottle, Jar, Can, Pouch
   temp?: string;    // ambient, chilled, frozen
   channel?: string; // retail, foodservice, industry
+  audit?: string;   // BRC, IFS, FSSC, ISO 22000, HACCP, GMP, PDO
   q?: string;
   request_id?: string;
   page?: string;
@@ -62,6 +63,7 @@ export default async function ProductsPage({
   const format = params.format ?? "";
   const temp = params.temp ?? "";
   const channel = params.channel ?? "";
+  const audit = params.audit ?? "";
   const q = params.q?.trim() ?? "";
   const requestId = params.request_id?.trim() ?? "";
 
@@ -169,6 +171,14 @@ export default async function ProductsPage({
     query = query.contains("markets_suitable", ["Industry"]);
   }
 
+  // Quality & Food Safety Audit filters (BRC, IFS, FSSC 22000, ISO 22000, HACCP, GMP, PDO/PGI)
+  if (audit === "gfsi") {
+    // GFSI gold standard: BRC or IFS or FSSC 22000
+    query = query.or("supplier_offerings.certifications.cs.{BRC},supplier_offerings.certifications.cs.{IFS},supplier_offerings.certifications.cs.{FSSC 22000},certifications.cs.{BRC},certifications.cs.{IFS}");
+  } else if (audit) {
+    query = query.or(`supplier_offerings.certifications.cs.{${audit}},certifications.cs.{${audit}}`);
+  }
+
   if (status !== "all") {
     if (status === "needs_review") query = query.eq("needs_review", true);
     else if (status === "verified")
@@ -208,6 +218,7 @@ export default async function ProductsPage({
     if (format) sp.set("format", format);
     if (temp) sp.set("temp", temp);
     if (channel) sp.set("channel", channel);
+    if (audit) sp.set("audit", audit);
     if (q) sp.set("q", q);
     if (requestId) sp.set("request_id", requestId);
     if (pageSize !== 50) sp.set("per_page", String(pageSize));
@@ -233,6 +244,7 @@ export default async function ProductsPage({
     !!format ||
     !!temp ||
     !!channel ||
+    !!audit ||
     !!q;
 
   return (
@@ -387,6 +399,24 @@ export default async function ProductsPage({
                 { value: "retail", label: "🛒 Retail Supermarket (70,692)" },
                 { value: "foodservice", label: "🍽️ HoReCa / Foodservice (62,604)" },
                 { value: "industry", label: "🏭 Industry Ingredients & Bulk (12,735)" },
+              ]}
+            />
+
+            {/* Food Safety & Quality Audit Facets */}
+            <FilterSelect
+              label="Quality / Factory Audit"
+              value={audit}
+              onChange={(v) => buildUrl({ audit: v, page: "0" })}
+              options={[
+                { value: "", label: "Any factory audit" },
+                { value: "gfsi", label: "🛡️ GFSI Gold Standard (BRC / IFS / FSSC)" },
+                { value: "BRC", label: "🇬🇧 BRC / BRCGS Audited" },
+                { value: "IFS", label: "🇪🇺 IFS Food Audited" },
+                { value: "FSSC 22000", label: "🌐 FSSC 22000" },
+                { value: "ISO 22000", label: "🔬 ISO 22000 Food Safety" },
+                { value: "HACCP", label: "📋 HACCP Certified" },
+                { value: "GMP", label: "🏭 GMP (Good Manufacturing)" },
+                { value: "PDO", label: "🏆 PDO / PGI Geographical Protected" },
               ]}
             />
 
