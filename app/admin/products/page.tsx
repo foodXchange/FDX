@@ -14,6 +14,9 @@ type SearchParams = {
   status?: string;
   country?: string;
   image?: string;
+  dietary?: string; // organic, gluten_free, sugar_free, halal
+  format?: string;  // Bottle, Jar, Can, Pouch
+  temp?: string;    // ambient, chilled, frozen
   q?: string;
   request_id?: string;
   page?: string;
@@ -54,6 +57,9 @@ export default async function ProductsPage({
   const status = params.status ?? "all";
   const country = params.country ?? "";
   const image = params.image ?? "any";
+  const dietary = params.dietary ?? "";
+  const format = params.format ?? "";
+  const temp = params.temp ?? "";
   const q = params.q?.trim() ?? "";
   const requestId = params.request_id?.trim() ?? "";
 
@@ -136,6 +142,22 @@ export default async function ProductsPage({
   if (image === "yes") query = query.not("image_url", "is", null);
   if (image === "no") query = query.is("image_url", null);
 
+  // Instant dietary filters
+  if (dietary === "organic") query = query.eq("is_organic", true);
+  if (dietary === "gluten_free") query = query.eq("is_gluten_free", true);
+  if (dietary === "sugar_free") query = query.eq("is_sugar_free", true);
+  if (dietary === "halal") query = query.eq("is_halal", true);
+
+  // Instant packaging format filters
+  if (format) {
+    query = query.contains("formats", [format]);
+  }
+
+  // Instant temperature regime filters
+  if (temp) {
+    query = query.ilike("temperature_regime", `%${temp}%`);
+  }
+
   if (status !== "all") {
     if (status === "needs_review") query = query.eq("needs_review", true);
     else if (status === "verified")
@@ -171,6 +193,9 @@ export default async function ProductsPage({
     if (status !== "all") sp.set("status", status);
     if (country) sp.set("country", country);
     if (image !== "any") sp.set("image", image);
+    if (dietary) sp.set("dietary", dietary);
+    if (format) sp.set("format", format);
+    if (temp) sp.set("temp", temp);
     if (q) sp.set("q", q);
     if (requestId) sp.set("request_id", requestId);
     if (pageSize !== 50) sp.set("per_page", String(pageSize));
@@ -192,6 +217,9 @@ export default async function ProductsPage({
     status !== "all" ||
     !!country ||
     image !== "any" ||
+    !!dietary ||
+    !!format ||
+    !!temp ||
     !!q;
 
   return (
@@ -292,6 +320,49 @@ export default async function ProductsPage({
               ]}
             />
             <ProductCountryFilter value={country} countries={WORLD_COUNTRIES} />
+
+            {/* Quick Dietary Facets */}
+            <FilterSelect
+              label="Dietary / Specialty"
+              value={dietary}
+              onChange={(v) => buildUrl({ dietary: v, page: "0" })}
+              options={[
+                { value: "", label: "Any dietary" },
+                { value: "organic", label: "🌱 Organic (3,455)" },
+                { value: "gluten_free", label: "🌾 Gluten-Free (1,233)" },
+                { value: "sugar_free", label: "🍬 Sugar-Free (171)" },
+                { value: "halal", label: "☪️ Halal (1,764)" },
+              ]}
+            />
+
+            {/* Quick Packaging Format Facets */}
+            <FilterSelect
+              label="Packaging"
+              value={format}
+              onChange={(v) => buildUrl({ format: v, page: "0" })}
+              options={[
+                { value: "", label: "Any packaging" },
+                { value: "Bottle", label: "🍾 Bottle (2,755)" },
+                { value: "Jar", label: "🫙 Jar (2,812)" },
+                { value: "Can / Tin", label: "🥫 Can / Tin (1,656)" },
+                { value: "Pouch / Doypack", label: "👝 Pouch / Doypack (915)" },
+                { value: "Box / Carton", label: "📦 Box / Carton" },
+                { value: "Drum", label: "🛢️ Drum (Bulk)" },
+              ]}
+            />
+
+            {/* Quick Temperature Facets */}
+            <FilterSelect
+              label="Temperature"
+              value={temp}
+              onChange={(v) => buildUrl({ temp: v, page: "0" })}
+              options={[
+                { value: "", label: "Any regime" },
+                { value: "ambient", label: "🌡️ Ambient" },
+                { value: "chilled", label: "❄️ Chilled (0-4°C)" },
+                { value: "frozen", label: "🧊 Frozen (-18°C)" },
+              ]}
+            />
 
             {hasActiveFilters && (
               <a
