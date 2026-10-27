@@ -199,10 +199,24 @@ export function deriveProductQualityFields(
     certsAndTags
   );
   const is_halal = /\b(halal)\b/i.test(certsAndTags);
-  const is_gluten_free = /\b(gluten[- ]?free|senza glutine|sin gluten|sans gluten)\b/i.test(
+  const is_gluten_free = /\b(gluten[- ]?free|senza glutine|sin gluten|sans gluten|bezglutenowy|glutenfrei)\b/i.test(
     certsAndTags
   );
-  const is_sugar_free = /\b(sugar[- ]?free|no added sugar|zero sugar|senza zucchero|sin azucar)\b/i.test(
+  const is_sugar_free = /\b(sugar[- ]?free|no added sugar|zero sugar|senza zucchero|sin azucar|sans sucre|zuckerfrei|bez cukru)\b/i.test(
+    certsAndTags
+  );
+
+  // New Free-From & Functional Food Detection (Multilingual: English, Italian, Spanish, French, German, Polish, Hebrew)
+  const is_high_protein = /\b(protein|high[- ]?protein|protein[- ]?rich|ad alto contenuto proteico|rico en prote[ií]nas|riche en prot[eé]ines|eiweissreich|wysokobia[lł]kowe|חלבון|עשיר בחלבון)\b/i.test(
+    certsAndTags
+  );
+  const is_vegan = /\b(vegan|100% plant[- ]?based|vegano|v[eé]g[eé]tal|wega[nń]skie|טבעוני)\b/i.test(
+    certsAndTags
+  );
+  const is_lactose_free = /\b(lactose[- ]?free|dairy[- ]?free|senza lattosio|sin lactosa|sans lactose|laktosefrei|bez laktozy|ללא לקטוז)\b/i.test(
+    certsAndTags
+  );
+  const is_nut_free = /\b(nut[- ]?free|peanut[- ]?free|senza frutta a guscio|sin frutos secos|sans fruits [aà] coque|nussfrei|bez orzech[oó]w|ללא אגוזים|ללא בוטנים)\b/i.test(
     certsAndTags
   );
 
@@ -256,6 +270,10 @@ export function deriveProductQualityFields(
     is_gluten_free,
     is_sugar_free,
     kosher_level,
+    is_high_protein,
+    is_vegan,
+    is_lactose_free,
+    is_nut_free,
   };
 }
 
@@ -264,11 +282,34 @@ export function deriveProductQualityFields(
  * packaging formats, and certifications so vector search matches B2B buyer specs.
  */
 export function buildRichProductEmbeddingText(p: ExtractedProduct): string {
+  const dietaryClaims: string[] = [];
+  const certsAndTags = [
+    ...(p.certifications ?? []),
+    ...(p.tags ?? []),
+    p.product_name ?? "",
+    p.description ?? "",
+  ]
+    .join(" ")
+    .toLowerCase();
+
+  if (/\b(organic|bio|biologico|biologique|ecologico)\b/i.test(certsAndTags)) dietaryClaims.push("Organic / Bio");
+  if (/\b(gluten[- ]?free|senza glutine|sin gluten|sans gluten)\b/i.test(certsAndTags)) dietaryClaims.push("Gluten-Free");
+  if (/\b(sugar[- ]?free|no added sugar|zero sugar)\b/i.test(certsAndTags)) dietaryClaims.push("Sugar-Free");
+  if (/\b(protein|high[- ]?protein|protein[- ]?rich)\b/i.test(certsAndTags)) dietaryClaims.push("High Protein");
+  if (/\b(vegan|plant[- ]?based|vegano)\b/i.test(certsAndTags)) dietaryClaims.push("Vegan / 100% Plant-Based");
+  if (/\b(lactose[- ]?free|dairy[- ]?free|senza lattosio)\b/i.test(certsAndTags)) dietaryClaims.push("Lactose-Free / Dairy-Free");
+  if (/\b(nut[- ]?free|peanut[- ]?free)\b/i.test(certsAndTags)) dietaryClaims.push("Nut-Free / Allergen-Free");
+  if (p.kosher_types?.length || /\b(kosher|kasher)\b/i.test(certsAndTags)) {
+    dietaryClaims.push(`Kosher (${p.kosher_types?.join(", ") || "Certified"})`);
+  }
+  if (/\b(halal)\b/i.test(certsAndTags)) dietaryClaims.push("Halal Certified");
+
   const parts = [
     p.product_name?.trim(),
     p.category?.trim(),
     p.subcategory?.trim(),
     p.description?.trim(),
+    dietaryClaims.length ? `Dietary & Free-From: ${dietaryClaims.join(", ")}` : null,
     p.primary_ingredients?.length ? `Ingredients: ${p.primary_ingredients.join(", ")}` : null,
     p.formats?.length ? `Packaging: ${p.formats.join(", ")}` : null,
     p.certifications?.length ? `Certifications: ${p.certifications.join(", ")}` : null,
