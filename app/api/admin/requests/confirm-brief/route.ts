@@ -20,6 +20,8 @@ export async function POST(req: NextRequest) {
       selectedTags = [],
       naturalBrief,
       imageUrls = [],
+      customSubject,
+      customNotes,
     } = body;
 
     if (!buyerEmail || typeof buyerEmail !== "string" || !buyerEmail.includes("@")) {
@@ -40,7 +42,9 @@ export async function POST(req: NextRequest) {
       ? selectedTags.join(", ")
       : "Standard EU Quality & Israeli Import Readiness";
 
-    const subject = `Sourcing Brief Confirmation: ${projectTitle || "Specialty Products"} — FoodXchange`;
+    const subject =
+      customSubject?.trim() ||
+      `Sourcing Brief Confirmation: ${projectTitle || "Specialty Products"} — FoodXchange`;
 
     // Visual gallery thumbnails HTML if any images attached
     const imagesHtml =
@@ -90,6 +94,14 @@ export async function POST(req: NextRequest) {
           <h2 style="font-size: 18px; font-weight: 700; color: #0f172a; margin-top: 0; margin-bottom: 12px;">
             Hi ${buyerName || buyerCompany || "Valued Partner"},
           </h2>
+          ${
+            customNotes
+              ? `<div style="background: #eff6ff; border-left: 4px solid #3b82f6; padding: 12px 16px; margin-bottom: 18px; border-radius: 6px; font-size: 13px; color: #1e40af; line-height: 1.5;">
+                  <strong style="color: #1e3a8a; display: block; margin-bottom: 4px;">Direct Note from FoodXchange:</strong>
+                  ${customNotes.replace(/\n/g, "<br/>")}
+                </div>`
+              : ""
+          }
           <p style="font-size: 14px; line-height: 1.6; color: #475569; margin: 0 0 18px;">
             Thank you for aligning your sourcing goals with FoodXchange. Below is the confirmed operational brief for your sourcing project. Our deal desk is actively matching these specifications across verified European factories in Spain, Italy, Germany, and across the EU.
           </p>

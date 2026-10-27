@@ -124,6 +124,9 @@ export default function SourcingDealDesk({ buyers: initialBuyers, requests, init
   // Email Confirmation to Buyer state
   const [sendingEmail, setSendingEmail] = useState(false);
   const [emailNotice, setEmailNotice] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [showEmailModal, setShowEmailModal] = useState(false);
+  const [emailSubject, setEmailSubject] = useState("");
+  const [emailCustomNotes, setEmailCustomNotes] = useState("");
 
   // Draft Saving & Persistence state
   const [savedDraftNotice, setSavedDraftNotice] = useState<string | null>(null);
@@ -300,8 +303,8 @@ export default function SourcingDealDesk({ buyers: initialBuyers, requests, init
     }
   }
 
-  // Manually triggered Email to Buyer to Confirm Sourcing Brief
-  async function handleEmailBuyerConfirmation() {
+  // Open Preview Modal before sending confirmation email
+  function handleOpenEmailPreviewModal() {
     if (!selectedBuyer) {
       setEmailNotice({
         type: "error",
@@ -324,8 +327,16 @@ export default function SourcingDealDesk({ buyers: initialBuyers, requests, init
       return;
     }
 
-    setSendingEmail(true);
     setEmailNotice(null);
+    setEmailSubject(`Sourcing Brief Confirmation: ${projectTitle || "Specialty Sourcing Project"} — FoodXchange`);
+    setShowEmailModal(true);
+  }
+
+  // Manually triggered Email Send to Buyer after user confirmation in modal
+  async function handleSendConfirmedEmail() {
+    if (!selectedBuyer || !selectedBuyer.contact_email) return;
+
+    setSendingEmail(true);
 
     try {
       const res = await fetch("/api/admin/requests/confirm-brief", {
@@ -345,6 +356,8 @@ export default function SourcingDealDesk({ buyers: initialBuyers, requests, init
           selectedTags,
           naturalBrief,
           imageUrls,
+          customSubject: emailSubject,
+          customNotes: emailCustomNotes,
         }),
       });
 
@@ -353,9 +366,11 @@ export default function SourcingDealDesk({ buyers: initialBuyers, requests, init
         throw new Error(data.error || "Failed to dispatch confirmation email");
       }
 
+      setShowEmailModal(false);
+      setEmailCustomNotes("");
       setEmailNotice({
         type: "success",
-        text: `Confirmation email dispatched to ${selectedBuyer.contact_email}${data.simulated ? " (simulated)" : ""}!`,
+        text: `Confirmation email successfully sent to ${selectedBuyer.contact_email}${data.simulated ? " (simulated)" : ""}!`,
       });
     } catch (err: any) {
       setEmailNotice({
@@ -813,17 +828,17 @@ export default function SourcingDealDesk({ buyers: initialBuyers, requests, init
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
-                    onClick={handleEmailBuyerConfirmation}
+                    onClick={handleOpenEmailPreviewModal}
                     disabled={sendingEmail}
                     className="inline-flex items-center gap-1.5 text-xs font-bold text-sky-700 hover:text-sky-800 bg-sky-50 hover:bg-sky-100 border border-sky-200 px-3 py-1.5 rounded-lg transition cursor-pointer shadow-2xs disabled:opacity-50"
                     title={
                       selectedBuyer?.contact_email
-                        ? `Send confirmed brief to ${selectedBuyer.contact_email}`
-                        : "Select a buyer with an email to send brief confirmation"
+                        ? `Preview and send brief confirmation to ${selectedBuyer.contact_email}`
+                        : "Select a buyer with an email to preview confirmation"
                     }
                   >
                     <span>✉️</span>
-                    <span>{sendingEmail ? "Sending Confirmation Email..." : "Email Buyer to Confirm Sourcing Brief"}</span>
+                    <span>Email Buyer to Confirm Sourcing Brief</span>
                   </button>
                 </div>
               </div>
@@ -1126,6 +1141,236 @@ export default function SourcingDealDesk({ buyers: initialBuyers, requests, init
           <AgentCommandRadar requests={requests} />
           <div className="pt-6 border-t border-slate-200">
             <RequestsTable requests={requests} />
+          </div>
+        </div>
+      )}
+      {/* ── EMAIL BUYER CONFIRMATION MODAL & PREVIEW ── */}
+      {showEmailModal && selectedBuyer && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 overflow-y-auto animate-in fade-in duration-150">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl max-w-3xl w-full max-h-[92vh] flex flex-col overflow-hidden my-auto">
+            {/* Modal Header */}
+            <div className="p-4 sm:p-5 border-b border-slate-200 flex items-center justify-between bg-slate-50 shrink-0">
+              <div className="flex items-center gap-2.5">
+                <span className="w-8 h-8 rounded-xl bg-sky-500/10 border border-sky-500/20 text-sky-600 flex items-center justify-center font-bold text-sm">
+                  ✉️
+                </span>
+                <div>
+                  <h3 className="text-sm sm:text-base font-bold text-slate-900">
+                    Review & Confirm Sourcing Brief Email
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    Verify email contents and recipients before manual dispatch to {selectedBuyer.company_name}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowEmailModal(false)}
+                className="w-8 h-8 rounded-lg bg-white border border-slate-200 text-slate-400 hover:text-slate-700 flex items-center justify-center transition cursor-pointer text-sm font-bold"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Modal Body (Scrollable) */}
+            <div className="p-4 sm:p-6 overflow-y-auto space-y-4 text-xs sm:text-sm">
+              {/* Recipient & Subject Strip */}
+              <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-2.5">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                  <div>
+                    <span className="font-semibold text-slate-500 block mb-0.5">To (Buyer Contact):</span>
+                    <span className="font-bold text-slate-800 bg-white border border-slate-200 px-2.5 py-1 rounded-md block truncate">
+                      {selectedBuyer.contact_name ? `${selectedBuyer.contact_name} ` : ""}&lt;{selectedBuyer.contact_email}&gt;
+                    </span>
+                  </div>
+                  <div>
+                    <span className="font-semibold text-slate-500 block mb-0.5">From / Reply-To:</span>
+                    <span className="text-slate-700 bg-white border border-slate-200 px-2.5 py-1 rounded-md block truncate">
+                      FoodXchange &lt;info@fdx.trading&gt; · BCC: udi@fdx.trading
+                    </span>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="font-semibold text-slate-600 block mb-1">Subject Line:</label>
+                  <input
+                    type="text"
+                    value={emailSubject}
+                    onChange={(e) => setEmailSubject(e.target.value)}
+                    className="w-full bg-white border border-slate-300 rounded-lg px-3 py-1.5 text-xs text-slate-800 font-medium outline-none focus:border-sky-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="font-semibold text-slate-600 block mb-1">
+                    Optional Personal Note from Deal Desk (appears highlighted in email):
+                  </label>
+                  <textarea
+                    rows={2}
+                    placeholder="e.g. Hi Sharon, following up on our call regarding Keto snacks, here is the exact brief for your review..."
+                    value={emailCustomNotes}
+                    onChange={(e) => setEmailCustomNotes(e.target.value)}
+                    className="w-full bg-white border border-slate-300 rounded-lg p-2.5 text-xs text-slate-800 outline-none focus:border-sky-500 leading-relaxed"
+                  />
+                </div>
+              </div>
+
+              {/* Exact Email Preview Container */}
+              <div>
+                <div className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 flex items-center justify-between">
+                  <span>Buyer Inbox Preview</span>
+                  <span className="text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded font-normal">
+                    HTML Styled Rendering
+                  </span>
+                </div>
+
+                <div className="border border-slate-200 rounded-xl overflow-hidden shadow-2xs bg-white">
+                  {/* Email Header */}
+                  <div className="bg-slate-900 text-white p-4 flex items-center justify-between">
+                    <div>
+                      <span className="text-base font-extrabold tracking-tight">Food<span className="text-orange-500">X</span>change</span>
+                      <p className="text-[10px] text-slate-400 uppercase tracking-wider">Direct European Sourcing & Factory Matchmaking</p>
+                    </div>
+                    <span className="bg-orange-500/20 text-orange-400 border border-orange-500/30 text-[10px] font-bold px-2 py-0.5 rounded-full">
+                      Sourcing Brief
+                    </span>
+                  </div>
+
+                  {/* Email Body */}
+                  <div className="p-4 sm:p-5 space-y-3.5 text-xs text-slate-700 leading-relaxed">
+                    <h4 className="text-sm font-bold text-slate-900">
+                      Hi {selectedBuyer.contact_name || selectedBuyer.company_name},
+                    </h4>
+
+                    {emailCustomNotes && (
+                      <div className="p-3 bg-blue-50 border-l-4 border-blue-500 rounded-r-lg text-blue-900 text-xs">
+                        <strong className="block text-blue-950 font-bold mb-0.5">Direct Note from FoodXchange:</strong>
+                        <div className="whitespace-pre-wrap">{emailCustomNotes}</div>
+                      </div>
+                    )}
+
+                    <p className="text-slate-600">
+                      Thank you for aligning your sourcing goals with FoodXchange. Below is the confirmed operational brief for your sourcing project. Our deal desk is actively matching these specifications across verified European factories in Spain, Italy, Germany, and across the EU.
+                    </p>
+
+                    {/* Specifications Table Preview */}
+                    <table className="w-full border-collapse border border-slate-200 rounded-lg overflow-hidden text-xs">
+                      <tbody>
+                        {projectTitle && (
+                          <tr className="border-b border-slate-200">
+                            <td className="p-2.5 font-bold text-slate-500 bg-slate-50 w-36">Target Product / Scope</td>
+                            <td className="p-2.5 font-bold text-slate-900">{projectTitle}</td>
+                          </tr>
+                        )}
+                        {benchmarkBrands && (
+                          <tr className="border-b border-slate-200">
+                            <td className="p-2.5 font-bold text-slate-500 bg-slate-50">Benchmark Brands</td>
+                            <td className="p-2.5 text-slate-800">{benchmarkBrands}</td>
+                          </tr>
+                        )}
+                        {category && (
+                          <tr className="border-b border-slate-200">
+                            <td className="p-2.5 font-bold text-slate-500 bg-slate-50">Category</td>
+                            <td className="p-2.5 text-slate-800">{category}</td>
+                          </tr>
+                        )}
+                        <tr className="border-b border-slate-200">
+                          <td className="p-2.5 font-bold text-slate-500 bg-slate-50">Packaging & Format</td>
+                          <td className="p-2.5 text-slate-800">{packagingFormat}</td>
+                        </tr>
+                        <tr className="border-b border-slate-200">
+                          <td className="p-2.5 font-bold text-slate-500 bg-slate-50">Target Volume</td>
+                          <td className="p-2.5 text-slate-800">{estimatedVolume}</td>
+                        </tr>
+                        <tr className="border-b border-slate-200">
+                          <td className="p-2.5 font-bold text-slate-500 bg-slate-50">Branding Preference</td>
+                          <td className="p-2.5 text-slate-800">
+                            {brandingModel === "private_label"
+                              ? "Private Label (Buyer's Brand OEM)"
+                              : brandingModel === "supplier_brand"
+                              ? "Supplier branded Line"
+                              : "Open to Factory Brands & Private Label"}
+                          </td>
+                        </tr>
+                        <tr className="border-b border-slate-200">
+                          <td className="p-2.5 font-bold text-slate-500 bg-slate-50">Dietary & Certifications</td>
+                          <td className="p-2.5 text-slate-800">
+                            <span className="inline-block bg-emerald-50 text-emerald-800 font-semibold px-2 py-0.5 rounded text-[11px] border border-emerald-200">
+                              {selectedTags.length > 0 ? selectedTags.join(", ") : "Standard EU Quality & Israeli Import Readiness"}
+                            </span>
+                          </td>
+                        </tr>
+                        <tr className="border-b border-slate-200">
+                          <td className="p-2.5 font-bold text-slate-500 bg-slate-50">Target Market</td>
+                          <td className="p-2.5 text-slate-800">{targetMarket}</td>
+                        </tr>
+                        {naturalBrief && (
+                          <tr>
+                            <td className="p-2.5 font-bold text-slate-500 bg-slate-50 align-top">Project Notes & Brief</td>
+                            <td className="p-2.5 text-slate-700 whitespace-pre-wrap leading-relaxed">{naturalBrief}</td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+
+                    {/* Attached Visuals Thumbnails */}
+                    {imageUrls.length > 0 && (
+                      <div className="pt-2">
+                        <span className="font-bold text-slate-700 block mb-1.5">
+                          Attached Reference Packaging ({imageUrls.length}):
+                        </span>
+                        <div className="flex flex-wrap gap-2">
+                          {imageUrls.map((url, i) => (
+                            <div key={i} className="w-20 h-16 rounded border border-slate-200 overflow-hidden bg-slate-50">
+                              <img src={url} alt={`Ref #${i + 1}`} className="w-full h-full object-cover" />
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="p-3 bg-amber-50/80 border border-amber-200 rounded-lg text-amber-900 text-[11px]">
+                      <strong>Call to action included in email:</strong> Buyer receives a direct confirmation button to confirm the brief or reply via email/WhatsApp with adjustments.
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Actions Footer */}
+            <div className="p-4 sm:p-5 border-t border-slate-200 bg-slate-50 flex flex-col sm:flex-row items-center justify-between gap-3 shrink-0">
+              <span className="text-[11px] text-slate-500 text-center sm:text-left">
+                Manual trigger only. Review details above and click button to send.
+              </span>
+              <div className="flex items-center gap-2.5 w-full sm:w-auto">
+                <button
+                  type="button"
+                  onClick={() => setShowEmailModal(false)}
+                  disabled={sendingEmail}
+                  className="flex-1 sm:flex-initial px-4 py-2 rounded-xl bg-white border border-slate-200 text-slate-700 font-semibold hover:bg-slate-100 text-xs transition cursor-pointer"
+                >
+                  Cancel / Edit
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSendConfirmedEmail}
+                  disabled={sendingEmail}
+                  className="flex-1 sm:flex-initial px-5 py-2.5 rounded-xl bg-gradient-to-r from-sky-600 to-blue-600 hover:from-sky-700 hover:to-blue-700 text-white font-bold text-xs shadow-md shadow-sky-500/20 transition cursor-pointer flex items-center justify-center gap-1.5 disabled:opacity-50"
+                >
+                  {sendingEmail ? (
+                    <>
+                      <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      <span>Sending Email to {selectedBuyer.contact_email}...</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>🚀</span>
+                      <span>Confirm & Send Email to Buyer</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
