@@ -59,6 +59,7 @@ export interface CreateQuickBuyerInput {
   contact_whatsapp?: string | null;
   country?: string | null;
   buyer_type?: string | null;
+  website?: string | null;
 }
 
 export async function createQuickBuyer(
@@ -73,12 +74,29 @@ export async function createQuickBuyer(
         contact_email: string;
         country: string | null;
         buyer_type: string | null;
+        website?: string | null;
       };
     }
   | { ok: false; error: string }
 > {
   if (!input.company_name?.trim() || !input.contact_email?.trim()) {
     return { ok: false, error: "Company name and email are required" };
+  }
+
+  // Sanitize buyer_type to match Postgres check constraint:
+  // Allowed: 'retailer', 'importer', 'distributor', 'manufacturer', 'foodservice'
+  const rawType = input.buyer_type?.trim().toLowerCase();
+  let validBuyerType: string = "importer";
+  if (rawType === "retailer" || rawType === "retail_chain") {
+    validBuyerType = "retailer";
+  } else if (rawType === "importer") {
+    validBuyerType = "importer";
+  } else if (rawType === "distributor") {
+    validBuyerType = "distributor";
+  } else if (rawType === "manufacturer") {
+    validBuyerType = "manufacturer";
+  } else if (rawType === "foodservice") {
+    validBuyerType = "foodservice";
   }
 
   const { data: newBuyer, error } = await supabaseAdmin
@@ -89,12 +107,13 @@ export async function createQuickBuyer(
       contact_email: input.contact_email.trim().toLowerCase(),
       contact_whatsapp: input.contact_whatsapp?.trim() || null,
       country: input.country?.trim() || "Israel",
-      buyer_type: input.buyer_type || "retail_chain",
+      buyer_type: validBuyerType,
+      website: input.website?.trim() || null,
       active: true,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     })
-    .select("id, company_name, contact_name, contact_email, country, buyer_type")
+    .select("id, company_name, contact_name, contact_email, country, buyer_type, website")
     .single();
 
   if (error || !newBuyer) {

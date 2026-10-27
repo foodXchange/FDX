@@ -16,6 +16,7 @@ export type BuyerOption = {
   contact_whatsapp?: string | null;
   country?: string | null;
   buyer_type?: string | null;
+  website?: string | null;
 };
 
 const CATEGORY_OPTIONS = [
@@ -98,7 +99,8 @@ export default function NewRequestForm({
     contact_email: "",
     contact_whatsapp: "",
     country: "Israel",
-    buyer_type: "retail_chain",
+    buyer_type: "retailer",
+    website: "",
   });
 
   // Request form state
@@ -188,7 +190,8 @@ export default function NewRequestForm({
         contact_email: "",
         contact_whatsapp: "",
         country: "Israel",
-        buyer_type: "retail_chain",
+        buyer_type: "retailer",
+        website: "",
       });
     } catch (err: any) {
       setQuickBuyerError(err?.message || "Failed to create buyer");
@@ -467,6 +470,30 @@ export default function NewRequestForm({
                     placeholder="Israel"
                     value={quickForm.country ?? "Israel"}
                     onChange={(e) => setQuickForm((q) => ({ ...q, country: e.target.value }))}
+                  />
+                </div>
+                <div>
+                  <label className={labelCls}>Buyer Type</label>
+                  <select
+                    className={inputCls}
+                    value={quickForm.buyer_type ?? "importer"}
+                    onChange={(e) => setQuickForm((q) => ({ ...q, buyer_type: e.target.value }))}
+                  >
+                    <option value="importer">Importer / Distributor</option>
+                    <option value="retailer">Supermarket / Retail Chain</option>
+                    <option value="distributor">Wholesale Distributor</option>
+                    <option value="foodservice">Foodservice / HoReCa</option>
+                    <option value="manufacturer">Food Manufacturer</option>
+                  </select>
+                </div>
+                <div>
+                  <label className={labelCls}>Company Website</label>
+                  <input
+                    type="url"
+                    className={inputCls}
+                    placeholder="https://www.example.com"
+                    value={quickForm.website ?? ""}
+                    onChange={(e) => setQuickForm((q) => ({ ...q, website: e.target.value }))}
                   />
                 </div>
               </div>
