@@ -99,12 +99,15 @@ export function buildPipV1(request: SourcingRequestInput): PipV1 {
   const sizes = approxSize ? [approxSize] : [];
 
   const mustHave: string[] = [];
-  if (kosherRequired) mustHave.push("kosher");
   if (request.private_label === true) mustHave.push("private_label");
-  if (halal) mustHave.push("halal");
 
   const niceToHave: string[] = [];
+  if (kosherRequired) niceToHave.push("kosher");
+  if (halal) niceToHave.push("halal");
   if (organic) niceToHave.push("organic");
+  for (const c of otherCerts) {
+    niceToHave.push(`cert:${c}`);
+  }
 
   return {
     version: "1.0",

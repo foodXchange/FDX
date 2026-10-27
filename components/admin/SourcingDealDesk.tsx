@@ -792,11 +792,24 @@ export default function SourcingDealDesk({ buyers: initialBuyers, requests, init
               </div>
 
               {/* Dietary & Certifications Quick Tags */}
-              <div>
-                <label className="block text-[11px] font-bold text-slate-600 mb-1.5">
-                  Dietary Attributes & Audit Certifications
-                </label>
-                <div className="flex flex-wrap gap-1.5">
+              <div className="bg-slate-50/80 border border-slate-200/80 rounded-xl p-3.5 space-y-2">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <label className="text-[11px] font-bold text-slate-700">
+                      Dietary Attributes & Audit Certifications
+                    </label>
+                    <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
+                      <span>⚡</span> Beneficial Ranking Boosters (Non-Mandatory)
+                    </span>
+                  </div>
+                  <span className="text-[10px] text-slate-400 font-medium">
+                    {selectedTags.length > 0 ? `${selectedTags.length} active booster${selectedTags.length > 1 ? "s" : ""}` : "Optional preference"}
+                  </span>
+                </div>
+                <p className="text-[11px] text-slate-500 leading-relaxed">
+                  Factories possessing these tags rank higher with matchability score bonuses. Suppliers without them remain visible and eligible (no mandatory restrictions).
+                </p>
+                <div className="flex flex-wrap gap-1.5 pt-0.5">
                   {COMMON_DIETARY_TAGS.map((tag) => {
                     const active = selectedTags.includes(tag);
                     return (
@@ -804,14 +817,20 @@ export default function SourcingDealDesk({ buyers: initialBuyers, requests, init
                         key={tag}
                         type="button"
                         onClick={() => toggleTag(tag)}
-                        className={`text-xs font-semibold px-2.5 py-1 rounded-lg border transition cursor-pointer ${
+                        title={
                           active
-                            ? "bg-orange-100 text-orange-900 border-orange-300"
-                            : "bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100"
+                            ? `Active booster: Suppliers with ${tag} receive a score bonus and rank higher. Click to remove.`
+                            : `Click to boost suppliers with ${tag} higher in match results`
+                        }
+                        className={`text-xs font-semibold px-2.5 py-1.5 rounded-lg border transition cursor-pointer inline-flex items-center gap-1.5 ${
+                          active
+                            ? "bg-orange-500 text-white border-orange-600 shadow-2xs font-bold"
+                            : "bg-white text-slate-700 border-slate-200 hover:bg-slate-100 hover:border-slate-300"
                         }`}
                       >
-                        {active ? "✓ " : "+ "}
-                        {tag}
+                        <span>{active ? "✓" : "+"}</span>
+                        <span>{tag}</span>
+                        {active && <span className="text-[10px] bg-orange-600/70 px-1 py-0.2 rounded text-orange-50 font-normal">Boost</span>}
                       </button>
                     );
                   })}
@@ -1093,11 +1112,29 @@ export default function SourcingDealDesk({ buyers: initialBuyers, requests, init
                         </span>
                       </div>
                       <div className="text-slate-600">{m.product_name}</div>
-                      <div className="flex items-center gap-2 text-[10px] text-slate-400">
+                      <div className="flex items-center gap-2 text-[10px] text-slate-400 flex-wrap">
                         <span>📍 {m.country || "Europe"}</span>
-                        <span>·</span>
-                        <span className="text-emerald-700 font-semibold">BRC / IFS Verified</span>
+                        {m.match_breakdown?.certifications?.length > 0 && (
+                          <>
+                            <span>·</span>
+                            <span className="text-slate-600 font-medium">
+                              {m.match_breakdown.certifications.slice(0, 3).join(", ")}
+                            </span>
+                          </>
+                        )}
                       </div>
+                      {Array.isArray(m.match_breakdown?.matched_certifications) && m.match_breakdown.matched_certifications.length > 0 && (
+                        <div className="flex flex-wrap gap-1 pt-0.5">
+                          {m.match_breakdown.matched_certifications.map((mc: string) => (
+                            <span
+                              key={mc}
+                              className="inline-flex items-center gap-0.5 px-1.5 py-0.5 bg-emerald-50 text-emerald-800 border border-emerald-200 rounded text-[10px] font-semibold"
+                            >
+                              <span>⭐</span> {mc} (+Score Booster)
+                            </span>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>

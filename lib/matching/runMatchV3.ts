@@ -16,6 +16,10 @@ export type MatchV3Row = {
     compliance: number;
     evidence: number;
     kosher_status?: "certified" | "not_listed" | "unknown";
+    certifications?: string[];
+    kosher_types?: string[];
+    matched_certifications?: string[];
+    cert_boost?: number;
   };
   summary: string;
 };
@@ -29,10 +33,6 @@ export type RunMatchV3Result = {
 // ── Embed string helpers ──────────────────────────────────────────────────────
 
 const HARD_CONSTRAINT_TOKENS = new Set([
-  "kosher",
-  "kosher_passover",
-  "organic",
-  "halal",
   "private_label",
 ]);
 
@@ -215,7 +215,7 @@ async function runFastCategoryAndKeywordHybridMatch(opts: {
   categoryText: string | null;
   productText: string;
   privateLabelRequired: boolean | null;
-  kosherRequired: boolean;
+  reqCertifications: string[];
   reqFormats: string[];
   requestEmbedding: number[] | null;
   limitN: number;
@@ -243,12 +243,13 @@ async function runFastCategoryAndKeywordHybridMatch(opts: {
       verified: boolean | null;
       israeli_market_fit: string | null;
       certifications: string[] | null;
+      kosher_types?: string[] | null;
       status: string | null;
     } | null;
   };
 
   const selectCols =
-    "id, product_name, category, category_id, formats, certifications, kosher_types, kosher_level, private_label, manually_verified, embedding, supplier_id, supplier:supplier_offerings!inner(id, company_name, country_of_origin, verified, israeli_market_fit, certifications, status)";
+    "id, product_name, category, category_id, formats, certifications, kosher_types, kosher_level, private_label, manually_verified, embedding, supplier_id, supplier:supplier_offerings!inner(id, company_name, country_of_origin, verified, israeli_market_fit, certifications, kosher_types, status)";
 
   const queries = [];
 
@@ -343,30 +344,143 @@ async function runFastCategoryAndKeywordHybridMatch(opts: {
       ptsFormat = hasFormatHit ? 15 : 4;
     }
 
-    // pts_compliance (up to 10)
-    const kosherTypes = c.kosher_types ?? [];
-    const hasKosher =
-      kosherTypes.length > 0 ||
-      c.kosher_level === "regular" ||
-      c.kosher_level === "mehadrin" ||
-      c.kosher_level === "badatz";
-    const ptsCompliance = opts.kosherRequired ? (hasKosher ? 10 : 0) : 5;
+    // ── Dietary & Audit Certifications Match & Beneficial Boost ──────────
+    // Non-mandatory: Never excludes or penalizes uncertified candidates.
+    // Candidates possessing requested tags receive beneficial score bonuses.
+    const prodCerts = (c.certifications ?? []).map((x: string) => String(x).trim());
+    const supCerts = (sup.certifications ?? []).map((x: string) => String(x).trim());
+    const allCerts = Array.from(new Set([...prodCerts, ...supCerts]));
+    const prodKosher = (c.kosher_types ?? []).map((x: string) => String(x).trim());
+    const supKosher = (sup.kosher_types ?? []).map((x: string) => String(x).trim());
+    const allKosher = Array.from(new Set([...prodKosher, ...supKosher]));
+
+    const textCorpus = [
+      c.product_name,
+      ...allCerts,
+      ...allKosher,
+      c.kosher_level ?? "",
+    ].join(" ").toLowerCase();
+
+    const matchedCertifications: string[] = [];
+
+    for (const tag of opts.reqCertifications) {
+      const tagLower = tag.toLowerCase().trim();
+      if (!tagLower) continue;
+
+      let isHit = false;
+
+      // Kosher variants
+      if (tagLower.includes("badatz")) {
+        isHit =
+          c.kosher_level === "badatz" ||
+          allKosher.some((k) => k.toLowerCase().includes("badatz")) ||
+          textCorpus.includes("badatz");
+      } else if (tagLower.includes("kosher") || tagLower.includes("rabbinate")) {
+        isHit =
+          c.kosher_level === "regular" ||
+          c.kosher_level === "mehadrin" ||
+          c.kosher_level === "badatz" ||
+          allKosher.length > 0 ||
+          textCorpus.includes("kosher") ||
+          textCorpus.includes("kasher") ||
+          textCorpus.includes("casher") ||
+          textCorpus.includes("mehadrin") ||
+          textCorpus.includes("rabbinate") ||
+          textCorpus.includes("ou") ||
+          textCorpus.includes("star-k") ||
+          textCorpus.includes("badatz");
+      }
+      // Food safety audit certs
+      else if (tagLower === "brc") {
+        isHit = allCerts.some((ct) => ct.toLowerCase().includes("brc")) || textCorpus.includes("brc");
+      } else if (tagLower === "ifs") {
+        isHit = allCerts.some((ct) => ct.toLowerCase().includes("ifs")) || textCorpus.includes("ifs");
+      }
+      // Dietary attributes
+      else if (tagLower.includes("gluten")) {
+        isHit =
+          textCorpus.includes("gluten free") ||
+          textCorpus.includes("gluten-free") ||
+          textCorpus.includes("senza glutine") ||
+          textCorpus.includes("sin gluten") ||
+          Boolean((c as Record<string, unknown>).is_gluten_free);
+      } else if (tagLower.includes("sugar")) {
+        isHit =
+          textCorpus.includes("sugar free") ||
+          textCorpus.includes("sugar-free") ||
+          textCorpus.includes("no sugar") ||
+          textCorpus.includes("zero sugar") ||
+          Boolean((c as Record<string, unknown>).is_sugar_free);
+      } else if (tagLower.includes("organic")) {
+        isHit =
+          textCorpus.includes("organic") ||
+          textCorpus.includes("bio") ||
+          textCorpus.includes("biologico") ||
+          textCorpus.includes("ecologico") ||
+          textCorpus.includes("organico");
+      } else if (tagLower.includes("vegan")) {
+        isHit = textCorpus.includes("vegan") || textCorpus.includes("plant-based");
+      } else if (tagLower.includes("keto")) {
+        isHit = textCorpus.includes("keto");
+      } else if (tagLower.includes("non-gmo") || tagLower.includes("gmo")) {
+        isHit = textCorpus.includes("non-gmo") || textCorpus.includes("gmo free") || textCorpus.includes("no gmo");
+      } else {
+        // Fallback generic tag matching
+        isHit = allCerts.some((ct) => ct.toLowerCase().includes(tagLower)) || textCorpus.includes(tagLower);
+      }
+
+      if (isHit) {
+        matchedCertifications.push(tag);
+      }
+    }
+
+    // pts_compliance: Baseline 5 points (NON-MANDATORY - never penalizes to 0).
+    // Plus beneficial boost: +4 points per matched requested tag (up to +15 bonus points)
+    const certBooster = Math.min(15, matchedCertifications.length * 4);
+    const ptsCompliance = 5 + certBooster;
 
     // pts_evidence (up to 10)
+    // Global GFSI / Food safety audit cert presence gives +2 points confidence
+    const hasAuditedCert = allCerts.some((ct) => {
+      const ctl = ct.toLowerCase();
+      return (
+        ctl.includes("brc") ||
+        ctl.includes("ifs") ||
+        ctl.includes("fssc") ||
+        ctl.includes("iso 22000") ||
+        ctl.includes("haccp")
+      );
+    });
+
     const ptsEvidence =
       (sup.verified ? 4 : 0) +
       (c.manually_verified ? 3 : 0) +
       (sup.israeli_market_fit ? 2 : 0) +
-      ((sup.certifications ?? []).length > 0 ? 1 : 0);
+      (hasAuditedCert ? 2 : allCerts.length > 0 ? 1 : 0);
 
     const totalScore = ptsCategory + ptsVector + ptsFormat + ptsCompliance + ptsEvidence;
+
+    const hasKosher =
+      allKosher.length > 0 ||
+      c.kosher_level === "regular" ||
+      c.kosher_level === "mehadrin" ||
+      c.kosher_level === "badatz" ||
+      textCorpus.includes("kosher") ||
+      textCorpus.includes("kasher");
 
     const kosherStatus: "certified" | "not_listed" | "unknown" =
       c.kosher_level === "regular" || c.kosher_level === "mehadrin" || c.kosher_level === "badatz"
         ? "certified"
-        : c.kosher_level === "none"
-          ? "not_listed"
-          : "unknown";
+        : hasKosher
+          ? "certified"
+          : c.kosher_level === "none"
+            ? "not_listed"
+            : "unknown";
+
+    const summaryExtra =
+      matchedCertifications.length > 0
+        ? ` · ⭐ Boosted: ${matchedCertifications.join(", ")}`
+        : "";
 
     scored.push({
       supplier_id: sup.id,
@@ -382,8 +496,12 @@ async function runFastCategoryAndKeywordHybridMatch(opts: {
         compliance: ptsCompliance,
         evidence: ptsEvidence,
         kosher_status: kosherStatus,
+        certifications: allCerts,
+        kosher_types: allKosher,
+        matched_certifications: matchedCertifications,
+        cert_boost: certBooster,
       },
-      summary: `${sup.company_name}${sup.country_of_origin ? ` · ${sup.country_of_origin}` : ""}`,
+      summary: `${sup.company_name}${sup.country_of_origin ? ` · ${sup.country_of_origin}` : ""}${summaryExtra}`,
     });
   }
 
@@ -450,13 +568,17 @@ export async function runMatchV3(requestId: string): Promise<RunMatchV3Result> {
     reqFormats.push(srResult.data.packaging_preference);
   }
 
+  const reqCertifications: string[] = Array.isArray(srResult.data?.certifications)
+    ? (srResult.data.certifications as string[])
+    : [];
+
   // Run fast category + keyword + Voyage AI vector hybrid scorer (~120ms)
   const fastRows = await runFastCategoryAndKeywordHybridMatch({
     categoryId: resolvedCategoryId,
     categoryText: (srResult.data?.category as string | null) ?? null,
     productText,
     privateLabelRequired: (srResult.data?.private_label as boolean | null) ?? null,
-    kosherRequired: Array.isArray(srResult.data?.certifications) && srResult.data.certifications.length > 0,
+    reqCertifications,
     reqFormats,
     requestEmbedding,
     limitN: 30,
