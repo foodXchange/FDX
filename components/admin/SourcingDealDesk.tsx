@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, useRef, useMemo } from "react";
+import { useState, useTransition, useRef, useMemo, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -121,14 +121,12 @@ export default function SourcingDealDesk({ buyers: initialBuyers, requests, init
   const [visionData, setVisionData] = useState<any>(null);
   const [visionSummary, setVisionSummary] = useState<string | null>(null);
 
-  // AI Pitch & Spec generation state
-  const [generatingPitch, setGeneratingPitch] = useState(false);
-  const [aiPitchResult, setAiPitchResult] = useState<{
-    buyer_spec: string;
-    fdx_pitch: string;
-    whatsapp_summary: string;
-  } | null>(null);
-  const [copiedPitch, setCopiedPitch] = useState(false);
+  // Email Confirmation to Buyer state
+  const [sendingEmail, setSendingEmail] = useState(false);
+  const [emailNotice, setEmailNotice] = useState<{ type: "success" | "error"; text: string } | null>(null);
+
+  // Draft Saving & Persistence state
+  const [savedDraftNotice, setSavedDraftNotice] = useState<string | null>(null);
 
   // Submission & Live Matches display
   const [isSubmitting, startTransition] = useTransition();
@@ -302,51 +300,147 @@ export default function SourcingDealDesk({ buyers: initialBuyers, requests, init
     }
   }
 
-  // AI Spec & Pitch Generator
-  async function handleGeneratePitch() {
-    if (!projectTitle && !naturalBrief && !benchmarkBrands) {
-      setErrorMsg("Please specify a project/product title, benchmark brand, or brief notes first.");
+  // Manually triggered Email to Buyer to Confirm Sourcing Brief
+  async function handleEmailBuyerConfirmation() {
+    if (!selectedBuyer) {
+      setEmailNotice({
+        type: "error",
+        text: "Please select or quick-register a buyer first before emailing brief confirmation.",
+      });
       return;
     }
-    setGeneratingPitch(true);
-    setErrorMsg(null);
+    if (!selectedBuyer.contact_email) {
+      setEmailNotice({
+        type: "error",
+        text: `Buyer "${selectedBuyer.company_name}" has no email on file. Please add an email address.`,
+      });
+      return;
+    }
+    if (!projectTitle.trim() && !naturalBrief.trim()) {
+      setEmailNotice({
+        type: "error",
+        text: "Please enter a product title or brief notes to include in the confirmation email.",
+      });
+      return;
+    }
+
+    setSendingEmail(true);
+    setEmailNotice(null);
 
     try {
-      const res = await fetch("/api/admin/requests/generate-pitch", {
+      const res = await fetch("/api/admin/requests/confirm-brief", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          buyerCompany: selectedBuyer?.company_name || "Israeli Retail Buyer",
-          contactName: selectedBuyer?.contact_name || "Procurement Manager",
-          productName: projectTitle || "Specialty Health Foods Sourcing",
-          benchmarkBrand: benchmarkBrands,
+          buyerEmail: selectedBuyer.contact_email,
+          buyerName: selectedBuyer.contact_name,
+          buyerCompany: selectedBuyer.company_name,
+          projectTitle,
+          benchmarkBrands,
           category,
-          packaging: packagingFormat,
-          privateLabel: brandingModel === "private_label" ? true : brandingModel === "supplier_brand" ? false : null,
-          certifications: selectedTags,
+          packagingFormat,
+          estimatedVolume,
+          brandingModel,
           targetMarket,
-          existingBrief: naturalBrief,
+          selectedTags,
+          naturalBrief,
+          imageUrls,
         }),
       });
 
       const data = await res.json();
-      if (!res.ok || !data.ok) throw new Error(data.error || "Failed to generate pitch");
-
-      setAiPitchResult({
-        buyer_spec: data.buyer_spec,
-        fdx_pitch: data.fdx_pitch,
-        whatsapp_summary: data.whatsapp_summary,
-      });
-
-      if (!naturalBrief) {
-        setNaturalBrief(data.buyer_spec);
+      if (!res.ok || !data.ok) {
+        throw new Error(data.error || "Failed to dispatch confirmation email");
       }
+
+      setEmailNotice({
+        type: "success",
+        text: `Confirmation email dispatched to ${selectedBuyer.contact_email}${data.simulated ? " (simulated)" : ""}!`,
+      });
     } catch (err: any) {
-      setErrorMsg(err.message || "Failed to generate AI pitch");
+      setEmailNotice({
+        type: "error",
+        text: err?.message || "Failed to send confirmation email",
+      });
     } finally {
-      setGeneratingPitch(false);
+      setSendingEmail(false);
     }
   }
+
+  // Save current project content locally
+  const handleSaveDraft = () => {
+    try {
+      const draft = {
+        buyerId: selectedBuyer?.id || null,
+        buyerSearchQuery,
+        projectTitle,
+        benchmarkBrands,
+        category,
+        packagingFormat,
+        estimatedVolume,
+        brandingModel,
+        targetMarket,
+        selectedTags,
+        naturalBrief,
+        imageUrls,
+        savedAt: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" }),
+      };
+      localStorage.setItem("fdx_deal_desk_draft", JSON.stringify(draft));
+      setSavedDraftNotice(`✓ Draft saved at ${draft.savedAt}`);
+      setTimeout(() => setSavedDraftNotice(null), 3500);
+    } catch (err) {
+      console.error("Failed to save draft:", err);
+    }
+  };
+
+  // Restore saved draft on mount
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem("fdx_deal_desk_draft");
+      if (raw) {
+        const d = JSON.parse(raw);
+        if (d.projectTitle) setProjectTitle(d.projectTitle);
+        if (d.benchmarkBrands) setBenchmarkBrands(d.benchmarkBrands);
+        if (d.category) setCategory(d.category);
+        if (d.packagingFormat) setPackagingFormat(d.packagingFormat);
+        if (d.estimatedVolume) setEstimatedVolume(d.estimatedVolume);
+        if (d.brandingModel) setBrandingModel(d.brandingModel);
+        if (d.targetMarket) setTargetMarket(d.targetMarket);
+        if (Array.isArray(d.selectedTags) && d.selectedTags.length > 0) setSelectedTags(d.selectedTags);
+        if (d.naturalBrief) setNaturalBrief(d.naturalBrief);
+        if (Array.isArray(d.imageUrls)) setImageUrls(d.imageUrls);
+        if (d.buyerId) {
+          const matched = initialBuyers.find((b) => b.id === d.buyerId);
+          if (matched) {
+            setSelectedBuyer(matched);
+            setBuyerSearchQuery(matched.company_name);
+          } else if (d.buyerSearchQuery) {
+            setBuyerSearchQuery(d.buyerSearchQuery);
+          }
+        } else if (d.buyerSearchQuery) {
+          setBuyerSearchQuery(d.buyerSearchQuery);
+        }
+        if (d.savedAt) {
+          setSavedDraftNotice(`Restored draft from ${d.savedAt}`);
+          setTimeout(() => setSavedDraftNotice(null), 4000);
+        }
+      }
+    } catch (e) {
+      console.warn("Could not parse saved draft", e);
+    }
+  }, [initialBuyers]);
+
+  // Global Ctrl + S / Cmd + S keyboard shortcut to save
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if ((e.ctrlKey || e.metaKey) && (e.key === "s" || e.key === "S")) {
+        e.preventDefault();
+        handleSaveDraft();
+      }
+    }
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  });
 
   // Submit Project & Run Real-Time Reverse Match
   async function handleSubmitProject(e: React.FormEvent) {
@@ -378,7 +472,7 @@ export default function SourcingDealDesk({ buyers: initialBuyers, requests, init
           target_market: targetMarket || "Israel",
           private_label: brandingModel === "private_label" ? true : brandingModel === "supplier_brand" ? false : null,
           image_urls: imageUrls,
-          ai_analysis: visionData || (aiPitchResult ? { fdx_pitch: aiPitchResult.fdx_pitch } : null),
+          ai_analysis: visionData || null,
         });
 
         if (!res.ok) {
@@ -419,35 +513,57 @@ export default function SourcingDealDesk({ buyers: initialBuyers, requests, init
                 </span>
               </div>
               <p className="text-[11px] text-slate-500">
-                Capture buyer briefs, drop packaging shots, generate AI pitches, and match 80k+ European factories
+                Capture buyer briefs, drop packaging shots, email buyer confirmation, and match 80k+ European factories
               </p>
             </div>
           </div>
 
-          {/* Mode Switcher Tabs */}
-          <div className="flex items-center gap-1.5 p-1 bg-slate-100 rounded-xl border border-slate-200/80 shrink-0">
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Draft status & quick save button */}
+            {savedDraftNotice && (
+              <span className="text-[11px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-lg animate-in fade-in flex items-center gap-1">
+                <span>✓</span>
+                <span>{savedDraftNotice}</span>
+              </span>
+            )}
             <button
-              onClick={() => setActiveTab("intake_desk")}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer flex items-center gap-1.5 ${
-                activeTab === "intake_desk"
-                  ? "bg-white text-slate-900 shadow-2xs border border-slate-200/60 font-bold"
-                  : "text-slate-600 hover:text-slate-900"
-              }`}
+              type="button"
+              onClick={handleSaveDraft}
+              className="px-3 py-1.5 rounded-lg text-xs font-bold text-slate-700 hover:text-slate-900 bg-white hover:bg-slate-100 border border-slate-200/90 shadow-2xs transition cursor-pointer flex items-center gap-1.5"
+              title="Save project draft locally (Ctrl+S)"
             >
-              <span>✨</span>
-              <span>Quick Intake & Matcher</span>
+              <span>💾</span>
+              <span>Save Draft</span>
+              <kbd className="hidden sm:inline-block text-[9px] bg-slate-100 px-1 py-0.5 rounded text-slate-500 font-mono border border-slate-200">
+                Ctrl+S
+              </kbd>
             </button>
-            <button
-              onClick={() => setActiveTab("registry_table")}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer flex items-center gap-1.5 ${
-                activeTab === "registry_table"
-                  ? "bg-white text-slate-900 shadow-2xs border border-slate-200/60 font-bold"
-                  : "text-slate-600 hover:text-slate-900"
-              }`}
-            >
-              <span>📋</span>
-              <span>All Requests Registry ({initialCounts.total})</span>
-            </button>
+
+            {/* Mode Switcher Tabs */}
+            <div className="flex items-center gap-1.5 p-1 bg-slate-100 rounded-xl border border-slate-200/80 shrink-0">
+              <button
+                onClick={() => setActiveTab("intake_desk")}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer flex items-center gap-1.5 ${
+                  activeTab === "intake_desk"
+                    ? "bg-white text-slate-900 shadow-2xs border border-slate-200/60 font-bold"
+                    : "text-slate-600 hover:text-slate-900"
+                }`}
+              >
+                <span>✨</span>
+                <span>Quick Intake & Matcher</span>
+              </button>
+              <button
+                onClick={() => setActiveTab("registry_table")}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer flex items-center gap-1.5 ${
+                  activeTab === "registry_table"
+                    ? "bg-white text-slate-900 shadow-2xs border border-slate-200/60 font-bold"
+                    : "text-slate-600 hover:text-slate-900"
+                }`}
+              >
+                <span>📋</span>
+                <span>All Requests Registry ({initialCounts.total})</span>
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -690,20 +806,50 @@ export default function SourcingDealDesk({ buyers: initialBuyers, requests, init
 
             {/* Step 3: Natural Chat Brief & Machine Vision */}
             <div className="space-y-3 pt-2 border-t border-slate-100">
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                 <label className="text-xs font-bold text-slate-800 uppercase tracking-wider">
                   3. Project Brief
                 </label>
-                <button
-                  type="button"
-                  onClick={handleGeneratePitch}
-                  disabled={generatingPitch}
-                  className="inline-flex items-center gap-1.5 text-xs font-bold text-orange-600 hover:text-orange-700 bg-orange-50 hover:bg-orange-100 border border-orange-200 px-3 py-1 rounded-lg transition cursor-pointer shadow-2xs disabled:opacity-50"
-                >
-                  <span>✨</span>
-                  <span>{generatingPitch ? "Synthesizing AI Pitch..." : "Generate AI Pitch & Spec"}</span>
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handleEmailBuyerConfirmation}
+                    disabled={sendingEmail}
+                    className="inline-flex items-center gap-1.5 text-xs font-bold text-sky-700 hover:text-sky-800 bg-sky-50 hover:bg-sky-100 border border-sky-200 px-3 py-1.5 rounded-lg transition cursor-pointer shadow-2xs disabled:opacity-50"
+                    title={
+                      selectedBuyer?.contact_email
+                        ? `Send confirmed brief to ${selectedBuyer.contact_email}`
+                        : "Select a buyer with an email to send brief confirmation"
+                    }
+                  >
+                    <span>✉️</span>
+                    <span>{sendingEmail ? "Sending Confirmation Email..." : "Email Buyer to Confirm Sourcing Brief"}</span>
+                  </button>
+                </div>
               </div>
+
+              {/* Email Feedback Notice */}
+              {emailNotice && (
+                <div
+                  className={`p-3 rounded-xl text-xs font-semibold flex items-center justify-between transition animate-in fade-in ${
+                    emailNotice.type === "success"
+                      ? "bg-sky-50 border border-sky-200 text-sky-800"
+                      : "bg-red-50 border border-red-200 text-red-700"
+                  }`}
+                >
+                  <span className="flex items-center gap-1.5">
+                    <span>{emailNotice.type === "success" ? "✓" : "⚠️"}</span>
+                    <span>{emailNotice.text}</span>
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setEmailNotice(null)}
+                    className="text-slate-400 hover:text-slate-600 font-bold px-1 cursor-pointer"
+                  >
+                    ✕
+                  </button>
+                </div>
+              )}
 
               <textarea
                 rows={3}
@@ -849,36 +995,6 @@ export default function SourcingDealDesk({ buyers: initialBuyers, requests, init
                   </div>
                 )}
               </div>
-
-              {/* AI Pitch Display Card */}
-              {aiPitchResult && (
-                <div className="p-4 rounded-xl bg-gradient-to-br from-amber-50/90 via-orange-50/50 to-white border border-amber-200/80 space-y-3 animate-in fade-in duration-200">
-                  <div className="flex items-center justify-between border-b border-amber-200/60 pb-2">
-                    <span className="text-xs font-bold text-amber-950 flex items-center gap-1.5">
-                      <span>✨</span>
-                      <span>Synthesized Commercial Proposal</span>
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        navigator.clipboard.writeText(aiPitchResult.whatsapp_summary || aiPitchResult.fdx_pitch);
-                        setCopiedPitch(true);
-                        setTimeout(() => setCopiedPitch(false), 2000);
-                      }}
-                      className="text-[11px] font-semibold text-emerald-700 bg-emerald-100 hover:bg-emerald-200 px-2.5 py-1 rounded-md transition cursor-pointer"
-                    >
-                      {copiedPitch ? "✓ Copied to Clipboard!" : "📋 Copy WhatsApp Pitch"}
-                    </button>
-                  </div>
-
-                  <div className="text-xs space-y-2">
-                    <div className="p-2.5 bg-white/80 rounded-lg border border-orange-100 text-slate-700 leading-relaxed">
-                      <strong className="text-orange-950 block mb-0.5">🎯 FDX Pitch to Buyer:</strong>
-                      {aiPitchResult.fdx_pitch}
-                    </div>
-                  </div>
-                </div>
-              )}
             </div>
 
             {errorMsg && (
@@ -887,12 +1003,25 @@ export default function SourcingDealDesk({ buyers: initialBuyers, requests, init
               </div>
             )}
 
-            {/* Submit Action Button */}
-            <div className="pt-2">
+            {/* Submit & Save Action Buttons */}
+            <div className="pt-2 flex flex-col sm:flex-row items-center gap-3">
+              <button
+                type="button"
+                onClick={handleSaveDraft}
+                className="w-full sm:w-auto px-4 py-3 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-300 text-slate-700 font-bold text-xs sm:text-sm cursor-pointer transition flex items-center justify-center gap-2 shadow-2xs"
+                title="Save draft locally (Ctrl+S)"
+              >
+                <span>💾</span>
+                <span>Save Draft</span>
+                <kbd className="text-[10px] bg-white px-1.5 py-0.5 rounded text-slate-500 font-mono border border-slate-200">
+                  Ctrl+S
+                </kbd>
+              </button>
+
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="w-full py-3 px-5 rounded-xl bg-gradient-to-r from-orange-600 to-amber-600 text-white font-bold text-sm hover:opacity-95 shadow-md shadow-orange-500/20 disabled:opacity-50 transition cursor-pointer flex items-center justify-center gap-2"
+                className="flex-1 w-full py-3 px-5 rounded-xl bg-gradient-to-r from-orange-600 to-amber-600 text-white font-bold text-sm hover:opacity-95 shadow-md shadow-orange-500/20 disabled:opacity-50 transition cursor-pointer flex items-center justify-center gap-2"
               >
                 {isSubmitting ? (
                   <>
