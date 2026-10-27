@@ -275,13 +275,13 @@ I am your interactive food sourcing concierge. Ask me how to find verified Europ
         className={`fixed ${
           isOpen
             ? "inset-x-0 bottom-0 sm:bottom-6 sm:inset-x-auto z-50"
-            : "bottom-20 sm:bottom-6 z-30 sm:z-50"
+            : "bottom-4 sm:bottom-5 z-30 sm:z-40"
         } ${isHe ? "sm:left-6" : "sm:right-6"} no-print`}
       >
         {/* ── EXPANDED CHAT DRAWER (INTERCOM MODERN LIGHT THEME) ── */}
         {isOpen ? (
           <div
-            className={`w-full sm:w-[440px] h-[86vh] sm:h-[620px] max-h-[88vh] bg-slate-50/95 border border-slate-200/90 rounded-t-3xl sm:rounded-3xl shadow-2xl flex flex-col overflow-hidden backdrop-blur-xl transition-all duration-200 ${
+            className={`w-full sm:w-[410px] h-[82vh] sm:h-[560px] max-h-[85vh] bg-slate-50/98 border border-slate-200 rounded-t-3xl sm:rounded-2xl shadow-2xl flex flex-col overflow-hidden backdrop-blur-xl transition-all duration-200 ${
               isHe ? "rtl font-sans" : "ltr font-sans"
             }`}
             dir={isHe ? "rtl" : "ltr"}
@@ -290,19 +290,15 @@ I am your interactive food sourcing concierge. Ask me how to find verified Europ
             <div className="w-12 h-1.5 bg-slate-300 rounded-full mx-auto my-2 sm:hidden shrink-0" />
 
             {/* Intercom-Style Header */}
-            <div className="bg-white/95 border-b border-slate-200/80 px-4 py-3.5 flex items-center justify-between shrink-0 shadow-xs">
-              <div className="flex items-center gap-3">
-                <div className="relative">
-                  <BotAvatar className="w-9 h-9" />
-                  <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-emerald-500 border-2 border-white ring-1 ring-emerald-400" />
-                </div>
+            <div className="bg-white/95 border-b border-slate-200/80 px-4 py-3 flex items-center justify-between shrink-0 shadow-xs">
+              <div className="flex items-center gap-2.5">
+                <BotAvatar className="w-8 h-8" />
                 <div>
-                  <div className="text-sm font-bold text-slate-900 flex items-center gap-2">
-                    <span>FoodXchange AI Copilot</span>
+                  <div className="text-xs font-bold text-slate-900 leading-tight">
+                    FoodXchange AI Copilot
                   </div>
-                  <div className="text-[11px] text-slate-500 flex items-center gap-1.5 font-medium">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                    <span>{isHe ? "זמין כעת • מענה מיידי" : "Online • Instant responses"}</span>
+                  <div className="text-[10px] text-slate-500 font-medium">
+                    {isHe ? "זמין כעת • מענה מקצועי" : "Online • Instant trade guidance"}
                   </div>
                 </div>
               </div>
@@ -320,7 +316,7 @@ I am your interactive food sourcing concierge. Ask me how to find verified Europ
                   className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
                   title={isHe ? "סגור" : "Close chat"}
                 >
-                  <CloseIcon className="w-5 h-5" />
+                  <CloseIcon className="w-4 h-4" />
                 </button>
               </div>
             </div>
@@ -437,23 +433,16 @@ I am your interactive food sourcing concierge. Ask me how to find verified Europ
             </div>
           </div>
         ) : (
-          /* ── COLLAPSED FLOATING INTERCOM PILL ── */
+          /* ── COMPACT FLOATING BANNER (CLEAN & MINIMAL, NO REDUNDANT EMOJIS/DOTS) ── */
           <button
             onClick={() => setIsOpen(true)}
-            className="flex items-center gap-3 px-4 py-2.5 rounded-full bg-white text-slate-900 font-semibold text-xs sm:text-sm shadow-xl hover:shadow-2xl hover:scale-105 active:scale-95 transition-all cursor-pointer border border-slate-200/80 group"
+            className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/95 hover:bg-white text-slate-800 text-xs font-semibold shadow-md hover:shadow-lg border border-slate-200/90 hover:border-orange-300 transition-all cursor-pointer backdrop-blur-xs group active:scale-95"
+            title="Ask FDX AI"
           >
-            <div className="relative">
-              <BotAvatar className="w-6 h-6" />
-              <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-emerald-500 ring-2 ring-white" />
-            </div>
-            <span className="font-bold tracking-tight text-slate-800 group-hover:text-orange-600 transition-colors">
-              {isHe
-                ? "שאל את FoodXchange AI 🤖"
-                : isAdmin
-                ? "Ask FoodXchange AI 🤖"
-                : "Ask FoodXchange AI 🤖"}
+            <BotAvatar className="w-4 h-4 text-[9px]" />
+            <span className="group-hover:text-orange-600 transition-colors">
+              {isHe ? "שאל את FDX AI" : "Ask FDX AI"}
             </span>
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
           </button>
         )}
       </div>
