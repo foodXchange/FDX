@@ -33,7 +33,7 @@ export async function POST(req: NextRequest) {
       brandingModel === "private_label"
         ? "Private Label (Buyer's Brand OEM)"
         : brandingModel === "supplier_brand"
-        ? "Manufacturer Brand (Exclusive Distribution / Retail)"
+        ? "Supplier branded Line"
         : "Open to Factory Brands & Private Label";
 
     const certsList = Array.isArray(selectedTags) && selectedTags.length > 0

@@ -769,7 +769,7 @@ export default function SourcingDealDesk({ buyers: initialBuyers, requests, init
                     onChange={(e: any) => setBrandingModel(e.target.value)}
                     className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-slate-800 outline-none focus:border-orange-500 focus:bg-white"
                   >
-                    <option value="supplier_brand">Factory Branded Line (Strong Brand Equity)</option>
+                    <option value="supplier_brand">Supplier branded Line</option>
                     <option value="private_label">Private Label (Buyer's Own Label OEM)</option>
                     <option value="open">Open to Both</option>
                   </select>
