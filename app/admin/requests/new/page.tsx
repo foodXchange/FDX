@@ -14,7 +14,7 @@ export default async function NewRequestPage({
 
   const { data: rawBuyers } = await supabaseAdmin
     .from("buyers")
-    .select("id, company_name, contact_name, contact_email, contact_whatsapp, country, buyer_type")
+    .select("id, company_name, contact_name, contact_email, contact_whatsapp, country, buyer_type, website")
     .order("company_name", { ascending: true });
 
   const buyers = rawBuyers ?? [];

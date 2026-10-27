@@ -110,6 +110,7 @@ export default function NewRequestForm({
     name: initialName || selectedBuyer?.contact_name || "",
     email: initialEmail || selectedBuyer?.contact_email || "",
     company: initialCompany || selectedBuyer?.company_name || "",
+    website: selectedBuyer?.website || "",
     product_name: "",
     benchmark_brand: "",
     category: "",
@@ -147,6 +148,7 @@ export default function NewRequestForm({
         name: buyer.contact_name || prev.name,
         email: buyer.contact_email || prev.email,
         target_market: buyer.country || prev.target_market,
+        website: buyer.website || prev.website,
       }));
     }
   }
@@ -181,6 +183,7 @@ export default function NewRequestForm({
         name: newB.contact_name || prev.name,
         email: newB.contact_email || prev.email,
         target_market: newB.country || prev.target_market,
+        website: newB.website || prev.website,
       }));
 
       setShowQuickAddBuyer(false);
@@ -558,6 +561,16 @@ export default function NewRequestForm({
                 value={form.email}
                 onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
                 placeholder="buyer@chain.com"
+              />
+            </div>
+            <div>
+              <label className={labelCls}>Website Address</label>
+              <input
+                type="url"
+                className={inputCls}
+                value={form.website || ""}
+                onChange={(e) => setForm((f) => ({ ...f, website: e.target.value }))}
+                placeholder="https://www.example.com"
               />
             </div>
           </div>
