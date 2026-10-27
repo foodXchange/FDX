@@ -15,6 +15,8 @@ const sections: { title: string; links: NavItem[] }[] = [
     title: "Deal Operations",
     links: [
       { href: "/admin/pipeline", label: "Deal Pipeline", icon: "🎯" },
+      { href: "/admin/requests/new", label: "New Sourcing Request", icon: "✨", badge: "Vision" },
+      { href: "/admin/requests", label: "Sourcing Requests", icon: "📥" },
       { href: "/admin/samples", label: "Tasting Samples Desk", icon: "📦", badge: "Kit" },
       { href: "/admin/deals", label: "Pro-Forma & Deals", icon: "📑", badge: "PO" },
       { href: "/en/calculator/container", label: "Mixed Container Builder", icon: "🚢", badge: "FCL" },
@@ -22,7 +24,6 @@ const sections: { title: string; links: NavItem[] }[] = [
       { href: "/admin/meetings", label: "Meetings & Video Calls", icon: "📅", badge: "Meet" },
       { href: "/admin/finance", label: "Broker Treasury & P&L", icon: "💰", badge: "Live" },
       { href: "/admin/notifications", label: "Notifications & Outreach", icon: "🔔" },
-      { href: "/admin/requests", label: "Sourcing Requests", icon: "📥" },
       { href: "/admin/matches", label: "Match Engine", icon: "⚡" },
       { href: "/admin/opportunities", label: "Proactive Opportunities", icon: "💡", badge: "45" },
       { href: "/admin/qa-metrics", label: "QA Metrics", icon: "📈" },
