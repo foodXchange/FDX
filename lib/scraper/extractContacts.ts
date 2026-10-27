@@ -140,4 +140,76 @@ export async function extractSupplierContacts(
   return all;
 }
 
-export default { extractSupplierContacts };
+export async function discoverTargetedSupplierContact(
+  website: string,
+  companyName: string
+): Promise<{ email: string | null; phone: string | null; contactName: string | null; linkedin: string | null }> {
+  try {
+    const firecrawlKey = process.env.FIRECRAWL_API_KEY;
+    if (!firecrawlKey) return { email: null, phone: null, contactName: null, linkedin: null };
+
+    const Firecrawl = (await import("@mendable/firecrawl-js")).default;
+    const firecrawl = new Firecrawl({ apiKey: firecrawlKey });
+
+    const cleanBase = website.replace(/\/+$/, "");
+    const candidateUrls = [
+      `${cleanBase}/contact`,
+      `${cleanBase}/contact-us`,
+      `${cleanBase}/contatti`,
+      `${cleanBase}/contacto`,
+      `${cleanBase}/kontakt`,
+      `${cleanBase}/about`,
+      `${cleanBase}/chi-siamo`,
+    ];
+
+    let contactDocText = "";
+    let foundUrl = "";
+
+    // Try scraping the first available contact page with a short timeout
+    for (const url of candidateUrls) {
+      try {
+        const scrapeRes = await Promise.race([
+          firecrawl.scrape(url, { formats: ["markdown"] }),
+          new Promise<never>((_, reject) => setTimeout(() => reject(new Error("Timeout")), 8000)),
+        ]);
+        if (scrapeRes && scrapeRes.markdown && scrapeRes.markdown.length > 80) {
+          contactDocText = scrapeRes.markdown;
+          foundUrl = url;
+          break;
+        }
+      } catch {
+        // Try next candidate
+      }
+    }
+
+    if (!contactDocText) {
+      return { email: null, phone: null, contactName: null, linkedin: null };
+    }
+
+    const contacts = await extractFromPage(contactDocText, foundUrl);
+    if (!contacts || contacts.length === 0) {
+      // Fallback regex scan directly from markdown text if AI returns empty
+      const emailMatch = contactDocText.match(/\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,7}\b/);
+      const email = emailMatch && !emailMatch[0].includes("example.com") && !emailMatch[0].includes("sentry") ? emailMatch[0] : null;
+      return { email, phone: null, contactName: null, linkedin: null };
+    }
+
+    // Pick best contact: prefer export_manager / sales / commercial or first with email
+    const withEmail = contacts.find((c) => c.email && !c.email.includes("example.com") && !c.email.includes("sentry"));
+    const phone = contacts.find((c) => c.phone)?.phone ?? null;
+    const linkedin = contacts.find((c) => c.linkedin_url)?.linkedin_url ?? null;
+    const contactName = withEmail?.name ?? contacts[0]?.name ?? null;
+
+    return {
+      email: withEmail?.email ?? null,
+      phone,
+      contactName,
+      linkedin,
+    };
+  } catch (err) {
+    console.warn(`[TargetedContactDiscovery] Failed for ${companyName}:`, err);
+    return { email: null, phone: null, contactName: null, linkedin: null };
+  }
+}
+
+export default { extractSupplierContacts, discoverTargetedSupplierContact };

@@ -259,12 +259,50 @@ export function deriveProductQualityFields(
   const source_url =
     toAbsoluteUrl(p.source_url ?? null, supplierWebsite) ?? supplierWebsite ?? null;
 
+  // Normalization for Packaging Formats & Sizes if missing or sparse
+  const textForSizesAndFormats = `${p.product_name ?? ""} ${p.description ?? ""} ${p.formats?.join(" ") ?? ""}`;
+
+  // Extract weight/volume measurements: e.g., 750ml, 1L, 200g, 2.5kg, 5kg, 200L, 500g
+  const sizeMatches = textForSizesAndFormats.match(/\b\d+(?:[.,]\d+)?\s*(?:ml|cl|dl|l|liters?|litres?|g|gr|grams?|kg|kilos?|kilograms?|oz|lbs?|gal)\b/gi);
+  const derivedSizes: string[] = Array.isArray(p.sizes) ? [...p.sizes] : [];
+  if (sizeMatches) {
+    for (const sm of sizeMatches) {
+      const clean = sm.trim();
+      if (!derivedSizes.some((s) => s.toLowerCase() === clean.toLowerCase())) {
+        derivedSizes.push(clean);
+      }
+    }
+  }
+
+  // Extract packaging formats: e.g., bottle, jar, can, tin, pouch, box, bag, drum, tub
+  const derivedFormats: string[] = Array.isArray(p.formats) ? [...p.formats] : [];
+  const formatMap: Array<{ pattern: RegExp; label: string }> = [
+    { pattern: /\b(glass bottle|bottle|bottles|bottiglia|botella|bouteille|flasche)\b/i, label: "Bottle" },
+    { pattern: /\b(glass jar|jar|jars|vaso|barattolo|bocal|glas)\b/i, label: "Jar" },
+    { pattern: /\b(can|cans|tin|tins|lattina|lata|boite|dose)\b/i, label: "Can / Tin" },
+    { pattern: /\b(pouch|pouches|stand[- ]?up pouch|doypack|busta)\b/i, label: "Pouch / Doypack" },
+    { pattern: /\b(box|carton|case|scatola|caja|karton)\b/i, label: "Box / Carton" },
+    { pattern: /\b(bag|sachet|sacchetto|bolsa|beutel)\b/i, label: "Bag" },
+    { pattern: /\b(drum|barrel|fusto|tambor|fass)\b/i, label: "Drum" },
+    { pattern: /\b(tray|vaschetta|bandeja|barquette|schale)\b/i, label: "Tray" },
+    { pattern: /\b(tub|bucket|secchiello|cubo|eimer)\b/i, label: "Tub / Bucket" },
+  ];
+  for (const fm of formatMap) {
+    if (fm.pattern.test(textForSizesAndFormats)) {
+      if (!derivedFormats.some((f) => f.toLowerCase() === fm.label.toLowerCase())) {
+        derivedFormats.push(fm.label);
+      }
+    }
+  }
+
   return {
     storage_temp,
     temperature_regime: storage_temp,
     processing_type: p.processing_type ?? null,
     ingredients,
     source_url,
+    sizes: derivedSizes.slice(0, 10),
+    formats: derivedFormats.slice(0, 10),
     is_organic,
     is_halal,
     is_gluten_free,

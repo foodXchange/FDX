@@ -9,6 +9,7 @@ import {
 import { classifyCompany, saveClassification, saveCrawlSnapshot } from "@/lib/scraper/classify";
 import { embedBatch } from "@/lib/ai/embed";
 import { mapScraperCategoryToCanonicalId } from "@/lib/pip/resolveCategoryId";
+import { discoverTargetedSupplierContact } from "@/lib/scraper/extractContacts";
 
 export const dynamic = "force-dynamic";
 
@@ -163,8 +164,8 @@ async function insertProducts(
       category_id: mapScraperCategoryToCanonicalId(p.category, p.subcategory, p.product_name),
       subcategory: p.subcategory ?? null,
       description: p.description ?? null,
-      formats: p.formats ?? [],
-      sizes: p.sizes ?? [],
+      formats: enriched.formats && enriched.formats.length > 0 ? enriched.formats : (p.formats ?? []),
+      sizes: enriched.sizes && enriched.sizes.length > 0 ? enriched.sizes : (p.sizes ?? []),
       brix_level: p.brix_level ?? null,
       shelf_life_months: typeof p.shelf_life_months === "number" ? p.shelf_life_months : null,
       storage_temp: enriched.storage_temp,
@@ -572,6 +573,24 @@ async function runBackgroundQueue() {
                 ? await rehostSupplierLogoToStorage(supplier.id, rawLogo)
                 : null;
 
+              let contactEmail = profile.contact_email ?? null;
+              let contactPhone = profile.contact_phone ?? null;
+              let contactName = profile.contact_name ?? null;
+              let contactLinkedin = profile.linkedin_url ?? null;
+
+              // Step 2 Targeted Contact Discovery Fallback: If no contact email was found in main crawl, probe contact/about
+              if (!contactEmail && supplier.website) {
+                try {
+                  const fallback = await discoverTargetedSupplierContact(supplier.website, supplier.company_name);
+                  if (fallback.email) contactEmail = fallback.email;
+                  if (!contactPhone && fallback.phone) contactPhone = fallback.phone;
+                  if (!contactName && fallback.contactName) contactName = fallback.contactName;
+                  if (!contactLinkedin && fallback.linkedin) contactLinkedin = fallback.linkedin;
+                } catch {
+                  // Fallback failed silently, proceed with profile data
+                }
+              }
+
               await supabaseAdmin
                 .from("supplier_offerings")
                 .update({
@@ -583,10 +602,10 @@ async function runBackgroundQueue() {
                   internal_notes: null,
                   ...(hostedLogo ? { logo_url: hostedLogo } : {}),
                   ...(profile.company_description ? { product_description: profile.company_description } : {}),
-                  ...(profile.contact_email ? { contact_email: profile.contact_email } : {}),
-                  ...(profile.contact_phone ? { contact_phone: profile.contact_phone } : {}),
-                  ...(profile.contact_name ? { contact_name: profile.contact_name } : {}),
-                  ...(profile.linkedin_url ? { linkedin_url: profile.linkedin_url } : {}),
+                  ...(contactEmail ? { contact_email: contactEmail } : {}),
+                  ...(contactPhone ? { contact_phone: contactPhone } : {}),
+                  ...(contactName ? { contact_name: contactName } : {}),
+                  ...(contactLinkedin ? { linkedin_url: contactLinkedin } : {}),
                   ...(profile.export_markets.length > 0 ? { export_markets: profile.export_markets, markets_served: profile.export_markets } : {}),
                   ...(profile.founded_year ? { founded_year: profile.founded_year, founded: String(profile.founded_year) } : {}),
                   ...(profile.employees_range ? { employees_range: profile.employees_range } : {}),
