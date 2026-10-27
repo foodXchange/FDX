@@ -151,7 +151,7 @@ export default function RoleAcademyModal() {
       <button
         type="button"
         onClick={() => setIsOpen(true)}
-        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white text-xs font-bold shadow-xs transition cursor-pointer"
+        className="inline-flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white text-xs font-bold shadow-xs transition cursor-pointer shrink-0"
         title={
           isHe
             ? "אקדמיית וידאו ומעבר מהיר בין כל סוגי המשתמשים (קניין, ספק, סוכן, עמיל מכס, אדמין)"
@@ -159,8 +159,11 @@ export default function RoleAcademyModal() {
         }
       >
         <span>🎬</span>
-        <span className="hidden sm:inline">
+        <span className="hidden md:inline">
           {isHe ? "הדרכות ופורטלים לפי תפקיד" : "Role Academy & Portals"}
+        </span>
+        <span className="hidden sm:inline md:hidden">
+          {isHe ? "הדרכות ופורטלים" : "Academy"}
         </span>
       </button>
 
