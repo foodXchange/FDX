@@ -197,7 +197,7 @@ async function insertProducts(
       primary_ingredients: p.primary_ingredients ?? [],
       private_label: p.private_label ?? false,
       tags: p.tags ?? [],
-      markets_suitable: p.markets_suitable ?? [],
+      markets_suitable: enriched.markets_suitable && enriched.markets_suitable.length > 0 ? enriched.markets_suitable : (p.markets_suitable ?? []),
       scrape_source: scrapeSource,
       scrape_confidence: p.confidence ?? 0.5,
       last_scraped_at: new Date().toISOString(),

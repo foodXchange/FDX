@@ -295,6 +295,37 @@ export function deriveProductQualityFields(
     }
   }
 
+  // Derive precise Commercial Target Channel (Retail, Foodservice / HoReCa, Industry / Ingredients)
+  const combinedChannelText = `${p.product_name ?? ""} ${p.description ?? ""} ${p.category ?? ""} ${textForSizesAndFormats}`.toLowerCase();
+  const markets: string[] = Array.isArray(p.markets_suitable) ? [...p.markets_suitable] : [];
+
+  const isIndustrialIndicator =
+    /\b(bulk|industrial|industry|ingredients?|raw material|food industry|b2b processing|aseptic|flexitank|drum|barrel|tote|ibc|multi[- ]?ply|25\s*kg|50\s*kg|100\s*kg|200\s*kg|1000\s*l|500\s*kg)\b/i.test(combinedChannelText);
+
+  const isFoodserviceIndicator =
+    /\b(horeca|foodservice|food service|catering|restaurant|hotel|chef|pizzeria|bakery|cafeteria|canteen|bag[- ]in[- ]box|bib|dispenser|5\s*kg|10\s*kg|3\s*kg|2\.5\s*kg|5\s*l|10\s*l|portion pack|single serve)\b/i.test(combinedChannelText);
+
+  const isRetailIndicator =
+    /\b(retail|supermarket|grocery|hypermarket|consumer pack|shelf[- ]ready|srp|barcode|ean|750\s*ml|500\s*ml|250\s*ml|100\s*g|200\s*g|250\s*g|300\s*g|400\s*g|500\s*g|1\s*kg)\b/i.test(combinedChannelText);
+
+  if (isIndustrialIndicator && !markets.includes("Industry")) {
+    markets.push("Industry");
+  }
+  if (isFoodserviceIndicator && !markets.includes("Foodservice")) {
+    markets.push("Foodservice");
+  }
+  if (isRetailIndicator && !markets.includes("Retail")) {
+    markets.push("Retail");
+  }
+  // Default fallback if unspecified: if small format -> Retail, else default Retail & Foodservice
+  if (markets.length === 0) {
+    if (derivedFormats.includes("Drum") || isIndustrialIndicator) {
+      markets.push("Industry");
+    } else {
+      markets.push("Retail", "Foodservice");
+    }
+  }
+
   return {
     storage_temp,
     temperature_regime: storage_temp,
@@ -303,6 +334,7 @@ export function deriveProductQualityFields(
     source_url,
     sizes: derivedSizes.slice(0, 10),
     formats: derivedFormats.slice(0, 10),
+    markets_suitable: markets,
     is_organic,
     is_halal,
     is_gluten_free,

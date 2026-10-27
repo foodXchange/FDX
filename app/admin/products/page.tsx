@@ -17,6 +17,7 @@ type SearchParams = {
   dietary?: string; // organic, gluten_free, sugar_free, halal
   format?: string;  // Bottle, Jar, Can, Pouch
   temp?: string;    // ambient, chilled, frozen
+  channel?: string; // retail, foodservice, industry
   q?: string;
   request_id?: string;
   page?: string;
@@ -60,6 +61,7 @@ export default async function ProductsPage({
   const dietary = params.dietary ?? "";
   const format = params.format ?? "";
   const temp = params.temp ?? "";
+  const channel = params.channel ?? "";
   const q = params.q?.trim() ?? "";
   const requestId = params.request_id?.trim() ?? "";
 
@@ -158,6 +160,15 @@ export default async function ProductsPage({
     query = query.ilike("temperature_regime", `%${temp}%`);
   }
 
+  // Instant commercial sales channel filters (Retail, Foodservice / HoReCa, Industry / Ingredients)
+  if (channel === "retail") {
+    query = query.contains("markets_suitable", ["Retail"]);
+  } else if (channel === "foodservice") {
+    query = query.contains("markets_suitable", ["Foodservice"]);
+  } else if (channel === "industry") {
+    query = query.contains("markets_suitable", ["Industry"]);
+  }
+
   if (status !== "all") {
     if (status === "needs_review") query = query.eq("needs_review", true);
     else if (status === "verified")
@@ -196,6 +207,7 @@ export default async function ProductsPage({
     if (dietary) sp.set("dietary", dietary);
     if (format) sp.set("format", format);
     if (temp) sp.set("temp", temp);
+    if (channel) sp.set("channel", channel);
     if (q) sp.set("q", q);
     if (requestId) sp.set("request_id", requestId);
     if (pageSize !== 50) sp.set("per_page", String(pageSize));
@@ -220,6 +232,7 @@ export default async function ProductsPage({
     !!dietary ||
     !!format ||
     !!temp ||
+    !!channel ||
     !!q;
 
   return (
@@ -361,6 +374,19 @@ export default async function ProductsPage({
                 { value: "ambient", label: "🌡️ Ambient" },
                 { value: "chilled", label: "❄️ Chilled (0-4°C)" },
                 { value: "frozen", label: "🧊 Frozen (-18°C)" },
+              ]}
+            />
+
+            {/* Quick Commercial Channel Facets */}
+            <FilterSelect
+              label="Sales Channel"
+              value={channel}
+              onChange={(v) => buildUrl({ channel: v, page: "0" })}
+              options={[
+                { value: "", label: "All channels" },
+                { value: "retail", label: "🛒 Retail Supermarket (70,692)" },
+                { value: "foodservice", label: "🍽️ HoReCa / Foodservice (62,604)" },
+                { value: "industry", label: "🏭 Industry Ingredients & Bulk (12,735)" },
               ]}
             />
 
