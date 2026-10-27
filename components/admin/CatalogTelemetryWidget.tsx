@@ -123,6 +123,11 @@ export function CatalogTelemetryWidget() {
                   ? `Queue Paused · ${pendingCount.toLocaleString()} Pending`
                   : "All Pending Suppliers Processed"}
             </span>
+            {cat && sup && sup.scraped > 0 && (
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-indigo-50 text-indigo-800 border border-indigo-200">
+                📦 Avg {(cat.totalProducts / Math.max(sup.scraped, 1)).toFixed(1)} Products / Manufacturer
+              </span>
+            )}
           </div>
           <p className="text-xs text-slate-500 mt-1">
             {isRunning && queue?.currentSupplier

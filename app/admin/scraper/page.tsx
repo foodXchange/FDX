@@ -7,6 +7,11 @@ import {
   FailedDiagnosticsPanel,
   type FailureBreakdownStats,
 } from "@/components/admin/scraper/FailedDiagnosticsPanel";
+import {
+  B2BEcosystemAndDepthPanel,
+  type EcosystemCompanyRow,
+  type ProductDepthMetrics,
+} from "@/components/admin/scraper/B2BEcosystemAndDepthPanel";
 
 export const dynamic = "force-dynamic";
 
@@ -37,6 +42,10 @@ type FullSupplierRow = {
   kosher_types: string[] | null;
   internal_notes: string | null;
   website_domain: string | null;
+  sector: string | null;
+  business_role: string | null;
+  taxonomy_category: string | null;
+  offerings_summary: string | null;
 };
 
 type ScrapeBatchRow = {
@@ -118,7 +127,7 @@ async function fetchAllSuppliers(): Promise<FullSupplierRow[]> {
       supabaseAdmin
         .from("supplier_offerings")
         .select(
-          "id, company_name, website, website_domain, country_of_origin, scrape_status, last_scraped_at, products_found, product_count, status, source, categories, csv_import_batch, created_at, product_description, contact_email, contact_phone, certifications, kosher_types, internal_notes"
+          "id, company_name, website, website_domain, country_of_origin, scrape_status, last_scraped_at, products_found, product_count, status, source, categories, csv_import_batch, created_at, product_description, contact_email, contact_phone, certifications, kosher_types, internal_notes, sector, business_role, taxonomy_category, offerings_summary"
         )
         .order("id", { ascending: true })
         .range(from, to)
@@ -427,7 +436,21 @@ export default async function ScraperPage() {
     duplicateOfScrapedCount: 0,
   };
 
+  let manufacturersWithProducts = 0;
+  let deep8PlusCount = 0;
+  let medium3To7Count = 0;
+  let thin1To2Count = 0;
+  const ecosystemRows: EcosystemCompanyRow[] = [];
+
   for (const s of allSuppliers) {
+    const pCount = s.product_count ?? s.products_found ?? 0;
+    if (pCount > 0) {
+      manufacturersWithProducts++;
+      if (pCount >= 8) deep8PlusCount++;
+      else if (pCount >= 3) medium3To7Count++;
+      else thin1To2Count++;
+    }
+
     if (s.scrape_status === "failed") {
       const cat = classifyRowFailure(s.internal_notes).cat;
       if (cat === "no_products") failureStats.noProductsCount++;
@@ -440,7 +463,71 @@ export default async function ScraperPage() {
         failureStats.duplicateOfScrapedCount++;
       }
     }
+
+    const isNonFoodSector = Boolean(s.sector && s.sector !== "food_beverage");
+    const isSkipped = s.scrape_status === "skipped";
+    if (isNonFoodSector || isSkipped) {
+      let sectorGroup: EcosystemCompanyRow["sectorGroup"] = "importers_wholesalers";
+      if (s.sector === "packaging" || s.sector === "tableware_disposables") {
+        sectorGroup = "packaging_wrapping";
+      } else if (s.sector === "machinery_equipment") {
+        sectorGroup = "machinery_equipment";
+      } else if (s.sector === "ingredients_additives") {
+        sectorGroup = "ingredients_additives";
+      } else if (s.sector === "trade_promotion") {
+        sectorGroup = "trade_consortia";
+      } else if (
+        s.sector === "certification_lab" ||
+        s.sector === "logistics_freight" ||
+        s.sector === "cleaning_hygiene" ||
+        s.sector === "retail_fixtures_tech" ||
+        s.sector === "professional_services" ||
+        s.sector === "other"
+      ) {
+        sectorGroup = "labs_logistics_tech";
+      }
+
+      ecosystemRows.push({
+        id: s.id,
+        company_name: s.company_name,
+        country: s.country_of_origin,
+        sectorGroup,
+        subcategory:
+          s.taxonomy_category ||
+          (sectorGroup === "packaging_wrapping"
+            ? "Packaging & Wrapping"
+            : sectorGroup === "machinery_equipment"
+              ? "Food Production Machinery"
+              : sectorGroup === "ingredients_additives"
+                ? "Bulk Raw Materials"
+                : sectorGroup === "trade_consortia"
+                  ? "Producer Consortium / Agency"
+                  : sectorGroup === "labs_logistics_tech"
+                    ? "Industrial Services & Tech"
+                    : "Food Importer / Distributor"),
+        businessRole: s.business_role,
+        summary: s.offerings_summary || s.product_description || s.internal_notes,
+        email: s.contact_email,
+        phone: s.contact_phone,
+        website: s.website,
+      });
+    }
   }
+
+  const depthMetrics: ProductDepthMetrics = {
+    totalProducts,
+    manufacturersWithProducts,
+    completedScrapedManufacturers: globalCounts.scraped,
+    avgPerActiveManufacturer: Number(
+      (totalProducts / Math.max(manufacturersWithProducts, 1)).toFixed(1)
+    ),
+    avgPerCompletedManufacturer: Number(
+      (totalProducts / Math.max(globalCounts.scraped, 1)).toFixed(1)
+    ),
+    deep8PlusCount,
+    medium3To7Count,
+    thin1To2Count,
+  };
 
   const doneGlobal = globalCounts.scraped + globalCounts.skipped;
   const doneGlobalPct =
@@ -515,6 +602,15 @@ export default async function ScraperPage() {
               tooltip={`Total extracted products in supplier_products (${factories.length.toLocaleString()} factories mapped) — Click to open Catalog`}
               href="/admin/products"
             />
+            <span
+              className="inline-flex items-center gap-1.5 rounded-full border border-indigo-200 bg-indigo-50 px-2.5 py-1 text-xs font-semibold text-indigo-800"
+              title={`Average products per active manufacturer (${depthMetrics.avgPerActiveManufacturer} across ${depthMetrics.manufacturersWithProducts.toLocaleString()} active mfgs · ${depthMetrics.avgPerCompletedManufacturer} across ${depthMetrics.completedScrapedManufacturers.toLocaleString()} completed mfgs)`}
+            >
+              <span>Avg / Mfg</span>
+              <span className="font-black text-indigo-950">
+                {depthMetrics.avgPerActiveManufacturer}
+              </span>
+            </span>
           </div>
 
           {/* Global Parameter Existence % */}
@@ -572,6 +668,12 @@ export default async function ScraperPage() {
         {globalCounts.failed > 0 && (
           <FailedDiagnosticsPanel stats={failureStats} />
         )}
+
+        {/* Catalog Depth Telemetry & Enriched B2B Non-Food Ecosystem Explorer */}
+        <B2BEcosystemAndDepthPanel
+          depthMetrics={depthMetrics}
+          ecosystemRows={ecosystemRows}
+        />
 
         {/* Unified Ingestion & Scraper Workspace */}
         <ScraperWorkspaceClient
