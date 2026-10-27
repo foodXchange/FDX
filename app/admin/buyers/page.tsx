@@ -72,35 +72,42 @@ export default async function AdminBuyersPage({ searchParams }: Props) {
   });
 
   return (
-    <main className="min-h-screen bg-slate-50/70">
-      <div className="border-b border-slate-200 bg-white px-6 py-3.5 flex items-center justify-between sticky top-0 z-20 shadow-2xs">
-        <div className="flex items-center gap-4">
-          <span className="text-sm font-extrabold text-slate-900 tracking-tight">
-            Enterprise Buyers &amp; Inbound Radar
-          </span>
-          <div className="hidden sm:flex items-center gap-2 text-xs text-slate-500">
-            <span className="font-semibold text-slate-800">{buyers.length}</span> Active
-            <span className="text-slate-300">·</span>
-            <span className="font-semibold text-emerald-700">{discoveredBuyers.length}</span> Discovered Leads
+    <main className="min-h-screen bg-slate-50">
+      {/* Sticky Top KPI Bar */}
+      <div className="border-b border-slate-200 bg-white px-4 sm:px-6 py-3.5 sticky top-0 z-20 shadow-2xs">
+        <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+            <h1 className="text-sm font-bold text-slate-900 uppercase tracking-wider mr-1">
+              Buyers Directory &amp; Inbound Radar
+            </h1>
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200 shadow-2xs">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>
+              <span>{buyers.length} Active Buyers</span>
+            </span>
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-800 border border-amber-200 shadow-2xs">
+              <span className="h-1.5 w-1.5 rounded-full bg-amber-500"></span>
+              <span>{discoveredBuyers.length} Discovered Leads</span>
+            </span>
           </div>
-        </div>
-        <div className="flex items-center gap-3">
-          <Link
-            href="/admin/analytics"
-            className="px-3 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-semibold transition"
-          >
-            📊 Analytics
-          </Link>
-          <Link
-            href="/admin/buyers/new"
-            className="px-3.5 py-1.5 rounded-lg bg-orange-600 hover:bg-orange-500 text-white text-xs font-bold transition shadow-xs"
-          >
-            + Add buyer
-          </Link>
+
+          <div className="flex items-center gap-2">
+            <Link
+              href="/admin/analytics"
+              className="px-3 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold transition shadow-2xs"
+            >
+              📊 Analytics
+            </Link>
+            <Link
+              href="/admin/buyers/new"
+              className="px-3.5 py-1.5 rounded-xl bg-orange-600 hover:bg-orange-500 text-white text-xs font-bold transition shadow-xs"
+            >
+              + Add Buyer
+            </Link>
+          </div>
         </div>
       </div>
 
-      <div className="p-6 max-w-7xl mx-auto">
+      <div className="p-4 sm:p-6 max-w-7xl mx-auto">
         <BuyersTabsClient
           buyers={buyers}
           discoveredBuyers={discoveredBuyers}

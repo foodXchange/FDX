@@ -104,109 +104,121 @@ export default async function PipelinePage() {
   }));
 
   return (
-    <main className="min-h-screen bg-gray-50/60 pb-16">
-      {/* Top Header & Metrics Bar */}
-      <div className="border-b border-gray-200 bg-white shadow-xs">
-        <div className="max-w-7xl mx-auto px-6 py-6">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="text-[11px] font-bold tracking-wider text-orange-600 uppercase bg-orange-50 px-2 py-0.5 rounded border border-orange-200">
-                  Deal Workflow
-                </span>
-                <span className="text-xs text-gray-400">Match Qualification & Outreach</span>
-              </div>
-              <h1 className="text-2xl font-bold text-gray-900 mt-1">Sourcing Deal Pipeline</h1>
-              <p className="text-xs text-gray-500 mt-0.5">
-                Review algorithmically matched deals, approve proposals, dispatch WhatsApp/Email outreach, and close deals.
-              </p>
+    <main className="min-h-screen bg-slate-50 pb-16">
+      {/* Sticky Top Header & Metrics Bar */}
+      <div className="border-b border-slate-200 bg-white sticky top-0 z-20 shadow-2xs">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3.5">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+              <h1 className="text-sm font-bold text-slate-900 uppercase tracking-wider mr-1">
+                Deal Pipeline
+              </h1>
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-50 text-blue-800 border border-blue-200 shadow-2xs">
+                <span>{totalMatchesCount.toLocaleString()} Matches</span>
+              </span>
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200 shadow-2xs">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>
+                <span>{highScoreCount.toLocaleString()} High Score (≥80%)</span>
+              </span>
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-orange-50 text-orange-800 border border-orange-200 shadow-2xs">
+                <span>{activeOutreachCount.toLocaleString()} In Outreach</span>
+              </span>
             </div>
 
             <div className="flex items-center gap-2">
               <DigestButton />
             </div>
           </div>
-
-          {/* 4 Pipeline Performance Metric Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-6">
-            {/* Card 1: Total Deals */}
-            <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-xs">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-medium text-gray-500">Total Deals in Pipeline</span>
-                <span className="text-[11px] font-semibold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-200">
-                  Global
-                </span>
-              </div>
-              <div className="mt-2 flex items-baseline gap-2">
-                <span className="text-2xl font-extrabold text-gray-900">
-                  {totalMatchesCount.toLocaleString()}
-                </span>
-                <span className="text-xs text-gray-400">matches</span>
-              </div>
-              <p className="mt-2 text-[11px] text-gray-500">
-                Generated from active buyer criteria
-              </p>
-            </div>
-
-            {/* Card 2: High Match Priority */}
-            <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-xs">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-medium text-gray-500">High-Score Deals (≥80%)</span>
-                <span className="text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
-                  Top Priority
-                </span>
-              </div>
-              <div className="mt-2">
-                <span className="text-2xl font-extrabold text-emerald-900">
-                  {highScoreCount.toLocaleString()}
-                </span>
-              </div>
-              <p className="mt-2 text-[11px] text-gray-500">
-                Strong product, kosher & origin alignment
-              </p>
-            </div>
-
-            {/* Card 3: Active Outreach */}
-            <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-xs">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-medium text-gray-500">Active Outreach Deals</span>
-                <span className="text-[11px] font-semibold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
-                  In Progress
-                </span>
-              </div>
-              <div className="mt-2">
-                <span className="text-2xl font-extrabold text-amber-900">
-                  {activeOutreachCount.toLocaleString()}
-                </span>
-              </div>
-              <p className="mt-2 text-[11px] text-gray-500">
-                Outreach sent or awaiting response
-              </p>
-            </div>
-
-            {/* Card 4: Buyer Requests Active */}
-            <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-xs">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-medium text-gray-500">Active Buyer Requests</span>
-                <span className="text-[11px] font-semibold text-purple-700 bg-purple-50 px-2 py-0.5 rounded-full border border-purple-200">
-                  Demand Side
-                </span>
-              </div>
-              <div className="mt-2">
-                <span className="text-2xl font-extrabold text-purple-900">
-                  {totalRequestsCount.toLocaleString()}
-                </span>
-              </div>
-              <p className="mt-2 text-[11px] text-gray-500">
-                Active sourcing requests in database
-              </p>
-            </div>
-          </div>
         </div>
       </div>
 
-      {/* Main Board Container */}
-      <div className="max-w-7xl mx-auto p-6">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-5">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-2 mb-4">
+          <div>
+            <h2 className="text-xl font-bold text-slate-900">Sourcing Deal Pipeline &amp; Outreach</h2>
+            <p className="text-xs text-slate-500 mt-0.5">
+              Review algorithmically matched deals, approve proposals, dispatch WhatsApp/Email outreach, and close deals.
+            </p>
+          </div>
+        </div>
+
+        {/* 4 Pipeline Performance Metric Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 mb-6">
+          {/* Card 1: Total Deals */}
+          <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-2xs">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold text-slate-500">Total Deals in Pipeline</span>
+              <span className="text-[10px] font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-200">
+                Global
+              </span>
+            </div>
+            <div className="mt-2 flex items-baseline gap-2">
+              <span className="text-2xl font-black text-slate-900">
+                {totalMatchesCount.toLocaleString()}
+              </span>
+              <span className="text-xs text-slate-400">matches</span>
+            </div>
+            <p className="mt-2 text-[11px] text-slate-500">
+              Generated from active buyer criteria
+            </p>
+          </div>
+
+          {/* Card 2: High Match Priority */}
+          <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-2xs">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold text-slate-500">High-Score Deals (≥80%)</span>
+              <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                Top Priority
+              </span>
+            </div>
+            <div className="mt-2">
+              <span className="text-2xl font-black text-emerald-950">
+                {highScoreCount.toLocaleString()}
+              </span>
+            </div>
+            <p className="mt-2 text-[11px] text-slate-500">
+              Matches with highest probability of close
+            </p>
+          </div>
+
+          {/* Card 3: Active Outreach */}
+          <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-2xs">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold text-slate-500">Active Outreach</span>
+              <span className="text-[10px] font-bold text-purple-700 bg-purple-50 px-2 py-0.5 rounded-full border border-purple-200">
+                Live Comms
+              </span>
+            </div>
+            <div className="mt-2">
+              <span className="text-2xl font-black text-purple-950">
+                {activeOutreachCount.toLocaleString()}
+              </span>
+            </div>
+            <p className="mt-2 text-[11px] text-slate-500">
+              Dispatched via WhatsApp / Email
+            </p>
+          </div>
+
+          {/* Card 4: Sourcing Requests */}
+          <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-2xs">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold text-slate-500">Buyer Sourcing Requests</span>
+              <span className="text-[10px] font-bold text-orange-700 bg-orange-50 px-2 py-0.5 rounded-full border border-orange-200">
+                Active Buyers
+              </span>
+            </div>
+            <div className="mt-2">
+              <span className="text-2xl font-black text-orange-950">
+                {totalRequestsCount.toLocaleString()}
+              </span>
+            </div>
+            <p className="mt-2 text-[11px] text-slate-500">
+              Demands driving the match engine
+            </p>
+          </div>
+        </div>
+
+        {/* Main Board Container */}
         <PipelineBoard rows={allMatches} totalPipelineDeals={totalMatchesCount} />
       </div>
     </main>

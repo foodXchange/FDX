@@ -344,47 +344,53 @@ export default async function AdminSuppliersPage({
   }
 
   return (
-    <main className="min-h-screen bg-gray-50">
-      <div className="border-b border-gray-200 bg-white px-6 py-3.5 flex flex-wrap items-center justify-between gap-3 sticky top-0 z-20 shadow-xs">
-        <div className="flex flex-wrap items-center gap-3">
-          <h1 className="text-base font-bold text-gray-900">
-            Supplier Directory
-          </h1>
-          <span className="text-xs bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full px-2.5 py-0.5 font-semibold">
-            ✓ {approvedSupplierCount.toLocaleString()} Auto-Approved
-          </span>
-          <span className="text-xs bg-blue-50 text-blue-700 border border-blue-200 rounded-full px-2.5 py-0.5 font-semibold">
-            🖼 {withLogosCount.toLocaleString()} Logos Ready
-          </span>
-          <span className="text-xs text-gray-400">
-            {totalSupplierCount.toLocaleString()} total suppliers
-          </span>
-        </div>
-        <div className="flex items-center gap-2">
-          <Link
-            href="/admin/products"
-            className="px-3 py-1.5 rounded-lg border border-gray-200 text-gray-700 hover:bg-gray-50 text-xs font-semibold transition"
-          >
-            📦 Product Catalog ({strongSupplierCount.toLocaleString()} strong)
-          </Link>
-          <Link
-            href="/admin/scraper"
-            className="px-3 py-1.5 rounded-lg border border-gray-200 text-gray-700 hover:bg-gray-50 text-xs font-semibold transition"
-          >
-            🕷 Scraper & CSV
-          </Link>
-          <Link
-            href="/admin/suppliers/new"
-            className="px-3.5 py-1.5 rounded-lg bg-orange-500 hover:bg-orange-600 text-white text-xs font-semibold transition"
-          >
-            + Add Supplier
-          </Link>
+    <main className="min-h-screen bg-slate-50">
+      {/* Sticky Top KPI & Actions Bar */}
+      <div className="border-b border-slate-200 bg-white px-4 sm:px-6 py-3.5 sticky top-0 z-20 shadow-2xs">
+        <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+            <h1 className="text-sm font-bold text-slate-900 uppercase tracking-wider mr-1">
+              Supplier Directory
+            </h1>
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200 shadow-2xs">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>
+              <span>{approvedSupplierCount.toLocaleString()} Approved</span>
+            </span>
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-50 text-blue-800 border border-blue-200 shadow-2xs">
+              <span className="h-1.5 w-1.5 rounded-full bg-blue-500"></span>
+              <span>{withLogosCount.toLocaleString()} Verified Logos</span>
+            </span>
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-700 border border-slate-200">
+              <span>{totalSupplierCount.toLocaleString()} Total</span>
+            </span>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Link
+              href="/admin/products"
+              className="px-3 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold transition shadow-2xs"
+            >
+              📦 Product Catalog ({strongSupplierCount.toLocaleString()} strong)
+            </Link>
+            <Link
+              href="/admin/scraper"
+              className="px-3 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold transition shadow-2xs"
+            >
+              🕷 Scraper
+            </Link>
+            <Link
+              href="/admin/suppliers/new"
+              className="px-3.5 py-1.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold transition shadow-xs"
+            >
+              + Add Supplier
+            </Link>
+          </div>
         </div>
       </div>
 
-      <div className="p-6 max-w-7xl mx-auto">
-        <div className="flex flex-wrap items-center justify-between gap-2 mb-5 border-b border-gray-200">
-          <div className="flex gap-1">
+      <div className="p-4 sm:p-6 max-w-7xl mx-auto space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 pb-px">
+          <div className="flex gap-1 overflow-x-auto">
             {SUPPLIER_QUALIFICATION_TABS.map((tab) => {
               const countVal =
                 tab === "all"
@@ -406,18 +412,18 @@ export default async function AdminSuppliersPage({
                 <Link
                   key={tab}
                   href={buildUrl({ qualification: tab, page: "1" })}
-                  className={`px-4 py-2.5 text-xs font-semibold rounded-t-xl transition-colors ${
+                  className={`px-3.5 py-2.5 text-xs font-semibold rounded-t-xl transition-colors shrink-0 ${
                     qualification === tab
-                      ? "bg-white border border-b-white border-gray-200 text-orange-600 -mb-px shadow-2xs"
-                      : "text-gray-500 hover:text-gray-800"
+                      ? "bg-white border-t border-l border-r border-slate-200 text-orange-600 -mb-px shadow-2xs"
+                      : "text-slate-500 hover:text-slate-800"
                   }`}
                 >
                   {label}
                   <span
-                    className={`ml-1.5 px-1.5 py-0.5 rounded-full text-[11px] ${
+                    className={`ml-1.5 px-2 py-0.5 rounded-full text-[11px] font-bold ${
                       qualification === tab
                         ? "bg-orange-50 text-orange-700"
-                        : "bg-gray-100 text-gray-500"
+                        : "bg-slate-100 text-slate-500"
                     }`}
                   >
                     {countVal.toLocaleString()}
@@ -426,8 +432,8 @@ export default async function AdminSuppliersPage({
               );
             })}
           </div>
-          <p className="text-xs text-gray-400 pb-2">
-            All imported & scraped manufacturers are automatically approved in the system.
+          <p className="text-xs text-slate-400 pb-1 hidden sm:block">
+            All imported & scraped manufacturers are verified and ready for sourcing.
           </p>
         </div>
 
