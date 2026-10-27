@@ -619,7 +619,7 @@ export default function SourcingDealDesk({ buyers: initialBuyers, requests, init
             <div className="space-y-3 pt-2 border-t border-slate-100">
               <div className="flex items-center justify-between">
                 <label className="text-xs font-bold text-slate-800 uppercase tracking-wider">
-                  3. Project Brief & FDX Commercial Pitch
+                  3. Project Brief
                 </label>
                 <button
                   type="button"
