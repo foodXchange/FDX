@@ -116,6 +116,45 @@ export async function crawlSupplier(
           "/vores-produkter",
           "/vara-produkter",
 
+          // Portuguese & South American (Brazil, Argentina, Chile, Peru, Colombia)
+          "/produtos",
+          "/nossos-produtos",
+          "/catalogo-de-produtos",
+          "/linha-de-produtos",
+          "/alimentos",
+          "/graos",
+          "/carnes",
+
+          // Chinese & Far East (CN, HK, TW - Pinyin & English B2B conventions)
+          "/chanpin",
+          "/chanpinzhongxin",
+          "/product-center",
+          "/product-list",
+          "/products-show",
+          "/oem",
+          "/odm",
+          "/factory",
+          "/showcase",
+          "/solutions",
+
+          // Turkish & Middle East (Turkey, Levant)
+          "/urunler",
+          "/urunlerimiz",
+          "/urun-katalogu",
+          "/gida",
+
+          // Arabic / Middle East (Levant, Gulf, Egypt, UAE, Saudi)
+          "/ar/products",
+          "/ar/our-products",
+          "/ar/catalog",
+          "/al-muntajat",
+          "/muntajat",
+
+          // Hebrew / Israel
+          "/he/products",
+          "/he/catalog",
+          "/products-he",
+
           // Packaging & Wrapping Materials (B2B Industrial Non-Food)
           "/packaging",
           "/imballaggi",
