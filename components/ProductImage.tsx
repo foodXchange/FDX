@@ -98,14 +98,23 @@ interface ProductImageProps {
   categoryName: string | null;
   productName: string;
   size: number;
+  fallbackLogoUrl?: string | null;
 }
 
-export default function ProductImage({ imageUrl, categoryName, productName, size }: ProductImageProps) {
+export default function ProductImage({
+  imageUrl,
+  categoryName,
+  productName,
+  size,
+  fallbackLogoUrl,
+}: ProductImageProps) {
   const [broken, setBroken] = useState(false);
+  const [logoBroken, setLogoBroken] = useState(false);
 
   useEffect(() => {
     setBroken(false);
-  }, [imageUrl]);
+    setLogoBroken(false);
+  }, [imageUrl, fallbackLogoUrl]);
 
   if (imageUrl && !broken) {
     return (
@@ -120,6 +129,25 @@ export default function ProductImage({ imageUrl, categoryName, productName, size
         loading="lazy"
         onError={() => setBroken(true)}
       />
+    );
+  }
+
+  // Tier 2 visual fallback: Brand manufacturer logo with clean backdrop
+  if (fallbackLogoUrl && !logoBroken) {
+    return (
+      <div
+        style={{ width: size, height: size }}
+        className="rounded-lg bg-white border border-slate-200/80 p-1.5 flex items-center justify-center shrink-0 shadow-2xs overflow-hidden"
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={fallbackLogoUrl}
+          alt={productName}
+          className="max-w-full max-h-full object-contain"
+          loading="lazy"
+          onError={() => setLogoBroken(true)}
+        />
+      </div>
     );
   }
 

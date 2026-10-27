@@ -791,6 +791,7 @@ export function ProductsTableClient({
                           categoryName={p.category}
                           productName={p.product_name}
                           size={64}
+                          fallbackLogoUrl={p.supplier?.logo_url}
                         />
                         <button
                           type="button"
@@ -958,6 +959,7 @@ export function ProductsTableClient({
                           categoryName={p.category}
                           productName={p.product_name}
                           size={56}
+                          fallbackLogoUrl={p.supplier?.logo_url}
                         />
                         {!p.image_url && (
                           <button
