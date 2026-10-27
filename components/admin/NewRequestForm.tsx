@@ -132,6 +132,13 @@ export default function NewRequestForm({
   const [analysing, setAnalysing] = useState(false);
   const [visionAnalysis, setVisionAnalysis] = useState<any>(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [generatingPitch, setGeneratingPitch] = useState(false);
+  const [aiPitchResult, setAiPitchResult] = useState<{
+    buyer_spec: string;
+    fdx_pitch: string;
+    whatsapp_summary: string;
+  } | null>(null);
+  const [copiedPitch, setCopiedPitch] = useState(false);
 
   // Submission state
   const [pending, startTransition] = useTransition();
@@ -321,6 +328,48 @@ export default function NewRequestForm({
     setIsDragging(false);
     const file = e.dataTransfer.files?.[0];
     if (file) processImageFile(file);
+  }
+
+  async function handleGeneratePitch() {
+    if (!form.product_name && !form.benchmark_brand && !form.message) {
+      setError("Please provide a product name, benchmark brand, or brief notes first.");
+      return;
+    }
+    setGeneratingPitch(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/admin/requests/generate-pitch", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          buyerCompany: form.company,
+          contactName: form.name,
+          productName: form.product_name,
+          benchmarkBrand: form.benchmark_brand,
+          category: form.category,
+          packaging: form.packaging_preference,
+          privateLabel: form.private_label,
+          certifications,
+          targetMarket: form.target_market,
+          existingBrief: form.message,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) throw new Error(data.error || "Failed to generate pitch");
+      setAiPitchResult({
+        buyer_spec: data.buyer_spec,
+        fdx_pitch: data.fdx_pitch,
+        whatsapp_summary: data.whatsapp_summary,
+      });
+      // Optionally sync generated spec into message if empty or user wants
+      if (!form.message) {
+        setForm((prev) => ({ ...prev, message: data.buyer_spec }));
+      }
+    } catch (err: any) {
+      setError(err?.message || "Failed to generate AI pitch");
+    } finally {
+      setGeneratingPitch(false);
+    }
   }
 
   function toggleCert(cert: string) {
@@ -863,7 +912,18 @@ export default function NewRequestForm({
             </div>
 
             <div>
-              <label className={labelCls}>Factory Brief / Additional Specifications</label>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className={labelCls}>Factory Brief / Additional Specifications</label>
+                <button
+                  type="button"
+                  onClick={handleGeneratePitch}
+                  disabled={generatingPitch}
+                  className="inline-flex items-center gap-1.5 text-xs font-bold text-orange-600 hover:text-orange-700 bg-orange-50 hover:bg-orange-100 border border-orange-200/80 px-2.5 py-1 rounded-lg transition cursor-pointer shadow-2xs disabled:opacity-50"
+                >
+                  <span>✨</span>
+                  <span>{generatingPitch ? "Synthesizing AI Pitch & Spec..." : "Generate AI Description & FDX Pitch"}</span>
+                </button>
+              </div>
               <textarea
                 className={inputCls}
                 rows={3}
@@ -871,6 +931,46 @@ export default function NewRequestForm({
                 value={form.message}
                 onChange={(e) => setForm((f) => ({ ...f, message: e.target.value }))}
               />
+
+              {aiPitchResult && (
+                <div className="mt-4 p-4 rounded-xl bg-gradient-to-br from-amber-50/90 via-orange-50/50 to-white border border-amber-200/80 space-y-3 animate-in fade-in duration-200 shadow-2xs">
+                  <div className="flex items-center justify-between border-b border-amber-200/60 pb-2">
+                    <span className="text-xs font-bold text-amber-950 flex items-center gap-1.5">
+                      <span>✨</span>
+                      <span>AI Product Spec & FDX Commercial Offering</span>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        navigator.clipboard.writeText(aiPitchResult.whatsapp_summary || aiPitchResult.fdx_pitch);
+                        setCopiedPitch(true);
+                        setTimeout(() => setCopiedPitch(false), 2000);
+                      }}
+                      className="text-[11px] font-semibold text-emerald-700 bg-emerald-100 hover:bg-emerald-200 px-2.5 py-1 rounded-md transition cursor-pointer"
+                    >
+                      {copiedPitch ? "✓ Copied to Clipboard!" : "📋 Copy WhatsApp Pitch"}
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+                    <div className="p-3 bg-white/80 rounded-lg border border-amber-100">
+                      <div className="font-bold text-slate-800 mb-1 flex items-center gap-1">
+                        <span>🔍</span>
+                        <span>Buyer Looking For (Inward Spec):</span>
+                      </div>
+                      <p className="text-slate-600 leading-relaxed whitespace-pre-wrap">{aiPitchResult.buyer_spec}</p>
+                    </div>
+
+                    <div className="p-3 bg-white/80 rounded-lg border border-orange-100">
+                      <div className="font-bold text-orange-950 mb-1 flex items-center gap-1">
+                        <span>🎯</span>
+                        <span>FDX Commercial Pitch to Buyer:</span>
+                      </div>
+                      <p className="text-slate-700 leading-relaxed whitespace-pre-wrap">{aiPitchResult.fdx_pitch}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
