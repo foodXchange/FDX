@@ -50,6 +50,7 @@ export async function crawlSupplier(
           onlyMainContent: false,
         },
         includePaths: [
+          // English Core
           "/products",
           "/our-products",
           "/product",
@@ -57,17 +58,93 @@ export async function crawlSupplier(
           "/catalog",
           "/range",
           "/assortment",
-          "/assortiment",
-          "/prodotti",
-          "/productos",
-          "/produits",
-          "/produkte",
-          "/oferta",
-          "/produkty",
           "/food",
           "/b2b",
           "/private-label",
           "/export",
+
+          // Dutch / Flemish (NL & BE)
+          "/onze-producten",
+          "/onze-koekjes",
+          "/koekjes",
+          "/assortiment",
+          "/our-biscuits",
+          "/biscuits",
+          "/gaufres",
+          "/onze-kazen",
+          "/vleeswaren",
+
+          // Italian (IT)
+          "/prodotti",
+          "/nostri-prodotti",
+          "/le-nostre-linee",
+          "/linea-prodotti",
+          "/catalogo",
+          "/salumi",
+          "/formaggi",
+
+          // Spanish (ES)
+          "/productos",
+          "/nuestros-productos",
+          "/gama-de-productos",
+          "/catalogo-productos",
+          "/conservas",
+
+          // French (FR & BE)
+          "/produits",
+          "/nos-produits",
+          "/notre-gamme",
+          "/gamme",
+          "/charcuterie",
+          "/epicerie",
+
+          // German & Austrian (DE & AT)
+          "/produkte",
+          "/unsere-produkte",
+          "/sortiment",
+          "/lebensmittel",
+          "/backwaren",
+          "/getraenke",
+
+          // Polish & CEE
+          "/produkty",
+          "/nasze-produkty",
+          "/oferta",
+
+          // Scandinavian (DK, SE, NO)
+          "/produkter",
+          "/vores-produkter",
+          "/vara-produkter",
+
+          // Packaging & Wrapping Materials (B2B Industrial Non-Food)
+          "/packaging",
+          "/imballaggi",
+          "/emballage",
+          "/emballages",
+          "/verpackung",
+          "/envases",
+          "/film",
+          "/pouches",
+          "/bottles",
+
+          // Food Machinery & Processing Equipment (B2B Industrial Non-Food)
+          "/machinery",
+          "/machines",
+          "/equipment",
+          "/maquinaria",
+          "/macchine",
+          "/maschinen",
+          "/processing",
+          "/lines",
+
+          // Industrial Ingredients & Raw Materials
+          "/ingredients",
+          "/raw-materials",
+          "/rohstoffe",
+          "/materie-prime",
+          "/ingredientes",
+
+          // Quality, Certifications & Corporate
           "/certifications",
           "/quality",
           "/qualita",
