@@ -451,10 +451,23 @@ async function runBackgroundQueue() {
               await saveClassification(supabaseAdmin, supplier.id, cls, "crawl");
 
               if (cls.route !== "food_pipeline") {
+                const { logoCandidates } = extractImagesFromCrawledContent(
+                  content,
+                  supplier.website
+                );
+                const rawLogo =
+                  logoCandidates[0] ?? getDomainFaviconUrl(supplier.website);
+                const hostedLogo = rawLogo
+                  ? await rehostSupplierLogoToStorage(supplier.id, rawLogo)
+                  : null;
+
                 const { error: skipErr } = await supabaseAdmin
                   .from("supplier_offerings")
                   .update({
                     scrape_status: "skipped",
+                    last_scraped_at: new Date().toISOString(),
+                    ...(hostedLogo ? { logo_url: hostedLogo } : {}),
+                    ...(normalizedHost ? { website_domain: normalizedHost } : {}),
                     internal_notes:
                       cls.route === "invalid"
                         ? `Invalid site: ${cls.reason}`

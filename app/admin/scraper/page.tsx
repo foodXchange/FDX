@@ -46,6 +46,10 @@ type FullSupplierRow = {
   business_role: string | null;
   taxonomy_category: string | null;
   offerings_summary: string | null;
+  taxonomy_tags: string[] | null;
+  capabilities: string[] | null;
+  logo_url: string | null;
+  is_potential_buyer: boolean | null;
 };
 
 type ScrapeBatchRow = {
@@ -127,7 +131,7 @@ async function fetchAllSuppliers(): Promise<FullSupplierRow[]> {
       supabaseAdmin
         .from("supplier_offerings")
         .select(
-          "id, company_name, website, website_domain, country_of_origin, scrape_status, last_scraped_at, products_found, product_count, status, source, categories, csv_import_batch, created_at, product_description, contact_email, contact_phone, certifications, kosher_types, internal_notes, sector, business_role, taxonomy_category, offerings_summary"
+          "id, company_name, website, website_domain, country_of_origin, scrape_status, last_scraped_at, products_found, product_count, status, source, categories, csv_import_batch, created_at, product_description, contact_email, contact_phone, certifications, kosher_types, internal_notes, sector, business_role, taxonomy_category, offerings_summary, taxonomy_tags, capabilities, logo_url, is_potential_buyer"
         )
         .order("id", { ascending: true })
         .range(from, to)
@@ -507,6 +511,10 @@ export default async function ScraperPage() {
                     : "Food Importer / Distributor"),
         businessRole: s.business_role,
         summary: s.offerings_summary || s.product_description || s.internal_notes,
+        tags: Array.isArray(s.taxonomy_tags) ? s.taxonomy_tags : [],
+        capabilities: Array.isArray(s.capabilities) ? s.capabilities : [],
+        logoUrl: s.logo_url,
+        isPotentialBuyer: Boolean(s.is_potential_buyer),
         email: s.contact_email,
         phone: s.contact_phone,
         website: s.website,

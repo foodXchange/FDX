@@ -16,6 +16,10 @@ export interface EcosystemCompanyRow {
   subcategory: string;
   businessRole: string | null;
   summary: string | null;
+  tags: string[];
+  capabilities: string[];
+  logoUrl: string | null;
+  isPotentialBuyer: boolean;
   email: string | null;
   phone: string | null;
   website: string | null;
@@ -174,7 +178,9 @@ export function B2BEcosystemAndDepthPanel({
         (r.country || "").toLowerCase().includes(q) ||
         (r.subcategory || "").toLowerCase().includes(q) ||
         (r.summary || "").toLowerCase().includes(q) ||
-        (r.email || "").toLowerCase().includes(q)
+        (r.email || "").toLowerCase().includes(q) ||
+        r.tags.some((t) => t.toLowerCase().includes(q)) ||
+        r.capabilities.some((c) => c.toLowerCase().includes(q))
       );
     });
   }, [rowsInSector, selectedSubcategory, searchQuery]);
@@ -473,20 +479,50 @@ export function B2BEcosystemAndDepthPanel({
               <table className="w-full text-left text-xs text-slate-700">
                 <thead className="bg-slate-50 border-b border-slate-200 text-[11px] font-semibold text-slate-500 uppercase tracking-wider sticky top-0 z-10">
                   <tr>
-                    <th className="px-3 py-2.5">Company</th>
+                    <th className="px-3 py-2.5">Company & Role</th>
                     <th className="px-3 py-2.5">Country</th>
                     <th className="px-3 py-2.5">Specialty / Subcategory</th>
                     <th className="px-3 py-2.5">
-                      What They Produce / Supply (AI Extracted)
+                      What They Produce, Specific Products & Capabilities (AI Analysed)
                     </th>
                     <th className="px-3 py-2.5">Contact & Web</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {filteredRows.slice(0, 120).map((row) => (
-                    <tr key={row.id} className="hover:bg-slate-50/80">
-                      <td className="px-3 py-2.5 font-semibold text-slate-900 whitespace-nowrap max-w-52 truncate">
-                        {row.company_name}
+                    <tr key={row.id} className="hover:bg-slate-50/80 align-top">
+                      <td className="px-3 py-2.5 max-w-56">
+                        <div className="flex items-start gap-2.5">
+                          {row.logoUrl ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              src={row.logoUrl}
+                              alt=""
+                              className="w-7 h-7 rounded-lg object-contain border border-slate-200 bg-white shrink-0 mt-0.5"
+                            />
+                          ) : (
+                            <div className="w-7 h-7 rounded-lg bg-slate-100 border border-slate-200 flex items-center justify-center text-[10px] font-bold text-slate-500 shrink-0 mt-0.5">
+                              {row.company_name.slice(0, 2).toUpperCase()}
+                            </div>
+                          )}
+                          <div className="min-w-0">
+                            <div className="font-semibold text-slate-900 truncate">
+                              {row.company_name}
+                            </div>
+                            <div className="flex items-center gap-1 mt-0.5 flex-wrap">
+                              {row.businessRole && (
+                                <span className="text-[10px] font-medium text-slate-500 capitalize">
+                                  {row.businessRole.replace(/_/g, " ")}
+                                </span>
+                              )}
+                              {row.isPotentialBuyer && (
+                                <span className="rounded bg-rose-100 text-rose-800 px-1.5 py-0.2 text-[9px] font-bold uppercase">
+                                  Buyer Lead
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
                       </td>
                       <td className="px-3 py-2.5 text-slate-600 whitespace-nowrap">
                         {row.country || "—"}
@@ -498,13 +534,33 @@ export function B2BEcosystemAndDepthPanel({
                           {row.subcategory}
                         </span>
                       </td>
-                      <td className="px-3 py-2.5 text-slate-600 max-w-md">
-                        <p className="line-clamp-2 text-[11px] leading-relaxed">
+                      <td className="px-3 py-2.5 text-slate-600 max-w-lg">
+                        <p className="line-clamp-2 text-[11px] leading-relaxed text-slate-700">
                           {row.summary || "Classified B2B ecosystem supplier"}
                         </p>
+                        {(row.tags.length > 0 || row.capabilities.length > 0) && (
+                          <div className="flex flex-wrap gap-1 mt-1.5">
+                            {row.tags.slice(0, 5).map((tag, i) => (
+                              <span
+                                key={`t-${i}`}
+                                className="inline-flex items-center rounded-md bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-700"
+                              >
+                                {tag}
+                              </span>
+                            ))}
+                            {row.capabilities.slice(0, 3).map((cap, i) => (
+                              <span
+                                key={`c-${i}`}
+                                className="inline-flex items-center rounded-md bg-indigo-50 border border-indigo-100 px-1.5 py-0.5 text-[10px] font-medium text-indigo-700"
+                              >
+                                ✓ {cap}
+                              </span>
+                            ))}
+                          </div>
+                        )}
                       </td>
                       <td className="px-3 py-2.5 whitespace-nowrap">
-                        <div className="flex items-center gap-2">
+                        <div className="flex flex-col gap-1">
                           {row.website && (
                             <a
                               href={
@@ -522,10 +578,10 @@ export function B2BEcosystemAndDepthPanel({
                           {row.email && (
                             <a
                               href={`mailto:${row.email}`}
-                              className="text-[11px] font-mono text-emerald-700 hover:underline"
+                              className="text-[11px] font-mono text-emerald-700 hover:underline truncate max-w-44"
                               title={row.email}
                             >
-                              ✉ Email
+                              ✉ {row.email}
                             </a>
                           )}
                         </div>
