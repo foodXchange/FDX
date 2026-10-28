@@ -9,6 +9,9 @@ import {
   type CreateQuickBuyerInput,
   getQuickMatchesAction,
   sendBriefConfirmationEmailAction,
+  saveDraftRequestAction,
+  softDeleteRequestAction,
+  updateBriefStatusAction,
 } from "@/app/admin/requests/actions";
 import type { RequestRow } from "@/app/admin/requests/page";
 import RequestsTable from "@/components/admin/RequestsTable";
@@ -28,6 +31,7 @@ export type BuyerOption = {
 interface Props {
   buyers: BuyerOption[];
   requests: RequestRow[];
+  initialEditId?: string;
   initialCounts: {
     total: number;
     matched: number;
@@ -62,7 +66,12 @@ const CATEGORY_PRESETS = [
   "Other Specialty",
 ];
 
-export default function SourcingDealDesk({ buyers: initialBuyers, requests, initialCounts }: Props) {
+export default function SourcingDealDesk({
+  buyers: initialBuyers,
+  requests,
+  initialEditId,
+  initialCounts,
+}: Props) {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -132,6 +141,24 @@ export default function SourcingDealDesk({ buyers: initialBuyers, requests, init
 
   // Draft Saving & Persistence state
   const [savedDraftNotice, setSavedDraftNotice] = useState<string | null>(null);
+  const [isSavingDraft, setIsSavingDraft] = useState(false);
+  const [briefStatus, setBriefStatus] = useState<
+    "draft" | "sent" | "changes_requested" | "confirmed" | "reconfirm_needed"
+  >("draft");
+  const [saveToast, setSaveToast] = useState<{
+    visible: boolean;
+    savedAt: string;
+    requestId?: string | null;
+    briefStatus: "draft" | "sent" | "changes_requested" | "confirmed" | "reconfirm_needed";
+    projectTitle: string;
+    buyerName: string;
+  } | null>(null);
+  const [toastHovered, setToastHovered] = useState(false);
+
+  // Soft Delete state
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [deletingRequest, setDeletingRequest] = useState(false);
+  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
 
   // Submission & Live Matches display
   const [isSubmitting, startTransition] = useTransition();
@@ -366,6 +393,7 @@ export default function SourcingDealDesk({ buyers: initialBuyers, requests, init
 
     try {
       const res = await sendBriefConfirmationEmailAction({
+        requestId: createdRequestId,
         buyerEmail: selectedBuyer.contact_email,
         buyerName: selectedBuyer.contact_name,
         buyerCompany: selectedBuyer.company_name,
@@ -387,6 +415,7 @@ export default function SourcingDealDesk({ buyers: initialBuyers, requests, init
         throw new Error(res.error || "Failed to dispatch confirmation email");
       }
 
+      setBriefStatus("sent");
       setShowEmailModal(false);
       setEmailCustomNotes("");
       setEmailNotice({
@@ -403,10 +432,64 @@ export default function SourcingDealDesk({ buyers: initialBuyers, requests, init
     }
   }
 
-  // Save current project content locally
-  const handleSaveDraft = () => {
+  // Auto-dismiss save toast after 6 seconds unless hovered
+  useEffect(() => {
+    if (!saveToast || toastHovered) return;
+    const timer = setTimeout(() => {
+      setSaveToast(null);
+    }, 6000);
+    return () => clearTimeout(timer);
+  }, [saveToast, toastHovered]);
+
+  // Load existing request into Deal Desk for editing
+  function loadRequestForEdit(req: RequestRow) {
+    setCreatedRequestId(req.id);
+    setProjectTitle(req.product_name || "");
+    if (req.category) setCategory(req.category);
+    if (req.packaging_preference) setPackagingFormat(req.packaging_preference);
+    if (req.volume_per_year) setEstimatedVolume(req.volume_per_year);
+    if (req.target_market) setTargetMarket(req.target_market);
+    if (req.private_label === true) setBrandingModel("private_label");
+    else if (req.private_label === false) setBrandingModel("supplier_brand");
+    else setBrandingModel("open");
+    if (Array.isArray(req.certifications)) setSelectedTags(req.certifications);
+    if (req.message) setNaturalBrief(req.message);
+    if (Array.isArray(req.images) && req.images.length > 0) {
+      setImageUrls(req.images.map((img) => img.url));
+    } else {
+      setImageUrls([]);
+    }
+    if (req.buyer_id) {
+      const matched = buyersList.find((b) => b.id === req.buyer_id);
+      if (matched) {
+        setSelectedBuyer(matched);
+        setBuyerSearchQuery(matched.company_name);
+      }
+    } else if (req.company) {
+      setBuyerSearchQuery(req.company);
+    }
+    if (req.brief_status) {
+      setBriefStatus(req.brief_status);
+    }
+    setActiveTab("intake_desk");
+  }
+
+  // Hydrate when initialEditId is passed
+  useEffect(() => {
+    if (!initialEditId) return;
+    const req = requests.find((r) => r.id === initialEditId);
+    if (req) {
+      loadRequestForEdit(req);
+    }
+  }, [initialEditId, requests]);
+
+  // Save current project draft to Cloud + Local storage
+  const handleSaveDraft = async (silent = false) => {
+    setIsSavingDraft(true);
+    const draftTime = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
     try {
       const draft = {
+        requestId: createdRequestId,
         buyerId: selectedBuyer?.id || null,
         buyerSearchQuery,
         projectTitle,
@@ -419,22 +502,127 @@ export default function SourcingDealDesk({ buyers: initialBuyers, requests, init
         selectedTags,
         naturalBrief,
         imageUrls,
-        savedAt: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" }),
+        briefStatus,
+        savedAt: draftTime,
       };
       localStorage.setItem("fdx_deal_desk_draft", JSON.stringify(draft));
-      setSavedDraftNotice(`✓ Draft saved at ${draft.savedAt}`);
-      setTimeout(() => setSavedDraftNotice(null), 3500);
+
+      // Persist to Supabase Database
+      const res = await saveDraftRequestAction({
+        id: createdRequestId,
+        buyer_id: selectedBuyer?.id || null,
+        name: selectedBuyer?.contact_name || selectedBuyer?.company_name || "Draft Buyer",
+        email: selectedBuyer?.contact_email || null,
+        company: selectedBuyer?.company_name || null,
+        product_name: projectTitle.trim() || "Untitled Sourcing Draft",
+        category: category || null,
+        benchmark_brand: benchmarkBrands || null,
+        packaging_preference: packagingFormat || null,
+        volume_per_year: estimatedVolume || null,
+        message: naturalBrief || null,
+        certifications: selectedTags,
+        target_market: targetMarket || "Israel",
+        private_label: brandingModel === "private_label" ? true : brandingModel === "supplier_brand" ? false : null,
+        image_urls: imageUrls,
+        ai_analysis: visionData || null,
+      });
+
+      if (res.ok) {
+        setCreatedRequestId(res.id);
+        const resolvedStatus = (res.brief_status as any) || briefStatus || "draft";
+        setBriefStatus(resolvedStatus);
+
+        if (!silent) {
+          setSaveToast({
+            visible: true,
+            savedAt: res.saved_at || draftTime,
+            requestId: res.id,
+            briefStatus: resolvedStatus,
+            projectTitle: projectTitle.trim() || "Sourcing Brief Draft",
+            buyerName: selectedBuyer?.company_name || "Unassigned Buyer",
+          });
+        }
+        setSavedDraftNotice(`✓ Cloud draft saved at ${res.saved_at || draftTime}`);
+        setTimeout(() => setSavedDraftNotice(null), 3500);
+      } else {
+        if (!silent) {
+          setSavedDraftNotice(`✓ Local draft saved at ${draftTime}`);
+          setTimeout(() => setSavedDraftNotice(null), 3500);
+        }
+      }
     } catch (err) {
       console.error("Failed to save draft:", err);
+      if (!silent) {
+        setSavedDraftNotice(`✓ Local draft saved at ${draftTime}`);
+        setTimeout(() => setSavedDraftNotice(null), 3500);
+      }
+    } finally {
+      setIsSavingDraft(false);
     }
   };
 
+  // 30s debounced autosave when title or buyer are present
+  useEffect(() => {
+    if (!projectTitle.trim() && !selectedBuyer) return;
+    const timer = setTimeout(() => {
+      handleSaveDraft(true);
+    }, 30000);
+    return () => clearTimeout(timer);
+  }, [
+    projectTitle,
+    selectedBuyer,
+    benchmarkBrands,
+    category,
+    packagingFormat,
+    estimatedVolume,
+    brandingModel,
+    targetMarket,
+    selectedTags,
+    naturalBrief,
+    imageUrls,
+  ]);
+
+  // Soft Delete handler
+  async function handleDeleteCurrentRequest() {
+    if (!createdRequestId) {
+      localStorage.removeItem("fdx_deal_desk_draft");
+      setProjectTitle("");
+      setNaturalBrief("");
+      setImageUrls([]);
+      setDeleteConfirmOpen(false);
+      setSavedDraftNotice("Draft discarded");
+      setTimeout(() => setSavedDraftNotice(null), 3000);
+      return;
+    }
+
+    setDeletingRequest(true);
+    try {
+      const res = await softDeleteRequestAction(createdRequestId);
+      if (!res.ok) throw new Error(res.error);
+      localStorage.removeItem("fdx_deal_desk_draft");
+      setCreatedRequestId(null);
+      setProjectTitle("");
+      setNaturalBrief("");
+      setImageUrls([]);
+      setDeleteConfirmOpen(false);
+      setSavedDraftNotice("Request moved to Trash & Archive");
+      router.refresh();
+      setTimeout(() => setSavedDraftNotice(null), 4000);
+    } catch (err: any) {
+      setErrorMsg(err.message || "Failed to delete request");
+    } finally {
+      setDeletingRequest(false);
+    }
+  }
+
   // Restore saved draft on mount
   useEffect(() => {
+    if (initialEditId) return; // Skip local restore if specifically editing an ID
     try {
       const raw = localStorage.getItem("fdx_deal_desk_draft");
       if (raw) {
         const d = JSON.parse(raw);
+        if (d.requestId) setCreatedRequestId(d.requestId);
         if (d.projectTitle) setProjectTitle(d.projectTitle);
         if (d.benchmarkBrands) setBenchmarkBrands(d.benchmarkBrands);
         if (d.category) setCategory(d.category);
@@ -445,6 +633,7 @@ export default function SourcingDealDesk({ buyers: initialBuyers, requests, init
         if (Array.isArray(d.selectedTags) && d.selectedTags.length > 0) setSelectedTags(d.selectedTags);
         if (d.naturalBrief) setNaturalBrief(d.naturalBrief);
         if (Array.isArray(d.imageUrls)) setImageUrls(d.imageUrls);
+        if (d.briefStatus) setBriefStatus(d.briefStatus);
         if (d.buyerId) {
           const matched = initialBuyers.find((b) => b.id === d.buyerId);
           if (matched) {
@@ -464,7 +653,7 @@ export default function SourcingDealDesk({ buyers: initialBuyers, requests, init
     } catch (e) {
       console.warn("Could not parse saved draft", e);
     }
-  }, [initialBuyers]);
+  }, [initialBuyers, initialEditId]);
 
   // Global Ctrl + S / Cmd + S keyboard shortcut to save
   useEffect(() => {
@@ -494,6 +683,7 @@ export default function SourcingDealDesk({ buyers: initialBuyers, requests, init
     startTransition(async () => {
       try {
         const res = await createRequestForBuyer({
+          requestId: createdRequestId,
           buyer_id: selectedBuyer.id,
           name: selectedBuyer.contact_name || selectedBuyer.company_name,
           email: selectedBuyer.contact_email,
@@ -558,6 +748,44 @@ export default function SourcingDealDesk({ buyers: initialBuyers, requests, init
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
+            {/* Brief Status Pill */}
+            <span
+              className={`text-[11px] font-bold px-2.5 py-1 rounded-lg border flex items-center gap-1.5 ${
+                briefStatus === "confirmed"
+                  ? "bg-emerald-50 text-emerald-800 border-emerald-300"
+                  : briefStatus === "sent"
+                  ? "bg-amber-50 text-amber-800 border-amber-300"
+                  : briefStatus === "changes_requested"
+                  ? "bg-orange-50 text-orange-800 border-orange-300"
+                  : briefStatus === "reconfirm_needed"
+                  ? "bg-amber-50 text-amber-800 border-amber-300"
+                  : "bg-slate-100 text-slate-700 border-slate-300"
+              }`}
+            >
+              <span>
+                {briefStatus === "confirmed"
+                  ? "✓"
+                  : briefStatus === "sent"
+                  ? "⏳"
+                  : briefStatus === "changes_requested"
+                  ? "✏️"
+                  : briefStatus === "reconfirm_needed"
+                  ? "⚠️"
+                  : "📝"}
+              </span>
+              <span>
+                {briefStatus === "confirmed"
+                  ? "Brief Confirmed"
+                  : briefStatus === "sent"
+                  ? "Waiting for Buyer"
+                  : briefStatus === "changes_requested"
+                  ? "Changes Requested"
+                  : briefStatus === "reconfirm_needed"
+                  ? "Re-confirm Needed"
+                  : "Draft (Not Confirmed)"}
+              </span>
+            </span>
+
             {/* Draft status & quick save button */}
             {savedDraftNotice && (
               <span className="text-[11px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-lg animate-in fade-in flex items-center gap-1">
@@ -565,18 +793,42 @@ export default function SourcingDealDesk({ buyers: initialBuyers, requests, init
                 <span>{savedDraftNotice}</span>
               </span>
             )}
+
             <button
               type="button"
-              onClick={handleSaveDraft}
-              className="px-3 py-1.5 rounded-lg text-xs font-bold text-slate-700 hover:text-slate-900 bg-white hover:bg-slate-100 border border-slate-200/90 shadow-2xs transition cursor-pointer flex items-center gap-1.5"
-              title="Save project draft locally (Ctrl+S)"
+              onClick={() => handleSaveDraft(false)}
+              disabled={isSavingDraft}
+              className="px-3 py-1.5 rounded-lg text-xs font-bold text-slate-700 hover:text-slate-900 bg-white hover:bg-slate-100 border border-slate-200/90 shadow-2xs transition cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
+              title="Save project draft to cloud & local (Ctrl+S)"
             >
               <span>💾</span>
-              <span>Save Draft</span>
+              <span>{isSavingDraft ? "Saving..." : "Save Draft"}</span>
               <kbd className="hidden sm:inline-block text-[9px] bg-slate-100 px-1 py-0.5 rounded text-slate-500 font-mono border border-slate-200">
                 Ctrl+S
               </kbd>
             </button>
+
+            {createdRequestId && (
+              <>
+                <Link
+                  href={`/admin/requests/${createdRequestId}`}
+                  target="_blank"
+                  className="px-2.5 py-1.5 rounded-lg text-xs font-semibold text-slate-600 hover:text-orange-600 bg-white border border-slate-200/90 shadow-2xs transition flex items-center gap-1"
+                  title="Open live brief workspace"
+                >
+                  <span>🔗</span>
+                  <span className="hidden md:inline">Workspace</span>
+                </Link>
+                <button
+                  type="button"
+                  onClick={() => setDeleteConfirmOpen(true)}
+                  className="px-2.5 py-1.5 rounded-lg text-xs font-semibold text-slate-500 hover:text-red-600 bg-white hover:bg-red-50 border border-slate-200/90 transition flex items-center gap-1 cursor-pointer"
+                  title="Move request to Trash & Archive"
+                >
+                  <span>🗑️</span>
+                </button>
+              </>
+            )}
 
             {/* Mode Switcher Tabs */}
             <div className="flex items-center gap-1.5 p-1 bg-slate-100 rounded-xl border border-slate-200/80 shrink-0">
@@ -1065,16 +1317,29 @@ export default function SourcingDealDesk({ buyers: initialBuyers, requests, init
             <div className="pt-2 flex flex-col sm:flex-row items-center gap-3">
               <button
                 type="button"
-                onClick={handleSaveDraft}
-                className="w-full sm:w-auto px-4 py-3 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-300 text-slate-700 font-bold text-xs sm:text-sm cursor-pointer transition flex items-center justify-center gap-2 shadow-2xs"
-                title="Save draft locally (Ctrl+S)"
+                onClick={() => handleSaveDraft(false)}
+                disabled={isSavingDraft}
+                className="w-full sm:w-auto px-4 py-3 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-300 text-slate-700 font-bold text-xs sm:text-sm cursor-pointer transition flex items-center justify-center gap-2 shadow-2xs disabled:opacity-50"
+                title="Save draft to cloud and local (Ctrl+S)"
               >
                 <span>💾</span>
-                <span>Save Draft</span>
+                <span>{isSavingDraft ? "Saving Draft..." : "Save Draft"}</span>
                 <kbd className="text-[10px] bg-white px-1.5 py-0.5 rounded text-slate-500 font-mono border border-slate-200">
                   Ctrl+S
                 </kbd>
               </button>
+
+              {createdRequestId && (
+                <button
+                  type="button"
+                  onClick={() => setDeleteConfirmOpen(true)}
+                  className="w-full sm:w-auto px-3.5 py-3 rounded-xl bg-red-50 hover:bg-red-100 border border-red-200 text-red-600 font-bold text-xs transition cursor-pointer flex items-center justify-center gap-1.5"
+                  title="Move this request to Trash"
+                >
+                  <span>🗑️</span>
+                  <span>Delete</span>
+                </button>
+              )}
 
               <button
                 type="submit"
@@ -1201,7 +1466,10 @@ export default function SourcingDealDesk({ buyers: initialBuyers, requests, init
         <div className="p-4 sm:p-6 max-w-7xl mx-auto space-y-6">
           <AgentCommandRadar requests={requests} />
           <div className="pt-6 border-t border-slate-200">
-            <RequestsTable requests={requests} />
+            <RequestsTable
+              requests={requests}
+              onEditRequest={(req: RequestRow) => loadRequestForEdit(req)}
+            />
           </div>
         </div>
       )}
@@ -1431,6 +1699,148 @@ export default function SourcingDealDesk({ buyers: initialBuyers, requests, init
                   )}
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── FLOATING CLOUD SAVE & BRIEF STATUS ANNOUNCEMENT TOAST (Bottom-Right) ── */}
+      {saveToast && saveToast.visible && (
+        <div
+          onMouseEnter={() => setToastHovered(true)}
+          onMouseLeave={() => setToastHovered(false)}
+          className="fixed bottom-5 right-5 z-50 max-w-sm sm:max-w-md w-full bg-slate-900/95 text-white backdrop-blur-md rounded-2xl p-4 shadow-2xl border border-slate-700/80 animate-in slide-in-from-bottom-5 duration-200 space-y-3"
+        >
+          {/* Top row: Icon, Title, Timestamp & Close */}
+          <div className="flex items-center justify-between gap-2 border-b border-slate-800 pb-2.5">
+            <div className="flex items-center gap-2">
+              <span className="w-6 h-6 rounded-lg bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center justify-center text-xs font-bold">
+                ✓
+              </span>
+              <div>
+                <h4 className="text-xs font-bold tracking-tight text-white flex items-center gap-1.5">
+                  <span>Cloud Draft Saved</span>
+                  <span className="text-[10px] text-slate-400 font-mono">({saveToast.savedAt})</span>
+                </h4>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setSaveToast(null)}
+              className="text-slate-400 hover:text-white text-xs p-1 rounded-md hover:bg-slate-800 transition cursor-pointer"
+              title="Dismiss"
+            >
+              ✕
+            </button>
+          </div>
+
+          {/* Project & Brief Status Info */}
+          <div className="space-y-1.5">
+            <div className="text-xs text-slate-300 font-medium truncate">
+              <span className="text-slate-400">Buyer:</span> <strong className="text-white">{saveToast.buyerName}</strong> • {saveToast.projectTitle}
+            </div>
+
+            <div className="flex items-center gap-2 pt-1 flex-wrap">
+              <span className="text-[11px] text-slate-400">Brief Status:</span>
+              {saveToast.briefStatus === "confirmed" ? (
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-[11px] font-bold">
+                  <span>✓</span>
+                  <span>Confirmed by Buyer</span>
+                </span>
+              ) : saveToast.briefStatus === "sent" ? (
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40 text-[11px] font-bold">
+                  <span>⏳</span>
+                  <span>Waiting for Buyer Confirmation</span>
+                </span>
+              ) : saveToast.briefStatus === "changes_requested" ? (
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-orange-500/20 text-orange-300 border border-orange-500/40 text-[11px] font-bold">
+                  <span>✏️</span>
+                  <span>Changes Requested by Buyer</span>
+                </span>
+              ) : saveToast.briefStatus === "reconfirm_needed" ? (
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40 text-[11px] font-bold">
+                  <span>⚠️</span>
+                  <span>Re-confirmation Needed</span>
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-slate-700 text-[11px] font-bold">
+                  <span>📝</span>
+                  <span>Not Confirmed (Draft)</span>
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* Action Row */}
+          <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-800">
+            {saveToast.requestId ? (
+              <Link
+                href={`/admin/requests/${saveToast.requestId}`}
+                target="_blank"
+                className="text-xs font-bold text-orange-400 hover:text-orange-300 hover:underline flex items-center gap-1"
+              >
+                <span>Open Sourcing Brief</span>
+                <span>→</span>
+              </Link>
+            ) : (
+              <span className="text-[11px] text-slate-400">Brief ready for dispatch</span>
+            )}
+
+            {saveToast.briefStatus === "draft" && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSaveToast(null);
+                  handleOpenEmailPreviewModal();
+                }}
+                className="text-xs font-bold px-2.5 py-1.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white transition flex items-center gap-1 shadow-xs cursor-pointer"
+              >
+                <span>✉️</span>
+                <span>Email Buyer to Confirm</span>
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── SOFT DELETE CONFIRMATION MODAL ── */}
+      {deleteConfirmOpen && (
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200 space-y-4 animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-center gap-3">
+              <span className="w-10 h-10 rounded-xl bg-red-100 text-red-600 flex items-center justify-center text-lg font-bold">
+                🗑️
+              </span>
+              <div>
+                <h3 className="text-base font-bold text-slate-900">Move Sourcing Request to Trash?</h3>
+                <p className="text-xs text-slate-500">
+                  This will archive the request. You can restore it anytime from Settings &gt; Trash & Archive.
+                </p>
+              </div>
+            </div>
+
+            <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 text-xs text-slate-700 space-y-1">
+              <div><strong>Project:</strong> {projectTitle || "Untitled Draft"}</div>
+              {selectedBuyer && <div><strong>Buyer:</strong> {selectedBuyer.company_name}</div>}
+            </div>
+
+            <div className="flex items-center justify-end gap-2.5 pt-2">
+              <button
+                type="button"
+                onClick={() => setDeleteConfirmOpen(false)}
+                disabled={deletingRequest}
+                className="px-4 py-2 rounded-xl bg-white border border-slate-200 text-slate-700 font-semibold text-xs hover:bg-slate-100 transition cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleDeleteCurrentRequest}
+                disabled={deletingRequest}
+                className="px-4 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white font-bold text-xs transition cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
+              >
+                {deletingRequest ? "Moving to Trash..." : "Confirm Delete"}
+              </button>
             </div>
           </div>
         </div>

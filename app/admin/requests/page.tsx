@@ -13,9 +13,17 @@ export type RequestRow = {
   certifications: string[] | null;
   target_market: string | null;
   private_label: boolean | null;
+  packaging_preference?: string | null;
+  volume_per_year?: string | null;
   ai_analysis: Record<string, unknown> | null;
   source: string | null;
   status: string | null;
+  brief_status?: "draft" | "sent" | "changes_requested" | "confirmed" | "reconfirm_needed" | null;
+  brief_version?: number | null;
+  confirmed_at?: string | null;
+  confirmed_by?: string | null;
+  confirmed_via?: string | null;
+  deleted_at?: string | null;
   created_at: string;
   images: { url: string }[];
   match_count: number;
@@ -29,13 +37,21 @@ export type RequestRow = {
   buyer_logo_url: string | null;
 };
 
-export default async function AdminRequestsPage() {
+interface PageProps {
+  searchParams?: Promise<{ edit?: string }>;
+}
+
+export default async function AdminRequestsPage({ searchParams }: PageProps) {
+  const resolvedParams = searchParams ? await searchParams : {};
+  const editId = resolvedParams?.edit;
+
   const [requestsResult, imagesResult, buyersResult] = await Promise.all([
     supabaseAdmin
       .from("sourcing_requests")
       .select(
-        "id, name, email, company, buyer_id, message, product_name, category, certifications, target_market, private_label, ai_analysis, source, status, created_at, is_published, published_product_name, published_message, intent_json"
+        "id, name, email, company, buyer_id, message, product_name, category, certifications, target_market, private_label, packaging_preference, volume_per_year, ai_analysis, source, status, brief_status, brief_version, confirmed_at, confirmed_by, confirmed_via, deleted_at, created_at, is_published, published_product_name, published_message, intent_json"
       )
+      .is("deleted_at", null)
       .order("created_at", { ascending: false })
       .limit(200),
     supabaseAdmin.from("request_images").select("request_id, url"),
@@ -133,6 +149,7 @@ export default async function AdminRequestsPage() {
     <SourcingDealDesk
       buyers={buyers}
       requests={requests}
+      initialEditId={editId}
       initialCounts={{
         total: totalCount,
         matched: matchedCount,

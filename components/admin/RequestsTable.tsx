@@ -4,6 +4,7 @@ import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import type { RequestRow } from "@/app/admin/requests/page";
+import { softDeleteRequestAction } from "@/app/admin/requests/actions";
 import RequestSlideOver from "@/components/admin/RequestSlideOver";
 import { getInitials, avatarColors } from "@/lib/admin/avatarPalette";
 
@@ -12,6 +13,7 @@ type SortDirection = "asc" | "desc";
 
 interface Props {
   requests: RequestRow[];
+  onEditRequest?: (req: RequestRow) => void;
 }
 
 const HEADER_MIN_WIDTHS: Record<string, string> = {
@@ -24,6 +26,44 @@ const HEADER_MIN_WIDTHS: Record<string, string> = {
   Date: "min-w-[100px]",
   Actions: "min-w-[100px]",
 };
+
+
+function BriefStatusBadge({ status }: { status: string | null | undefined }) {
+  const s = status ?? 'draft';
+  if (s === 'confirmed') {
+    return (
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-300 text-[10px] font-bold">
+        <span>✓</span> Confirmed
+      </span>
+    );
+  }
+  if (s === 'sent') {
+    return (
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-300 text-[10px] font-bold">
+        <span>⏳</span> Waiting
+      </span>
+    );
+  }
+  if (s === 'changes_requested') {
+    return (
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-orange-50 text-orange-800 border border-orange-300 text-[10px] font-bold">
+        <span>✏️</span> Changes
+      </span>
+    );
+  }
+  if (s === 'reconfirm_needed') {
+    return (
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-300 text-[10px] font-bold">
+        <span>⚠️</span> Re-confirm
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200 text-[10px] font-semibold">
+      <span>📝</span> Draft
+    </span>
+  );
+}
 
 function StatusBadge({ status }: { status: string | null }) {
   const s = status ?? "new";
@@ -87,7 +127,7 @@ function timeAgo(dateStr: string): string {
   return `${Math.floor(hrs / 24)}d ago`;
 }
 
-export default function RequestsTable({ requests }: Props) {
+export default function RequestsTable({ requests, onEditRequest }: Props) {
   const router = useRouter();
   const [openRequest, setOpenRequest] = useState<RequestRow | null>(null);
   const [localStatuses, setLocalStatuses] = useState<Record<string, string>>({});
@@ -98,6 +138,7 @@ export default function RequestsTable({ requests }: Props) {
   const [buyerFilter, setBuyerFilter] = useState("");
   const [kosherFilter, setKosherFilter] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("");
+  const [briefStatusFilter, setBriefStatusFilter] = useState("");
   const [selected, setSelected] = useState<string[]>([]);
   const [bulkRunning, setBulkRunning] = useState(false);
   const [sortColumn, setSortColumn] = useState<SortColumn>("date");
@@ -134,6 +175,9 @@ export default function RequestsTable({ requests }: Props) {
 
     if (statusFilter) {
       list = list.filter((r) => (localStatuses[r.id] ?? r.status) === statusFilter);
+    }
+    if (briefStatusFilter) {
+      list = list.filter((r) => (r.brief_status || "draft") === briefStatusFilter);
     }
 
     if (matchQualityFilter) {
@@ -298,6 +342,19 @@ export default function RequestsTable({ requests }: Props) {
                 options={[
                   { value: "", label: "All buyers" },
                   ...uniqueBuyers.map((b) => ({ value: b, label: b })),
+                ]}
+              />
+              <FilterSelect
+                label="Brief status"
+                value={briefStatusFilter}
+                onChange={setBriefStatusFilter}
+                options={[
+                  { value: "", label: "All briefs" },
+                  { value: "draft", label: "Draft (Not confirmed)" },
+                  { value: "sent", label: "Waiting for buyer" },
+                  { value: "confirmed", label: "Confirmed by buyer" },
+                  { value: "changes_requested", label: "Changes requested" },
+                  { value: "reconfirm_needed", label: "Re-confirm needed" },
                 ]}
               />
               <FilterSelect
@@ -574,7 +631,10 @@ export default function RequestsTable({ requests }: Props) {
 
                   {/* Status */}
                   <td className="px-3 py-3">
-                    <StatusBadge status={effectiveStatus} />
+                    <div className="flex flex-col gap-1 items-start">
+                      <StatusBadge status={effectiveStatus} />
+                      <BriefStatusBadge status={req.brief_status} />
+                    </div>
                   </td>
 
                   {/* Matches */}
@@ -624,6 +684,17 @@ export default function RequestsTable({ requests }: Props) {
                     onClick={(e) => e.stopPropagation()}
                   >
                     <div className="flex items-center gap-1.5">
+                      {onEditRequest && (
+                        <button
+                          type="button"
+                          onClick={() => onEditRequest(req)}
+                          className="text-xs font-semibold px-2 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 hover:text-orange-600 transition flex items-center gap-1"
+                          title="Edit request in Deal Desk"
+                        >
+                          <span>✏️</span>
+                          <span>Edit</span>
+                        </button>
+                      )}
                       <button
                         type="button"
                         onClick={() =>

@@ -31,6 +31,7 @@ import {
   type ChaserLanguage,
   type ChaserRound,
 } from "@/lib/outreach/chaserTemplates";
+import { trackApiUsage } from "@/lib/usage/trackUsage";
 
 
 export async function updateRequestStatus(
@@ -138,6 +139,7 @@ export async function createQuickBuyer(
 }
 
 export interface CreateRequestForBuyerInput {
+  requestId?: string | null;
   buyer_id: string;
   name: string;
   email: string | null;
@@ -154,6 +156,310 @@ export interface CreateRequestForBuyerInput {
   image_urls?: string[];
   ai_analysis?: Record<string, unknown> | null;
   seller_brief?: string | null;
+}
+
+export interface SaveDraftRequestInput {
+  id?: string | null;
+  buyer_id?: string | null;
+  name?: string | null;
+  email?: string | null;
+  company?: string | null;
+  product_name?: string | null;
+  category?: string | null;
+  benchmark_brand?: string | null;
+  packaging_preference?: string | null;
+  volume_per_year?: string | null;
+  message?: string | null;
+  certifications?: string[];
+  target_market?: string | null;
+  private_label?: boolean | null;
+  image_urls?: string[];
+  ai_analysis?: Record<string, unknown> | null;
+  seller_brief?: string | null;
+}
+
+export async function saveDraftRequestAction(
+  input: SaveDraftRequestInput
+): Promise<{ ok: true; id: string; brief_status: string; saved_at: string } | { ok: false; error: string }> {
+  try {
+    const adminEmail = getAdminEmail() || "admin@fdx.trading";
+    const autoBrief =
+      input.seller_brief ||
+      (typeof input.ai_analysis?.seller_brief === "string" ? input.ai_analysis.seller_brief : "") ||
+      input.message ||
+      "";
+
+    const enrichedAiAnalysis: Record<string, unknown> = {
+      ...(input.ai_analysis ?? {}),
+      ...(input.benchmark_brand ? { benchmark_brand: input.benchmark_brand } : {}),
+      seller_brief: autoBrief,
+      ...(input.packaging_preference ? { packaging_format: input.packaging_preference } : {}),
+    };
+
+    let targetId = input.id;
+    let briefStatus = "draft";
+
+    if (targetId) {
+      // Update existing draft / request
+      const { data: existing, error: fetchErr } = await supabaseAdmin
+        .from("sourcing_requests")
+        .select("id, brief_status, brief_version, ai_analysis")
+        .eq("id", targetId)
+        .single();
+
+      if (fetchErr || !existing) {
+        throw new Error(fetchErr?.message || "Existing request not found");
+      }
+
+      briefStatus = existing.brief_status || "draft";
+
+      const { error: updateErr } = await supabaseAdmin
+        .from("sourcing_requests")
+        .update({
+          buyer_id: input.buyer_id || null,
+          name: input.name || null,
+          email: input.email || null,
+          company: input.company || null,
+          product_name: input.product_name || null,
+          category: input.category || null,
+          message: input.message || null,
+          certifications: input.certifications || [],
+          target_market: input.target_market || "Israel",
+          private_label: input.private_label ?? null,
+          packaging_preference: input.packaging_preference || null,
+          volume_per_year: input.volume_per_year || null,
+          ai_analysis: Object.keys(enrichedAiAnalysis).length > 0 ? enrichedAiAnalysis : null,
+        })
+        .eq("id", targetId);
+
+      if (updateErr) throw updateErr;
+
+      // Activity log if already active/sent
+      if (existing.brief_status === "confirmed" || existing.brief_status === "sent") {
+        await supabaseAdmin.from("sourcing_request_activity").insert({
+          request_id: targetId,
+          version: (existing.brief_version || 1) + 1,
+          type: "edit",
+          actor_type: "admin",
+          actor_name: adminEmail,
+          comment: "Draft updated by admin",
+        });
+      }
+    } else {
+      // Insert new draft record
+      const { data: newRow, error: insertErr } = await supabaseAdmin
+        .from("sourcing_requests")
+        .insert({
+          buyer_id: input.buyer_id || null,
+          name: input.name || "Draft Buyer",
+          email: input.email || null,
+          company: input.company || null,
+          product_name: input.product_name || "Untitled Sourcing Draft",
+          category: input.category || null,
+          message: input.message || null,
+          certifications: input.certifications || [],
+          target_market: input.target_market || "Israel",
+          private_label: input.private_label ?? null,
+          packaging_preference: input.packaging_preference || null,
+          volume_per_year: input.volume_per_year || null,
+          ai_analysis: Object.keys(enrichedAiAnalysis).length > 0 ? enrichedAiAnalysis : null,
+          source: "admin_on_behalf",
+          status: "draft",
+          brief_status: "draft",
+          brief_version: 1,
+        })
+        .select("id, brief_status")
+        .single();
+
+      if (insertErr || !newRow) throw insertErr || new Error("Failed to insert draft");
+      targetId = newRow.id;
+      briefStatus = newRow.brief_status || "draft";
+
+      await supabaseAdmin.from("sourcing_request_activity").insert({
+        request_id: targetId,
+        version: 1,
+        type: "created",
+        actor_type: "admin",
+        actor_name: adminEmail,
+        comment: "Sourcing draft initialized",
+      });
+    }
+
+    // Sync image URLs
+    if (input.image_urls && input.image_urls.length > 0 && targetId) {
+      try {
+        await supabaseAdmin.from("request_images").delete().eq("request_id", targetId);
+        await supabaseAdmin.from("request_images").insert(
+          input.image_urls.map((url) => ({
+            request_id: targetId,
+            url,
+            ai_analysis: input.ai_analysis ?? null,
+          }))
+        );
+      } catch (imgErr) {
+        console.warn("Syncing request_images error:", imgErr);
+      }
+    }
+
+    revalidatePath("/admin/requests");
+    const savedAt = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+    if (!targetId) throw new Error("Target draft ID could not be determined");
+    return { ok: true, id: targetId, brief_status: briefStatus, saved_at: savedAt };
+  } catch (err: any) {
+    console.error("saveDraftRequestAction error:", err);
+    return { ok: false, error: err.message || "Failed to save draft" };
+  }
+}
+
+export async function softDeleteRequestAction(
+  requestId: string
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  try {
+    const adminEmail = getAdminEmail() || "admin@fdx.trading";
+    const { error } = await supabaseAdmin
+      .from("sourcing_requests")
+      .update({
+        deleted_at: new Date().toISOString(),
+        deleted_by: adminEmail,
+      })
+      .eq("id", requestId);
+
+    if (error) throw error;
+
+    await supabaseAdmin.from("sourcing_request_activity").insert({
+      request_id: requestId,
+      type: "deleted",
+      actor_type: "admin",
+      actor_name: adminEmail,
+      comment: "Request moved to Trash & Archive",
+    });
+
+    revalidatePath("/admin/requests");
+    revalidatePath("/admin/settings/trash");
+    return { ok: true };
+  } catch (err: any) {
+    console.error("softDeleteRequestAction error:", err);
+    return { ok: false, error: err.message || "Failed to delete request" };
+  }
+}
+
+export async function restoreRequestAction(
+  requestId: string
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  try {
+    const adminEmail = getAdminEmail() || "admin@fdx.trading";
+    const { error } = await supabaseAdmin
+      .from("sourcing_requests")
+      .update({
+        deleted_at: null,
+        deleted_by: null,
+      })
+      .eq("id", requestId);
+
+    if (error) throw error;
+
+    await supabaseAdmin.from("sourcing_request_activity").insert({
+      request_id: requestId,
+      type: "restored",
+      actor_type: "admin",
+      actor_name: adminEmail,
+      comment: "Request restored from Trash",
+    });
+
+    revalidatePath("/admin/requests");
+    revalidatePath("/admin/settings/trash");
+    return { ok: true };
+  } catch (err: any) {
+    console.error("restoreRequestAction error:", err);
+    return { ok: false, error: err.message || "Failed to restore request" };
+  }
+}
+
+export async function permanentDeleteRequestAction(
+  requestId: string
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  try {
+    // Delete foreign associations
+    await supabaseAdmin.from("sourcing_matches").delete().eq("request_id", requestId);
+    await supabaseAdmin.from("request_images").delete().eq("request_id", requestId);
+    await supabaseAdmin.from("brief_tokens").delete().eq("request_id", requestId);
+    await supabaseAdmin.from("sourcing_request_activity").delete().eq("request_id", requestId);
+    await supabaseAdmin.from("pips").delete().eq("sourcing_request_id", requestId);
+
+    const { error } = await supabaseAdmin
+      .from("sourcing_requests")
+      .delete()
+      .eq("id", requestId);
+
+    if (error) throw error;
+
+    revalidatePath("/admin/requests");
+    revalidatePath("/admin/settings/trash");
+    return { ok: true };
+  } catch (err: any) {
+    console.error("permanentDeleteRequestAction error:", err);
+    return { ok: false, error: err.message || "Failed to permanently delete request" };
+  }
+}
+
+export async function updateBriefStatusAction(
+  requestId: string,
+  status: "draft" | "sent" | "changes_requested" | "confirmed" | "reconfirm_needed",
+  confirmedVia?: "buyer_link" | "admin_override",
+  notes?: string
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  try {
+    const adminEmail = getAdminEmail() || "admin@fdx.trading";
+    const updatePayload: Record<string, any> = {
+      brief_status: status,
+    };
+
+    if (status === "confirmed") {
+      updatePayload.confirmed_at = new Date().toISOString();
+      updatePayload.confirmed_by = adminEmail;
+      updatePayload.confirmed_via = confirmedVia || "admin_override";
+    }
+
+    const { data: req } = await supabaseAdmin
+      .from("sourcing_requests")
+      .select("ai_analysis")
+      .eq("id", requestId)
+      .single();
+
+    const existingAiAnalysis = (req?.ai_analysis as Record<string, unknown> | null) ?? {};
+    updatePayload.ai_analysis = {
+      ...existingAiAnalysis,
+      buyer_brief_approval: {
+        status: status === "confirmed" ? "approved" : status === "sent" ? "submitted_to_buyer" : "draft",
+        approved_at: status === "confirmed" ? new Date().toISOString() : null,
+        approved_by: status === "confirmed" ? adminEmail : null,
+        notes: notes || null,
+        updated_at: new Date().toISOString(),
+      },
+    };
+
+    const { error } = await supabaseAdmin
+      .from("sourcing_requests")
+      .update(updatePayload)
+      .eq("id", requestId);
+
+    if (error) throw error;
+
+    await supabaseAdmin.from("sourcing_request_activity").insert({
+      request_id: requestId,
+      type: status === "confirmed" ? (confirmedVia === "buyer_link" ? "confirmed" : "admin_override") : status === "sent" ? "sent" : "edit",
+      actor_type: confirmedVia === "buyer_link" ? "buyer" : "admin",
+      actor_name: adminEmail,
+      comment: notes || (status === "confirmed" ? "Brief approved by admin override" : `Status updated to ${status}`),
+    });
+
+    revalidatePath("/admin/requests");
+    revalidatePath(`/admin/requests/${requestId}`);
+    return { ok: true };
+  } catch (err: any) {
+    console.error("updateBriefStatusAction error:", err);
+    return { ok: false, error: err.message || "Failed to update brief status" };
+  }
 }
 
 export async function createRequestForBuyer(
@@ -177,39 +483,74 @@ export async function createRequestForBuyer(
     ...(input.packaging_preference ? { packaging_format: input.packaging_preference } : {}),
   };
 
-  const { data: newRequest, error } = await supabaseAdmin
-    .from("sourcing_requests")
-    .insert({
-      buyer_id: input.buyer_id,
-      name: input.name,
-      email: input.email,
-      company: input.company || buyer?.company_name || null,
-      product_name: input.product_name,
-      category: input.category,
-      message: input.message,
-      certifications: input.certifications,
-      target_market: input.target_market,
-      private_label: input.private_label,
-      packaging_preference: input.packaging_preference || null,
-      volume_per_year: input.volume_per_year || null,
-      ai_analysis: Object.keys(enrichedAiAnalysis).length > 0 ? enrichedAiAnalysis : null,
-      source: "admin_on_behalf",
-      status: "new",
-    })
-    .select("id")
-    .single();
+  let requestId = input.requestId;
 
-  if (error || !newRequest) {
-    console.error("createRequestForBuyer error:", error);
-    return { ok: false, error: error?.message ?? "Failed to create request" };
+  if (requestId) {
+    // Promote existing draft to active request
+    const { error: updateErr } = await supabaseAdmin
+      .from("sourcing_requests")
+      .update({
+        buyer_id: input.buyer_id,
+        name: input.name,
+        email: input.email,
+        company: input.company || buyer?.company_name || null,
+        product_name: input.product_name,
+        category: input.category,
+        message: input.message,
+        certifications: input.certifications,
+        target_market: input.target_market,
+        private_label: input.private_label,
+        packaging_preference: input.packaging_preference || null,
+        volume_per_year: input.volume_per_year || null,
+        ai_analysis: Object.keys(enrichedAiAnalysis).length > 0 ? enrichedAiAnalysis : null,
+        status: "new",
+      })
+      .eq("id", requestId);
+
+    if (updateErr) {
+      console.error("createRequestForBuyer update error:", updateErr);
+      return { ok: false, error: updateErr.message };
+    }
+  } else {
+    // Insert new sourcing request row
+    const { data: newRequest, error } = await supabaseAdmin
+      .from("sourcing_requests")
+      .insert({
+        buyer_id: input.buyer_id,
+        name: input.name,
+        email: input.email,
+        company: input.company || buyer?.company_name || null,
+        product_name: input.product_name,
+        category: input.category,
+        message: input.message,
+        certifications: input.certifications,
+        target_market: input.target_market,
+        private_label: input.private_label,
+        packaging_preference: input.packaging_preference || null,
+        volume_per_year: input.volume_per_year || null,
+        ai_analysis: Object.keys(enrichedAiAnalysis).length > 0 ? enrichedAiAnalysis : null,
+        source: "admin_on_behalf",
+        status: "new",
+        brief_status: "draft",
+        brief_version: 1,
+      })
+      .select("id")
+      .single();
+
+    if (error || !newRequest) {
+      console.error("createRequestForBuyer error:", error);
+      return { ok: false, error: error?.message ?? "Failed to create request" };
+    }
+    requestId = newRequest.id;
   }
 
-  // 1. Insert image URLs if provided
-  if (input.image_urls && input.image_urls.length > 0) {
+  // 1. Insert/Sync image URLs if provided
+  if (input.image_urls && input.image_urls.length > 0 && requestId) {
     try {
+      await supabaseAdmin.from("request_images").delete().eq("request_id", requestId);
       await supabaseAdmin.from("request_images").insert(
         input.image_urls.map((url) => ({
-          request_id: newRequest.id,
+          request_id: requestId,
           url,
           ai_analysis: input.ai_analysis ?? null,
         }))
@@ -266,19 +607,21 @@ export async function createRequestForBuyer(
         intent_json: pip,
         ...(category_name && !input.category ? { category: category_name } : {}),
       })
-      .eq("id", newRequest.id);
+      .eq("id", requestId);
 
     // Run image grouping if images exist
-    if (input.image_urls && input.image_urls.length > 0) {
+    if (input.image_urls && input.image_urls.length > 0 && requestId) {
       try {
-        await groupImages(newRequest.id);
+        await groupImages(requestId as string);
       } catch (err) {
         console.warn("groupImages failed (continuing to match):", err);
       }
     }
 
     // Run reverse-matching v3
-    await runMatchV3(newRequest.id);
+    if (requestId) {
+      await runMatchV3(requestId as string);
+    }
   } catch (matchErr) {
     console.error("Automated PIP / match generation error:", matchErr);
   }
@@ -299,7 +642,7 @@ export async function createRequestForBuyer(
         supplier_id,
         match_breakdown
       `)
-      .eq("request_id", newRequest.id)
+      .eq("request_id", requestId)
       .order("match_score", { ascending: false })
       .limit(10);
     if (matchedRows) {
@@ -316,7 +659,7 @@ export async function createRequestForBuyer(
     targetId: input.buyer_id,
     targetEmail: (buyer?.contact_email as string | null) ?? null,
     metadata: {
-      sourcing_request_id: newRequest.id,
+      sourcing_request_id: requestId,
       product_name: input.product_name,
       note: "Submitted request on behalf of buyer with machine vision and reverse-matched",
     },
@@ -325,7 +668,7 @@ export async function createRequestForBuyer(
   try {
     revalidatePath("/admin/requests");
   } catch {}
-  return { ok: true, id: newRequest.id as string, matches: initialMatches };
+  return { ok: true, id: requestId as string, matches: initialMatches };
 }
 
 export async function getQuickMatchesAction(
@@ -358,6 +701,7 @@ export async function getQuickMatchesAction(
 }
 
 export interface SendBriefConfirmationInput {
+  requestId?: string | null;
   buyerEmail: string;
   buyerName?: string | null;
   buyerCompany?: string | null;
@@ -578,7 +922,63 @@ export async function sendBriefConfirmationEmailAction(
 
       if (error) {
         console.error("Resend error sending brief confirmation:", error);
+        if (input.requestId) {
+          await trackApiUsage({
+            provider: "resend",
+            feature: "deal_desk.confirm_email",
+            units: 1,
+            requestId: input.requestId,
+            keyAlias: "RESEND_API_KEY",
+            ok: false,
+            error: error.message,
+          });
+        }
         return { ok: false, error: error.message };
+      }
+
+      if (input.requestId) {
+        const adminEmail = getAdminEmail() || "admin@fdx.trading";
+        const updatePayload: Record<string, any> = {
+          brief_status: "sent",
+          brief_sent_at: new Date().toISOString(),
+        };
+
+        const { data: req } = await supabaseAdmin
+          .from("sourcing_requests")
+          .select("ai_analysis")
+          .eq("id", input.requestId)
+          .single();
+
+        const existingAiAnalysis = (req?.ai_analysis as Record<string, unknown> | null) ?? {};
+        updatePayload.ai_analysis = {
+          ...existingAiAnalysis,
+          buyer_brief_approval: {
+            status: "submitted_to_buyer",
+            updated_at: new Date().toISOString(),
+          },
+        };
+
+        await supabaseAdmin
+          .from("sourcing_requests")
+          .update(updatePayload)
+          .eq("id", input.requestId);
+
+        await supabaseAdmin.from("sourcing_request_activity").insert({
+          request_id: input.requestId,
+          type: "sent",
+          actor_type: "admin",
+          actor_name: adminEmail,
+          comment: `Sourcing brief confirmation email sent to ${buyerEmail.trim().toLowerCase()}`,
+        });
+
+        await trackApiUsage({
+          provider: "resend",
+          feature: "deal_desk.confirm_email",
+          units: 1,
+          requestId: input.requestId,
+          keyAlias: "RESEND_API_KEY",
+          ok: true,
+        });
       }
 
       return {
@@ -586,6 +986,25 @@ export async function sendBriefConfirmationEmailAction(
         messageId: data?.id,
       };
     } else {
+      if (input.requestId) {
+        const adminEmail = getAdminEmail() || "admin@fdx.trading";
+        await supabaseAdmin
+          .from("sourcing_requests")
+          .update({
+            brief_status: "sent",
+            brief_sent_at: new Date().toISOString(),
+          })
+          .eq("id", input.requestId);
+
+        await supabaseAdmin.from("sourcing_request_activity").insert({
+          request_id: input.requestId,
+          type: "sent",
+          actor_type: "admin",
+          actor_name: adminEmail,
+          comment: `(Simulated) Sourcing brief confirmation email dispatched to ${buyerEmail.trim().toLowerCase()}`,
+        });
+      }
+
       return {
         ok: true,
         simulated: true,
@@ -593,6 +1012,17 @@ export async function sendBriefConfirmationEmailAction(
     }
   } catch (err: any) {
     console.error("sendBriefConfirmationEmailAction error:", err);
+    if (input.requestId) {
+      await trackApiUsage({
+        provider: "resend",
+        feature: "deal_desk.confirm_email",
+        units: 1,
+        requestId: input.requestId,
+        keyAlias: "RESEND_API_KEY",
+        ok: false,
+        error: err?.message,
+      });
+    }
     return { ok: false, error: err?.message || "Failed to dispatch email" };
   }
 }
