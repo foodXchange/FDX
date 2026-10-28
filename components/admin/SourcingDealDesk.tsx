@@ -12,7 +12,11 @@ import {
   saveDraftRequestAction,
   softDeleteRequestAction,
   updateBriefStatusAction,
+  runLayeredAnalysisAction,
+  createBriefTokenAction,
+  adminOverrideConfirmBriefAction,
 } from "@/app/admin/requests/actions";
+import type { LayeredAnalysisResult, LayeredProductCard } from "@/lib/ai/layeredAnalysis";
 import type { RequestRow } from "@/app/admin/requests/page";
 import RequestsTable from "@/components/admin/RequestsTable";
 import AgentCommandRadar from "@/components/admin/AgentCommandRadar";
@@ -78,7 +82,28 @@ export default function SourcingDealDesk({
   // Active View mode: Unified Split-Screen vs Full Tabular Registry
   const [activeTab, setActiveTab] = useState<"intake_desk" | "registry_table">("intake_desk");
 
-  // 1. Buyer Selection State
+  // 1. Collapsible 5-Step Funnel State
+  const [openSections, setOpenSections] = useState<Record<number, boolean>>({
+    1: true, // Step 1: Buyer Intake
+    2: true, // Step 2: Request Scope & Reference Visuals
+    3: true, // Step 3: Layered AI Analysis & Catalog Matches
+    4: true, // Step 4: Sourcing Brief Draft
+    5: true, // Step 5: Buyer Confirmation Hub & Matching Lock
+  });
+
+  function toggleSection(step: number) {
+    setOpenSections((prev) => ({ ...prev, [step]: !prev[step] }));
+  }
+
+  function expandAll() {
+    setOpenSections({ 1: true, 2: true, 3: true, 4: true, 5: true });
+  }
+
+  function collapseAll() {
+    setOpenSections({ 1: false, 2: false, 3: false, 4: false, 5: false });
+  }
+
+  // 2. Buyer Selection State
   const [buyersList, setBuyersList] = useState<BuyerOption[]>(initialBuyers);
   const [buyerSearchQuery, setBuyerSearchQuery] = useState("");
   const [selectedBuyer, setSelectedBuyer] = useState<BuyerOption | null>(null);
@@ -95,19 +120,20 @@ export default function SourcingDealDesk({
     website: "",
   });
 
-  // Filtered buyers for instant combobox search
   const filteredBuyers = useMemo(() => {
     if (!buyerSearchQuery.trim()) return buyersList.slice(0, 8);
     const q = buyerSearchQuery.toLowerCase();
-    return buyersList.filter(
-      (b) =>
-        b.company_name.toLowerCase().includes(q) ||
-        (b.contact_name && b.contact_name.toLowerCase().includes(q)) ||
-        (b.website && b.website.toLowerCase().includes(q))
-    ).slice(0, 10);
+    return buyersList
+      .filter(
+        (b) =>
+          b.company_name.toLowerCase().includes(q) ||
+          (b.contact_name && b.contact_name.toLowerCase().includes(q)) ||
+          (b.website && b.website.toLowerCase().includes(q))
+      )
+      .slice(0, 10);
   }, [buyersList, buyerSearchQuery]);
 
-  // 2. Project & Sourcing Form State
+  // 3. Project & Sourcing Form State
   const [projectTitle, setProjectTitle] = useState("");
   const [benchmarkBrands, setBenchmarkBrands] = useState("");
   const [category, setCategory] = useState("");
@@ -123,28 +149,38 @@ export default function SourcingDealDesk({
   ]);
   const [naturalBrief, setNaturalBrief] = useState("");
 
-  // Machine Vision & Upload state
+  // 4. Machine Vision, Upload & Layered Analysis State
   const [uploadingImage, setUploadingImage] = useState(false);
   const [analysingVision, setAnalysingVision] = useState(false);
   const [imageUrls, setImageUrls] = useState<string[]>([]);
   const [pasteUrlInput, setPasteUrlInput] = useState("");
   const [showUrlInput, setShowUrlInput] = useState(false);
-  const [visionData, setVisionData] = useState<any>(null);
   const [visionSummary, setVisionSummary] = useState<string | null>(null);
+  const [layeredAnalysis, setLayeredAnalysis] = useState<LayeredAnalysisResult | null>(null);
 
-  // Email Confirmation to Buyer state
+  // 5. Brief Status & Buyer Confirmation State
+  const [briefStatus, setBriefStatus] = useState<
+    "draft" | "sent" | "changes_requested" | "confirmed" | "reconfirm_needed"
+  >("draft");
+  const [briefVersion, setBriefVersion] = useState(1);
   const [sendingEmail, setSendingEmail] = useState(false);
   const [emailNotice, setEmailNotice] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [showEmailModal, setShowEmailModal] = useState(false);
   const [emailSubject, setEmailSubject] = useState("");
   const [emailCustomNotes, setEmailCustomNotes] = useState("");
 
+  // Admin Override Modal
+  const [showOverrideModal, setShowOverrideModal] = useState(false);
+  const [overrideNotes, setOverrideNotes] = useState("");
+  const [isOverridingConfirm, setIsOverridingConfirm] = useState(false);
+
+  // Copy Public Brief Link
+  const [copiedLinkNotice, setCopiedLinkNotice] = useState(false);
+  const [generatingLink, setGeneratingLink] = useState(false);
+
   // Draft Saving & Persistence state
   const [savedDraftNotice, setSavedDraftNotice] = useState<string | null>(null);
   const [isSavingDraft, setIsSavingDraft] = useState(false);
-  const [briefStatus, setBriefStatus] = useState<
-    "draft" | "sent" | "changes_requested" | "confirmed" | "reconfirm_needed"
-  >("draft");
   const [saveToast, setSaveToast] = useState<{
     visible: boolean;
     savedAt: string;
@@ -158,7 +194,6 @@ export default function SourcingDealDesk({
   // Soft Delete state
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [deletingRequest, setDeletingRequest] = useState(false);
-  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
 
   // Submission & Live Matches display
   const [isSubmitting, startTransition] = useTransition();
@@ -167,14 +202,14 @@ export default function SourcingDealDesk({
   const [liveMatches, setLiveMatches] = useState<any[]>([]);
   const [fetchingMatches, setFetchingMatches] = useState(false);
 
-  // Select a buyer from combobox
+  // Buyer selection handler
   function handleSelectBuyer(b: BuyerOption) {
     setSelectedBuyer(b);
     setBuyerSearchQuery(b.company_name);
     setTargetMarket(b.country || "Israel");
   }
 
-  // Toggle dietary / certification tag
+  // Toggle dietary / certification booster
   function toggleTag(tag: string) {
     setSelectedTags((prev) =>
       prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]
@@ -223,7 +258,7 @@ export default function SourcingDealDesk({
     }
   }
 
-  // Helper to safely parse JSON responses and avoid SyntaxError on HTML errors
+  // Safe JSON helper
   async function safeJsonParse<T = any>(res: Response): Promise<{ ok: boolean; data?: T; error?: string }> {
     try {
       const text = await res.text();
@@ -244,7 +279,7 @@ export default function SourcingDealDesk({
     }
   }
 
-  // Handle File Uploads (Multiple files, No Auto-Analyze)
+  // File Uploads
   async function handleFileUpload(files: FileList | null) {
     if (!files || files.length === 0) return;
     setUploadingImage(true);
@@ -274,7 +309,7 @@ export default function SourcingDealDesk({
     }
   }
 
-  // Handle Pasting Image URL directly
+  // Pasting Image URL directly
   function handleAddImageUrl() {
     const trimmed = pasteUrlInput.trim();
     if (!trimmed) return;
@@ -293,7 +328,7 @@ export default function SourcingDealDesk({
     setImageUrls((prev) => prev.filter((_, idx) => idx !== idxToRemove));
   }
 
-  // Explicit Button-Triggered Analysis for 1 or more images
+  // Layered AI Vision Analysis (Deep Multi-Product Extraction + Catalog Check)
   async function handleAnalyzeImages() {
     if (imageUrls.length === 0) {
       setErrorMsg("Please upload files or paste at least one image URL first.");
@@ -303,52 +338,53 @@ export default function SourcingDealDesk({
     setErrorMsg(null);
 
     try {
-      const extractedNotes: string[] = [];
-      let lastAnalysis: any = null;
+      const res = await runLayeredAnalysisAction({
+        imageUrls,
+        briefText: naturalBrief,
+        requestId: createdRequestId || undefined,
+      });
 
-      for (let i = 0; i < imageUrls.length; i++) {
-        const url = imageUrls[i];
-        const visionRes = await fetch("/api/sourcing/analyse-image", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ imageUrl: url }),
-        });
-        const parsed = await safeJsonParse<{ analysis?: any }>(visionRes);
-        const data = parsed.data;
-        if (data?.analysis) {
-          const a = data.analysis;
-          lastAnalysis = a;
-          const pName = a.product_name?.value || a.product_name || a.product_noun?.value || "";
-          const pBrand = a.benchmark_brand?.value || a.brand?.value || "";
-          const certs = a.certifications_visible?.value || a.certifications_visible || [];
-          const kMarks = a.kosher_marks_visible?.value || a.kosher_marks_visible || [];
-          const rawOcr = a.raw_text_ocr ? ` (OCR: ${a.raw_text_ocr.slice(0, 150)}...)` : "";
-
-          extractedNotes.push(
-            `• Visual Spec #${i + 1}: ${[pName, pBrand ? `Brand: ${pBrand}` : "", certs.length ? `Certs: ${certs.join(",")}` : "", kMarks.length ? `Kosher: ${kMarks.join(",")}` : ""].filter(Boolean).join(" | ")}${rawOcr}`
-          );
-
-          if (!projectTitle && pName) {
-            setProjectTitle(pName);
-          }
-          if (!benchmarkBrands && pBrand) {
-            setBenchmarkBrands(pBrand);
-          }
-        }
+      if (!res.ok) {
+        throw new Error(res.error || "Analysis failed");
       }
 
-      setVisionData(lastAnalysis);
-      const combinedSummary = extractedNotes.join("\n");
-      setVisionSummary(combinedSummary);
+      const result = res.data;
+      setLayeredAnalysis(result);
 
-      // Append extracted visual specifications directly into Project Brief
-      setNaturalBrief((prev) => {
-        const header = "\n\n[📸 Extracted Visual Product Specifications]:\n";
-        if (prev.includes("[📸 Extracted Visual Product Specifications]")) {
-          return prev;
-        }
-        return prev ? `${prev}${header}${combinedSummary}` : combinedSummary;
-      });
+      // 1. Merge shared dietary claims & certifications into selected tags
+      const combinedClaims = [
+        ...(result.shared_dna?.dietary || []),
+        ...(result.shared_dna?.certifications || []),
+      ];
+      if (combinedClaims.length > 0) {
+        setSelectedTags((prev) => {
+          const nextSet = new Set(prev);
+          combinedClaims.forEach((c) => nextSet.add(c));
+          return Array.from(nextSet);
+        });
+      }
+
+      // 2. Autofill Title, Brand, Category if blank
+      if (!projectTitle.trim() && result.products[0]?.product_name) {
+        setProjectTitle(result.products[0].product_name);
+      }
+      if (!benchmarkBrands.trim() && result.products[0]?.brand_name) {
+        setBenchmarkBrands(result.products[0].brand_name);
+      }
+      if (!category && result.category_groups[0]?.category_name) {
+        setCategory(result.category_groups[0].category_name);
+      }
+
+      // 3. Update brief text if synthesized
+      if (result.synthesized_brief) {
+        setNaturalBrief(result.synthesized_brief);
+      }
+
+      // 4. Automatically expand Step 3 and Step 4 so user can review
+      setOpenSections((prev) => ({ ...prev, 3: true, 4: true }));
+      setVisionSummary(
+        `✓ Analyzed ${result.products?.length || 0} product SKU(s) across ${imageUrls.length} images. Shared DNA: ${result.shared_dna?.dietary?.join(", ") || "General specialty"}`
+      );
     } catch (err: any) {
       setErrorMsg(err.message || "Vision extraction error");
     } finally {
@@ -356,47 +392,26 @@ export default function SourcingDealDesk({
     }
   }
 
-  // Open Preview Modal before sending confirmation email
-  function handleOpenEmailPreviewModal() {
-    if (!selectedBuyer) {
-      setEmailNotice({
-        type: "error",
-        text: "Please select or quick-register a buyer first before emailing brief confirmation.",
-      });
-      return;
-    }
-    if (!selectedBuyer.contact_email) {
-      setEmailNotice({
-        type: "error",
-        text: `Buyer "${selectedBuyer.company_name}" has no email on file. Please add an email address.`,
-      });
-      return;
-    }
-    if (!projectTitle.trim() && !naturalBrief.trim()) {
-      setEmailNotice({
-        type: "error",
-        text: "Please enter a product title or brief notes to include in the confirmation email.",
-      });
-      return;
-    }
-
-    setEmailNotice(null);
-    setEmailSubject(`Sourcing Brief Confirmation: ${projectTitle || "Specialty Sourcing Project"} — FoodXchange`);
-    setShowEmailModal(true);
+  // Update a single product card field inline
+  function updateProductCard(cardId: string, patch: Partial<LayeredProductCard>) {
+    if (!layeredAnalysis) return;
+    setLayeredAnalysis({
+      ...layeredAnalysis,
+      products: layeredAnalysis.products.map((p) =>
+        p.id === cardId ? { ...p, ...patch } : p
+      ),
+    });
   }
 
-  // Manually triggered Email Send to Buyer after user confirmation in modal
-  async function handleSendConfirmedEmail() {
-    if (!selectedBuyer || !selectedBuyer.contact_email) return;
-
-    setSendingEmail(true);
-
+  // Save current project draft to Cloud + Local storage
+  const handleSaveDraft = async (silent = false): Promise<string | null> => {
+    setIsSavingDraft(true);
+    const draftTime = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
     try {
-      const res = await sendBriefConfirmationEmailAction({
+      const draft = {
         requestId: createdRequestId,
-        buyerEmail: selectedBuyer.contact_email,
-        buyerName: selectedBuyer.contact_name,
-        buyerCompany: selectedBuyer.company_name,
+        buyerId: selectedBuyer?.id || null,
+        buyerSearchQuery,
         projectTitle,
         benchmarkBrands,
         category,
@@ -407,30 +422,104 @@ export default function SourcingDealDesk({
         selectedTags,
         naturalBrief,
         imageUrls,
-        customSubject: emailSubject,
-        customNotes: emailCustomNotes,
+        layeredAnalysis,
+        briefStatus,
+        savedAt: draftTime,
+      };
+      localStorage.setItem("fdx_deal_desk_draft", JSON.stringify(draft));
+
+      // Persist to Supabase Database
+      const res = await saveDraftRequestAction({
+        id: createdRequestId,
+        buyer_id: selectedBuyer?.id || null,
+        name: selectedBuyer?.contact_name || selectedBuyer?.company_name || "Draft Buyer",
+        email: selectedBuyer?.contact_email || null,
+        company: selectedBuyer?.company_name || null,
+        product_name: projectTitle.trim() || "Untitled Sourcing Draft",
+        category: category || null,
+        benchmark_brand: benchmarkBrands || null,
+        packaging_preference: packagingFormat || null,
+        volume_per_year: estimatedVolume || null,
+        message: naturalBrief || null,
+        certifications: selectedTags,
+        target_market: targetMarket || "Israel",
+        private_label: brandingModel === "private_label" ? true : brandingModel === "supplier_brand" ? false : null,
+        image_urls: imageUrls,
+        ai_analysis: {
+          layered_analysis: layeredAnalysis,
+        },
       });
 
-      if (!res.ok) {
-        throw new Error(res.error || "Failed to dispatch confirmation email");
+      if (res.ok) {
+        setCreatedRequestId(res.id);
+        const resolvedStatus = (res.brief_status as any) || briefStatus || "draft";
+        setBriefStatus(resolvedStatus);
+
+        if (!silent) {
+          setSaveToast({
+            visible: true,
+            savedAt: res.saved_at || draftTime,
+            requestId: res.id,
+            briefStatus: resolvedStatus,
+            projectTitle: projectTitle.trim() || "Sourcing Brief Draft",
+            buyerName: selectedBuyer?.company_name || "Unassigned Buyer",
+          });
+        }
+        setSavedDraftNotice(`✓ Cloud draft saved at ${res.saved_at || draftTime}`);
+        setTimeout(() => setSavedDraftNotice(null), 3500);
+        return res.id;
+      } else {
+        if (!silent) {
+          setSavedDraftNotice(`✓ Local draft saved at ${draftTime}`);
+          setTimeout(() => setSavedDraftNotice(null), 3500);
+        }
+        return null;
       }
-
-      setBriefStatus("sent");
-      setShowEmailModal(false);
-      setEmailCustomNotes("");
-      setEmailNotice({
-        type: "success",
-        text: `Confirmation email successfully sent to ${selectedBuyer.contact_email}${res.simulated ? " (simulated)" : ""}!`,
-      });
-    } catch (err: any) {
-      setEmailNotice({
-        type: "error",
-        text: err?.message || "Failed to send confirmation email",
-      });
+    } catch (err) {
+      console.error("Failed to save draft:", err);
+      if (!silent) {
+        setSavedDraftNotice(`✓ Local draft saved at ${draftTime}`);
+        setTimeout(() => setSavedDraftNotice(null), 3500);
+      }
+      return null;
     } finally {
-      setSendingEmail(false);
+      setIsSavingDraft(false);
     }
-  }
+  };
+
+  // 30s debounced autosave
+  useEffect(() => {
+    if (!projectTitle.trim() && !selectedBuyer) return;
+    const timer = setTimeout(() => {
+      handleSaveDraft(true);
+    }, 30000);
+    return () => clearTimeout(timer);
+  }, [
+    projectTitle,
+    selectedBuyer,
+    benchmarkBrands,
+    category,
+    packagingFormat,
+    estimatedVolume,
+    brandingModel,
+    targetMarket,
+    selectedTags,
+    naturalBrief,
+    imageUrls,
+    layeredAnalysis,
+  ]);
+
+  // Global Ctrl + S / Cmd + S keyboard shortcut to save
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if ((e.ctrlKey || e.metaKey) && (e.key === "s" || e.key === "S")) {
+        e.preventDefault();
+        handleSaveDraft();
+      }
+    }
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  });
 
   // Auto-dismiss save toast after 6 seconds unless hovered
   useEffect(() => {
@@ -469,7 +558,13 @@ export default function SourcingDealDesk({
       setBuyerSearchQuery(req.company);
     }
     if (req.brief_status) {
-      setBriefStatus(req.brief_status);
+      setBriefStatus(req.brief_status as any);
+    }
+    if (req.ai_analysis && typeof req.ai_analysis === "object") {
+      const aiObj = req.ai_analysis as any;
+      if (aiObj.layered_analysis) {
+        setLayeredAnalysis(aiObj.layered_analysis);
+      }
     }
     setActiveTab("intake_desk");
   }
@@ -483,105 +578,6 @@ export default function SourcingDealDesk({
     }
   }, [initialEditId, requests]);
 
-  // Save current project draft to Cloud + Local storage
-  const handleSaveDraft = async (silent = false) => {
-    setIsSavingDraft(true);
-    const draftTime = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
-    try {
-      const draft = {
-        requestId: createdRequestId,
-        buyerId: selectedBuyer?.id || null,
-        buyerSearchQuery,
-        projectTitle,
-        benchmarkBrands,
-        category,
-        packagingFormat,
-        estimatedVolume,
-        brandingModel,
-        targetMarket,
-        selectedTags,
-        naturalBrief,
-        imageUrls,
-        briefStatus,
-        savedAt: draftTime,
-      };
-      localStorage.setItem("fdx_deal_desk_draft", JSON.stringify(draft));
-
-      // Persist to Supabase Database
-      const res = await saveDraftRequestAction({
-        id: createdRequestId,
-        buyer_id: selectedBuyer?.id || null,
-        name: selectedBuyer?.contact_name || selectedBuyer?.company_name || "Draft Buyer",
-        email: selectedBuyer?.contact_email || null,
-        company: selectedBuyer?.company_name || null,
-        product_name: projectTitle.trim() || "Untitled Sourcing Draft",
-        category: category || null,
-        benchmark_brand: benchmarkBrands || null,
-        packaging_preference: packagingFormat || null,
-        volume_per_year: estimatedVolume || null,
-        message: naturalBrief || null,
-        certifications: selectedTags,
-        target_market: targetMarket || "Israel",
-        private_label: brandingModel === "private_label" ? true : brandingModel === "supplier_brand" ? false : null,
-        image_urls: imageUrls,
-        ai_analysis: visionData || null,
-      });
-
-      if (res.ok) {
-        setCreatedRequestId(res.id);
-        const resolvedStatus = (res.brief_status as any) || briefStatus || "draft";
-        setBriefStatus(resolvedStatus);
-
-        if (!silent) {
-          setSaveToast({
-            visible: true,
-            savedAt: res.saved_at || draftTime,
-            requestId: res.id,
-            briefStatus: resolvedStatus,
-            projectTitle: projectTitle.trim() || "Sourcing Brief Draft",
-            buyerName: selectedBuyer?.company_name || "Unassigned Buyer",
-          });
-        }
-        setSavedDraftNotice(`✓ Cloud draft saved at ${res.saved_at || draftTime}`);
-        setTimeout(() => setSavedDraftNotice(null), 3500);
-      } else {
-        if (!silent) {
-          setSavedDraftNotice(`✓ Local draft saved at ${draftTime}`);
-          setTimeout(() => setSavedDraftNotice(null), 3500);
-        }
-      }
-    } catch (err) {
-      console.error("Failed to save draft:", err);
-      if (!silent) {
-        setSavedDraftNotice(`✓ Local draft saved at ${draftTime}`);
-        setTimeout(() => setSavedDraftNotice(null), 3500);
-      }
-    } finally {
-      setIsSavingDraft(false);
-    }
-  };
-
-  // 30s debounced autosave when title or buyer are present
-  useEffect(() => {
-    if (!projectTitle.trim() && !selectedBuyer) return;
-    const timer = setTimeout(() => {
-      handleSaveDraft(true);
-    }, 30000);
-    return () => clearTimeout(timer);
-  }, [
-    projectTitle,
-    selectedBuyer,
-    benchmarkBrands,
-    category,
-    packagingFormat,
-    estimatedVolume,
-    brandingModel,
-    targetMarket,
-    selectedTags,
-    naturalBrief,
-    imageUrls,
-  ]);
-
   // Soft Delete handler
   async function handleDeleteCurrentRequest() {
     if (!createdRequestId) {
@@ -589,6 +585,7 @@ export default function SourcingDealDesk({
       setProjectTitle("");
       setNaturalBrief("");
       setImageUrls([]);
+      setLayeredAnalysis(null);
       setDeleteConfirmOpen(false);
       setSavedDraftNotice("Draft discarded");
       setTimeout(() => setSavedDraftNotice(null), 3000);
@@ -604,6 +601,7 @@ export default function SourcingDealDesk({
       setProjectTitle("");
       setNaturalBrief("");
       setImageUrls([]);
+      setLayeredAnalysis(null);
       setDeleteConfirmOpen(false);
       setSavedDraftNotice("Request moved to Trash & Archive");
       router.refresh();
@@ -617,7 +615,7 @@ export default function SourcingDealDesk({
 
   // Restore saved draft on mount
   useEffect(() => {
-    if (initialEditId) return; // Skip local restore if specifically editing an ID
+    if (initialEditId) return;
     try {
       const raw = localStorage.getItem("fdx_deal_desk_draft");
       if (raw) {
@@ -633,6 +631,7 @@ export default function SourcingDealDesk({
         if (Array.isArray(d.selectedTags) && d.selectedTags.length > 0) setSelectedTags(d.selectedTags);
         if (d.naturalBrief) setNaturalBrief(d.naturalBrief);
         if (Array.isArray(d.imageUrls)) setImageUrls(d.imageUrls);
+        if (d.layeredAnalysis) setLayeredAnalysis(d.layeredAnalysis);
         if (d.briefStatus) setBriefStatus(d.briefStatus);
         if (d.buyerId) {
           const matched = initialBuyers.find((b) => b.id === d.buyerId);
@@ -655,19 +654,156 @@ export default function SourcingDealDesk({
     }
   }, [initialBuyers, initialEditId]);
 
-  // Global Ctrl + S / Cmd + S keyboard shortcut to save
-  useEffect(() => {
-    function handleKeyDown(e: KeyboardEvent) {
-      if ((e.ctrlKey || e.metaKey) && (e.key === "s" || e.key === "S")) {
-        e.preventDefault();
-        handleSaveDraft();
-      }
+  // Open Preview Modal before sending confirmation email
+  function handleOpenEmailPreviewModal() {
+    if (!selectedBuyer) {
+      setEmailNotice({
+        type: "error",
+        text: "Please select or quick-register a buyer first before emailing brief confirmation.",
+      });
+      return;
     }
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  });
+    if (!selectedBuyer.contact_email) {
+      setEmailNotice({
+        type: "error",
+        text: `Buyer "${selectedBuyer.company_name}" has no email on file. Please add an email address.`,
+      });
+      return;
+    }
+    if (!projectTitle.trim() && !naturalBrief.trim()) {
+      setEmailNotice({
+        type: "error",
+        text: "Please enter a product title or brief notes to include in the confirmation email.",
+      });
+      return;
+    }
 
-  // Submit Project & Run Real-Time Reverse Match
+    setEmailNotice(null);
+    setEmailSubject(`Sourcing Brief Confirmation: ${projectTitle || "Specialty Sourcing Project"} — FoodXchange`);
+    setShowEmailModal(true);
+  }
+
+  // Manually triggered Email Send to Buyer after user confirmation in modal
+  async function handleSendConfirmedEmail() {
+    if (!selectedBuyer || !selectedBuyer.contact_email) return;
+
+    // Ensure draft is saved in database first to obtain a requestId
+    let currentId = createdRequestId;
+    if (!currentId) {
+      currentId = await handleSaveDraft(true);
+    }
+
+    setSendingEmail(true);
+
+    try {
+      const res = await sendBriefConfirmationEmailAction({
+        requestId: currentId || undefined,
+        buyerEmail: selectedBuyer.contact_email,
+        buyerName: selectedBuyer.contact_name,
+        buyerCompany: selectedBuyer.company_name,
+        projectTitle,
+        benchmarkBrands,
+        category,
+        packagingFormat,
+        estimatedVolume,
+        brandingModel,
+        targetMarket,
+        selectedTags,
+        naturalBrief,
+        imageUrls,
+        customSubject: emailSubject,
+        customNotes: emailCustomNotes,
+      });
+
+      if (!res.ok) {
+        throw new Error(res.error || "Failed to dispatch confirmation email");
+      }
+
+      setBriefStatus("sent");
+      setShowEmailModal(false);
+      setEmailCustomNotes("");
+      setEmailNotice({
+        type: "success",
+        text: `Confirmation email with digital approval link dispatched to ${selectedBuyer.contact_email}${res.simulated ? " (simulated)" : ""}!`,
+      });
+    } catch (err: any) {
+      setEmailNotice({
+        type: "error",
+        text: err?.message || "Failed to send confirmation email",
+      });
+    } finally {
+      setSendingEmail(false);
+    }
+  }
+
+  // Admin Manual Override Confirmation
+  async function handleAdminOverrideConfirm() {
+    let currentId = createdRequestId;
+    if (!currentId) {
+      currentId = await handleSaveDraft(true);
+    }
+    if (!currentId) {
+      setErrorMsg("Please save the sourcing request draft before confirming.");
+      return;
+    }
+
+    setIsOverridingConfirm(true);
+    try {
+      const res = await adminOverrideConfirmBriefAction({
+        requestId: currentId,
+        notes: overrideNotes || "Admin manual confirmation override via Deal Desk",
+      });
+
+      if (res.ok) {
+        setBriefStatus("confirmed");
+        setShowOverrideModal(false);
+        setSaveToast({
+          visible: true,
+          savedAt: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+          requestId: currentId,
+          briefStatus: "confirmed",
+          projectTitle: projectTitle || "Sourcing Brief",
+          buyerName: selectedBuyer?.company_name || "Buyer",
+        });
+      } else {
+        setErrorMsg(res.error);
+      }
+    } catch (err: any) {
+      setErrorMsg(err.message || "Failed to override brief confirmation");
+    } finally {
+      setIsOverridingConfirm(false);
+    }
+  }
+
+  // Generate & Copy Buyer Review Link
+  async function handleCopyBuyerLink() {
+    let currentId = createdRequestId;
+    if (!currentId) {
+      currentId = await handleSaveDraft(true);
+    }
+    if (!currentId) {
+      setErrorMsg("Please save draft before generating public link.");
+      return;
+    }
+
+    setGeneratingLink(true);
+    try {
+      const res = await createBriefTokenAction(currentId);
+      if (res.ok) {
+        await navigator.clipboard.writeText(res.url);
+        setCopiedLinkNotice(true);
+        setTimeout(() => setCopiedLinkNotice(false), 3000);
+      } else {
+        setErrorMsg(res.error);
+      }
+    } catch (err: any) {
+      setErrorMsg(err.message || "Could not generate link");
+    } finally {
+      setGeneratingLink(false);
+    }
+  }
+
+  // Submit Project & Run Real-Time Reverse Match (LOCKED UNTIL CONFIRMED)
   async function handleSubmitProject(e: React.FormEvent) {
     e.preventDefault();
     if (!selectedBuyer) {
@@ -679,632 +815,1140 @@ export default function SourcingDealDesk({
       return;
     }
 
+    // Matching Lock Gate check
+    if (briefStatus !== "confirmed") {
+      setErrorMsg("🔒 Reverse-matching is locked until the brief is confirmed by the buyer or approved via Admin Override.");
+      return;
+    }
+
     setErrorMsg(null);
+    setLiveMatches([]);
+    setFetchingMatches(true);
+
     startTransition(async () => {
       try {
         const res = await createRequestForBuyer({
-          requestId: createdRequestId,
+          requestId: createdRequestId || undefined,
           buyer_id: selectedBuyer.id,
           name: selectedBuyer.contact_name || selectedBuyer.company_name,
           email: selectedBuyer.contact_email,
           company: selectedBuyer.company_name,
-          product_name: projectTitle,
-          category: category || null,
-          benchmark_brand: benchmarkBrands || null,
-          packaging_preference: packagingFormat || null,
-          volume_per_year: estimatedVolume || null,
+          product_name: projectTitle.trim(),
+          category: category || "General Food",
+          benchmark_brand: benchmarkBrands || undefined,
+          packaging_preference: packagingFormat,
+          volume_per_year: estimatedVolume,
           message: naturalBrief || null,
           certifications: selectedTags,
-          target_market: targetMarket || "Israel",
-          private_label: brandingModel === "private_label" ? true : brandingModel === "supplier_brand" ? false : null,
+          target_market: targetMarket,
+          private_label:
+            brandingModel === "private_label"
+              ? true
+              : brandingModel === "supplier_brand"
+              ? false
+              : null,
           image_urls: imageUrls,
-          ai_analysis: visionData || null,
+          ai_analysis: {
+            layered_analysis: layeredAnalysis,
+            benchmark_brand: benchmarkBrands || undefined,
+            packaging_format: packagingFormat,
+          },
         });
 
         if (!res.ok) {
           setErrorMsg(res.error);
+          setFetchingMatches(false);
           return;
         }
 
-        setCreatedRequestId(res.id);
+        const newReqId = (res as any).id || (res as any).requestId;
+        setCreatedRequestId(newReqId);
 
-        // Populate live matches immediately from Server Action without fragile API fetch
-        if (Array.isArray(res.matches) && res.matches.length > 0) {
-          setLiveMatches(res.matches);
+        // Fetch reverse-matches
+        const matchRes = await getQuickMatchesAction(newReqId);
+        if (matchRes.ok) {
+          setLiveMatches(matchRes.matches || []);
         } else {
-          setFetchingMatches(true);
-          const matchResult = await getQuickMatchesAction(res.id);
-          setLiveMatches(matchResult.matches || []);
-          setFetchingMatches(false);
+          setErrorMsg(matchRes.error || "Match ranking failed");
         }
       } catch (err: any) {
-        setErrorMsg(err.message || "Failed to submit request");
+        setErrorMsg(err?.message || "An unexpected error occurred during matchmaking");
+      } finally {
+        setFetchingMatches(false);
       }
     });
   }
 
   return (
-    <main className="min-h-screen bg-slate-50/70">
-      {/* ── TOP STICKY OPERATIONAL BAR ── */}
-      <div className="border-b border-slate-200 bg-white/95 backdrop-blur-xs px-4 sm:px-6 py-3 sticky top-0 z-20 shadow-2xs">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div className="flex items-center gap-2.5">
-            <span className="w-8 h-8 rounded-xl bg-orange-500/10 border border-orange-500/20 text-orange-600 flex items-center justify-center font-bold text-sm">
-              ⚡
-            </span>
+    <main className="min-h-screen bg-slate-50 text-slate-900 pb-20">
+      {/* ── TOP OPERATIONAL APP BAR ── */}
+      <header className="bg-white border-b border-slate-200/90 sticky top-0 z-20 shadow-2xs">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-orange-500 to-amber-600 text-white flex items-center justify-center font-black text-base shadow-sm">
+              FDX
+            </div>
             <div>
               <div className="flex items-center gap-2">
-                <h1 className="text-sm sm:text-base font-bold text-slate-900 tracking-tight">
+                <h1 className="text-sm sm:text-base font-extrabold text-slate-900 tracking-tight">
                   Sourcing Deal Desk
                 </h1>
-                <span className="text-[10px] bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded-full font-semibold">
-                  Unified Console
+                <span className="hidden sm:inline-block text-[10px] font-bold px-2 py-0.5 rounded-full bg-orange-100 text-orange-800 border border-orange-200 uppercase tracking-wider">
+                  B2B Funnel
                 </span>
+                {/* Brief status capsule in header */}
+                {briefStatus === "confirmed" ? (
+                  <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300">
+                    <span>✓</span> Confirmed by Buyer
+                  </span>
+                ) : briefStatus === "sent" ? (
+                  <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-300">
+                    <span>⏳</span> Waiting for Buyer
+                  </span>
+                ) : briefStatus === "changes_requested" ? (
+                  <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-rose-100 text-rose-800 border border-rose-300">
+                    <span>✏️</span> Changes Requested
+                  </span>
+                ) : briefStatus === "reconfirm_needed" ? (
+                  <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-300">
+                    <span>⚠️</span> Re-confirm Needed
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-300">
+                    <span>📝</span> Draft Mode
+                  </span>
+                )}
               </div>
-              <p className="text-[11px] text-slate-500">
-                Capture buyer briefs, drop packaging shots, email buyer confirmation, and match 80k+ European factories
+              <p className="text-[11px] text-slate-500 hidden sm:block">
+                Single-page 5-step intake, layered visual AI, buyer confirmation, and locked reverse-match
               </p>
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2">
-            {/* Brief Status Pill */}
-            <span
-              className={`text-[11px] font-bold px-2.5 py-1 rounded-lg border flex items-center gap-1.5 ${
-                briefStatus === "confirmed"
-                  ? "bg-emerald-50 text-emerald-800 border-emerald-300"
-                  : briefStatus === "sent"
-                  ? "bg-amber-50 text-amber-800 border-amber-300"
-                  : briefStatus === "changes_requested"
-                  ? "bg-orange-50 text-orange-800 border-orange-300"
-                  : briefStatus === "reconfirm_needed"
-                  ? "bg-amber-50 text-amber-800 border-amber-300"
-                  : "bg-slate-100 text-slate-700 border-slate-300"
-              }`}
+          {/* Quick Actions & View Switcher */}
+          <div className="flex items-center gap-2">
+            <Link
+              href="/admin/settings/usage"
+              className="text-xs font-semibold px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 transition flex items-center gap-1"
+              title="View live token usage and API costs"
             >
-              <span>
-                {briefStatus === "confirmed"
-                  ? "✓"
-                  : briefStatus === "sent"
-                  ? "⏳"
-                  : briefStatus === "changes_requested"
-                  ? "✏️"
-                  : briefStatus === "reconfirm_needed"
-                  ? "⚠️"
-                  : "📝"}
-              </span>
-              <span>
-                {briefStatus === "confirmed"
-                  ? "Brief Confirmed"
-                  : briefStatus === "sent"
-                  ? "Waiting for Buyer"
-                  : briefStatus === "changes_requested"
-                  ? "Changes Requested"
-                  : briefStatus === "reconfirm_needed"
-                  ? "Re-confirm Needed"
-                  : "Draft (Not Confirmed)"}
-              </span>
-            </span>
+              <span>📊</span>
+              <span className="hidden sm:inline">API Costs</span>
+            </Link>
 
-            {/* Draft status & quick save button */}
-            {savedDraftNotice && (
-              <span className="text-[11px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-lg animate-in fade-in flex items-center gap-1">
-                <span>✓</span>
-                <span>{savedDraftNotice}</span>
-              </span>
-            )}
-
-            <button
-              type="button"
-              onClick={() => handleSaveDraft(false)}
-              disabled={isSavingDraft}
-              className="px-3 py-1.5 rounded-lg text-xs font-bold text-slate-700 hover:text-slate-900 bg-white hover:bg-slate-100 border border-slate-200/90 shadow-2xs transition cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
-              title="Save project draft to cloud & local (Ctrl+S)"
+            <Link
+              href="/admin/settings/trash"
+              className="text-xs font-semibold px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 transition flex items-center gap-1"
+              title="Open archived requests and deleted media"
             >
-              <span>💾</span>
-              <span>{isSavingDraft ? "Saving..." : "Save Draft"}</span>
-              <kbd className="hidden sm:inline-block text-[9px] bg-slate-100 px-1 py-0.5 rounded text-slate-500 font-mono border border-slate-200">
-                Ctrl+S
-              </kbd>
-            </button>
+              <span>🗑️</span>
+              <span className="hidden sm:inline">Trash</span>
+            </Link>
 
-            {createdRequestId && (
-              <>
-                <Link
-                  href={`/admin/requests/${createdRequestId}`}
-                  target="_blank"
-                  className="px-2.5 py-1.5 rounded-lg text-xs font-semibold text-slate-600 hover:text-orange-600 bg-white border border-slate-200/90 shadow-2xs transition flex items-center gap-1"
-                  title="Open live brief workspace"
-                >
-                  <span>🔗</span>
-                  <span className="hidden md:inline">Workspace</span>
-                </Link>
-                <button
-                  type="button"
-                  onClick={() => setDeleteConfirmOpen(true)}
-                  className="px-2.5 py-1.5 rounded-lg text-xs font-semibold text-slate-500 hover:text-red-600 bg-white hover:bg-red-50 border border-slate-200/90 transition flex items-center gap-1 cursor-pointer"
-                  title="Move request to Trash & Archive"
-                >
-                  <span>🗑️</span>
-                </button>
-              </>
-            )}
-
-            {/* Mode Switcher Tabs */}
-            <div className="flex items-center gap-1.5 p-1 bg-slate-100 rounded-xl border border-slate-200/80 shrink-0">
+            {/* View Mode Pill Toggle */}
+            <div className="bg-slate-100 p-1 rounded-xl flex items-center text-xs font-bold border border-slate-200">
               <button
+                type="button"
                 onClick={() => setActiveTab("intake_desk")}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer flex items-center gap-1.5 ${
+                className={`px-3 py-1 rounded-lg transition ${
                   activeTab === "intake_desk"
-                    ? "bg-white text-slate-900 shadow-2xs border border-slate-200/60 font-bold"
+                    ? "bg-white text-orange-600 shadow-2xs"
                     : "text-slate-600 hover:text-slate-900"
                 }`}
               >
-                <span>✨</span>
-                <span>Quick Intake & Matcher</span>
+                Intake Desk
               </button>
               <button
+                type="button"
                 onClick={() => setActiveTab("registry_table")}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer flex items-center gap-1.5 ${
+                className={`px-3 py-1 rounded-lg transition ${
                   activeTab === "registry_table"
-                    ? "bg-white text-slate-900 shadow-2xs border border-slate-200/60 font-bold"
+                    ? "bg-white text-orange-600 shadow-2xs"
                     : "text-slate-600 hover:text-slate-900"
                 }`}
               >
-                <span>📋</span>
-                <span>All Requests Registry ({initialCounts.total})</span>
+                Requests Registry ({requests.length})
               </button>
             </div>
           </div>
         </div>
-      </div>
+      </header>
 
-      {/* ── VIEW 1: UNIFIED SPLIT-SCREEN WORKSPACE ── */}
+      {/* ── NOTIFICATION BANNERS ── */}
+      {savedDraftNotice && (
+        <div className="bg-emerald-600 text-white text-xs font-bold py-1.5 px-4 text-center animate-in fade-in duration-200 flex items-center justify-center gap-2">
+          <span>💾</span>
+          <span>{savedDraftNotice}</span>
+        </div>
+      )}
+
+      {emailNotice && (
+        <div
+          className={`text-xs font-bold py-2 px-4 text-center border-b flex items-center justify-center gap-2 ${
+            emailNotice.type === "success"
+              ? "bg-emerald-50 text-emerald-800 border-emerald-200"
+              : "bg-red-50 text-red-800 border-red-200"
+          }`}
+        >
+          <span>{emailNotice.type === "success" ? "✓" : "⚠️"}</span>
+          <span>{emailNotice.text}</span>
+          <button
+            type="button"
+            onClick={() => setEmailNotice(null)}
+            className="ml-2 text-slate-400 hover:text-slate-700"
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
       {activeTab === "intake_desk" ? (
         <div className="p-4 sm:p-6 max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-          {/* ── LEFT PANEL: INTAKE & BRIEF COMPOSER (col 7) ── */}
-          <form
-            onSubmit={handleSubmitProject}
-            className="lg:col-span-7 bg-white border border-slate-200/90 rounded-2xl p-5 sm:p-6 shadow-xs space-y-5"
-          >
-            {/* Step 1: Buyer Search & Auto-Fill */}
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <label className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
-                  <span>1. Select or Register Buyer</span>
-                  {selectedBuyer && (
-                    <span className="text-emerald-600 normal-case font-semibold">
-                      (✓ Selected: {selectedBuyer.company_name})
-                    </span>
-                  )}
-                </label>
+          {/* ── LEFT PANEL: 5-STEP COLLAPSIBLE FUNNEL (col 7) ── */}
+          <div className="lg:col-span-7 space-y-4">
+            {/* Stepper Navigation Strip */}
+            <div className="bg-slate-900 text-white p-3 sm:p-3.5 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 shadow-md">
+              <div className="flex items-center gap-1.5 overflow-x-auto w-full sm:w-auto pb-1 sm:pb-0 text-xs font-semibold">
                 <button
                   type="button"
-                  onClick={() => setShowQuickAddBuyer(!showQuickAddBuyer)}
-                  className="text-xs font-bold text-orange-600 hover:text-orange-700 bg-orange-50 hover:bg-orange-100 border border-orange-200 px-2.5 py-1 rounded-lg transition cursor-pointer"
+                  onClick={() => toggleSection(1)}
+                  className={`px-2.5 py-1 rounded-lg transition flex items-center gap-1 cursor-pointer ${
+                    openSections[1] ? "bg-orange-500 text-white font-bold" : "bg-slate-800 text-slate-300 hover:bg-slate-700"
+                  }`}
                 >
-                  {showQuickAddBuyer ? "✕ Close" : "+ Quick Register Buyer"}
+                  <span>1. Buyer</span>
+                  {selectedBuyer && <span className="text-[10px] text-emerald-300 font-bold">✓</span>}
+                </button>
+                <span className="text-slate-600">→</span>
+                <button
+                  type="button"
+                  onClick={() => toggleSection(2)}
+                  className={`px-2.5 py-1 rounded-lg transition flex items-center gap-1 cursor-pointer ${
+                    openSections[2] ? "bg-orange-500 text-white font-bold" : "bg-slate-800 text-slate-300 hover:bg-slate-700"
+                  }`}
+                >
+                  <span>2. Visuals</span>
+                  {imageUrls.length > 0 && (
+                    <span className="text-[10px] bg-slate-700 px-1.5 py-0.2 rounded-full font-mono">{imageUrls.length}</span>
+                  )}
+                </button>
+                <span className="text-slate-600">→</span>
+                <button
+                  type="button"
+                  onClick={() => toggleSection(3)}
+                  className={`px-2.5 py-1 rounded-lg transition flex items-center gap-1 cursor-pointer ${
+                    openSections[3] ? "bg-orange-500 text-white font-bold" : "bg-slate-800 text-slate-300 hover:bg-slate-700"
+                  }`}
+                >
+                  <span>3. AI DNA</span>
+                  {layeredAnalysis && (
+                    <span className="text-[10px] bg-emerald-500 text-white px-1.5 py-0.2 rounded-full font-bold">
+                      {layeredAnalysis.products?.length || 0}
+                    </span>
+                  )}
+                </button>
+                <span className="text-slate-600">→</span>
+                <button
+                  type="button"
+                  onClick={() => toggleSection(4)}
+                  className={`px-2.5 py-1 rounded-lg transition flex items-center gap-1 cursor-pointer ${
+                    openSections[4] ? "bg-orange-500 text-white font-bold" : "bg-slate-800 text-slate-300 hover:bg-slate-700"
+                  }`}
+                >
+                  <span>4. Brief</span>
+                  {naturalBrief && <span className="text-[10px] text-emerald-300 font-bold">✓</span>}
+                </button>
+                <span className="text-slate-600">→</span>
+                <button
+                  type="button"
+                  onClick={() => toggleSection(5)}
+                  className={`px-2.5 py-1 rounded-lg transition flex items-center gap-1 cursor-pointer ${
+                    openSections[5] ? "bg-orange-500 text-white font-bold" : "bg-slate-800 text-slate-300 hover:bg-slate-700"
+                  }`}
+                >
+                  <span>5. Confirm</span>
+                  {briefStatus === "confirmed" ? (
+                    <span className="text-[10px] bg-emerald-500 text-white px-1.5 py-0.2 rounded-full font-bold">✓ Confirmed</span>
+                  ) : (
+                    <span className="text-[10px] bg-amber-500 text-slate-950 font-bold px-1.5 py-0.2 rounded-full">Gate</span>
+                  )}
                 </button>
               </div>
 
-              {/* Quick Add Buyer Drawer */}
-              {showQuickAddBuyer && (
-                <div className="p-4 mb-4 bg-orange-50/50 border border-orange-200 rounded-xl space-y-3 animate-in fade-in duration-150">
-                  <div className="text-xs font-bold text-orange-950 uppercase">⚡ Register New Lead</div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs">
-                    <input
-                      placeholder="Company Name * (e.g. Intergood)"
-                      className="bg-white border border-slate-200 rounded-lg px-3 py-2 text-slate-800 outline-none focus:border-orange-500"
-                      value={quickForm.company_name}
-                      onChange={(e) => setQuickForm((q) => ({ ...q, company_name: e.target.value }))}
-                      required
-                    />
-                    <input
-                      placeholder="Contact Email * (e.g. sharon@intergood.co)"
-                      type="email"
-                      className="bg-white border border-slate-200 rounded-lg px-3 py-2 text-slate-800 outline-none focus:border-orange-500"
-                      value={quickForm.contact_email}
-                      onChange={(e) => setQuickForm((q) => ({ ...q, contact_email: e.target.value }))}
-                      required
-                    />
-                    <input
-                      placeholder="Contact Person (e.g. Sharon Avidor)"
-                      className="bg-white border border-slate-200 rounded-lg px-3 py-2 text-slate-800 outline-none focus:border-orange-500"
-                      value={quickForm.contact_name}
-                      onChange={(e) => setQuickForm((q) => ({ ...q, contact_name: e.target.value }))}
-                    />
-                    <input
-                      placeholder="Company Website (e.g. https://intergood.co)"
-                      type="url"
-                      className="bg-white border border-slate-200 rounded-lg px-3 py-2 text-slate-800 outline-none focus:border-orange-500"
-                      value={quickForm.website ?? ""}
-                      onChange={(e) => setQuickForm((q) => ({ ...q, website: e.target.value }))}
-                    />
-                  </div>
-                  {quickBuyerError && <p className="text-xs text-red-600">{quickBuyerError}</p>}
-                  <div className="flex justify-end">
+              <div className="flex items-center gap-2 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const allOpen = Object.values(openSections).every(Boolean);
+                    if (allOpen) collapseAll();
+                    else expandAll();
+                  }}
+                  className="text-[11px] font-semibold text-slate-400 hover:text-white px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 transition cursor-pointer"
+                >
+                  {Object.values(openSections).every(Boolean) ? "Collapse All" : "Expand All"}
+                </button>
+              </div>
+            </div>
+
+            {/* ── STEP 1 CARD: BUYER INTAKE ── */}
+            <div className="bg-white border border-slate-200/90 rounded-2xl shadow-xs overflow-hidden transition">
+              <div
+                onClick={() => toggleSection(1)}
+                className="p-4 bg-slate-50/70 hover:bg-slate-50 border-b border-slate-100 flex items-center justify-between cursor-pointer"
+              >
+                <div className="flex items-center gap-2">
+                  <span className="w-6 h-6 rounded-lg bg-orange-100 text-orange-700 font-black text-xs flex items-center justify-center">
+                    1
+                  </span>
+                  <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
+                    Buyer Intake & Lead Account
+                  </h3>
+                  {selectedBuyer && (
+                    <span className="text-xs text-emerald-700 font-semibold bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
+                      ✓ {selectedBuyer.company_name} ({selectedBuyer.country || "Israel"})
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-center gap-2 text-slate-400">
+                  <span className="text-xs">{openSections[1] ? "▲" : "▼"}</span>
+                </div>
+              </div>
+
+              {openSections[1] && (
+                <div className="p-5 space-y-4 animate-in fade-in duration-150">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-semibold text-slate-700">
+                      Search Registered Importers & Retail Buyers
+                    </label>
                     <button
                       type="button"
-                      disabled={quickBuyerPending}
-                      onClick={handleQuickAddBuyer}
-                      className="text-xs font-bold px-4 py-1.5 bg-orange-600 text-white rounded-lg hover:bg-orange-700 disabled:opacity-50"
+                      onClick={() => setShowQuickAddBuyer(!showQuickAddBuyer)}
+                      className="text-xs font-bold text-orange-600 hover:text-orange-700 bg-orange-50 hover:bg-orange-100 border border-orange-200 px-2.5 py-1 rounded-lg transition cursor-pointer"
                     >
-                      {quickBuyerPending ? "Saving..." : "Save & Use Lead"}
+                      {showQuickAddBuyer ? "✕ Close" : "+ Quick Register Buyer"}
                     </button>
                   </div>
-                </div>
-              )}
 
-              {/* Combobox Search Input */}
-              <div className="relative">
-                <input
-                  type="text"
-                  placeholder="🔍 Type buyer name, contact, or domain (e.g. Intergood, Rami Levy)..."
-                  value={buyerSearchQuery}
-                  onChange={(e) => {
-                    setBuyerSearchQuery(e.target.value);
-                    if (selectedBuyer && e.target.value !== selectedBuyer.company_name) {
-                      setSelectedBuyer(null);
-                    }
-                  }}
-                  className="w-full text-xs sm:text-sm bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-orange-500 focus:bg-white"
-                />
-
-                {/* Combobox Suggestions List */}
-                {buyerSearchQuery && !selectedBuyer && (
-                  <div className="absolute top-full left-0 right-0 mt-1 max-h-48 overflow-y-auto bg-white border border-slate-200 rounded-xl shadow-lg z-30 divide-y divide-slate-100">
-                    {filteredBuyers.length > 0 ? (
-                      filteredBuyers.map((b) => (
-                        <div
-                          key={b.id}
-                          onClick={() => handleSelectBuyer(b)}
-                          className="px-3.5 py-2 hover:bg-orange-50 cursor-pointer flex items-center justify-between text-xs"
-                        >
-                          <div>
-                            <span className="font-bold text-slate-900">{b.company_name}</span>
-                            {b.contact_name && <span className="text-slate-500 ml-1.5">({b.contact_name})</span>}
-                          </div>
-                          <span className="text-[11px] text-slate-400">{b.country || "Israel"}</span>
-                        </div>
-                      ))
-                    ) : (
-                      <div className="p-3 text-xs text-slate-400 flex items-center justify-between">
-                        <span>No buyer found matching "{buyerSearchQuery}"</span>
+                  {/* Quick Add Buyer Drawer */}
+                  {showQuickAddBuyer && (
+                    <div className="p-4 bg-orange-50/50 border border-orange-200 rounded-xl space-y-3">
+                      <div className="text-xs font-bold text-orange-950 uppercase">⚡ Register New Lead</div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs">
+                        <input
+                          placeholder="Company Name * (e.g. Intergood)"
+                          className="bg-white border border-slate-200 rounded-lg px-3 py-2 text-slate-800 outline-none focus:border-orange-500"
+                          value={quickForm.company_name}
+                          onChange={(e) => setQuickForm((q) => ({ ...q, company_name: e.target.value }))}
+                          required
+                        />
+                        <input
+                          placeholder="Contact Email * (e.g. sharon@intergood.co)"
+                          type="email"
+                          className="bg-white border border-slate-200 rounded-lg px-3 py-2 text-slate-800 outline-none focus:border-orange-500"
+                          value={quickForm.contact_email}
+                          onChange={(e) => setQuickForm((q) => ({ ...q, contact_email: e.target.value }))}
+                          required
+                        />
+                        <input
+                          placeholder="Contact Person (e.g. Sharon Avidor)"
+                          className="bg-white border border-slate-200 rounded-lg px-3 py-2 text-slate-800 outline-none focus:border-orange-500"
+                          value={quickForm.contact_name}
+                          onChange={(e) => setQuickForm((q) => ({ ...q, contact_name: e.target.value }))}
+                        />
+                        <input
+                          placeholder="Company Website (e.g. https://intergood.co)"
+                          type="url"
+                          className="bg-white border border-slate-200 rounded-lg px-3 py-2 text-slate-800 outline-none focus:border-orange-500"
+                          value={quickForm.website ?? ""}
+                          onChange={(e) => setQuickForm((q) => ({ ...q, website: e.target.value }))}
+                        />
+                      </div>
+                      {quickBuyerError && <p className="text-xs text-red-600">{quickBuyerError}</p>}
+                      <div className="flex justify-end">
                         <button
                           type="button"
-                          onClick={() => {
-                            setQuickForm((q) => ({ ...q, company_name: buyerSearchQuery }));
-                            setShowQuickAddBuyer(true);
-                          }}
-                          className="text-orange-600 font-bold hover:underline"
+                          disabled={quickBuyerPending}
+                          onClick={handleQuickAddBuyer}
+                          className="text-xs font-bold px-4 py-1.5 bg-orange-600 text-white rounded-lg hover:bg-orange-700 disabled:opacity-50 cursor-pointer"
                         >
-                          + Add "{buyerSearchQuery}"
+                          {quickBuyerPending ? "Saving..." : "Save & Use Lead"}
                         </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Combobox Search Input */}
+                  <div className="relative">
+                    <input
+                      type="text"
+                      placeholder="🔍 Type buyer name, contact, or domain (e.g. Intergood, Rami Levy)..."
+                      value={buyerSearchQuery}
+                      onChange={(e) => {
+                        setBuyerSearchQuery(e.target.value);
+                        if (selectedBuyer && e.target.value !== selectedBuyer.company_name) {
+                          setSelectedBuyer(null);
+                        }
+                      }}
+                      className="w-full text-xs sm:text-sm bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-orange-500 focus:bg-white"
+                    />
+
+                    {/* Suggestions List */}
+                    {buyerSearchQuery && !selectedBuyer && (
+                      <div className="absolute top-full left-0 right-0 mt-1 max-h-48 overflow-y-auto bg-white border border-slate-200 rounded-xl shadow-lg z-30 divide-y divide-slate-100">
+                        {filteredBuyers.length > 0 ? (
+                          filteredBuyers.map((b) => (
+                            <div
+                              key={b.id}
+                              onClick={() => handleSelectBuyer(b)}
+                              className="px-3.5 py-2 hover:bg-orange-50 cursor-pointer flex items-center justify-between text-xs"
+                            >
+                              <div>
+                                <span className="font-bold text-slate-900">{b.company_name}</span>
+                                {b.contact_name && <span className="text-slate-500 ml-1.5">({b.contact_name})</span>}
+                              </div>
+                              <span className="text-[11px] text-slate-400">{b.country || "Israel"}</span>
+                            </div>
+                          ))
+                        ) : (
+                          <div className="p-3 text-xs text-slate-400 flex items-center justify-between">
+                            <span>No buyer found matching "{buyerSearchQuery}"</span>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setQuickForm((q) => ({ ...q, company_name: buyerSearchQuery }));
+                                setShowQuickAddBuyer(true);
+                              }}
+                              className="text-orange-600 font-bold hover:underline"
+                            >
+                              + Add "{buyerSearchQuery}"
+                            </button>
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
-                )}
+
+                  {/* Selected Buyer Capsule Badge */}
+                  {selectedBuyer && (
+                    <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between text-xs">
+                      <div className="flex items-center gap-2.5">
+                        <span className="w-7 h-7 rounded-full bg-orange-100 text-orange-700 font-bold flex items-center justify-center text-xs">
+                          {selectedBuyer.company_name.slice(0, 2).toUpperCase()}
+                        </span>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold text-slate-900">{selectedBuyer.company_name}</span>
+                            <span className="text-slate-500">({selectedBuyer.contact_email || "no email"})</span>
+                          </div>
+                          {selectedBuyer.contact_name && (
+                            <span className="text-[11px] text-slate-500">Contact: {selectedBuyer.contact_name}</span>
+                          )}
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedBuyer(null);
+                          setBuyerSearchQuery("");
+                        }}
+                        className="text-slate-400 hover:text-slate-600 text-xs px-2 py-0.5 cursor-pointer"
+                      >
+                        Change
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* ── STEP 2 CARD: REQUEST SCOPE & PACKAGING IMAGES ── */}
+            <div className="bg-white border border-slate-200/90 rounded-2xl shadow-xs overflow-hidden transition">
+              <div
+                onClick={() => toggleSection(2)}
+                className="p-4 bg-slate-50/70 hover:bg-slate-50 border-b border-slate-100 flex items-center justify-between cursor-pointer"
+              >
+                <div className="flex items-center gap-2">
+                  <span className="w-6 h-6 rounded-lg bg-orange-100 text-orange-700 font-black text-xs flex items-center justify-center">
+                    2
+                  </span>
+                  <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
+                    Request Scope & Reference Visuals
+                  </h3>
+                  {projectTitle && (
+                    <span className="text-xs text-slate-600 truncate max-w-xs font-medium">
+                      ({projectTitle})
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-center gap-2 text-slate-400">
+                  <span className="text-xs">{openSections[2] ? "▲" : "▼"}</span>
+                </div>
               </div>
 
-              {/* Selected Buyer Capsule Badge */}
-              {selectedBuyer && (
-                <div className="mt-2.5 p-2.5 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between text-xs">
-                  <div className="flex items-center gap-2">
-                    <span className="w-6 h-6 rounded-full bg-orange-100 text-orange-700 font-bold flex items-center justify-center text-[10px]">
-                      {selectedBuyer.company_name.slice(0, 2).toUpperCase()}
-                    </span>
+              {openSections[2] && (
+                <div className="p-5 space-y-4 animate-in fade-in duration-150">
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider block mb-1">
+                      Project Title / Target Products *
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Branded Keto, Sugar-Free & Gluten-Free Snack Assortment (or Chopped Tomatoes 400g)"
+                      value={projectTitle}
+                      onChange={(e) => setProjectTitle(e.target.value)}
+                      className="w-full text-xs sm:text-sm font-semibold bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-orange-500"
+                      required
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
                     <div>
-                      <span className="font-bold text-slate-900">{selectedBuyer.company_name}</span>
-                      <span className="text-slate-500 ml-2">{selectedBuyer.contact_email}</span>
-                      {selectedBuyer.website && (
-                        <a
-                          href={selectedBuyer.website}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="text-orange-600 ml-2 hover:underline text-[11px]"
-                        >
-                          {selectedBuyer.website.replace("https://", "").replace("http://", "")} ↗
-                        </a>
-                      )}
+                      <label className="block text-[11px] font-bold text-slate-600 mb-1">
+                        Benchmark Brands (Quality Profile)
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="e.g. ChocZero, Dr. Schär, Gullon Zero, Nutrifree"
+                        value={benchmarkBrands}
+                        onChange={(e) => setBenchmarkBrands(e.target.value)}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-slate-800 outline-none focus:border-orange-500 focus:bg-white"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-600 mb-1">Branding Model</label>
+                      <select
+                        value={brandingModel}
+                        onChange={(e: any) => setBrandingModel(e.target.value)}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-slate-800 outline-none focus:border-orange-500 focus:bg-white"
+                      >
+                        <option value="supplier_brand">Supplier branded Line</option>
+                        <option value="private_label">Private Label (Buyer's Own Label OEM)</option>
+                        <option value="open">Open to Both</option>
+                      </select>
                     </div>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSelectedBuyer(null);
-                      setBuyerSearchQuery("");
-                    }}
-                    className="text-slate-400 hover:text-slate-600 text-xs px-2 py-0.5"
-                  >
-                    Change
-                  </button>
-                </div>
-              )}
-            </div>
 
-            {/* Step 2: Project Scope & Product Title */}
-            <div className="space-y-3 pt-2 border-t border-slate-100">
-              <label className="text-xs font-bold text-slate-800 uppercase tracking-wider block">
-                2. Sourcing Project & Target Products
-              </label>
-
-              <div>
-                <input
-                  type="text"
-                  placeholder="e.g. Branded Keto, Sugar-Free & Gluten-Free Snack Assortment (or Chopped Tomatoes 400g)"
-                  value={projectTitle}
-                  onChange={(e) => setProjectTitle(e.target.value)}
-                  className="w-full text-xs sm:text-sm font-semibold bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-orange-500"
-                  required
-                />
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-600 mb-1">
-                    Benchmark Brands (Quality Profile)
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="e.g. Gullon Zero, Dr. Schär, Nutrifree, Barilla"
-                    value={benchmarkBrands}
-                    onChange={(e) => setBenchmarkBrands(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-slate-800 outline-none focus:border-orange-500 focus:bg-white"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-600 mb-1">Branding Model</label>
-                  <select
-                    value={brandingModel}
-                    onChange={(e: any) => setBrandingModel(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-slate-800 outline-none focus:border-orange-500 focus:bg-white"
-                  >
-                    <option value="supplier_brand">Supplier branded Line</option>
-                    <option value="private_label">Private Label (Buyer's Own Label OEM)</option>
-                    <option value="open">Open to Both</option>
-                  </select>
-                </div>
-              </div>
-
-              {/* Dietary & Certifications Quick Tags */}
-              <div className="bg-slate-50/80 border border-slate-200/80 rounded-xl p-3.5 space-y-2">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <label className="text-[11px] font-bold text-slate-700">
-                      Dietary Attributes & Audit Certifications
-                    </label>
-                    <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
-                      <span>⚡</span> Beneficial Ranking Boosters (Non-Mandatory)
-                    </span>
-                  </div>
-                  <span className="text-[10px] text-slate-400 font-medium">
-                    {selectedTags.length > 0 ? `${selectedTags.length} active booster${selectedTags.length > 1 ? "s" : ""}` : "Optional preference"}
-                  </span>
-                </div>
-                <p className="text-[11px] text-slate-500 leading-relaxed">
-                  Factories possessing these tags rank higher with matchability score bonuses. Suppliers without them remain visible and eligible (no mandatory restrictions).
-                </p>
-                <div className="flex flex-wrap gap-1.5 pt-0.5">
-                  {COMMON_DIETARY_TAGS.map((tag) => {
-                    const active = selectedTags.includes(tag);
-                    return (
-                      <button
-                        key={tag}
-                        type="button"
-                        onClick={() => toggleTag(tag)}
-                        title={
-                          active
-                            ? `Active booster: Suppliers with ${tag} receive a score bonus and rank higher. Click to remove.`
-                            : `Click to boost suppliers with ${tag} higher in match results`
-                        }
-                        className={`text-xs font-semibold px-2.5 py-1.5 rounded-lg border transition cursor-pointer inline-flex items-center gap-1.5 ${
-                          active
-                            ? "bg-orange-500 text-white border-orange-600 shadow-2xs font-bold"
-                            : "bg-white text-slate-700 border-slate-200 hover:bg-slate-100 hover:border-slate-300"
-                        }`}
-                      >
-                        <span>{active ? "✓" : "+"}</span>
-                        <span>{tag}</span>
-                        {active && <span className="text-[10px] bg-orange-600/70 px-1 py-0.2 rounded text-orange-50 font-normal">Boost</span>}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
-
-            {/* Step 3: Natural Chat Brief & Machine Vision */}
-            <div className="space-y-3 pt-2 border-t border-slate-100">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                <label className="text-xs font-bold text-slate-800 uppercase tracking-wider">
-                  3. Project Brief
-                </label>
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={handleOpenEmailPreviewModal}
-                    disabled={sendingEmail}
-                    className="inline-flex items-center gap-1.5 text-xs font-bold text-sky-700 hover:text-sky-800 bg-sky-50 hover:bg-sky-100 border border-sky-200 px-3 py-1.5 rounded-lg transition cursor-pointer shadow-2xs disabled:opacity-50"
-                    title={
-                      selectedBuyer?.contact_email
-                        ? `Preview and send brief confirmation to ${selectedBuyer.contact_email}`
-                        : "Select a buyer with an email to preview confirmation"
-                    }
-                  >
-                    <span>✉️</span>
-                    <span>Email Buyer to Confirm Sourcing Brief</span>
-                  </button>
-                </div>
-              </div>
-
-              {/* Email Feedback Notice */}
-              {emailNotice && (
-                <div
-                  className={`p-3 rounded-xl text-xs font-semibold flex items-center justify-between transition animate-in fade-in ${
-                    emailNotice.type === "success"
-                      ? "bg-sky-50 border border-sky-200 text-sky-800"
-                      : "bg-red-50 border border-red-200 text-red-700"
-                  }`}
-                >
-                  <span className="flex items-center gap-1.5">
-                    <span>{emailNotice.type === "success" ? "✓" : "⚠️"}</span>
-                    <span>{emailNotice.text}</span>
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => setEmailNotice(null)}
-                    className="text-slate-400 hover:text-slate-600 font-bold px-1 cursor-pointer"
-                  >
-                    ✕
-                  </button>
-                </div>
-              )}
-
-              <textarea
-                rows={3}
-                placeholder="Describe what the buyer asked (e.g. Sharon from Intergood wants a consolidated 40ft mixed container with branded Keto, Sugar-Free and Gluten-Free snacks from large manufacturers, CIF Ashdod terms)..."
-                value={naturalBrief}
-                onChange={(e) => setNaturalBrief(e.target.value)}
-                className="w-full text-xs sm:text-sm bg-slate-50 border border-slate-200 rounded-xl p-3 text-slate-800 outline-none focus:border-orange-500 focus:bg-white leading-relaxed"
-              />
-
-              {/* ── ROBUST MULTI-IMAGE & URL MACHINE VISION STUDIO ── */}
-              <div className="p-3.5 border border-slate-200 rounded-xl bg-slate-50/70 space-y-3 text-xs">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm">📸</span>
-                    <span className="font-bold text-slate-800">Product Packaging & Visual Assets</span>
-                    <span className="text-[10px] bg-orange-100 text-orange-700 px-2 py-0.5 rounded-md font-semibold">
-                      Gemini 3.8 Flash Vision
-                    </span>
+                  {/* Dietary & Certifications Quick Tags */}
+                  <div className="bg-slate-50/80 border border-slate-200/80 rounded-xl p-3.5 space-y-2">
+                    <div className="flex items-center justify-between gap-1 flex-wrap">
+                      <label className="text-[11px] font-bold text-slate-700">
+                        Dietary Attributes & Audit Certifications
+                      </label>
+                      <span className="text-[10px] text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full font-semibold">
+                        ⚡ Beneficial Ranking Boosters
+                      </span>
+                    </div>
+                    <div className="flex flex-wrap gap-1.5 pt-0.5">
+                      {COMMON_DIETARY_TAGS.map((tag) => {
+                        const active = selectedTags.includes(tag);
+                        return (
+                          <button
+                            key={tag}
+                            type="button"
+                            onClick={() => toggleTag(tag)}
+                            className={`text-[11px] px-2.5 py-1 rounded-lg font-semibold transition cursor-pointer ${
+                              active
+                                ? "bg-emerald-600 text-white shadow-2xs"
+                                : "bg-white text-slate-600 border border-slate-200 hover:border-slate-300"
+                            }`}
+                          >
+                            {active ? "✓ " : "+ "}
+                            {tag}
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
 
-                  <div className="flex items-center gap-2">
+                  {/* Packaging, Volume, Target Market */}
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-600 mb-1">Packaging Format</label>
+                      <input
+                        type="text"
+                        value={packagingFormat}
+                        onChange={(e) => setPackagingFormat(e.target.value)}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-slate-800 outline-none focus:border-orange-500 focus:bg-white"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-600 mb-1">Target Volume</label>
+                      <input
+                        type="text"
+                        value={estimatedVolume}
+                        onChange={(e) => setEstimatedVolume(e.target.value)}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-slate-800 outline-none focus:border-orange-500 focus:bg-white"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-600 mb-1">Target Market</label>
+                      <input
+                        type="text"
+                        value={targetMarket}
+                        onChange={(e) => setTargetMarket(e.target.value)}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-slate-800 outline-none focus:border-orange-500 focus:bg-white"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Image Staging & Deep Vision Button */}
+                  <div className="p-3.5 bg-slate-50/80 border border-slate-200/80 rounded-xl space-y-3">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                      <div>
+                        <span className="text-[11px] font-bold text-slate-700 uppercase tracking-wider block">
+                          Reference Packaging Images
+                        </span>
+                        <span className="text-[10px] text-slate-500">
+                          Upload front & back pack shots. Grouped into single product cards during analysis.
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => fileInputRef.current?.click()}
+                          disabled={uploadingImage}
+                          className="px-3 py-1 bg-white hover:bg-slate-50 border border-slate-300 rounded-lg text-xs font-bold text-slate-700 transition cursor-pointer"
+                        >
+                          {uploadingImage ? "Uploading..." : "📁 Upload Files"}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setShowUrlInput(!showUrlInput)}
+                          className="px-3 py-1 bg-white hover:bg-slate-50 border border-slate-300 rounded-lg text-xs font-bold text-slate-700 transition cursor-pointer"
+                        >
+                          🔗 Add URL
+                        </button>
+                      </div>
+                    </div>
+
                     <input
                       ref={fileInputRef}
                       type="file"
                       multiple
-                      accept="image/*,application/pdf"
+                      accept="image/*"
                       className="hidden"
-                      onChange={(e) => {
-                        handleFileUpload(e.target.files);
-                        if (e.target) e.target.value = "";
-                      }}
+                      onChange={(e) => handleFileUpload(e.target.files)}
                     />
-                    <button
-                      type="button"
-                      onClick={() => fileInputRef.current?.click()}
-                      disabled={uploadingImage}
-                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 font-semibold cursor-pointer shadow-2xs transition"
-                    >
-                      <span>📁</span>
-                      <span>{uploadingImage ? "Uploading..." : "+ Upload Images"}</span>
-                    </button>
+
+                    {showUrlInput && (
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="url"
+                          placeholder="Paste image link (e.g. https://domain.com/choczero-pack.jpg)..."
+                          value={pasteUrlInput}
+                          onChange={(e) => setPasteUrlInput(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              e.preventDefault();
+                              handleAddImageUrl();
+                            }
+                          }}
+                          className="flex-1 bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-xs text-slate-800 outline-none focus:border-orange-500"
+                        />
+                        <button
+                          type="button"
+                          onClick={handleAddImageUrl}
+                          className="px-3 py-1.5 bg-orange-600 text-white rounded-lg font-bold hover:bg-orange-700 cursor-pointer text-xs"
+                        >
+                          Add URL
+                        </button>
+                      </div>
+                    )}
+
+                    {imageUrls.length > 0 ? (
+                      <div className="space-y-2 pt-2 border-t border-slate-200">
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="text-slate-500 font-medium">
+                            {imageUrls.length} image(s) staged
+                          </span>
+                          <button
+                            type="button"
+                            onClick={handleAnalyzeImages}
+                            disabled={analysingVision}
+                            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-orange-600 to-amber-600 hover:opacity-95 text-white font-bold shadow-xs cursor-pointer disabled:opacity-50 transition"
+                          >
+                            <span>✨</span>
+                            <span>{analysingVision ? "Analyzing Images with AI..." : "Run AI Vision & Layered Fingerprint"}</span>
+                          </button>
+                        </div>
+
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                          {imageUrls.map((url, idx) => (
+                            <div
+                              key={idx}
+                              className="relative group rounded-lg overflow-hidden border border-slate-200 bg-white aspect-video flex items-center justify-center shadow-2xs"
+                            >
+                              <img
+                                src={url}
+                                alt={`Product visual ${idx + 1}`}
+                                className="w-full h-full object-cover"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveImage(idx)}
+                                className="absolute top-1 right-1 w-5 h-5 rounded-full bg-slate-900/80 text-white text-[11px] flex items-center justify-center hover:bg-rose-600 transition cursor-pointer"
+                                title="Delete image"
+                              >
+                                ✕
+                              </button>
+                              <span className="absolute bottom-1 left-1 bg-black/60 text-[9px] text-white px-1.5 py-0.5 rounded font-mono">
+                                #{idx + 1}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="text-[11px] text-slate-400 italic">
+                        Upload packaging images above, then click "Run AI Vision" to analyze products, extract back-of-pack producers, identify EU health mark codes, and cross-match with European factories.
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* ── STEP 3 CARD: LAYERED AI ANALYSIS & CATALOG MATCHES ── */}
+            <div className="bg-white border border-slate-200/90 rounded-2xl shadow-xs overflow-hidden transition">
+              <div
+                onClick={() => toggleSection(3)}
+                className="p-4 bg-slate-50/70 hover:bg-slate-50 border-b border-slate-100 flex items-center justify-between cursor-pointer"
+              >
+                <div className="flex items-center gap-2">
+                  <span className="w-6 h-6 rounded-lg bg-orange-100 text-orange-700 font-black text-xs flex items-center justify-center">
+                    3
+                  </span>
+                  <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
+                    Layered AI Analysis & Catalog Matches
+                  </h3>
+                  {layeredAnalysis && (
+                    <span className="text-xs text-emerald-700 font-bold bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
+                      ✓ {layeredAnalysis.products?.length || 0} Products Identified
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-center gap-2 text-slate-400">
+                  <span className="text-xs">{openSections[3] ? "▲" : "▼"}</span>
+                </div>
+              </div>
+
+              {openSections[3] && (
+                <div className="p-5 space-y-4 animate-in fade-in duration-150">
+                  {analysingVision ? (
+                    <div className="py-8 text-center text-xs text-slate-600 space-y-2">
+                      <div className="w-6 h-6 border-2 border-orange-500 border-t-transparent rounded-full animate-spin mx-auto" />
+                      <p className="font-semibold text-slate-800">Pass A: Inspecting back-of-pack labels & EU sanitary oval codes...</p>
+                      <p className="text-slate-400 text-[11px]">Pass B: Synthesizing Shared DNA & cross-matching with FoodXchange catalog...</p>
+                    </div>
+                  ) : layeredAnalysis ? (
+                    <div className="space-y-4">
+                      {/* Layer 1: Shared Request DNA */}
+                      <div className="p-3.5 bg-emerald-50/70 border border-emerald-200 rounded-xl space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-extrabold text-emerald-950 uppercase tracking-wider">
+                            Layer 1: Shared Request DNA
+                          </span>
+                          <span className="text-[10px] text-emerald-700 font-semibold bg-emerald-100 px-2 py-0.5 rounded-full">
+                            Common Denominator Criteria
+                          </span>
+                        </div>
+                        <div className="flex flex-wrap gap-1.5 pt-1">
+                          {(layeredAnalysis.shared_dna?.dietary || []).map((d) => (
+                            <span key={d} className="px-2 py-0.5 bg-white border border-emerald-300 text-emerald-900 rounded-md text-xs font-bold shadow-2xs">
+                              🌱 {d}
+                            </span>
+                          ))}
+                          {(layeredAnalysis.shared_dna?.certifications || []).map((c) => (
+                            <span key={c} className="px-2 py-0.5 bg-white border border-emerald-300 text-emerald-900 rounded-md text-xs font-bold shadow-2xs">
+                              ⭐ {c}
+                            </span>
+                          ))}
+                        </div>
+                        {layeredAnalysis.shared_dna?.summary && (
+                          <p className="text-xs text-emerald-900 leading-relaxed pt-1">
+                            {layeredAnalysis.shared_dna.summary}
+                          </p>
+                        )}
+                      </div>
+
+                      {/* Layer 2: Category Groups */}
+                      {layeredAnalysis.category_groups?.length > 0 && (
+                        <div className="flex items-center gap-2 flex-wrap text-xs">
+                          <span className="font-bold text-slate-500 uppercase text-[10px]">
+                            Layer 2 Category Groups:
+                          </span>
+                          {layeredAnalysis.category_groups.map((cg) => (
+                            <span key={cg.category_name} className="px-2.5 py-1 bg-slate-100 text-slate-800 rounded-lg font-bold border border-slate-200">
+                              📂 {cg.category_name} ({cg.product_count} SKU{cg.product_count > 1 ? "s" : ""})
+                            </span>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Layer 3: Multi-Product Cards */}
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                          <h4 className="text-xs font-extrabold text-slate-900 uppercase tracking-wider">
+                            Layer 3: Multi-Product Reference Cards (Editable)
+                          </h4>
+                          <span className="text-[11px] text-slate-500">
+                            Front & back panels merged
+                          </span>
+                        </div>
+
+                        <div className="grid grid-cols-1 gap-3.5">
+                          {layeredAnalysis.products.map((prod, idx) => (
+                            <div
+                              key={prod.id || idx}
+                              className="bg-slate-50/80 border border-slate-200 rounded-xl p-3.5 space-y-3"
+                            >
+                              {/* Top row: Thumbnails and Title/Brand */}
+                              <div className="flex items-start gap-3">
+                                {prod.image_urls?.length > 0 && (
+                                  <div className="flex gap-1.5 shrink-0">
+                                    {prod.image_urls.map((u, i) => (
+                                      <div
+                                        key={i}
+                                        className="w-14 h-14 rounded-lg overflow-hidden border border-slate-200 bg-white"
+                                      >
+                                        <img src={u} alt="pack" className="w-full h-full object-cover" />
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+
+                                <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                                  <div>
+                                    <label className="text-[10px] font-bold text-slate-500 uppercase block mb-0.5">
+                                      Product Name
+                                    </label>
+                                    <input
+                                      type="text"
+                                      value={prod.product_name}
+                                      onChange={(e) => updateProductCard(prod.id, { product_name: e.target.value })}
+                                      className="w-full bg-white border border-slate-200 rounded px-2 py-1 font-bold text-slate-900"
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="text-[10px] font-bold text-slate-500 uppercase block mb-0.5">
+                                      Benchmark Brand
+                                    </label>
+                                    <input
+                                      type="text"
+                                      value={prod.brand_name || ""}
+                                      onChange={(e) => updateProductCard(prod.id, { brand_name: e.target.value })}
+                                      className="w-full bg-white border border-slate-200 rounded px-2 py-1 text-slate-800"
+                                      placeholder="Brand..."
+                                    />
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Producer, Origin, EU Health Mark */}
+                              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
+                                <div>
+                                  <label className="text-[10px] font-bold text-slate-500 uppercase block mb-0.5">
+                                    Legal Producer (Back-of-Pack)
+                                  </label>
+                                  <input
+                                    type="text"
+                                    value={prod.manufacturer || ""}
+                                    onChange={(e) => updateProductCard(prod.id, { manufacturer: e.target.value })}
+                                    className="w-full bg-white border border-slate-200 rounded px-2 py-1 text-slate-800"
+                                    placeholder="e.g. Chocolaterie Limar NV"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="text-[10px] font-bold text-slate-500 uppercase block mb-0.5">
+                                    Origin Country / State
+                                  </label>
+                                  <input
+                                    type="text"
+                                    value={[prod.origin_state, prod.origin_country].filter(Boolean).join(", ")}
+                                    onChange={(e) => updateProductCard(prod.id, { origin_country: e.target.value })}
+                                    className="w-full bg-white border border-slate-200 rounded px-2 py-1 text-slate-800"
+                                    placeholder="e.g. Belgium"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="text-[10px] font-bold text-slate-500 uppercase block mb-0.5">
+                                    EU Sanitary Oval Code
+                                  </label>
+                                  <input
+                                    type="text"
+                                    value={prod.eu_factory_code || ""}
+                                    onChange={(e) => updateProductCard(prod.id, { eu_factory_code: e.target.value })}
+                                    className="w-full bg-white border border-slate-200 rounded px-2 py-1 font-mono text-slate-800"
+                                    placeholder="e.g. BE 1234 EG"
+                                  />
+                                </div>
+                              </div>
+
+                              {/* Sweeteners & Catalog Match Badge */}
+                              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 pt-1 border-t border-slate-200/60">
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                  {prod.sweeteners?.length ? (
+                                    <>
+                                      <span className="text-[10px] font-bold text-slate-400 uppercase">Sweeteners:</span>
+                                      {prod.sweeteners.map((sw) => (
+                                        <span key={sw} className="px-1.5 py-0.5 bg-orange-100 text-orange-900 rounded text-[10px] font-semibold">
+                                          {sw}
+                                        </span>
+                                      ))}
+                                    </>
+                                  ) : (
+                                    <span className="text-[10px] text-slate-400 italic">No sweeteners visible</span>
+                                  )}
+                                </div>
+
+                                {/* Catalog Match Status */}
+                                {prod.catalog_match?.matched ? (
+                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300 text-[11px] font-bold">
+                                    <span>✓ In Catalog:</span>
+                                    <span>{prod.catalog_match.product_name || "Matched"}</span>
+                                    <span className="text-[10px] text-emerald-700">({prod.catalog_match.match_score}%)</span>
+                                  </span>
+                                ) : (
+                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-200 text-slate-700 text-[10px] font-semibold">
+                                    New European Producer
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl text-center text-xs text-slate-500 space-y-1">
+                      <p>No multi-product analysis run yet.</p>
+                      <p className="text-[11px] text-slate-400">
+                        Upload packaging images in Step 2 and click "Run AI Vision & Layered Fingerprint" to automatically synthesize specifications and check existing catalog products.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* ── STEP 4 CARD: SOURCING BRIEF DRAFT ── */}
+            <div className="bg-white border border-slate-200/90 rounded-2xl shadow-xs overflow-hidden transition">
+              <div
+                onClick={() => toggleSection(4)}
+                className="p-4 bg-slate-50/70 hover:bg-slate-50 border-b border-slate-100 flex items-center justify-between cursor-pointer"
+              >
+                <div className="flex items-center gap-2">
+                  <span className="w-6 h-6 rounded-lg bg-orange-100 text-orange-700 font-black text-xs flex items-center justify-center">
+                    4
+                  </span>
+                  <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
+                    Sourcing Brief Draft (Version {briefVersion}.0)
+                  </h3>
+                  {naturalBrief && (
+                    <span className="text-xs text-emerald-700 font-semibold bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
+                      ✓ Ready for Review
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-center gap-2 text-slate-400">
+                  <span className="text-xs">{openSections[4] ? "▲" : "▼"}</span>
+                </div>
+              </div>
+
+              {openSections[4] && (
+                <div className="p-5 space-y-3 animate-in fade-in duration-150">
+                  <label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider block">
+                    Operational Brief & Factory Outreach Specifications
+                  </label>
+                  <textarea
+                    rows={6}
+                    placeholder="Enter project notes or let Layered AI synthesize formulation specifications..."
+                    value={naturalBrief}
+                    onChange={(e) => setNaturalBrief(e.target.value)}
+                    className="w-full text-xs sm:text-sm bg-slate-50 border border-slate-200 rounded-xl p-3.5 text-slate-800 outline-none focus:border-orange-500 focus:bg-white font-mono leading-relaxed"
+                  />
+
+                  {/* Cloud Draft Save Toolbar */}
+                  <div className="flex items-center justify-between gap-2 pt-1">
+                    <span className="text-[11px] text-slate-400">
+                      Auto-saves every 30s &middot; Shortcut: <kbd className="bg-slate-100 px-1.5 py-0.5 rounded font-mono text-slate-600 border border-slate-200">Ctrl+S</kbd>
+                    </span>
 
                     <button
                       type="button"
-                      onClick={() => setShowUrlInput(!showUrlInput)}
-                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 font-semibold cursor-pointer shadow-2xs transition"
+                      onClick={() => handleSaveDraft(false)}
+                      disabled={isSavingDraft}
+                      className="px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-2xs cursor-pointer disabled:opacity-50"
                     >
-                      <span>🔗</span>
-                      <span>+ Paste Image URL</span>
+                      <span>💾</span>
+                      <span>{isSavingDraft ? "Saving..." : "Save Draft"}</span>
                     </button>
                   </div>
                 </div>
+              )}
+            </div>
 
-                {/* Direct Image URL Paste Input Bar */}
-                {showUrlInput && (
-                  <div className="flex items-center gap-2 pt-1 animate-in fade-in duration-150">
-                    <input
-                      type="url"
-                      placeholder="Paste direct image link (e.g. https://domain.com/choczero-pack.jpg)..."
-                      value={pasteUrlInput}
-                      onChange={(e) => setPasteUrlInput(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                          e.preventDefault();
-                          handleAddImageUrl();
-                        }
-                      }}
-                      className="flex-1 bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-xs text-slate-800 outline-none focus:border-orange-500"
-                    />
-                    <button
-                      type="button"
-                      onClick={handleAddImageUrl}
-                      className="px-3 py-1.5 bg-orange-600 text-white rounded-lg font-bold hover:bg-orange-700 cursor-pointer text-xs"
-                    >
-                      Add URL
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setShowUrlInput(false)}
-                      className="text-slate-400 hover:text-slate-600 text-xs px-1"
-                    >
-                      ✕
-                    </button>
-                  </div>
-                )}
+            {/* ── STEP 5 CARD: BUYER CONFIRMATION HUB & REVERSE-MATCHING GATE ── */}
+            <div className="bg-white border border-slate-200/90 rounded-2xl shadow-xs overflow-hidden transition">
+              <div
+                onClick={() => toggleSection(5)}
+                className="p-4 bg-slate-50/70 hover:bg-slate-50 border-b border-slate-100 flex items-center justify-between cursor-pointer"
+              >
+                <div className="flex items-center gap-2">
+                  <span className="w-6 h-6 rounded-lg bg-orange-100 text-orange-700 font-black text-xs flex items-center justify-center">
+                    5
+                  </span>
+                  <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
+                    Buyer Confirmation Hub & Matching Gate
+                  </h3>
+                  {briefStatus === "confirmed" ? (
+                    <span className="text-xs text-emerald-700 font-bold bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
+                      ✓ Confirmed (Unlocked)
+                    </span>
+                  ) : (
+                    <span className="text-xs text-amber-800 font-bold bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full">
+                      🔒 Matching Locked
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-center gap-2 text-slate-400">
+                  <span className="text-xs">{openSections[5] ? "▲" : "▼"}</span>
+                </div>
+              </div>
 
-                {/* Staged Images Gallery with Delete Controls */}
-                {imageUrls.length > 0 ? (
-                  <div className="space-y-2 pt-2 border-t border-slate-200/80">
-                    <div className="flex items-center justify-between text-[11px] text-slate-500">
-                      <span>{imageUrls.length} image(s) staged for analysis</span>
+              {openSections[5] && (
+                <div className="p-5 space-y-4 animate-in fade-in duration-150">
+                  {/* Status Banner */}
+                  <div className="p-4 rounded-xl border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-slate-50 border-slate-200">
+                    <div>
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                        Current Approval Lifecycle
+                      </span>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        {briefStatus === "confirmed" ? (
+                          <span className="text-sm font-bold text-emerald-700 flex items-center gap-1.5">
+                            <span>✓</span> Brief Confirmed by Buyer &mdash; Matching Active
+                          </span>
+                        ) : briefStatus === "sent" ? (
+                          <span className="text-sm font-bold text-amber-700 flex items-center gap-1.5">
+                            <span>⏳</span> Awaiting Buyer Review (Digital Link Dispatched)
+                          </span>
+                        ) : briefStatus === "changes_requested" ? (
+                          <span className="text-sm font-bold text-rose-700 flex items-center gap-1.5">
+                            <span>✏️</span> Buyer Requested Adjustments
+                          </span>
+                        ) : briefStatus === "reconfirm_needed" ? (
+                          <span className="text-sm font-bold text-amber-700 flex items-center gap-1.5">
+                            <span>⚠️</span> Specifications Modified &mdash; Re-confirmation Required
+                          </span>
+                        ) : (
+                          <span className="text-sm font-bold text-slate-700 flex items-center gap-1.5">
+                            <span>📝</span> Draft Prepared &mdash; Not Yet Dispatched
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Quick Manual Actions */}
+                    <div className="flex items-center gap-2 flex-wrap">
                       <button
                         type="button"
-                        onClick={handleAnalyzeImages}
-                        disabled={analysingVision}
-                        className="inline-flex items-center gap-1 px-3 py-1 rounded-lg bg-gradient-to-r from-orange-600 to-amber-600 text-white font-bold hover:opacity-95 shadow-xs cursor-pointer disabled:opacity-50 transition"
+                        onClick={handleCopyBuyerLink}
+                        disabled={generatingLink}
+                        className="px-3 py-1.5 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 rounded-lg text-xs font-semibold cursor-pointer transition flex items-center gap-1"
+                        title="Copy digital link to send via WhatsApp or chat"
                       >
-                        <span>✨</span>
-                        <span>{analysingVision ? "Analyzing Images with AI..." : "Run AI Vision Analysis & Insert to Brief"}</span>
+                        <span>🔗</span>
+                        <span>{copiedLinkNotice ? "✓ Copied!" : "Copy Buyer Link"}</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={handleOpenEmailPreviewModal}
+                        className="px-3.5 py-1.5 bg-orange-600 hover:bg-orange-700 text-white rounded-lg text-xs font-bold cursor-pointer transition flex items-center gap-1 shadow-2xs"
+                      >
+                        <span>✉️</span>
+                        <span>Email Buyer Brief</span>
+                      </button>
+
+                      {briefStatus !== "confirmed" && (
+                        <button
+                          type="button"
+                          onClick={() => setShowOverrideModal(true)}
+                          className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold cursor-pointer transition flex items-center gap-1 shadow-2xs"
+                          title="Manually confirm if approved by phone or WhatsApp"
+                        >
+                          <span>✓</span>
+                          <span>Admin Override</span>
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Matching Lock Gate Panel */}
+                  {briefStatus !== "confirmed" ? (
+                    <div className="p-4 rounded-xl bg-slate-100 border border-slate-300 text-slate-700 space-y-2.5">
+                      <div className="flex items-center gap-2 font-bold text-slate-900 text-xs sm:text-sm">
+                        <span>🔒</span>
+                        <span>Reverse-Matching Locked (Awaiting Buyer Confirmation)</span>
+                      </div>
+                      <p className="text-xs text-slate-600 leading-relaxed">
+                        Supplier matchmaking will unlock immediately once the buyer approves this sourcing brief via their secure link, or after you apply an Admin Override. This guarantees factory outreach only runs on 100% verified specifications.
+                      </p>
+                      <button
+                        type="button"
+                        disabled
+                        className="w-full py-2.5 px-4 rounded-xl bg-slate-200 text-slate-400 font-bold text-xs cursor-not-allowed flex items-center justify-center gap-2"
+                      >
+                        <span>🔒</span>
+                        <span>Reverse-Matching Locked (Confirm Brief to Unlock)</span>
                       </button>
                     </div>
-
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-                      {imageUrls.map((url, idx) => (
-                        <div
-                          key={idx}
-                          className="relative group rounded-lg overflow-hidden border border-slate-200 bg-white aspect-video flex items-center justify-center shadow-2xs"
-                        >
-                          <img
-                            src={url}
-                            alt={`Product visual ${idx + 1}`}
-                            className="w-full h-full object-cover"
-                            onError={(e) => {
-                              // Fallback display if URL image cannot be previewed
-                              (e.target as HTMLElement).style.display = "none";
-                            }}
-                          />
-                          <button
-                            type="button"
-                            onClick={() => handleRemoveImage(idx)}
-                            className="absolute top-1 right-1 w-5 h-5 rounded-full bg-slate-900/80 text-white text-[11px] flex items-center justify-center opacity-80 hover:opacity-100 hover:bg-rose-600 transition cursor-pointer"
-                            title="Delete image"
-                          >
-                            ✕
-                          </button>
-                          <span className="absolute bottom-1 left-1 bg-black/60 text-[9px] text-white px-1.5 py-0.5 rounded-sm">
-                            #{idx + 1}
-                          </span>
-                        </div>
-                      ))}
+                  ) : (
+                    <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-950 space-y-3">
+                      <div className="flex items-center gap-2 font-bold text-emerald-900 text-xs sm:text-sm">
+                        <span>🔓</span>
+                        <span>Sourcing Brief 100% Confirmed &mdash; Reverse-Matching Unlocked!</span>
+                      </div>
+                      <p className="text-xs text-emerald-800 leading-relaxed">
+                        Specifications are verified. You can now execute reverse-matching across 80,000+ European catalog items and qualified factories.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={handleSubmitProject}
+                        disabled={isSubmitting || fetchingMatches}
+                        className="w-full py-3 px-5 rounded-xl bg-gradient-to-r from-orange-600 to-amber-600 text-white font-bold text-sm hover:opacity-95 shadow-md shadow-orange-500/20 disabled:opacity-50 transition cursor-pointer flex items-center justify-center gap-2"
+                      >
+                        {isSubmitting || fetchingMatches ? (
+                          <>
+                            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                            <span>Matching European Factories...</span>
+                          </>
+                        ) : (
+                          <>
+                            <span>🚀</span>
+                            <span>Run Reverse-Match Across European Catalog Items</span>
+                          </>
+                        )}
+                      </button>
                     </div>
-                  </div>
-                ) : (
-                  <p className="text-[11px] text-slate-400 italic">
-                    Upload pack shots or paste image URLs. Click "Run AI Vision Analysis" when ready to extract OCR labels, brand, and kosher marks into the project brief.
-                  </p>
-                )}
+                  )}
 
-                {visionSummary && (
-                  <div className="p-2.5 bg-emerald-50 border border-emerald-200 rounded-lg text-[11px] text-emerald-900 leading-relaxed">
-                    <strong className="block font-bold mb-0.5">✓ Visual Specs Added to Project Brief:</strong>
-                    <div className="whitespace-pre-wrap text-emerald-800">{visionSummary}</div>
-                  </div>
-                )}
-              </div>
+                  {createdRequestId && (
+                    <div className="flex justify-end pt-1">
+                      <button
+                        type="button"
+                        onClick={() => setDeleteConfirmOpen(true)}
+                        className="text-xs font-semibold text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 px-3 py-1.5 rounded-lg transition cursor-pointer flex items-center gap-1"
+                      >
+                        <span>🗑️</span>
+                        <span>Move Request to Trash</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             {errorMsg && (
@@ -1312,54 +1956,7 @@ export default function SourcingDealDesk({
                 ⚠️ {errorMsg}
               </div>
             )}
-
-            {/* Submit & Save Action Buttons */}
-            <div className="pt-2 flex flex-col sm:flex-row items-center gap-3">
-              <button
-                type="button"
-                onClick={() => handleSaveDraft(false)}
-                disabled={isSavingDraft}
-                className="w-full sm:w-auto px-4 py-3 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-300 text-slate-700 font-bold text-xs sm:text-sm cursor-pointer transition flex items-center justify-center gap-2 shadow-2xs disabled:opacity-50"
-                title="Save draft to cloud and local (Ctrl+S)"
-              >
-                <span>💾</span>
-                <span>{isSavingDraft ? "Saving Draft..." : "Save Draft"}</span>
-                <kbd className="text-[10px] bg-white px-1.5 py-0.5 rounded text-slate-500 font-mono border border-slate-200">
-                  Ctrl+S
-                </kbd>
-              </button>
-
-              {createdRequestId && (
-                <button
-                  type="button"
-                  onClick={() => setDeleteConfirmOpen(true)}
-                  className="w-full sm:w-auto px-3.5 py-3 rounded-xl bg-red-50 hover:bg-red-100 border border-red-200 text-red-600 font-bold text-xs transition cursor-pointer flex items-center justify-center gap-1.5"
-                  title="Move this request to Trash"
-                >
-                  <span>🗑️</span>
-                  <span>Delete</span>
-                </button>
-              )}
-
-              <button
-                type="submit"
-                disabled={isSubmitting}
-                className="flex-1 w-full py-3 px-5 rounded-xl bg-gradient-to-r from-orange-600 to-amber-600 text-white font-bold text-sm hover:opacity-95 shadow-md shadow-orange-500/20 disabled:opacity-50 transition cursor-pointer flex items-center justify-center gap-2"
-              >
-                {isSubmitting ? (
-                  <>
-                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    <span>Matching across 80,000+ European Catalog Items...</span>
-                  </>
-                ) : (
-                  <>
-                    <span>🚀</span>
-                    <span>Create Sourcing Request & Run Reverse-Match</span>
-                  </>
-                )}
-              </button>
-            </div>
-          </form>
+          </div>
 
           {/* ── RIGHT PANEL: LIVE MATCHES & RECENT PROJECTS (col 5) ── */}
           <div className="lg:col-span-5 space-y-5">
@@ -1430,7 +2027,7 @@ export default function SourcingDealDesk({
               ) : (
                 <div className="py-6 text-center text-xs text-slate-400 space-y-2">
                   <span className="text-2xl">🏭</span>
-                  <p>Select a buyer, write a project brief, and hit run to see instant matched factories right here.</p>
+                  <p>Select a buyer, write a brief, confirm it, and hit run to see instant matched factories right here.</p>
                 </div>
               )}
             </div>
@@ -1473,11 +2070,11 @@ export default function SourcingDealDesk({
           </div>
         </div>
       )}
+
       {/* ── EMAIL BUYER CONFIRMATION MODAL & PREVIEW ── */}
       {showEmailModal && selectedBuyer && (
         <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 overflow-y-auto animate-in fade-in duration-150">
           <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl max-w-3xl w-full max-h-[92vh] flex flex-col overflow-hidden my-auto">
-            {/* Modal Header */}
             <div className="p-4 sm:p-5 border-b border-slate-200 flex items-center justify-between bg-slate-50 shrink-0">
               <div className="flex items-center gap-2.5">
                 <span className="w-8 h-8 rounded-xl bg-sky-500/10 border border-sky-500/20 text-sky-600 flex items-center justify-center font-bold text-sm">
@@ -1488,7 +2085,7 @@ export default function SourcingDealDesk({
                     Review & Confirm Sourcing Brief Email
                   </h3>
                   <p className="text-xs text-slate-500">
-                    Verify email contents and recipients before manual dispatch to {selectedBuyer.company_name}
+                    Verify email contents and recipient before manual dispatch to {selectedBuyer.company_name}
                   </p>
                 </div>
               </div>
@@ -1501,9 +2098,7 @@ export default function SourcingDealDesk({
               </button>
             </div>
 
-            {/* Modal Body (Scrollable) */}
             <div className="p-4 sm:p-6 overflow-y-auto space-y-4 text-xs sm:text-sm">
-              {/* Recipient & Subject Strip */}
               <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-2.5">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
                   <div>
@@ -1532,7 +2127,7 @@ export default function SourcingDealDesk({
 
                 <div>
                   <label className="font-semibold text-slate-600 block mb-1">
-                    Optional Personal Note from Deal Desk (appears highlighted in email):
+                    Optional Personal Note from Deal Desk:
                   </label>
                   <textarea
                     rows={2}
@@ -1544,129 +2139,11 @@ export default function SourcingDealDesk({
                 </div>
               </div>
 
-              {/* Exact Email Preview Container */}
-              <div>
-                <div className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 flex items-center justify-between">
-                  <span>Buyer Inbox Preview</span>
-                  <span className="text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded font-normal">
-                    HTML Styled Rendering
-                  </span>
-                </div>
-
-                <div className="border border-slate-200 rounded-xl overflow-hidden shadow-2xs bg-white">
-                  {/* Email Header */}
-                  <div className="bg-slate-900 text-white p-4 flex items-center justify-between">
-                    <div>
-                      <span className="text-base font-extrabold tracking-tight">Food<span className="text-orange-500">X</span>change</span>
-                      <p className="text-[10px] text-slate-400 uppercase tracking-wider">Direct European Sourcing & Factory Matchmaking</p>
-                    </div>
-                    <span className="bg-orange-500/20 text-orange-400 border border-orange-500/30 text-[10px] font-bold px-2 py-0.5 rounded-full">
-                      Sourcing Brief
-                    </span>
-                  </div>
-
-                  {/* Email Body */}
-                  <div className="p-4 sm:p-5 space-y-3.5 text-xs text-slate-700 leading-relaxed">
-                    <h4 className="text-sm font-bold text-slate-900">
-                      Hi {selectedBuyer.contact_name || selectedBuyer.company_name},
-                    </h4>
-
-                    {emailCustomNotes && (
-                      <div className="p-3 bg-blue-50 border-l-4 border-blue-500 rounded-r-lg text-blue-900 text-xs">
-                        <strong className="block text-blue-950 font-bold mb-0.5">Direct Note from FoodXchange:</strong>
-                        <div className="whitespace-pre-wrap">{emailCustomNotes}</div>
-                      </div>
-                    )}
-
-                    <p className="text-slate-600">
-                      Thank you for aligning your sourcing goals with FoodXchange. Below is the confirmed operational brief for your sourcing project. Our deal desk is actively matching these specifications across verified European factories in Spain, Italy, Germany, and across the EU.
-                    </p>
-
-                    {/* Specifications Table Preview */}
-                    <table className="w-full border-collapse border border-slate-200 rounded-lg overflow-hidden text-xs">
-                      <tbody>
-                        {projectTitle && (
-                          <tr className="border-b border-slate-200">
-                            <td className="p-2.5 font-bold text-slate-500 bg-slate-50 w-36">Target Product / Scope</td>
-                            <td className="p-2.5 font-bold text-slate-900">{projectTitle}</td>
-                          </tr>
-                        )}
-                        {benchmarkBrands && (
-                          <tr className="border-b border-slate-200">
-                            <td className="p-2.5 font-bold text-slate-500 bg-slate-50">Benchmark Brands</td>
-                            <td className="p-2.5 text-slate-800">{benchmarkBrands}</td>
-                          </tr>
-                        )}
-                        {category && (
-                          <tr className="border-b border-slate-200">
-                            <td className="p-2.5 font-bold text-slate-500 bg-slate-50">Category</td>
-                            <td className="p-2.5 text-slate-800">{category}</td>
-                          </tr>
-                        )}
-                        <tr className="border-b border-slate-200">
-                          <td className="p-2.5 font-bold text-slate-500 bg-slate-50">Packaging & Format</td>
-                          <td className="p-2.5 text-slate-800">{packagingFormat}</td>
-                        </tr>
-                        <tr className="border-b border-slate-200">
-                          <td className="p-2.5 font-bold text-slate-500 bg-slate-50">Target Volume</td>
-                          <td className="p-2.5 text-slate-800">{estimatedVolume}</td>
-                        </tr>
-                        <tr className="border-b border-slate-200">
-                          <td className="p-2.5 font-bold text-slate-500 bg-slate-50">Branding Preference</td>
-                          <td className="p-2.5 text-slate-800">
-                            {brandingModel === "private_label"
-                              ? "Private Label (Buyer's Brand OEM)"
-                              : brandingModel === "supplier_brand"
-                              ? "Supplier branded Line"
-                              : "Open to Factory Brands & Private Label"}
-                          </td>
-                        </tr>
-                        <tr className="border-b border-slate-200">
-                          <td className="p-2.5 font-bold text-slate-500 bg-slate-50">Dietary & Certifications</td>
-                          <td className="p-2.5 text-slate-800">
-                            <span className="inline-block bg-emerald-50 text-emerald-800 font-semibold px-2 py-0.5 rounded text-[11px] border border-emerald-200">
-                              {selectedTags.length > 0 ? selectedTags.join(", ") : "Standard EU Quality & Israeli Import Readiness"}
-                            </span>
-                          </td>
-                        </tr>
-                        <tr className="border-b border-slate-200">
-                          <td className="p-2.5 font-bold text-slate-500 bg-slate-50">Target Market</td>
-                          <td className="p-2.5 text-slate-800">{targetMarket}</td>
-                        </tr>
-                        {naturalBrief && (
-                          <tr>
-                            <td className="p-2.5 font-bold text-slate-500 bg-slate-50 align-top">Project Notes & Brief</td>
-                            <td className="p-2.5 text-slate-700 whitespace-pre-wrap leading-relaxed">{naturalBrief}</td>
-                          </tr>
-                        )}
-                      </tbody>
-                    </table>
-
-                    {/* Attached Visuals Thumbnails */}
-                    {imageUrls.length > 0 && (
-                      <div className="pt-2">
-                        <span className="font-bold text-slate-700 block mb-1.5">
-                          Attached Reference Packaging ({imageUrls.length}):
-                        </span>
-                        <div className="flex flex-wrap gap-2">
-                          {imageUrls.map((url, i) => (
-                            <div key={i} className="w-20 h-16 rounded border border-slate-200 overflow-hidden bg-slate-50">
-                              <img src={url} alt={`Ref #${i + 1}`} className="w-full h-full object-cover" />
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    <div className="p-3 bg-amber-50/80 border border-amber-200 rounded-lg text-amber-900 text-[11px]">
-                      <strong>Call to action included in email:</strong> Buyer receives a direct confirmation button to confirm the brief or reply via email/WhatsApp with adjustments.
-                    </div>
-                  </div>
-                </div>
+              <div className="p-3.5 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-900 leading-relaxed">
+                <strong>✓ Digital Approval Link Included:</strong> The email will contain a secure one-click link for the buyer to review the complete brief, examine multi-product cards, and click "Confirm" or "Request adjustments" without needing a password.
               </div>
             </div>
 
-            {/* Modal Actions Footer */}
             <div className="p-4 sm:p-5 border-t border-slate-200 bg-slate-50 flex flex-col sm:flex-row items-center justify-between gap-3 shrink-0">
               <span className="text-[11px] text-slate-500 text-center sm:text-left">
                 Manual trigger only. Review details above and click button to send.
@@ -1678,7 +2155,7 @@ export default function SourcingDealDesk({
                   disabled={sendingEmail}
                   className="flex-1 sm:flex-initial px-4 py-2 rounded-xl bg-white border border-slate-200 text-slate-700 font-semibold hover:bg-slate-100 text-xs transition cursor-pointer"
                 >
-                  Cancel / Edit
+                  Cancel
                 </button>
                 <button
                   type="button"
@@ -1704,6 +2181,65 @@ export default function SourcingDealDesk({
         </div>
       )}
 
+      {/* ── ADMIN OVERRIDE MODAL ── */}
+      {showOverrideModal && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl max-w-md w-full p-6 space-y-4 animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="w-7 h-7 rounded-lg bg-emerald-100 text-emerald-700 font-bold flex items-center justify-center text-sm">
+                  ✓
+                </span>
+                <h3 className="text-sm font-bold text-slate-900">
+                  Admin Manual Confirmation Override
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowOverrideModal(false)}
+                className="text-slate-400 hover:text-slate-600 text-sm"
+              >
+                ✕
+              </button>
+            </div>
+            <p className="text-xs text-slate-600 leading-relaxed">
+              Use this when the buyer has approved the brief via phone call, WhatsApp, or meeting. This will immediately unlock European factory reverse-matching and log an "admin_override" audit record.
+            </p>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                  Confirmation Note (e.g. Approved by Sharon via Phone)
+                </label>
+                <textarea
+                  rows={2}
+                  value={overrideNotes}
+                  onChange={(e) => setOverrideNotes(e.target.value)}
+                  placeholder="e.g. Phone alignment on 2026-10-28; confirmed 1 container/month and private label."
+                  className="w-full text-xs bg-slate-50 border border-slate-200 rounded-lg p-2.5 outline-none focus:border-emerald-500 focus:bg-white"
+                />
+              </div>
+              <div className="flex items-center justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowOverrideModal(false)}
+                  className="px-3.5 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-lg"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleAdminOverrideConfirm}
+                  disabled={isOverridingConfirm}
+                  className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-lg shadow-sm disabled:opacity-50 flex items-center gap-1.5 cursor-pointer"
+                >
+                  {isOverridingConfirm ? "Confirming..." : "✓ Mark Confirmed & Unlock"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── FLOATING CLOUD SAVE & BRIEF STATUS ANNOUNCEMENT TOAST (Bottom-Right) ── */}
       {saveToast && saveToast.visible && (
         <div
@@ -1711,7 +2247,6 @@ export default function SourcingDealDesk({
           onMouseLeave={() => setToastHovered(false)}
           className="fixed bottom-5 right-5 z-50 max-w-sm sm:max-w-md w-full bg-slate-900/95 text-white backdrop-blur-md rounded-2xl p-4 shadow-2xl border border-slate-700/80 animate-in slide-in-from-bottom-5 duration-200 space-y-3"
         >
-          {/* Top row: Icon, Title, Timestamp & Close */}
           <div className="flex items-center justify-between gap-2 border-b border-slate-800 pb-2.5">
             <div className="flex items-center gap-2">
               <span className="w-6 h-6 rounded-lg bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center justify-center text-xs font-bold">
@@ -1734,7 +2269,6 @@ export default function SourcingDealDesk({
             </button>
           </div>
 
-          {/* Project & Brief Status Info */}
           <div className="space-y-1.5">
             <div className="text-xs text-slate-300 font-medium truncate">
               <span className="text-slate-400">Buyer:</span> <strong className="text-white">{saveToast.buyerName}</strong> • {saveToast.projectTitle}
@@ -1771,7 +2305,6 @@ export default function SourcingDealDesk({
             </div>
           </div>
 
-          {/* Action Row */}
           <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-800">
             {saveToast.requestId ? (
               <Link

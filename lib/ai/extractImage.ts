@@ -66,7 +66,13 @@ const Schema = z.object({
   ).optional(),
   nutrition_claims: AttrSchema(z.array(z.string())).optional(),
   free_from: AttrSchema(z.array(z.string())).optional(),
-  raw_text_ocr: z.string().nullable().optional(),
+    raw_text_ocr: z.string().nullable().optional(),
+  manufacturer: AttrSchema(z.string().nullable()).optional(),
+  distributor: AttrSchema(z.string().nullable()).optional(),
+  origin_state: AttrSchema(z.string().nullable()).optional(),
+  eu_factory_code: AttrSchema(z.string().nullable()).optional(),
+  ean_barcode: AttrSchema(z.string().nullable()).optional(),
+  sweeteners: AttrSchema(z.array(z.string())).optional(),
 });
 
 async function fetchImageAsBase64(url: string): Promise<{ data: string; mimeType: string } | null> {

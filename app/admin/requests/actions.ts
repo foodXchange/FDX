@@ -32,6 +32,8 @@ import {
   type ChaserRound,
 } from "@/lib/outreach/chaserTemplates";
 import { trackApiUsage } from "@/lib/usage/trackUsage";
+import crypto from "crypto";
+import { runLayeredAnalysis, type LayeredAnalysisResult } from "@/lib/ai/layeredAnalysis";
 
 
 export async function updateRequestStatus(
@@ -402,6 +404,120 @@ export async function permanentDeleteRequestAction(
   }
 }
 
+
+export async function runLayeredAnalysisAction(input: {
+  imageUrls: string[];
+  briefText?: string;
+  requestId?: string;
+}): Promise<{ ok: true; data: LayeredAnalysisResult } | { ok: false; error: string }> {
+  try {
+    const data = await runLayeredAnalysis({
+      imageUrls: input.imageUrls,
+      briefText: input.briefText,
+      requestId: input.requestId,
+    });
+    return { ok: true, data };
+  } catch (err: any) {
+    console.error("runLayeredAnalysisAction error:", err);
+    return { ok: false, error: err.message || "Failed to run layered analysis" };
+  }
+}
+
+export async function createBriefTokenAction(requestId: string): Promise<
+  { ok: true; token: string; url: string; expiresAt: string } | { ok: false; error: string }
+> {
+  try {
+    const adminEmail = getAdminEmail() || "admin@fdx.trading";
+    const rawToken = crypto.randomBytes(24).toString("hex");
+    const tokenHash = crypto.createHash("sha256").update(rawToken).digest("hex");
+
+    const { data: req, error: fetchErr } = await supabaseAdmin
+      .from("sourcing_requests")
+      .select("id, brief_version")
+      .eq("id", requestId)
+      .single();
+
+    if (fetchErr || !req) {
+      return { ok: false, error: "Request not found" };
+    }
+
+    const { error: insErr } = await supabaseAdmin.from("brief_tokens").insert({
+      request_id: requestId,
+      token_hash: tokenHash,
+      brief_version: req.brief_version || 1,
+      created_by: adminEmail,
+    });
+
+    if (insErr) {
+      return { ok: false, error: insErr.message };
+    }
+
+    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://fdx.trading";
+    const url = `${baseUrl}/brief/${rawToken}`;
+    return {
+      ok: true,
+      token: rawToken,
+      url,
+      expiresAt: new Date(Date.now() + 30 * 24 * 3600 * 1000).toISOString(),
+    };
+  } catch (err: any) {
+    return { ok: false, error: err.message || "Failed to generate brief token" };
+  }
+}
+
+export async function adminOverrideConfirmBriefAction(input: {
+  requestId: string;
+  notes?: string;
+}): Promise<{ ok: true } | { ok: false; error: string }> {
+  try {
+    const adminEmail = getAdminEmail() || "admin@fdx.trading";
+    const nowIso = new Date().toISOString();
+
+    const { data: existing } = await supabaseAdmin
+      .from("sourcing_requests")
+      .select("ai_analysis")
+      .eq("id", input.requestId)
+      .single();
+
+    const currentAi = (existing?.ai_analysis as Record<string, unknown> | null) ?? {};
+
+    const { error } = await supabaseAdmin
+      .from("sourcing_requests")
+      .update({
+        brief_status: "confirmed",
+        confirmed_at: nowIso,
+        confirmed_by: adminEmail,
+        confirmed_via: "admin_override",
+        ai_analysis: {
+          ...currentAi,
+          buyer_brief_approval: {
+            status: "approved",
+            approved_at: nowIso,
+            approved_by: adminEmail,
+            notes: input.notes || "Admin confirmation override",
+          },
+        },
+      })
+      .eq("id", input.requestId);
+
+    if (error) throw error;
+
+    await supabaseAdmin.from("sourcing_request_activity").insert({
+      request_id: input.requestId,
+      type: "admin_override",
+      actor_type: "admin",
+      actor_name: adminEmail,
+      comment: input.notes || "Admin confirmed brief manually via deal desk",
+    });
+
+    revalidatePath("/admin/requests");
+    revalidatePath(`/admin/requests/${input.requestId}`);
+    return { ok: true };
+  } catch (err: any) {
+    return { ok: false, error: err.message || "Failed to override brief confirmation" };
+  }
+}
+
 export async function updateBriefStatusAction(
   requestId: string,
   status: "draft" | "sent" | "changes_requested" | "confirmed" | "reconfirm_needed",
@@ -757,6 +873,31 @@ export async function sendBriefConfirmationEmailAction(
         ? selectedTags.join(", ")
         : "Standard EU Quality & Israeli Import Readiness";
 
+        let buyerBriefUrl: string | null = null;
+    if (input.requestId) {
+      try {
+        const rawToken = crypto.randomBytes(24).toString("hex");
+        const tokenHash = crypto.createHash("sha256").update(rawToken).digest("hex");
+        const { data: reqVersion } = await supabaseAdmin
+          .from("sourcing_requests")
+          .select("brief_version")
+          .eq("id", input.requestId)
+          .single();
+
+        await supabaseAdmin.from("brief_tokens").insert({
+          request_id: input.requestId,
+          token_hash: tokenHash,
+          brief_version: reqVersion?.brief_version || 1,
+          created_by: getAdminEmail() || "admin@fdx.trading",
+        });
+
+        const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://fdx.trading";
+        buyerBriefUrl = `${baseUrl}/brief/${rawToken}`;
+      } catch (tErr) {
+        console.warn("Could not generate brief token for email:", tErr);
+      }
+    }
+
     const subject =
       customSubject?.trim() ||
       `Sourcing Brief Confirmation: ${projectTitle || "Specialty Products"} — FoodXchange`;
@@ -889,11 +1030,22 @@ export async function sendBriefConfirmationEmailAction(
             </p>
           </div>
 
-          <div style="margin-top: 24px; text-align: center;">
-            <a href="mailto:udi@fdx.trading?subject=Confirmed:%20${encodeURIComponent(projectTitle || "Sourcing Brief")}" style="display: inline-block; background: #ea580c; color: #ffffff; text-decoration: none; font-weight: 700; font-size: 13px; padding: 10px 22px; border-radius: 8px;">
-              ✓ Reply to Confirm Brief or Request Updates
-            </a>
-          </div>
+          ${
+            buyerBriefUrl
+              ? `<div style="margin: 28px 0; text-align: center;">
+                  <a href="${buyerBriefUrl}" style="display: inline-block; background: #059669; color: #ffffff; text-decoration: none; font-weight: 700; font-size: 14px; padding: 14px 28px; border-radius: 8px; box-shadow: 0 4px 6px -1px rgba(5, 150, 105, 0.2);">
+                    ✓ Review & Confirm Sourcing Brief Online →
+                  </a>
+                  <p style="margin: 8px 0 0; font-size: 11px; color: #64748b;">
+                    One-click digital approval. No login required.
+                  </p>
+                </div>`
+              : `<div style="margin-top: 24px; text-align: center;">
+                  <a href="mailto:udi@fdx.trading?subject=Confirmed:%20${encodeURIComponent(projectTitle || "Sourcing Brief")}" style="display: inline-block; background: #ea580c; color: #ffffff; text-decoration: none; font-weight: 700; font-size: 13px; padding: 10px 22px; border-radius: 8px;">
+                    ✓ Reply to Confirm Brief or Request Updates
+                  </a>
+                </div>`
+          }
         </div>
 
         <div style="background: #f1f5f9; padding: 16px 24px; border-top: 1px solid #e2e8f0; font-size: 11px; color: #64748b; text-align: center; line-height: 1.5;">

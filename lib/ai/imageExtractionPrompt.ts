@@ -50,6 +50,13 @@ NEW FIELD RULES:
 - nutrition_claims: Attr wrapping a string[] of nutritional claims in English ("54% whole grain","enriched with vitamins and iron"). Use [] if none visible.
 - free_from: Attr wrapping a string[] of absence claims in English ("no preservatives","no artificial coloring"). Use [] if none visible.
 - raw_text_ocr: plain string (NOT an Attr) — all visible label text verbatim in original language(s). null if illegible.
+- manufacturer: the legal producer/manufacturer named on the back of the package (e.g. "Produced by / Hergestellt von / Prodotto da / Fabricado por / מיוצר על ידי"), as an Attr<string|null>. null if unlisted.
+- distributor: the distributor, importer, or brand owner named on pack, as an Attr<string|null>. null if unlisted.
+- origin_state: the specific region, state, province, or city where the product was made (e.g. "Bavaria", "Modena", "Flanders", "Sicily", "Parma"), as an Attr<string|null>. null if not specified.
+- eu_factory_code: the European Union oval sanitary health-mark code stamped on the packaging (e.g. "BE 1234 EG", "IT 03 123 CE", "ES 10.00001/B CE", "FR 75.001.001 CE") which identifies the exact certified factory premises. Attr<string|null>. null if none visible.
+- ean_barcode: the numeric digits of any visible EAN-13, EAN-8, or UPC barcode on the packaging. Attr<string|null>. null if not visible.
+- sweeteners: list of specific sweetener compounds identified in the ingredients or claims in English (e.g. ["erythritol", "stevia", "maltitol", "sucralose", "monk fruit", "allulose"]). Attr<string[]>. [] if none visible.
+
 
 Schema (exact keys and nesting):
 {
@@ -77,7 +84,13 @@ Schema (exact keys and nesting):
   "kosher": { "value": { "required": boolean, "hechsher": string | null, "passover": boolean | null } | null, "status": "observed" | "inferred" | "unknown", "confidence": number, "evidence": string | null },
   "nutrition_claims": { "value": string[], "status": "observed" | "inferred" | "unknown", "confidence": number, "evidence": string | null },
   "free_from": { "value": string[], "status": "observed" | "inferred" | "unknown", "confidence": number, "evidence": string | null },
-  "raw_text_ocr": string | null,
+    "raw_text_ocr": string | null,
+  "manufacturer": { "value": string | null, "status": "observed" | "inferred" | "unknown", "confidence": number, "evidence": string | null },
+  "distributor": { "value": string | null, "status": "observed" | "inferred" | "unknown", "confidence": number, "evidence": string | null },
+  "origin_state": { "value": string | null, "status": "observed" | "inferred" | "unknown", "confidence": number, "evidence": string | null },
+  "eu_factory_code": { "value": string | null, "status": "observed" | "inferred" | "unknown", "confidence": number, "evidence": string | null },
+  "ean_barcode": { "value": string | null, "status": "observed" | "inferred" | "unknown", "confidence": number, "evidence": string | null },
+  "sweeteners": { "value": string[], "status": "observed" | "inferred" | "unknown", "confidence": number, "evidence": string | null },
   "overall_quality": "clear" | "partial" | "poor",
   "flags": string[]
 }

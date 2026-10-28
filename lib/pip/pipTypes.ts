@@ -138,5 +138,11 @@ export type ImageExtraction = {
   kosher?: Attr<{ required: boolean; hechsher: string | null; passover: boolean | null }>;
   nutrition_claims?: Attr<string[]>;
   free_from?: Attr<string[]>;
-  raw_text_ocr?: string | null;
+    raw_text_ocr?: string | null;
+  manufacturer?: Attr<string | null>;
+  distributor?: Attr<string | null>;
+  origin_state?: Attr<string | null>;
+  eu_factory_code?: Attr<string | null>;
+  ean_barcode?: Attr<string | null>;
+  sweeteners?: Attr<string[]>;
 };
