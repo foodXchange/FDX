@@ -388,7 +388,7 @@ async function main(): Promise<void> {
     console.error("✗ FIRECRAWL_API_KEY not set");
     process.exit(1);
   }
-  if (!process.env.ANTHROPIC_API_KEY) {
+  if (!process.env.ANTHROPIC_API_KEY && !process.env.GEMINI_API_KEY) {
     console.error("✗ ANTHROPIC_API_KEY not set");
     process.exit(1);
   }

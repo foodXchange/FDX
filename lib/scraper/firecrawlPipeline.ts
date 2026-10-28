@@ -4,7 +4,7 @@ import { isProductUrl, isContactUrl } from "./urlFilters";
 import { extractProducts, ExtractedProduct } from "./extract";
 import { resolveProductImage } from "./resolveProductImage";
 
-const PIPELINE_TIMEOUT_MS = 180_000;
+const MAP_TIMEOUT_MS = 35_000;
 
 function getFirecrawl() {
   const key = process.env.FIRECRAWL_API_KEY;
@@ -178,61 +178,91 @@ export async function scrapeSupplier(supplierId: string, supplierUrl: string, op
   const mapLimit = opts.mapLimit ?? MAP_LIMIT_DEFAULT;
   const maxPages = opts.maxPages ?? MAX_PRODUCT_PAGES;
 
-  // Stage 1: Map
+  // Stage 1: Map (with 35s timeout and resilient array/object handling)
   let links: string[] = [];
   let mapFailed = false;
   try {
-    const resp = await Promise.race([
+    const resp: any = await Promise.race([
       firecrawl.map(supplierUrl, { limit: mapLimit }),
       new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error("Firecrawl map timeout")), PIPELINE_TIMEOUT_MS)
+        setTimeout(() => reject(new Error("Firecrawl map timeout")), MAP_TIMEOUT_MS)
       ),
     ]);
-    links = (resp?.links || []).map((l: any) => l.url).filter(Boolean);
+    const rawList = Array.isArray(resp) ? resp : resp?.links || [];
+    links = rawList.map((l: any) => (typeof l === "string" ? l : l.url)).filter(Boolean);
   } catch (err) {
     mapFailed = true;
-    console.warn("⚠ map failed/empty — falling back to homepage only", err);
+    console.warn("⚠ map failed/timed out — falling back to homepage only", err);
     links = [];
   }
 
   if (mapFailed || links.length === 0) {
-    console.warn("⚠ map failed/empty — falling back to homepage only");
     links = [supplierUrl];
   }
 
   // Stage 2: Filter
   const homepageOnly = [supplierUrl];
-  const productUrls = links.filter((u) => isProductUrl(new URL(u, supplierUrl).pathname));
+  const productUrls = links.filter((u) => {
+    try {
+      return isProductUrl(new URL(u, supplierUrl).pathname);
+    } catch {
+      return false;
+    }
+  });
   const uniqueUrls = Array.from(new Set(productUrls));
   const selected = uniqueUrls.slice(0, maxPages);
 
   const contactUrls = links
-    .filter((u) => isContactUrl(new URL(u, supplierUrl).pathname))
-    .map((u) => new URL(u, supplierUrl).href);
+    .filter((u) => {
+      try {
+        return isContactUrl(new URL(u, supplierUrl).pathname);
+      } catch {
+        return false;
+      }
+    })
+    .map((u) => {
+      try {
+        return new URL(u, supplierUrl).href;
+      } catch {
+        return u;
+      }
+    });
   const uniqueContactUrls = Array.from(new Set(contactUrls));
-  const contactTargets = uniqueContactUrls.slice(0, 5);
+  const contactTargets = uniqueContactUrls.slice(0, 3);
 
+  // If product URLs were found, scrape them; otherwise scrape homepage
   const pagesToScrape = selected.length > 0 ? selected : homepageOnly;
   const needsReview = selected.length === 0;
 
-  // Stage 3: Batch scrape
-  let pages: Array<{ url: string; markdown: string; metadata?: { ogImage?: string | null } | null }> = [];
-  try {
-    // Firecrawl types are permissive here — cast to any to avoid strict SDK type mismatches
-    const job: any = await firecrawl.batchScrape(pagesToScrape, FIRECRAWL_SCRAPE_OPTIONS as any);
-    const results: any[] = job?.data || [];
-    for (const p of results) {
-      pages.push({ url: p.url, markdown: p.markdown || p.content || "", metadata: p.metadata });
+  // Stage 3: Concurrent Scrape (Fast direct scrapes with concurrency chunks of 5)
+  const pages: Array<{ url: string; markdown: string; metadata?: { ogImage?: string | null } | null }> = [];
+  const BATCH_CHUNK = 5;
+  for (let i = 0; i < pagesToScrape.length; i += BATCH_CHUNK) {
+    const chunk = pagesToScrape.slice(i, i + BATCH_CHUNK);
+    const chunkResults = await Promise.all(
+      chunk.map(async (u) => {
+        try {
+          const res: any = await firecrawl.scrape(u, FIRECRAWL_SCRAPE_OPTIONS as any);
+          return { url: u, markdown: res?.markdown || res?.content || "", metadata: res?.metadata };
+        } catch (e) {
+          console.warn("Failed to scrape", u, e);
+          return null;
+        }
+      })
+    );
+    for (const r of chunkResults) {
+      if (r && r.markdown) pages.push(r);
     }
-  } catch (err) {
-    console.warn("Firecrawl batchScrape errors — attempting best-effort per-URL:", err);
-    for (const u of pagesToScrape) {
-      try {
-        const job: any = await firecrawl.scrape(u, FIRECRAWL_SCRAPE_OPTIONS as any);
-        pages.push({ url: u, markdown: job?.markdown || job?.content || "", metadata: job?.metadata });
-      } catch (e) {
-        console.warn("Failed to scrape", u, e);
-      }
+  }
+
+  // Also scrape homepage if it wasn't among pagesToScrape
+  let homepageMarkdown = pages[0]?.markdown ?? "";
+  if (selected.length > 0 && !pagesToScrape.includes(supplierUrl)) {
+    try {
+      const homeRes: any = await firecrawl.scrape(supplierUrl, FIRECRAWL_SCRAPE_OPTIONS as any);
+      homepageMarkdown = homeRes?.markdown || homeRes?.content || homepageMarkdown;
+    } catch {
+      // Keep first scraped page as fallback
     }
   }
 
@@ -241,26 +271,20 @@ export async function scrapeSupplier(supplierId: string, supplierUrl: string, op
   if (contactTargets.length === 0 && pagesToScrape.length === 1 && pagesToScrape[0] === supplierUrl) {
     contactPages = pages.map((p) => ({ source_url: p.url, markdown: p.markdown }));
   } else {
-    try {
-      const job: any = await firecrawl.batchScrape(contactPageTargets, FIRECRAWL_SCRAPE_OPTIONS as any);
-      const results: any[] = job?.data || [];
-      for (const p of results) {
-        contactPages.push({ source_url: p.url, markdown: p.markdown || p.content || "" });
-      }
-    } catch (err) {
-      console.warn("Firecrawl batchScrape for contact pages failed — attempting best-effort per-URL:", err);
-      for (const u of contactPageTargets) {
+    const contactResults = await Promise.all(
+      contactPageTargets.slice(0, 3).map(async (u) => {
         try {
-          const job: any = await firecrawl.scrape(u, FIRECRAWL_SCRAPE_OPTIONS as any);
-          contactPages.push({ source_url: u, markdown: job?.markdown || job?.content || "" });
-        } catch (e) {
-          console.warn("Failed to scrape contact page", u, e);
+          const res: any = await firecrawl.scrape(u, FIRECRAWL_SCRAPE_OPTIONS as any);
+          return { source_url: u, markdown: res?.markdown || res?.content || "" };
+        } catch {
+          return null;
         }
-      }
-    }
+      })
+    );
+    contactPages = contactResults.filter((c): c is ContactPage => Boolean(c && c.markdown));
   }
 
-  // Stage 4: Extract + return
+  // Stage 4: Extract products using AI with metadata & images
   const extractedAll: PageProduct[] = [];
   for (const p of pages) {
     try {
@@ -309,7 +333,7 @@ export async function scrapeSupplier(supplierId: string, supplierUrl: string, op
     needsReview,
     pagesScraped: pages.length + contactPages.length,
     products: deduplicated,
-    homepageMarkdown: pages[0]?.markdown ?? "",
+    homepageMarkdown,
     allMarkdown: pages.map((p) => p.markdown).join("\n\n---PAGE BREAK---\n\n"),
     contactPages,
   };
