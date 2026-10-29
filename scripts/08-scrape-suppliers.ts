@@ -167,7 +167,7 @@ async function insertProducts(
     formats: p.formats ?? [],
     sizes: p.sizes ?? [],
     brix_level: p.brix_level ?? null,
-    shelf_life_months: p.shelf_life_months ?? null,
+    shelf_life_months: p.shelf_life_months != null ? (typeof p.shelf_life_months === "number" ? Math.round(p.shelf_life_months) : (parseInt(String(p.shelf_life_months), 10) || null)) : null,
     certifications: p.certifications ?? [],
     kosher_types: p.kosher_types ?? [],
     product_type: p.product_type ?? null,
