@@ -236,7 +236,7 @@ export default async function ScraperPage() {
     fetchAllSuppliers(),
     supabaseAdmin
       .from("supplier_products")
-      .select("*", { count: "exact", head: true }),
+      .select("id", { count: "exact", head: true }),
     fetchAllFactories(),
     supabaseAdmin
       .from("scraper_csv_uploads")
@@ -250,7 +250,13 @@ export default async function ScraperPage() {
       .limit(100),
   ]);
 
-  const totalProducts = productsCountResult.count ?? 0;
+  let totalProducts = productsCountResult.count ?? 0;
+  if (totalProducts === 0 && allSuppliers.length > 0) {
+    totalProducts = allSuppliers.reduce(
+      (acc, s) => acc + (s.product_count ?? s.products_found ?? 0),
+      0
+    );
+  }
   const uploadHistory = (uploadHistoryResult.data ?? []) as UploadHistoryRow[];
   const scrapeBatchRows = (scrapeBatchFilenamesResult.data ?? []) as ScrapeBatchRow[];
 
