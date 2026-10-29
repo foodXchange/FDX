@@ -149,7 +149,8 @@ export function ScraperConsole({
         if (!res.ok) return;
         const data = await res.json();
         if (isMounted && data.ok && data.state) {
-          setQueueRunning(data.state.isRunning);
+          const isActuallyRunning = Boolean(data.state.isRunning && !data.state.shouldStop);
+          setQueueRunning(isActuallyRunning);
           setQueueState(data.state);
         }
       } catch {}
@@ -166,6 +167,12 @@ export function ScraperConsole({
   async function toggleQueue() {
     try {
       const nextAction = queueRunning ? "stop" : "start";
+      if (nextAction === "stop") {
+        setQueueRunning(false);
+        setQueueState((prev) =>
+          prev ? { ...prev, lastMessage: "Stopping autonomous queue..." } : null
+        );
+      }
       const res = await fetch("/api/admin/scraper/queue", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -173,7 +180,8 @@ export function ScraperConsole({
       });
       const data = await res.json();
       if (data.ok && data.state) {
-        setQueueRunning(data.state.isRunning);
+        const isActuallyRunning = Boolean(data.state.isRunning && !data.state.shouldStop);
+        setQueueRunning(isActuallyRunning);
         setQueueState(data.state);
       }
     } catch (e) {

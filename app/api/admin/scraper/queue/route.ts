@@ -44,6 +44,8 @@ const globalQueueState: QueueStatus = {
   shouldStop: false,
 };
 
+let activeStopReject: ((reason?: any) => void) | null = null;
+
 function getHomepage(url: string): string {
   try {
     const parsed = new URL(url);
@@ -381,6 +383,10 @@ async function runBackgroundQueue() {
           }, 120000);
         });
 
+        const stopPromise = new Promise<never>((_, reject) => {
+          activeStopReject = reject;
+        });
+
         try {
           await Promise.race([
             (async () => {
@@ -641,9 +647,18 @@ async function runBackgroundQueue() {
               globalQueueState.productsFound += inserted;
             })(),
             timeoutPromise,
+            stopPromise,
           ]);
         } catch (err) {
           const msg = err instanceof Error ? err.message : String(err);
+          if (msg === "QUEUE_STOPPED_BY_USER" || globalQueueState.shouldStop) {
+            console.log("Queue stopped immediately by user request.");
+            globalQueueState.lastMessage = "Autonomous queue stopped by user.";
+            globalQueueState.isRunning = false;
+            // Retain supplier as pending — do NOT mark failed!
+            break;
+          }
+
           const isCircuitBreaker =
             msg.includes("402") ||
             msg.includes("RESOURCE_EXHAUSTED") ||
@@ -692,7 +707,14 @@ async function runBackgroundQueue() {
           }
         } finally {
           if (timerHandle) clearTimeout(timerHandle);
-          globalQueueState.processedCount++;
+          activeStopReject = null;
+          if (!globalQueueState.shouldStop) {
+            globalQueueState.processedCount++;
+          }
+        }
+
+        if (globalQueueState.shouldStop) {
+          break;
         }
 
         // Fast 1.5s interval between requests on Firecrawl Standard
@@ -705,6 +727,7 @@ async function runBackgroundQueue() {
   } finally {
     globalQueueState.isRunning = false;
     globalQueueState.currentSupplier = null;
+    activeStopReject = null;
   }
 }
 
@@ -742,8 +765,16 @@ export async function POST(req: NextRequest) {
 
     if (action === "stop") {
       globalQueueState.shouldStop = true;
-      globalQueueState.lastMessage = "Stopping queue after current supplier...";
-      return NextResponse.json({ ok: true, message: "Queue stop requested", state: globalQueueState });
+      globalQueueState.isRunning = false;
+      globalQueueState.currentSupplier = null;
+      globalQueueState.lastMessage = "Autonomous queue stopped by user.";
+      if (activeStopReject) {
+        try {
+          activeStopReject(new Error("QUEUE_STOPPED_BY_USER"));
+        } catch {}
+        activeStopReject = null;
+      }
+      return NextResponse.json({ ok: true, message: "Queue stopped immediately", state: globalQueueState });
     }
 
     return NextResponse.json({ ok: false, error: "Invalid action. Use 'start' or 'stop'." }, { status: 400 });
