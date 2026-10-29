@@ -82,8 +82,12 @@ export function FailedDiagnosticsPanel({ stats }: FailedDiagnosticsPanelProps) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action }),
       });
-      const data = await res.json();
-      if (data.ok) {
+      if (!res.ok) {
+        setBannerMessage(`Failed to execute recovery action (${res.status}).`);
+        return;
+      }
+      const data = await res.json().catch(() => null);
+      if (data?.ok) {
         setBannerMessage(`✓ ${data.message}`);
         const delta = typeof data.updated === "number" ? data.updated : 0;
         setLocalStats((prev) => ({

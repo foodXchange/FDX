@@ -41,8 +41,8 @@ export function ProviderHealthBar() {
       setLoading(true);
       const res = await fetch("/api/admin/scraper/status");
       if (res.ok) {
-        const json = await res.json();
-        setData(json);
+        const json = await res.json().catch(() => null);
+        if (json) setData(json);
       }
     } catch (e) {
       console.warn("Failed to fetch scraper status:", e);

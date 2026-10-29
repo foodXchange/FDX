@@ -147,8 +147,8 @@ export function ScraperConsole({
       try {
         const res = await fetch("/api/admin/scraper/queue");
         if (!res.ok) return;
-        const data = await res.json();
-        if (isMounted && data.ok && data.state) {
+        const data = await res.json().catch(() => null);
+        if (isMounted && data?.ok && data.state) {
           const isActuallyRunning = Boolean(data.state.isRunning && !data.state.shouldStop);
           setQueueRunning(isActuallyRunning);
           setQueueState(data.state);
@@ -178,8 +178,12 @@ export function ScraperConsole({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: nextAction }),
       });
-      const data = await res.json();
-      if (data.ok && data.state) {
+      if (!res.ok) {
+        console.warn("Queue action returned non-OK status:", res.status);
+        return;
+      }
+      const data = await res.json().catch(() => null);
+      if (data?.ok && data.state) {
         const isActuallyRunning = Boolean(data.state.isRunning && !data.state.shouldStop);
         setQueueRunning(isActuallyRunning);
         setQueueState(data.state);
