@@ -90,10 +90,26 @@ export function deriveAgentProjectStage(req: RequestRow): AgentProjectStageInfo 
   const qaDossier = (ai.qa_regulatory_dossier as QaRegulatoryDossier | null) ?? null;
   const pkgArtwork = (ai.packaging_artwork as PackagingArtworkWorkflow | null) ?? null;
 
-  // 1. Determine Stage
+  // 1. Determine Stage (Prioritizing explicit manual pipeline_stage if present)
   let stage: 1 | 2 | 3 | 4 | 5 | 6 | 7 = 1;
 
-  if (orderWf?.current_stage && STAGE_MAP[orderWf.current_stage]) {
+  const MANUAL_STAGE_MAP: Record<string, 1 | 2 | 3 | 4 | 5 | 6 | 7> = {
+    stage_1_brief: 1,
+    stage_2_sourcing: 2,
+    stage_3_samples: 4,
+    stage_4_approved_samples: 4,
+    stage_5_qa_compliance: 5,
+    stage_6_packaging_graphics: 6,
+    stage_7_contract: 7,
+    stage_8_ordering_po: 7,
+    stage_9_shipment_tracking: 7,
+    stage_10_warehouse_arrival: 7,
+    stage_11_billing: 7,
+  };
+
+  if (req.pipeline_stage && MANUAL_STAGE_MAP[req.pipeline_stage]) {
+    stage = MANUAL_STAGE_MAP[req.pipeline_stage];
+  } else if (orderWf?.current_stage && STAGE_MAP[orderWf.current_stage]) {
     stage = STAGE_MAP[orderWf.current_stage];
   } else if (
     orderWf?.po_number ||

@@ -7,6 +7,8 @@ import type { RequestRow } from "@/app/admin/requests/page";
 import { softDeleteRequestAction } from "@/app/admin/requests/actions";
 import RequestSlideOver from "@/components/admin/RequestSlideOver";
 import { getInitials, avatarColors } from "@/lib/admin/avatarPalette";
+import PipelineStageSelector from "@/components/admin/PipelineStageSelector";
+import { getAllPipelineStages } from "@/lib/admin/pipelineStages";
 
 type SortColumn = "date" | "score";
 type SortDirection = "asc" | "desc";
@@ -22,7 +24,7 @@ const HEADER_MIN_WIDTHS: Record<string, string> = {
   Product: "min-w-[180px]",
   Category: "min-w-[120px]",
   Kosher: "min-w-[100px]",
-  Status: "min-w-[100px]",
+  Stage: "min-w-[170px]",
   Matches: "min-w-[150px]",
   Date: "min-w-[100px]",
   Actions: "min-w-[100px]",
@@ -140,6 +142,9 @@ export default function RequestsTable({ requests, onEditRequest, onNewRequest }:
   const [kosherFilter, setKosherFilter] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("");
   const [briefStatusFilter, setBriefStatusFilter] = useState("");
+  const [pipelineStageFilter, setPipelineStageFilter] = useState<string>("");
+  const [localPipelineStages, setLocalPipelineStages] = useState<Record<string, string>>({});
+  const [localExceptionStatuses, setLocalExceptionStatuses] = useState<Record<string, string | null>>({});
   const [selected, setSelected] = useState<string[]>([]);
   const [bulkRunning, setBulkRunning] = useState(false);
   const [sortColumn, setSortColumn] = useState<SortColumn>("date");
@@ -187,6 +192,50 @@ export default function RequestsTable({ requests, onEditRequest, onNewRequest }:
     }
     if (briefStatusFilter) {
       list = list.filter((r) => (r.brief_status || "draft") === briefStatusFilter);
+    }
+    if (pipelineStageFilter) {
+      if (pipelineStageFilter === "active") {
+        list = list.filter((r) => {
+          const ex =
+            localExceptionStatuses[r.id] !== undefined
+              ? localExceptionStatuses[r.id]
+              : r.exception_status;
+          return !ex;
+        });
+      } else if (pipelineStageFilter === "exceptions") {
+        list = list.filter((r) => {
+          const ex =
+            localExceptionStatuses[r.id] !== undefined
+              ? localExceptionStatuses[r.id]
+              : r.exception_status;
+          return Boolean(ex);
+        });
+      } else if (pipelineStageFilter === "samples_group") {
+        list = list.filter((r) => {
+          const stg = localPipelineStages[r.id] ?? r.pipeline_stage;
+          return stg === "stage_3_samples" || stg === "stage_4_approved_samples";
+        });
+      } else if (pipelineStageFilter === "qa_graphics_group") {
+        list = list.filter((r) => {
+          const stg = localPipelineStages[r.id] ?? r.pipeline_stage;
+          return stg === "stage_5_qa_compliance" || stg === "stage_6_packaging_graphics";
+        });
+      } else if (pipelineStageFilter === "contract_po_group") {
+        list = list.filter((r) => {
+          const stg = localPipelineStages[r.id] ?? r.pipeline_stage;
+          return stg === "stage_7_contract" || stg === "stage_8_ordering_po";
+        });
+      } else if (pipelineStageFilter === "shipping_warehouse_group") {
+        list = list.filter((r) => {
+          const stg = localPipelineStages[r.id] ?? r.pipeline_stage;
+          return stg === "stage_9_shipment_tracking" || stg === "stage_10_warehouse_arrival";
+        });
+      } else {
+        list = list.filter((r) => {
+          const stg = localPipelineStages[r.id] ?? r.pipeline_stage ?? "stage_1_brief";
+          return stg === pipelineStageFilter;
+        });
+      }
     }
 
     if (matchQualityFilter) {
@@ -333,16 +382,17 @@ export default function RequestsTable({ requests, onEditRequest, onNewRequest }:
             )}
           </div>
 
-          {/* Quick Filter Status Tabs */}
-          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs">
+          {/* Quick Filter Pipeline Stage Tabs */}
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs no-scrollbar">
             <button
               type="button"
               onClick={() => {
+                setPipelineStageFilter("");
                 setStatusFilter("");
                 setBriefStatusFilter("");
               }}
-              className={`px-3 py-1.5 rounded-xl font-semibold transition cursor-pointer ${
-                !statusFilter && !briefStatusFilter
+              className={`px-3 py-1.5 rounded-xl font-semibold transition cursor-pointer shrink-0 ${
+                !pipelineStageFilter && !statusFilter && !briefStatusFilter
                   ? "bg-slate-900 text-white shadow-2xs"
                   : "bg-slate-100 text-slate-600 hover:bg-slate-200"
               }`}
@@ -352,20 +402,21 @@ export default function RequestsTable({ requests, onEditRequest, onNewRequest }:
             <button
               type="button"
               onClick={() => {
-                setStatusFilter("draft");
+                setPipelineStageFilter("active");
+                setStatusFilter("");
                 setBriefStatusFilter("");
               }}
-              className={`px-3 py-1.5 rounded-xl font-semibold transition cursor-pointer flex items-center gap-1 ${
-                statusFilter === "draft"
-                  ? "bg-orange-600 text-white shadow-2xs"
+              className={`px-3 py-1.5 rounded-xl font-semibold transition cursor-pointer shrink-0 flex items-center gap-1 ${
+                pipelineStageFilter === "active"
+                  ? "bg-blue-600 text-white shadow-2xs"
                   : "bg-slate-100 text-slate-600 hover:bg-slate-200"
               }`}
             >
-              <span>📝</span>
+              <span>⚡</span>
               <span>
-                Drafts / Unfinished ({
+                All Active ({
                   requests.filter(
-                    (r) => r.status === "draft" || r.brief_status === "draft"
+                    (r) => !(localExceptionStatuses[r.id] !== undefined ? localExceptionStatuses[r.id] : r.exception_status)
                   ).length
                 })
               </span>
@@ -373,36 +424,217 @@ export default function RequestsTable({ requests, onEditRequest, onNewRequest }:
             <button
               type="button"
               onClick={() => {
-                setStatusFilter("matched");
+                setPipelineStageFilter("stage_1_brief");
+                setStatusFilter("");
                 setBriefStatusFilter("");
               }}
-              className={`px-3 py-1.5 rounded-xl font-semibold transition cursor-pointer flex items-center gap-1 ${
-                statusFilter === "matched"
-                  ? "bg-emerald-600 text-white shadow-2xs"
+              className={`px-3 py-1.5 rounded-xl font-semibold transition cursor-pointer shrink-0 flex items-center gap-1 ${
+                pipelineStageFilter === "stage_1_brief"
+                  ? "bg-slate-700 text-white shadow-2xs"
                   : "bg-slate-100 text-slate-600 hover:bg-slate-200"
               }`}
             >
-              <span>🎯</span>
-              <span>Matched ({requests.filter((r) => r.status === "matched").length})</span>
+              <span>📝</span>
+              <span>
+                1. Briefs ({
+                  requests.filter((r) => {
+                    const stg = localPipelineStages[r.id] ?? r.pipeline_stage ?? "stage_1_brief";
+                    const ex = localExceptionStatuses[r.id] !== undefined ? localExceptionStatuses[r.id] : r.exception_status;
+                    return stg === "stage_1_brief" && !ex;
+                  }).length
+                })
+              </span>
             </button>
             <button
               type="button"
               onClick={() => {
+                setPipelineStageFilter("stage_2_sourcing");
                 setStatusFilter("");
-                setBriefStatusFilter("sent");
+                setBriefStatusFilter("");
               }}
-              className={`px-3 py-1.5 rounded-xl font-semibold transition cursor-pointer flex items-center gap-1 ${
-                briefStatusFilter === "sent"
+              className={`px-3 py-1.5 rounded-xl font-semibold transition cursor-pointer shrink-0 flex items-center gap-1 ${
+                pipelineStageFilter === "stage_2_sourcing"
+                  ? "bg-indigo-600 text-white shadow-2xs"
+                  : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+              }`}
+            >
+              <span>🔍</span>
+              <span>
+                2. Sourcing ({
+                  requests.filter((r) => {
+                    const stg = localPipelineStages[r.id] ?? r.pipeline_stage;
+                    const ex = localExceptionStatuses[r.id] !== undefined ? localExceptionStatuses[r.id] : r.exception_status;
+                    return stg === "stage_2_sourcing" && !ex;
+                  }).length
+                })
+              </span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setPipelineStageFilter("samples_group");
+                setStatusFilter("");
+                setBriefStatusFilter("");
+              }}
+              className={`px-3 py-1.5 rounded-xl font-semibold transition cursor-pointer shrink-0 flex items-center gap-1 ${
+                pipelineStageFilter === "samples_group"
                   ? "bg-amber-600 text-white shadow-2xs"
                   : "bg-slate-100 text-slate-600 hover:bg-slate-200"
               }`}
             >
-              <span>⏳</span>
-              <span>Waiting Buyer ({requests.filter((r) => r.brief_status === "sent").length})</span>
+              <span>📦</span>
+              <span>
+                3-4. Samples & Tasting ({
+                  requests.filter((r) => {
+                    const stg = localPipelineStages[r.id] ?? r.pipeline_stage;
+                    const ex = localExceptionStatuses[r.id] !== undefined ? localExceptionStatuses[r.id] : r.exception_status;
+                    return (stg === "stage_3_samples" || stg === "stage_4_approved_samples") && !ex;
+                  }).length
+                })
+              </span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setPipelineStageFilter("qa_graphics_group");
+                setStatusFilter("");
+                setBriefStatusFilter("");
+              }}
+              className={`px-3 py-1.5 rounded-xl font-semibold transition cursor-pointer shrink-0 flex items-center gap-1 ${
+                pipelineStageFilter === "qa_graphics_group"
+                  ? "bg-teal-600 text-white shadow-2xs"
+                  : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+              }`}
+            >
+              <span>🔬</span>
+              <span>
+                5-6. QA & Packaging ({
+                  requests.filter((r) => {
+                    const stg = localPipelineStages[r.id] ?? r.pipeline_stage;
+                    const ex = localExceptionStatuses[r.id] !== undefined ? localExceptionStatuses[r.id] : r.exception_status;
+                    return (stg === "stage_5_qa_compliance" || stg === "stage_6_packaging_graphics") && !ex;
+                  }).length
+                })
+              </span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setPipelineStageFilter("contract_po_group");
+                setStatusFilter("");
+                setBriefStatusFilter("");
+              }}
+              className={`px-3 py-1.5 rounded-xl font-semibold transition cursor-pointer shrink-0 flex items-center gap-1 ${
+                pipelineStageFilter === "contract_po_group"
+                  ? "bg-violet-600 text-white shadow-2xs"
+                  : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+              }`}
+            >
+              <span>📜</span>
+              <span>
+                7-8. Contract & PO ({
+                  requests.filter((r) => {
+                    const stg = localPipelineStages[r.id] ?? r.pipeline_stage;
+                    const ex = localExceptionStatuses[r.id] !== undefined ? localExceptionStatuses[r.id] : r.exception_status;
+                    return (stg === "stage_7_contract" || stg === "stage_8_ordering_po") && !ex;
+                  }).length
+                })
+              </span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setPipelineStageFilter("shipping_warehouse_group");
+                setStatusFilter("");
+                setBriefStatusFilter("");
+              }}
+              className={`px-3 py-1.5 rounded-xl font-semibold transition cursor-pointer shrink-0 flex items-center gap-1 ${
+                pipelineStageFilter === "shipping_warehouse_group"
+                  ? "bg-sky-600 text-white shadow-2xs"
+                  : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+              }`}
+            >
+              <span>🚢</span>
+              <span>
+                9-10. Shipping ({
+                  requests.filter((r) => {
+                    const stg = localPipelineStages[r.id] ?? r.pipeline_stage;
+                    const ex = localExceptionStatuses[r.id] !== undefined ? localExceptionStatuses[r.id] : r.exception_status;
+                    return (stg === "stage_9_shipment_tracking" || stg === "stage_10_warehouse_arrival") && !ex;
+                  }).length
+                })
+              </span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setPipelineStageFilter("stage_11_billing");
+                setStatusFilter("");
+                setBriefStatusFilter("");
+              }}
+              className={`px-3 py-1.5 rounded-xl font-semibold transition cursor-pointer shrink-0 flex items-center gap-1 ${
+                pipelineStageFilter === "stage_11_billing"
+                  ? "bg-emerald-600 text-white shadow-2xs"
+                  : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+              }`}
+            >
+              <span>💳</span>
+              <span>
+                11. Billing ({
+                  requests.filter((r) => {
+                    const stg = localPipelineStages[r.id] ?? r.pipeline_stage;
+                    const ex = localExceptionStatuses[r.id] !== undefined ? localExceptionStatuses[r.id] : r.exception_status;
+                    return stg === "stage_11_billing" && !ex;
+                  }).length
+                })
+              </span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setPipelineStageFilter("exceptions");
+                setStatusFilter("");
+                setBriefStatusFilter("");
+              }}
+              className={`px-3 py-1.5 rounded-xl font-semibold transition cursor-pointer shrink-0 flex items-center gap-1 ${
+                pipelineStageFilter === "exceptions"
+                  ? "bg-rose-700 text-white shadow-2xs"
+                  : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+              }`}
+            >
+              <span>⚠️</span>
+              <span>
+                Cancelled / Archived ({
+                  requests.filter((r) => {
+                    return Boolean(
+                      localExceptionStatuses[r.id] !== undefined
+                        ? localExceptionStatuses[r.id]
+                        : r.exception_status
+                    );
+                  }).length
+                })
+              </span>
             </button>
           </div>
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div className="flex flex-wrap gap-2">
+              <FilterSelect
+                label="Pipeline stage"
+                value={pipelineStageFilter}
+                onChange={setPipelineStageFilter}
+                options={[
+                  { value: "", label: "All stages" },
+                  { value: "active", label: "⚡ All active deals" },
+                  { value: "stage_1_brief", label: "1. 📝 Brief & Draft" },
+                  { value: "stage_2_sourcing", label: "2. 🔍 Sourcing & Outreach" },
+                  { value: "samples_group", label: "3-4. 📦 Samples & Tasting" },
+                  { value: "qa_graphics_group", label: "5-6. 🔬 QA & Packaging" },
+                  { value: "contract_po_group", label: "7-8. 📜 Contract & PO" },
+                  { value: "shipping_warehouse_group", label: "9-10. 🚢 Shipping & Warehouse" },
+                  { value: "stage_11_billing", label: "11. 💳 Billing" },
+                  { value: "exceptions", label: "⚠️ Cancelled / Archived" },
+                ]}
+              />
               <FilterSelect
                 label="Status"
                 value={statusFilter}
@@ -528,7 +760,7 @@ export default function RequestsTable({ requests, onEditRequest, onNewRequest }:
                 "Product",
                 "Category",
                 "Kosher",
-                "Status",
+                "Stage",
                 "Matches",
                 "Date",
                 "Actions",
@@ -721,11 +953,26 @@ export default function RequestsTable({ requests, onEditRequest, onNewRequest }:
                     )}
                   </td>
 
-                  {/* Status */}
-                  <td className="px-3 py-3">
-                    <div className="flex flex-col gap-1 items-start">
-                      <StatusBadge status={effectiveStatus} />
-                      <BriefStatusBadge status={req.brief_status} />
+                  {/* Stage & Status */}
+                  <td className="px-3 py-3" onClick={(e) => e.stopPropagation()}>
+                    <div className="flex flex-col gap-1.5 items-start">
+                      <PipelineStageSelector
+                        requestId={req.id}
+                        currentStage={localPipelineStages[req.id] ?? req.pipeline_stage}
+                        currentSubstage={req.pipeline_substage}
+                        currentException={
+                          localExceptionStatuses[req.id] !== undefined
+                            ? localExceptionStatuses[req.id]
+                            : req.exception_status
+                        }
+                        onStageChange={(newStage, newException) => {
+                          setLocalPipelineStages((prev) => ({ ...prev, [req.id]: newStage }));
+                          setLocalExceptionStatuses((prev) => ({ ...prev, [req.id]: newException }));
+                        }}
+                      />
+                      <div className="flex items-center gap-1">
+                        <BriefStatusBadge status={req.brief_status} />
+                      </div>
                     </div>
                   </td>
 

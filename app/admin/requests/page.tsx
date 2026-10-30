@@ -35,6 +35,14 @@ export type RequestRow = {
   published_message?: string | null;
   intent_json?: Record<string, unknown> | null;
   buyer_logo_url: string | null;
+  pipeline_stage?: string | null;
+  pipeline_substage?: string | null;
+  exception_status?: "cancelled_by_buyer" | "cancelled_by_system" | "irrelevant" | null;
+  exception_reason?: string | null;
+  active_supplier_id?: string | null;
+  stage_updated_at?: string | null;
+  stage_updated_by?: string | null;
+  stage_notes?: string | null;
 };
 
 interface PageProps {
@@ -49,7 +57,7 @@ export default async function AdminRequestsPage({ searchParams }: PageProps) {
     supabaseAdmin
       .from("sourcing_requests")
       .select(
-        "id, name, email, company, buyer_id, message, product_name, category, certifications, target_market, private_label, packaging_preference, volume_per_year, ai_analysis, source, status, brief_status, brief_version, confirmed_at, confirmed_by, confirmed_via, deleted_at, created_at, is_published, published_product_name, published_message, intent_json"
+        "id, name, email, company, buyer_id, message, product_name, category, certifications, target_market, private_label, packaging_preference, volume_per_year, ai_analysis, source, status, brief_status, brief_version, confirmed_at, confirmed_by, confirmed_via, deleted_at, created_at, is_published, published_product_name, published_message, intent_json, pipeline_stage, pipeline_substage, exception_status, exception_reason, active_supplier_id, stage_updated_at, stage_updated_by, stage_notes"
       )
       .is("deleted_at", null)
       .order("created_at", { ascending: false })

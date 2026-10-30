@@ -20,6 +20,7 @@ import type { LayeredAnalysisResult, LayeredProductCard } from "@/lib/ai/layered
 import type { RequestRow } from "@/app/admin/requests/page";
 import RequestsTable from "@/components/admin/RequestsTable";
 import AgentCommandRadar from "@/components/admin/AgentCommandRadar";
+import PipelineStageSelector from "@/components/admin/PipelineStageSelector";
 
 export type BuyerOption = {
   id: string;
@@ -177,6 +178,10 @@ export default function SourcingDealDesk({
   // Copy Public Brief Link
   const [copiedLinkNotice, setCopiedLinkNotice] = useState(false);
   const [generatingLink, setGeneratingLink] = useState(false);
+
+  // Pipeline Stage State
+  const [activePipelineStage, setActivePipelineStage] = useState<string>("stage_1_brief");
+  const [activeExceptionStatus, setActiveExceptionStatus] = useState<string | null>(null);
 
   // Draft Saving & Persistence state
   const [savedDraftNotice, setSavedDraftNotice] = useState<string | null>(null);
@@ -566,6 +571,8 @@ export default function SourcingDealDesk({
         setLayeredAnalysis(aiObj.layered_analysis);
       }
     }
+    setActivePipelineStage(req.pipeline_stage || "stage_1_brief");
+    setActiveExceptionStatus(req.exception_status || null);
     try {
       window.history.replaceState({}, "", "/admin/requests?edit=" + req.id);
     } catch {}
@@ -608,6 +615,8 @@ export default function SourcingDealDesk({
     setLayeredAnalysis(null);
     setLiveMatches([]);
     setBriefStatus("draft");
+    setActivePipelineStage("stage_1_brief");
+    setActiveExceptionStatus(null);
 
     // 4. Reset query param in URL
     try {
@@ -1091,6 +1100,18 @@ export default function SourcingDealDesk({
                     >
                       {createdRequestId ? "✓ Saved in Registry" : "● Draft Mode"}
                     </span>
+                    {createdRequestId && (
+                      <PipelineStageSelector
+                        requestId={createdRequestId}
+                        currentStage={activePipelineStage}
+                        currentException={activeExceptionStatus}
+                        size="sm"
+                        onStageChange={(newStg, newEx) => {
+                          setActivePipelineStage(newStg);
+                          setActiveExceptionStatus(newEx);
+                        }}
+                      />
+                    )}
                   </div>
                   <p className="text-xs text-slate-600 truncate mt-0.5 font-medium">
                     {projectTitle ? projectTitle : "No product scope entered yet — start typing below"}

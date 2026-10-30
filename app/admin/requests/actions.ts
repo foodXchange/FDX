@@ -34,6 +34,11 @@ import {
 import { trackApiUsage } from "@/lib/usage/trackUsage";
 import crypto from "crypto";
 import { runLayeredAnalysis, type LayeredAnalysisResult } from "@/lib/ai/layeredAnalysis";
+import type {
+  PipelineStageId,
+  PipelineSubstageId,
+  ExceptionStatus,
+} from "@/lib/admin/pipelineStages";
 
 
 export async function updateRequestStatus(
@@ -2713,5 +2718,105 @@ export async function dispatchTripartiteNotificationAction(
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
     return { ok: false, message: `Notification action failed: ${msg}` };
+  }
+}
+
+export interface UpdateRequestPipelineStageInput {
+  requestId: string;
+  stage?: PipelineStageId | string;
+  substage?: PipelineSubstageId | string | null;
+  exceptionStatus?: ExceptionStatus | string | null;
+  exceptionReason?: string | null;
+  stageNotes?: string | null;
+  changedBy?: string | null;
+}
+
+export async function updateRequestPipelineStage(
+  input: UpdateRequestPipelineStageInput
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  try {
+    const { data: currentReq, error: fetchErr } = await supabaseAdmin
+      .from("sourcing_requests")
+      .select("pipeline_stage, pipeline_substage, exception_status, company, product_name")
+      .eq("id", input.requestId)
+      .maybeSingle();
+
+    if (fetchErr) {
+      console.warn("fetch previous stage warning:", fetchErr);
+    }
+
+    const prevStage = currentReq?.pipeline_stage || "stage_1_brief";
+    const prevSubstage = currentReq?.pipeline_substage || "1.1_draft";
+    const adminEmail = (await getAdminEmail()) || input.changedBy || "Admin";
+
+    const updatePayload: Record<string, unknown> = {
+      stage_updated_at: new Date().toISOString(),
+      stage_updated_by: adminEmail,
+    };
+
+    if (input.stage) {
+      updatePayload.pipeline_stage = input.stage;
+    }
+    if (input.substage !== undefined) {
+      updatePayload.pipeline_substage = input.substage;
+    }
+    if (input.exceptionStatus !== undefined) {
+      updatePayload.exception_status = input.exceptionStatus;
+      updatePayload.exception_reason = input.exceptionReason || null;
+    }
+    if (input.stageNotes !== undefined) {
+      updatePayload.stage_notes = input.stageNotes;
+    }
+
+    const { error: updateErr } = await supabaseAdmin
+      .from("sourcing_requests")
+      .update(updatePayload)
+      .eq("id", input.requestId);
+
+    if (updateErr) {
+      console.error("updateRequestPipelineStage error:", updateErr);
+      return { ok: false, error: updateErr.message };
+    }
+
+    // Insert audit history entry
+    try {
+      await supabaseAdmin.from("request_stage_history").insert({
+        request_id: input.requestId,
+        from_stage: prevStage,
+        to_stage: (input.stage as string) || prevStage,
+        from_substage: prevSubstage,
+        to_substage: (input.substage as string) || prevSubstage,
+        exception_status: (input.exceptionStatus as string) || null,
+        changed_by: adminEmail,
+        change_notes: input.stageNotes || input.exceptionReason || null,
+      });
+    } catch (auditErr) {
+      console.warn("Failed to write to request_stage_history:", auditErr);
+    }
+
+    await logAdminAction({
+      adminEmail,
+      action: "update_pipeline_stage",
+      targetType: "sourcing_request",
+      targetId: input.requestId,
+      metadata: {
+        from_stage: prevStage,
+        to_stage: input.stage,
+        substage: input.substage,
+        exception_status: input.exceptionStatus,
+        reason: input.exceptionReason,
+      },
+    });
+
+    try {
+      revalidatePath("/admin/requests");
+      revalidatePath(`/admin/requests/${input.requestId}`);
+    } catch {}
+
+    return { ok: true };
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error("updateRequestPipelineStage exception:", err);
+    return { ok: false, error: msg };
   }
 }
