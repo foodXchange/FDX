@@ -566,7 +566,59 @@ export default function SourcingDealDesk({
         setLayeredAnalysis(aiObj.layered_analysis);
       }
     }
+    try {
+      window.history.replaceState({}, "", "/admin/requests?edit=" + req.id);
+    } catch {}
+    setOpenSections({ 1: true, 2: true, 3: true, 4: true, 5: true });
     setActiveTab("intake_desk");
+    setSavedDraftNotice(`📂 Loaded request: ${req.company || req.name || "Buyer"} (${req.product_name || "Draft"})`);
+    setTimeout(() => setSavedDraftNotice(null), 3500);
+  }
+
+  // Clear form to start a fresh request without losing previous progress
+  async function handleStartNewRequest() {
+    // 1. If current request has content, quiet-save to database so it is safely retained in Registry
+    if (projectTitle.trim() || selectedBuyer) {
+      try {
+        await handleSaveDraft(true);
+      } catch (e) {
+        console.warn("Auto-save before clearing desk failed:", e);
+      }
+    }
+
+    // 2. Clear localStorage draft
+    try {
+      localStorage.removeItem("fdx_deal_desk_draft");
+    } catch {}
+
+    // 3. Reset form state to blank pristine defaults
+    setCreatedRequestId(null);
+    setSelectedBuyer(null);
+    setBuyerSearchQuery("");
+    setProjectTitle("");
+    setBenchmarkBrands("");
+    setCategory("");
+    setPackagingFormat("Retail Shelf Packs (Consolidated Mixed Container)");
+    setEstimatedVolume("1x 40ft HQ FCL / Month (Mixed)");
+    setTargetMarket("Israel");
+    setBrandingModel("open");
+    setSelectedTags(["Kosher", "IFS", "Organic"]);
+    setImageUrls([]);
+    setNaturalBrief("");
+    setLayeredAnalysis(null);
+    setLiveMatches([]);
+    setBriefStatus("draft");
+
+    // 4. Reset query param in URL
+    try {
+      window.history.replaceState({}, "", "/admin/requests");
+    } catch {}
+
+    // 5. Open Step 1 and notify user
+    setActiveTab("intake_desk");
+    setOpenSections({ 1: true, 2: true, 3: false, 4: false, 5: false });
+    setSavedDraftNotice("✨ Form cleared. Previous request safely saved in Registry!");
+    setTimeout(() => setSavedDraftNotice(null), 4000);
   }
 
   // Hydrate when initialEditId is passed
@@ -927,6 +979,16 @@ export default function SourcingDealDesk({
 
           {/* Quick Actions & View Switcher */}
           <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handleStartNewRequest}
+              className="text-xs font-bold px-3 py-1.5 rounded-xl bg-orange-600 hover:bg-orange-700 text-white shadow-xs transition flex items-center gap-1.5 cursor-pointer"
+              title="Clear form and create a brand new sourcing request"
+            >
+              <span>➕</span>
+              <span>New Request</span>
+            </button>
+
             <Link
               href="/admin/settings/usage"
               className="text-xs font-semibold px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 transition flex items-center gap-1"
@@ -1006,6 +1068,58 @@ export default function SourcingDealDesk({
         <div className="p-4 sm:p-6 max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
           {/* ── LEFT PANEL: 5-STEP COLLAPSIBLE FUNNEL (col 7) ── */}
           <div className="lg:col-span-7 space-y-4">
+            {/* Active Request Context Bar */}
+            <div className="bg-white border border-slate-200 rounded-2xl p-3.5 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-9 h-9 rounded-xl bg-orange-100 border border-orange-200 text-orange-700 flex items-center justify-center font-bold text-sm shrink-0">
+                  {selectedBuyer?.company_name ? selectedBuyer.company_name.charAt(0).toUpperCase() : "📝"}
+                </div>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                      Active Request:
+                    </span>
+                    <span className="text-xs font-bold text-slate-900 truncate">
+                      {selectedBuyer?.company_name || "Unassigned Buyer (New Lead)"}
+                    </span>
+                    <span
+                      className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                        createdRequestId
+                          ? "bg-emerald-50 text-emerald-800 border border-emerald-200"
+                          : "bg-slate-100 text-slate-700 border border-slate-200"
+                      }`}
+                    >
+                      {createdRequestId ? "✓ Saved in Registry" : "● Draft Mode"}
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-600 truncate mt-0.5 font-medium">
+                    {projectTitle ? projectTitle : "No product scope entered yet — start typing below"}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setActiveTab("registry_table")}
+                  className="text-xs font-semibold px-2.5 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 hover:text-slate-900 transition shadow-2xs flex items-center gap-1 cursor-pointer"
+                  title="View all requests and their statuses in the registry"
+                >
+                  <span>📋</span>
+                  <span>Registry ({requests.length})</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleStartNewRequest}
+                  className="text-xs font-bold px-3 py-1.5 rounded-xl border border-orange-300 bg-orange-50 hover:bg-orange-100 text-orange-700 transition shadow-2xs flex items-center gap-1 cursor-pointer"
+                  title="Save current progress and clear the desk for a new request"
+                >
+                  <span>➕</span>
+                  <span>Clear & New Request</span>
+                </button>
+              </div>
+            </div>
+
             {/* Stepper Navigation Strip */}
             <div className="bg-slate-900 text-white p-3 sm:p-3.5 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 shadow-md">
               <div className="flex items-center gap-1.5 overflow-x-auto w-full sm:w-auto pb-1 sm:pb-0 text-xs font-semibold">
@@ -2066,6 +2180,7 @@ export default function SourcingDealDesk({
             <RequestsTable
               requests={requests}
               onEditRequest={(req: RequestRow) => loadRequestForEdit(req)}
+              onNewRequest={handleStartNewRequest}
             />
           </div>
         </div>

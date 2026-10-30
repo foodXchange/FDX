@@ -14,6 +14,7 @@ type SortDirection = "asc" | "desc";
 interface Props {
   requests: RequestRow[];
   onEditRequest?: (req: RequestRow) => void;
+  onNewRequest?: () => void;
 }
 
 const HEADER_MIN_WIDTHS: Record<string, string> = {
@@ -127,7 +128,7 @@ function timeAgo(dateStr: string): string {
   return `${Math.floor(hrs / 24)}d ago`;
 }
 
-export default function RequestsTable({ requests, onEditRequest }: Props) {
+export default function RequestsTable({ requests, onEditRequest, onNewRequest }: Props) {
   const router = useRouter();
   const [openRequest, setOpenRequest] = useState<RequestRow | null>(null);
   const [localStatuses, setLocalStatuses] = useState<Record<string, string>>({});
@@ -174,7 +175,15 @@ export default function RequestsTable({ requests, onEditRequest }: Props) {
     let list = requests;
 
     if (statusFilter) {
-      list = list.filter((r) => (localStatuses[r.id] ?? r.status) === statusFilter);
+      if (statusFilter === "draft") {
+        list = list.filter(
+          (r) =>
+            (localStatuses[r.id] ?? r.status) === "draft" ||
+            r.brief_status === "draft"
+        );
+      } else {
+        list = list.filter((r) => (localStatuses[r.id] ?? r.status) === statusFilter);
+      }
     }
     if (briefStatusFilter) {
       list = list.filter((r) => (r.brief_status || "draft") === briefStatusFilter);
@@ -301,14 +310,96 @@ export default function RequestsTable({ requests, onEditRequest }: Props) {
       {/* Filter bar */}
       <div className="bg-white border border-gray-200 rounded-3xl shadow-sm p-4 mb-4">
         <div className="flex flex-col gap-3">
-          <div className="relative">
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search description or buyer name..."
-              className="w-full rounded-2xl border border-gray-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-orange-400 focus:ring-2 focus:ring-orange-100"
-            />
+          <div className="flex items-center gap-3">
+            <div className="relative flex-1">
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search product title, buyer name, or description..."
+                className="w-full rounded-2xl border border-gray-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-orange-400 focus:ring-2 focus:ring-orange-100"
+              />
+            </div>
+            {onNewRequest && (
+              <button
+                type="button"
+                onClick={onNewRequest}
+                className="px-4 py-3 rounded-2xl bg-orange-600 hover:bg-orange-700 text-white font-bold text-xs shadow-xs transition flex items-center gap-1.5 shrink-0 cursor-pointer"
+                title="Open Deal Desk with a clean blank form to start a new request"
+              >
+                <span>➕</span>
+                <span>New Sourcing Request</span>
+              </button>
+            )}
+          </div>
+
+          {/* Quick Filter Status Tabs */}
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs">
+            <button
+              type="button"
+              onClick={() => {
+                setStatusFilter("");
+                setBriefStatusFilter("");
+              }}
+              className={`px-3 py-1.5 rounded-xl font-semibold transition cursor-pointer ${
+                !statusFilter && !briefStatusFilter
+                  ? "bg-slate-900 text-white shadow-2xs"
+                  : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+              }`}
+            >
+              All Requests ({requests.length})
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setStatusFilter("draft");
+                setBriefStatusFilter("");
+              }}
+              className={`px-3 py-1.5 rounded-xl font-semibold transition cursor-pointer flex items-center gap-1 ${
+                statusFilter === "draft"
+                  ? "bg-orange-600 text-white shadow-2xs"
+                  : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+              }`}
+            >
+              <span>📝</span>
+              <span>
+                Drafts / Unfinished ({
+                  requests.filter(
+                    (r) => r.status === "draft" || r.brief_status === "draft"
+                  ).length
+                })
+              </span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setStatusFilter("matched");
+                setBriefStatusFilter("");
+              }}
+              className={`px-3 py-1.5 rounded-xl font-semibold transition cursor-pointer flex items-center gap-1 ${
+                statusFilter === "matched"
+                  ? "bg-emerald-600 text-white shadow-2xs"
+                  : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+              }`}
+            >
+              <span>🎯</span>
+              <span>Matched ({requests.filter((r) => r.status === "matched").length})</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setStatusFilter("");
+                setBriefStatusFilter("sent");
+              }}
+              className={`px-3 py-1.5 rounded-xl font-semibold transition cursor-pointer flex items-center gap-1 ${
+                briefStatusFilter === "sent"
+                  ? "bg-amber-600 text-white shadow-2xs"
+                  : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+              }`}
+            >
+              <span>⏳</span>
+              <span>Waiting Buyer ({requests.filter((r) => r.brief_status === "sent").length})</span>
+            </button>
           </div>
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div className="flex flex-wrap gap-2">
@@ -318,6 +409,7 @@ export default function RequestsTable({ requests, onEditRequest }: Props) {
                 onChange={setStatusFilter}
                 options={[
                   { value: "", label: "All statuses" },
+                  { value: "draft", label: "Draft / Unfinished" },
                   { value: "new", label: "New" },
                   { value: "reviewed", label: "Reviewed" },
                   { value: "matched", label: "Matched" },
