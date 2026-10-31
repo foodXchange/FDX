@@ -6,28 +6,19 @@
  *   npx tsx scripts/batch-refresh-matches.ts --dry-run
  *   npx tsx scripts/batch-refresh-matches.ts --limit=20
  *   npx tsx scripts/batch-refresh-matches.ts --id=<uuid>   (single request)
- *
- * What it does per request:
- *   1. Calls runMatchV3 (re-scores against all supplier products via vector + heuristics)
- *   2. Deletes stale rows from request_matches
- *   3. Upserts fresh ranked matches
- *   4. Logs per-request score summary
- *
- * Rate limiting: 1 request/second, batches of 5 concurrent.
- *
- * Requires: VOYAGE_API_KEY + SUPABASE_SERVICE_ROLE_KEY + NEXT_PUBLIC_SUPABASE_URL
- * in .env.local
  */
 
 import * as dotenv from "dotenv";
 import * as path from "path";
 import * as fs from "fs";
 
+// Load environment variables BEFORE any application modules are imported
 const envPath = path.resolve(__dirname, "../.env.local");
-if (fs.existsSync(envPath)) dotenv.config({ path: envPath });
+if (fs.existsSync(envPath)) {
+  dotenv.config({ path: envPath });
+}
 
 import { createClient } from "@supabase/supabase-js";
-import { runMatchV3 } from "../lib/matching/runMatchV3";
 
 // ─── CLI flags ────────────────────────────────────────────────────────────────
 const DRY_RUN = process.argv.includes("--dry-run");
@@ -40,15 +31,12 @@ const LIMIT = (() => {
   return flag ? parseInt(flag.split("=")[1], 10) : null;
 })();
 
-// ─── Config ───────────────────────────────────────────────────────────────────
-const CONCURRENCY = 5;       // max parallel requests
-const DELAY_BETWEEN_MS = 200; // ms between each individual request (rate-limit guard)
+const CONCURRENCY = 5;
+const DELAY_BETWEEN_MS = 200;
 
-// ─── Supabase client ─────────────────────────────────────────────────────────
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+function sleep(ms: number) {
+  return new Promise((r) => setTimeout(r, ms));
+}
 
 type SourcingRequestRow = {
   id: string;
@@ -58,81 +46,6 @@ type SourcingRequestRow = {
   pipeline_stage: string | null;
 };
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-function sleep(ms: number) {
-  return new Promise((r) => setTimeout(r, ms));
-}
-
-async function refreshSingleRequest(
-  req: SourcingRequestRow,
-  idx: number,
-  total: number
-): Promise<{ id: string; ok: boolean; count?: number; error?: string }> {
-  const label = `[${idx + 1}/${total}] ${req.product_name ?? req.id} (${req.id.slice(0, 8)})`;
-
-  if (DRY_RUN) {
-    console.log(`  DRY-RUN  ${label}`);
-    return { id: req.id, ok: true };
-  }
-
-  try {
-    const result = await runMatchV3(req.id);
-
-    if (!result.success) {
-      console.error(`  ✗ FAIL   ${label} — ${result.error ?? "unknown error"}`);
-      return { id: req.id, ok: false, error: result.error };
-    }
-
-    const matches = result.matches ?? [];
-    const count = matches.length;
-    const topScore =
-      count > 0 ? Math.round((matches[0].final_score ?? 0) * 100) : 0;
-
-    // Delete stale matches
-    const { error: delErr } = await supabase
-      .from("request_matches")
-      .delete()
-      .eq("request_id", req.id);
-
-    if (delErr) {
-      console.error(`  ✗ DEL    ${label} — ${delErr.message}`);
-      return { id: req.id, ok: false, error: delErr.message };
-    }
-
-    // Upsert fresh matches
-    if (count > 0) {
-      const rows = matches.map((m, rank) => ({
-        request_id: req.id,
-        product_id: m.product_id,
-        supplier_id: m.supplier_id,
-        score: m.final_score,
-        rank: rank + 1,
-        score_breakdown: m.score_breakdown ?? null,
-        matched_at: new Date().toISOString(),
-      }));
-
-      const { error: upsertErr } = await supabase
-        .from("request_matches")
-        .upsert(rows, { onConflict: "request_id,product_id" });
-
-      if (upsertErr) {
-        console.error(`  ✗ UPSERT ${label} — ${upsertErr.message}`);
-        return { id: req.id, ok: false, error: upsertErr.message };
-      }
-    }
-
-    console.log(
-      `  ✓ OK     ${label} — ${count} matches, top score ${topScore}%`
-    );
-    return { id: req.id, ok: true, count };
-  } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : String(err);
-    console.error(`  ✗ ERR    ${label} — ${msg}`);
-    return { id: req.id, ok: false, error: msg };
-  }
-}
-
-// ─── Main ─────────────────────────────────────────────────────────────────────
 async function main() {
   console.log(`\n🔄 FDX Batch Match Refresh — ${new Date().toISOString()}`);
   console.log(`   Mode: ${DRY_RUN ? "DRY-RUN" : "LIVE"}`);
@@ -140,7 +53,6 @@ async function main() {
   if (LIMIT) console.log(`   Limit: ${LIMIT}`);
   console.log("");
 
-  // ── Validate env ────────────────────────────────────────────────────────────
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
     console.error("❌ NEXT_PUBLIC_SUPABASE_URL not set in .env.local");
     process.exit(1);
@@ -154,7 +66,14 @@ async function main() {
     process.exit(1);
   }
 
-  // ── Fetch requests ───────────────────────────────────────────────────────────
+  // Dynamically import runMatchV3 AFTER env is fully populated
+  const { runMatchV3 } = await import("../lib/matching/runMatchV3");
+
+  const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL,
+    process.env.SUPABASE_SERVICE_ROLE_KEY
+  );
+
   let query = supabase
     .from("sourcing_requests")
     .select("id, product_name, category, status, pipeline_stage")
@@ -186,7 +105,33 @@ async function main() {
     return;
   }
 
-  // ── Process in batches ───────────────────────────────────────────────────────
+  async function refreshSingleRequest(
+    req: SourcingRequestRow,
+    idx: number
+  ): Promise<{ id: string; ok: boolean; count?: number; error?: string }> {
+    const label = `[${idx + 1}/${total}] ${req.product_name ?? req.id} (${req.id.slice(0, 8)})`;
+
+    if (DRY_RUN) {
+      console.log(`  DRY-RUN  ${label}`);
+      return { id: req.id, ok: true, count: 0 };
+    }
+
+    try {
+      const result = await runMatchV3(req.id);
+      const count = result.inserted ?? 0;
+      const topScore = result.topScore ?? 0;
+
+      console.log(
+        `  ✓ OK     ${label} — ${count} matches, top score ${topScore}%`
+      );
+      return { id: req.id, ok: true, count };
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error(`  ✗ ERR    ${label} — ${msg}`);
+      return { id: req.id, ok: false, error: msg };
+    }
+  }
+
   const results: { id: string; ok: boolean; count?: number; error?: string }[] = [];
   const allRequests = requests as SourcingRequestRow[];
 
@@ -198,22 +143,19 @@ async function main() {
 
     const batchResults = await Promise.all(
       batch.map(async (req, batchIdx) => {
-        // Stagger within batch to avoid API rate limits
         await sleep(batchIdx * DELAY_BETWEEN_MS);
-        return refreshSingleRequest(req, i + batchIdx, total);
+        return refreshSingleRequest(req, i + batchIdx);
       })
     );
 
     results.push(...batchResults);
 
-    // Pause between batches
     if (i + CONCURRENCY < allRequests.length) {
       console.log(`   ⏳ Pausing 1s before next batch…`);
       await sleep(1000);
     }
   }
 
-  // ── Summary ──────────────────────────────────────────────────────────────────
   const ok = results.filter((r) => r.ok);
   const failed = results.filter((r) => !r.ok);
   const totalMatches = ok.reduce((s, r) => s + (r.count ?? 0), 0);
