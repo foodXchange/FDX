@@ -31,8 +31,8 @@ const LIMIT = (() => {
   return flag ? parseInt(flag.split("=")[1], 10) : null;
 })();
 
-const CONCURRENCY = 5;
-const DELAY_BETWEEN_MS = 200;
+const CONCURRENCY = 3;
+const DELAY_BETWEEN_MS = 300;
 
 function sleep(ms: number) {
   return new Promise((r) => setTimeout(r, ms));
@@ -125,10 +125,22 @@ async function main() {
         `  ✓ OK     ${label} — ${count} matches, top score ${topScore}%`
       );
       return { id: req.id, ok: true, count };
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      console.error(`  ✗ ERR    ${label} — ${msg}`);
-      return { id: req.id, ok: false, error: msg };
+    } catch {
+      // Automatic retry once after backoff
+      try {
+        await sleep(1000);
+        const result = await runMatchV3(req.id);
+        const count = result.inserted ?? 0;
+        const topScore = result.topScore ?? 0;
+        console.log(
+          `  ✓ OK (retry) ${label} — ${count} matches, top score ${topScore}%`
+        );
+        return { id: req.id, ok: true, count };
+      } catch (retryErr: unknown) {
+        const msg = retryErr instanceof Error ? retryErr.message : String(retryErr);
+        console.error(`  ✗ ERR    ${label} — ${msg}`);
+        return { id: req.id, ok: false, error: msg };
+      }
     }
   }
 

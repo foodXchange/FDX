@@ -357,10 +357,19 @@ async function runFastCategoryAndKeywordHybridMatch(opts: {
   if (queries.length === 0) return [];
   const results = await Promise.all(queries);
   const candidateMap = new Map<string, CandidateProduct>();
+  const queryErrors: string[] = [];
+
   for (const res of results) {
+    if (res.error) {
+      queryErrors.push(res.error.message);
+    }
     for (const row of (res.data ?? []) as unknown as CandidateProduct[]) {
       candidateMap.set(row.id, row);
     }
+  }
+
+  if (candidateMap.size === 0 && queryErrors.length > 0) {
+    throw new Error(`Candidate query failed: ${queryErrors.join("; ")}`);
   }
 
   const candidates = Array.from(candidateMap.values());
