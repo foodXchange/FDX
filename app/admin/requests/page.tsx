@@ -35,6 +35,12 @@ export type RequestRow = {
   published_message?: string | null;
   intent_json?: Record<string, unknown> | null;
   buyer_logo_url: string | null;
+  dietary_requirements?: string[] | null;
+  temperature_regime?: string | null;
+  target_weight_min_g?: number | null;
+  target_weight_max_g?: number | null;
+  preferred_origins?: string[] | null;
+  excluded_ingredients?: string[] | null;
   pipeline_stage?: string | null;
   pipeline_substage?: string | null;
   exception_status?: "cancelled_by_buyer" | "cancelled_by_system" | "irrelevant" | null;

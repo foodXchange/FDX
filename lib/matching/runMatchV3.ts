@@ -58,14 +58,17 @@ function stripSoftToken(token: string): string | null {
 
 export function buildRequestEmbedString(
   productText: string,
-  niceToHave: string[]
+  niceToHave: string[],
+  benchmarkBrand?: string | null
 ): string {
   const descriptors = niceToHave
     .map(stripSoftToken)
     .filter((t): t is string => t !== null && t.length > 0)
     .join(". ");
 
-  const parts = [productText.trim(), descriptors]
+  const benchmarkPart = benchmarkBrand?.trim() ? `Benchmarked against ${benchmarkBrand.trim()}` : "";
+
+  const parts = [productText.trim(), benchmarkPart, descriptors]
     .filter((p) => p.length > 0)
     .join(". ");
 
@@ -83,10 +86,25 @@ export type RequestFallbackFields = {
   productName: string | null;
   category: string | null;
   message: string | null;
+  layeredProducts?: Array<{
+    product_name?: string;
+    sub_type?: string;
+    packaging_format?: string;
+    brand_name?: string;
+  }> | null;
 };
 
 function composeFallbackText(fallback: RequestFallbackFields): string {
-  return [fallback.productName, fallback.category, fallback.message]
+  const parts = [fallback.productName, fallback.category, fallback.message];
+  if (fallback.layeredProducts && fallback.layeredProducts.length > 0) {
+    for (const p of fallback.layeredProducts) {
+      const desc = [p.product_name, p.sub_type, p.brand_name]
+        .filter((v): v is string => typeof v === "string" && v.trim().length > 0)
+        .join(" ");
+      if (desc) parts.push(desc);
+    }
+  }
+  return parts
     .filter((v): v is string => typeof v === "string" && v.trim().length > 1)
     .join(". ");
 }
@@ -96,6 +114,15 @@ export function extractFromPip(
   fallback: RequestFallbackFields
 ): { productText: string; niceToHave: string[] } {
   const composedFallback = composeFallbackText(fallback);
+
+  const layerSkus = (fallback.layeredProducts || [])
+    .map((p) =>
+      [p.product_name, p.sub_type, p.brand_name]
+        .filter((v): v is string => typeof v === "string" && v.trim().length > 0)
+        .join(" ")
+    )
+    .filter((s) => s.length > 0)
+    .join(". ");
 
   if (!pipJson) {
     return { productText: composedFallback, niceToHave: [] };
@@ -114,12 +141,14 @@ export function extractFromPip(
     ?.raw_description;
   const pipRawDescription = typeof rawDescription === "string" ? rawDescription : "";
 
-  const productText =
+  const baseText =
     pipProductName.trim().length > 1
       ? pipProductName
       : pipRawDescription.trim().length > 1
         ? pipRawDescription
         : composedFallback;
+
+  const productText = [baseText, layerSkus].filter((s) => s.length > 0).join(". ");
 
   const mc = pipJson.match_config as Record<string, unknown> | undefined;
   const niceToHave = safeStringArray(mc?.nice_to_have);
@@ -170,6 +199,27 @@ const STOP_WORDS = new Set([
   "proplus",
   "rami",
   "levy",
+  // Dietary & general non-noun descriptors (scored via compliance/dietary boost instead)
+  "free",
+  "sugar",
+  "gluten",
+  "keto",
+  "organic",
+  "vegan",
+  "natural",
+  "non",
+  "gmo",
+  "branded",
+  "dietary",
+  "item",
+  "items",
+  "seeking",
+  "contact",
+  "european",
+  "israeli",
+  "zero",
+  "high",
+  "low",
 ]);
 
 function extractCoreKeywords(text: string): string[] {
@@ -217,6 +267,7 @@ async function runFastCategoryAndKeywordHybridMatch(opts: {
   privateLabelRequired: boolean | null;
   reqCertifications: string[];
   reqFormats: string[];
+  reqTemperature?: string | null;
   requestEmbedding: number[] | null;
   limitN: number;
 }): Promise<MatchV3Row[]> {
@@ -232,6 +283,11 @@ async function runFastCategoryAndKeywordHybridMatch(opts: {
     certifications: string[] | null;
     kosher_types: string[] | null;
     kosher_level: string | null;
+    temperature: string | null;
+    is_gluten_free: boolean | null;
+    is_sugar_free: boolean | null;
+    is_organic: boolean | null;
+    is_halal: boolean | null;
     private_label: boolean | null;
     manually_verified: boolean | null;
     embedding: unknown;
@@ -249,7 +305,7 @@ async function runFastCategoryAndKeywordHybridMatch(opts: {
   };
 
   const selectCols =
-    "id, product_name, category, category_id, formats, certifications, kosher_types, kosher_level, private_label, manually_verified, embedding, supplier_id, supplier:supplier_offerings!inner(id, company_name, country_of_origin, verified, israeli_market_fit, certifications, kosher_types, status)";
+    "id, product_name, category, category_id, formats, certifications, kosher_types, kosher_level, temperature, is_gluten_free, is_sugar_free, is_organic, is_halal, private_label, manually_verified, embedding, supplier_id, supplier:supplier_offerings!inner(id, company_name, country_of_origin, verified, israeli_market_fit, certifications, kosher_types, status)";
 
   const queries = [];
 
@@ -458,7 +514,20 @@ async function runFastCategoryAndKeywordHybridMatch(opts: {
       (sup.israeli_market_fit ? 2 : 0) +
       (hasAuditedCert ? 2 : allCerts.length > 0 ? 1 : 0);
 
-    const totalScore = ptsCategory + ptsVector + ptsFormat + ptsCompliance + ptsEvidence;
+    // Temperature regime bonus/penalty
+    let tempBonus = 0;
+    if (opts.reqTemperature && c.temperature) {
+      if (opts.reqTemperature.toLowerCase() === c.temperature.toLowerCase()) {
+        tempBonus = 5;
+      } else if (
+        (opts.reqTemperature.toLowerCase() === "frozen" && c.temperature.toLowerCase() !== "frozen") ||
+        (opts.reqTemperature.toLowerCase() !== "frozen" && c.temperature.toLowerCase() === "frozen")
+      ) {
+        tempBonus = -15; // Incompatible cold-chain
+      }
+    }
+
+    const totalScore = ptsCategory + ptsVector + ptsFormat + ptsCompliance + ptsEvidence + tempBonus;
 
     const hasKosher =
       allKosher.length > 0 ||
@@ -522,7 +591,7 @@ export async function runMatchV3(requestId: string): Promise<RunMatchV3Result> {
       .maybeSingle(),
     supabaseAdmin
       .from("sourcing_requests")
-      .select("intent_json, product_name, category, message, private_label, certifications, packaging_preference, embedding")
+      .select("intent_json, product_name, category, message, private_label, certifications, packaging_preference, embedding, ai_analysis, temperature_regime, dietary_requirements")
       .eq("id", requestId)
       .single(),
   ]);
@@ -534,13 +603,24 @@ export async function runMatchV3(requestId: string): Promise<RunMatchV3Result> {
     (srResult.data?.intent_json as Record<string, unknown> | null) ??
     null;
 
+  const rawAiAnalysis = srResult.data?.ai_analysis as Record<string, unknown> | null;
+  const layeredAnalysis = rawAiAnalysis?.layered_analysis as Record<string, unknown> | undefined;
+  const layeredProducts = (layeredAnalysis?.products as any[]) || [];
+
+  const benchmarkBrand =
+    (rawAiAnalysis?.benchmark_brand as string | undefined) ||
+    (rawAiAnalysis?.brand as string | undefined) ||
+    layeredProducts[0]?.brand_name ||
+    null;
+
   const { productText, niceToHave } = extractFromPip(pipJson, {
     productName: (srResult.data?.product_name as string | null) ?? null,
     category: (srResult.data?.category as string | null) ?? null,
     message: (srResult.data?.message as string | null) ?? null,
+    layeredProducts,
   });
 
-  const embedString = buildRequestEmbedString(productText, niceToHave);
+  const embedString = buildRequestEmbedString(productText, niceToHave, benchmarkBrand);
 
   // Reuse existing stored embedding if present, otherwise generate with Voyage AI ("query")
   let requestEmbedding: number[] | null = parseVector(srResult.data?.embedding);
@@ -567,10 +647,25 @@ export async function runMatchV3(requestId: string): Promise<RunMatchV3Result> {
   if (typeof srResult.data?.packaging_preference === "string" && srResult.data.packaging_preference) {
     reqFormats.push(srResult.data.packaging_preference);
   }
+  for (const lp of layeredProducts) {
+    if (typeof lp.packaging_format === "string" && lp.packaging_format.trim()) {
+      reqFormats.push(lp.packaging_format.trim());
+    }
+  }
 
   const reqCertifications: string[] = Array.isArray(srResult.data?.certifications)
     ? (srResult.data.certifications as string[])
     : [];
+
+  const srDietary = Array.isArray((srResult.data as any)?.dietary_requirements)
+    ? ((srResult.data as any).dietary_requirements as string[])
+    : [];
+  const combinedCertAndDietary = Array.from(new Set([...reqCertifications, ...srDietary]));
+
+  const reqTemperature =
+    ((srResult.data as any)?.temperature_regime as string | null) ||
+    ((rawAiAnalysis?.layered_analysis as Record<string, unknown> | undefined)?.shared_dna as any)?.temperature_regime ||
+    null;
 
   // Run fast category + keyword + Voyage AI vector hybrid scorer (~120ms)
   const fastRows = await runFastCategoryAndKeywordHybridMatch({
@@ -578,8 +673,9 @@ export async function runMatchV3(requestId: string): Promise<RunMatchV3Result> {
     categoryText: (srResult.data?.category as string | null) ?? null,
     productText,
     privateLabelRequired: (srResult.data?.private_label as boolean | null) ?? null,
-    reqCertifications,
+    reqCertifications: combinedCertAndDietary,
     reqFormats,
+    reqTemperature,
     requestEmbedding,
     limitN: 30,
   });

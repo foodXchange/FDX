@@ -160,6 +160,12 @@ export interface CreateRequestForBuyerInput {
   certifications: string[];
   target_market: string | null;
   private_label: boolean | null;
+  dietary_requirements?: string[];
+  temperature_regime?: string | null;
+  target_weight_min_g?: number | null;
+  target_weight_max_g?: number | null;
+  preferred_origins?: string[];
+  excluded_ingredients?: string[];
   image_urls?: string[];
   ai_analysis?: Record<string, unknown> | null;
   seller_brief?: string | null;
@@ -180,6 +186,12 @@ export interface SaveDraftRequestInput {
   certifications?: string[];
   target_market?: string | null;
   private_label?: boolean | null;
+  dietary_requirements?: string[];
+  temperature_regime?: string | null;
+  target_weight_min_g?: number | null;
+  target_weight_max_g?: number | null;
+  preferred_origins?: string[];
+  excluded_ingredients?: string[];
   image_urls?: string[];
   ai_analysis?: Record<string, unknown> | null;
   seller_brief?: string | null;
@@ -235,6 +247,12 @@ export async function saveDraftRequestAction(
           private_label: input.private_label ?? null,
           packaging_preference: input.packaging_preference || null,
           volume_per_year: input.volume_per_year || null,
+          dietary_requirements: input.dietary_requirements || [],
+          temperature_regime: input.temperature_regime || "ambient",
+          target_weight_min_g: input.target_weight_min_g ?? null,
+          target_weight_max_g: input.target_weight_max_g ?? null,
+          preferred_origins: input.preferred_origins || [],
+          excluded_ingredients: input.excluded_ingredients || [],
           ai_analysis: Object.keys(enrichedAiAnalysis).length > 0 ? enrichedAiAnalysis : null,
         })
         .eq("id", targetId);
@@ -269,6 +287,12 @@ export async function saveDraftRequestAction(
           private_label: input.private_label ?? null,
           packaging_preference: input.packaging_preference || null,
           volume_per_year: input.volume_per_year || null,
+          dietary_requirements: input.dietary_requirements || [],
+          temperature_regime: input.temperature_regime || "ambient",
+          target_weight_min_g: input.target_weight_min_g ?? null,
+          target_weight_max_g: input.target_weight_max_g ?? null,
+          preferred_origins: input.preferred_origins || [],
+          excluded_ingredients: input.excluded_ingredients || [],
           ai_analysis: Object.keys(enrichedAiAnalysis).length > 0 ? enrichedAiAnalysis : null,
           source: "admin_on_behalf",
           status: "draft",
@@ -623,6 +647,12 @@ export async function createRequestForBuyer(
         private_label: input.private_label,
         packaging_preference: input.packaging_preference || null,
         volume_per_year: input.volume_per_year || null,
+        dietary_requirements: input.dietary_requirements || [],
+        temperature_regime: input.temperature_regime || "ambient",
+        target_weight_min_g: input.target_weight_min_g ?? null,
+        target_weight_max_g: input.target_weight_max_g ?? null,
+        preferred_origins: input.preferred_origins || [],
+        excluded_ingredients: input.excluded_ingredients || [],
         ai_analysis: Object.keys(enrichedAiAnalysis).length > 0 ? enrichedAiAnalysis : null,
         status: "new",
       })
@@ -649,6 +679,12 @@ export async function createRequestForBuyer(
         private_label: input.private_label,
         packaging_preference: input.packaging_preference || null,
         volume_per_year: input.volume_per_year || null,
+        dietary_requirements: input.dietary_requirements || [],
+        temperature_regime: input.temperature_regime || "ambient",
+        target_weight_min_g: input.target_weight_min_g ?? null,
+        target_weight_max_g: input.target_weight_max_g ?? null,
+        preferred_origins: input.preferred_origins || [],
+        excluded_ingredients: input.excluded_ingredients || [],
         ai_analysis: Object.keys(enrichedAiAnalysis).length > 0 ? enrichedAiAnalysis : null,
         source: "admin_on_behalf",
         status: "new",
@@ -818,6 +854,43 @@ export async function getQuickMatchesAction(
   } catch (err: any) {
     console.error("getQuickMatchesAction error:", err);
     return { ok: false, matches: [], error: err.message || "Failed to search matches" };
+  }
+}
+
+export async function rerunMatchingAction(
+  requestId: string
+): Promise<{ ok: boolean; matches: any[]; count: number; error?: string }> {
+  try {
+    if (!requestId) {
+      return { ok: false, matches: [], count: 0, error: "Missing request ID" };
+    }
+    await runMatchV3(requestId);
+
+    const { data: matches, error } = await supabaseAdmin
+      .from("sourcing_matches")
+      .select(`
+        id,
+        match_score,
+        product_name,
+        company_name,
+        country,
+        match_summary,
+        status,
+        supplier_id,
+        match_breakdown
+      `)
+      .eq("request_id", requestId)
+      .order("match_score", { ascending: false })
+      .limit(10);
+
+    if (error) throw error;
+
+    revalidatePath("/admin/requests");
+    revalidatePath(`/admin/requests/${requestId}`);
+    return { ok: true, matches: matches || [], count: matches?.length || 0 };
+  } catch (err: any) {
+    console.error("rerunMatchingAction error:", err);
+    return { ok: false, matches: [], count: 0, error: err.message || "Failed to re-run matching" };
   }
 }
 

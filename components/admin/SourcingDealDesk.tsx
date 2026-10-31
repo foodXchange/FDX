@@ -8,6 +8,7 @@ import {
   createQuickBuyer,
   type CreateQuickBuyerInput,
   getQuickMatchesAction,
+  rerunMatchingAction,
   sendBriefConfirmationEmailAction,
   saveDraftRequestAction,
   softDeleteRequestAction,
@@ -142,6 +143,9 @@ export default function SourcingDealDesk({
   const [estimatedVolume, setEstimatedVolume] = useState("1 x 40ft HQ FCL / month (Mixed Pallets)");
   const [brandingModel, setBrandingModel] = useState<"supplier_brand" | "private_label" | "open">("supplier_brand");
   const [targetMarket, setTargetMarket] = useState("Israel");
+  const [temperatureRegime, setTemperatureRegime] = useState<"ambient" | "chilled" | "frozen">("ambient");
+  const [targetWeightMinG, setTargetWeightMinG] = useState<string>("");
+  const [targetWeightMaxG, setTargetWeightMaxG] = useState<string>("");
   const [selectedTags, setSelectedTags] = useState<string[]>([
     "Gluten Free",
     "Sugar Free",
@@ -206,6 +210,7 @@ export default function SourcingDealDesk({
   const [createdRequestId, setCreatedRequestId] = useState<string | null>(null);
   const [liveMatches, setLiveMatches] = useState<any[]>([]);
   const [fetchingMatches, setFetchingMatches] = useState(false);
+  const [rerunningMatches, setRerunningMatches] = useState(false);
 
   // Buyer selection handler
   function handleSelectBuyer(b: BuyerOption) {
@@ -369,7 +374,7 @@ export default function SourcingDealDesk({
         });
       }
 
-      // 2. Autofill Title, Brand, Category if blank
+      // 2. Autofill Title, Brand, Category, Temperature if blank
       if (!projectTitle.trim() && result.products[0]?.product_name) {
         setProjectTitle(result.products[0].product_name);
       }
@@ -378,6 +383,12 @@ export default function SourcingDealDesk({
       }
       if (!category && result.category_groups[0]?.category_name) {
         setCategory(result.category_groups[0].category_name);
+      }
+      if (result.shared_dna?.temperature_regime) {
+        const regime = result.shared_dna.temperature_regime.toLowerCase();
+        if (regime.includes("frozen")) setTemperatureRegime("frozen");
+        else if (regime.includes("chilled")) setTemperatureRegime("chilled");
+        else setTemperatureRegime("ambient");
       }
 
       // 3. Update brief text if synthesized
@@ -449,6 +460,12 @@ export default function SourcingDealDesk({
         certifications: selectedTags,
         target_market: targetMarket || "Israel",
         private_label: brandingModel === "private_label" ? true : brandingModel === "supplier_brand" ? false : null,
+        temperature_regime: temperatureRegime,
+        target_weight_min_g: targetWeightMinG ? parseInt(targetWeightMinG, 10) : null,
+        target_weight_max_g: targetWeightMaxG ? parseInt(targetWeightMaxG, 10) : null,
+        dietary_requirements: selectedTags.filter((t) =>
+          ["Sugar Free", "Gluten Free", "Keto Friendly", "Organic", "Vegan", "Non-GMO"].includes(t)
+        ),
         image_urls: imageUrls,
         ai_analysis: {
           layered_analysis: layeredAnalysis,
@@ -543,6 +560,9 @@ export default function SourcingDealDesk({
     if (req.packaging_preference) setPackagingFormat(req.packaging_preference);
     if (req.volume_per_year) setEstimatedVolume(req.volume_per_year);
     if (req.target_market) setTargetMarket(req.target_market);
+    if (req.temperature_regime) setTemperatureRegime(req.temperature_regime as any);
+    if (req.target_weight_min_g != null) setTargetWeightMinG(String(req.target_weight_min_g));
+    if (req.target_weight_max_g != null) setTargetWeightMaxG(String(req.target_weight_max_g));
     if (req.private_label === true) setBrandingModel("private_label");
     else if (req.private_label === false) setBrandingModel("supplier_brand");
     else setBrandingModel("open");
@@ -580,6 +600,15 @@ export default function SourcingDealDesk({
     setActiveTab("intake_desk");
     setSavedDraftNotice(`📂 Loaded request: ${req.company || req.name || "Buyer"} (${req.product_name || "Draft"})`);
     setTimeout(() => setSavedDraftNotice(null), 3500);
+
+    // Auto-load existing matches for this request into the sidebar
+    setLiveMatches([]);
+    setRerunningMatches(false);
+    getQuickMatchesAction(req.id).then((res) => {
+      if (res.ok && res.matches.length > 0) {
+        setLiveMatches(res.matches);
+      }
+    });
   }
 
   // Clear form to start a fresh request without losing previous progress
@@ -608,6 +637,9 @@ export default function SourcingDealDesk({
     setPackagingFormat("Retail Shelf Packs (Consolidated Mixed Container)");
     setEstimatedVolume("1x 40ft HQ FCL / Month (Mixed)");
     setTargetMarket("Israel");
+    setTemperatureRegime("ambient");
+    setTargetWeightMinG("");
+    setTargetWeightMaxG("");
     setBrandingModel("open");
     setSelectedTags(["Kosher", "IFS", "Organic"]);
     setImageUrls([]);
@@ -908,6 +940,12 @@ export default function SourcingDealDesk({
               : brandingModel === "supplier_brand"
               ? false
               : null,
+          temperature_regime: temperatureRegime,
+          target_weight_min_g: targetWeightMinG ? parseInt(targetWeightMinG, 10) : null,
+          target_weight_max_g: targetWeightMaxG ? parseInt(targetWeightMaxG, 10) : null,
+          dietary_requirements: selectedTags.filter((t) =>
+            ["Sugar Free", "Gluten Free", "Keto Friendly", "Organic", "Vegan", "Non-GMO"].includes(t)
+          ),
           image_urls: imageUrls,
           ai_analysis: {
             layered_analysis: layeredAnalysis,
@@ -1527,6 +1565,57 @@ export default function SourcingDealDesk({
                     </div>
                   </div>
 
+                  {/* Temperature Regime & Target Unit Weight */}
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs bg-slate-50/60 border border-slate-200/60 rounded-xl p-3">
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                        Temperature Regime
+                      </label>
+                      <div className="flex rounded-lg border border-slate-200 bg-white p-0.5">
+                        {(["ambient", "chilled", "frozen"] as const).map((regime) => (
+                          <button
+                            key={regime}
+                            type="button"
+                            onClick={() => setTemperatureRegime(regime)}
+                            className={`flex-1 py-1 text-center font-bold capitalize rounded-md transition ${
+                              temperatureRegime === regime
+                                ? "bg-orange-500 text-white shadow-2xs"
+                                : "text-slate-600 hover:text-slate-900"
+                            }`}
+                          >
+                            {regime}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                        Min Unit Weight (g)
+                      </label>
+                      <input
+                        type="number"
+                        placeholder="e.g. 100"
+                        value={targetWeightMinG}
+                        onChange={(e) => setTargetWeightMinG(e.target.value)}
+                        className="w-full bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-slate-800 outline-none focus:border-orange-500"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                        Max Unit Weight (g)
+                      </label>
+                      <input
+                        type="number"
+                        placeholder="e.g. 250"
+                        value={targetWeightMaxG}
+                        onChange={(e) => setTargetWeightMaxG(e.target.value)}
+                        className="w-full bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-slate-800 outline-none focus:border-orange-500"
+                      />
+                    </div>
+                  </div>
+
                   {/* Image Staging & Deep Vision Button */}
                   <div className="p-3.5 bg-slate-50/80 border border-slate-200/80 rounded-xl space-y-3">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
@@ -1820,6 +1909,46 @@ export default function SourcingDealDesk({
                                 </div>
                               </div>
 
+                              {/* Physical Specs & Format */}
+                              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs pt-1">
+                                <div>
+                                  <label className="text-[10px] font-bold text-slate-500 uppercase block mb-0.5">
+                                    Product Sub-Type
+                                  </label>
+                                  <input
+                                    type="text"
+                                    value={prod.sub_type || ""}
+                                    onChange={(e) => updateProductCard(prod.id, { sub_type: e.target.value })}
+                                    className="w-full bg-white border border-slate-200 rounded px-2 py-1 text-slate-800"
+                                    placeholder="e.g. Chocolate Bark, Wafer Bar"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="text-[10px] font-bold text-slate-500 uppercase block mb-0.5">
+                                    Net Weight / Unit Size
+                                  </label>
+                                  <input
+                                    type="text"
+                                    value={prod.net_weight || ""}
+                                    onChange={(e) => updateProductCard(prod.id, { net_weight: e.target.value })}
+                                    className="w-full bg-white border border-slate-200 rounded px-2 py-1 text-slate-800"
+                                    placeholder="e.g. 170g, 6 oz"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="text-[10px] font-bold text-slate-500 uppercase block mb-0.5">
+                                    Packaging Format
+                                  </label>
+                                  <input
+                                    type="text"
+                                    value={prod.packaging_format || ""}
+                                    onChange={(e) => updateProductCard(prod.id, { packaging_format: e.target.value })}
+                                    className="w-full bg-white border border-slate-200 rounded px-2 py-1 text-slate-800"
+                                    placeholder="e.g. Stand-up Pouch, Pillow Bag"
+                                  />
+                                </div>
+                              </div>
+
                               {/* Sweeteners & Catalog Match Badge */}
                               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 pt-1 border-t border-slate-200/60">
                                 <div className="flex items-center gap-1.5 flex-wrap">
@@ -2101,68 +2230,179 @@ export default function SourcingDealDesk({
                 <div className="flex items-center gap-2">
                   <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                   <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
-                    {liveMatches.length > 0 ? "🎯 Factory Reverse-Matches" : "Live Sourcing Feed"}
+                    {liveMatches.length > 0 ? `🎯 ${liveMatches.length} Factory Matches` : "Live Sourcing Feed"}
                   </h3>
                 </div>
-                {createdRequestId && (
-                  <Link
-                    href={`/admin/requests/${createdRequestId}`}
-                    className="text-xs font-bold text-orange-600 hover:underline"
-                  >
-                    Open Workspace →
-                  </Link>
-                )}
-              </div>
-
-              {fetchingMatches ? (
-                <div className="py-8 text-center text-xs text-slate-500 space-y-2">
-                  <div className="w-6 h-6 border-2 border-orange-500 border-t-transparent rounded-full animate-spin mx-auto" />
-                  <p>Ranking European factories by certifications & specs...</p>
-                </div>
-              ) : liveMatches.length > 0 ? (
-                <div className="space-y-3">
-                  {liveMatches.map((m) => (
-                    <div
-                      key={m.id}
-                      className="p-3 rounded-xl bg-slate-50 hover:bg-orange-50/50 border border-slate-200/80 transition text-xs space-y-1.5"
-                    >
-                      <div className="flex items-center justify-between">
-                        <span className="font-bold text-slate-900">{m.company_name}</span>
-                        <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-bold text-[11px]">
-                          {m.match_score}% Match
-                        </span>
-                      </div>
-                      <div className="text-slate-600">{m.product_name}</div>
-                      <div className="flex items-center gap-2 text-[10px] text-slate-400 flex-wrap">
-                        <span>📍 {m.country || "Europe"}</span>
-                        {m.match_breakdown?.certifications?.length > 0 && (
+                <div className="flex items-center gap-2">
+                  {createdRequestId && (
+                    <>
+                      <button
+                        onClick={async () => {
+                          setRerunningMatches(true);
+                          setLiveMatches([]);
+                          try {
+                            const res = await rerunMatchingAction(createdRequestId);
+                            if (res.ok) {
+                              setLiveMatches(res.matches || []);
+                            } else {
+                              setErrorMsg(res.error || "Re-matching failed");
+                            }
+                          } catch (e: any) {
+                            setErrorMsg(e.message || "Re-matching error");
+                          } finally {
+                            setRerunningMatches(false);
+                          }
+                        }}
+                        disabled={rerunningMatches || fetchingMatches}
+                        title="Re-score this request against the full supplier database"
+                        className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-bold transition ${
+                          rerunningMatches || fetchingMatches
+                            ? "bg-slate-100 text-slate-400 cursor-not-allowed"
+                            : "bg-orange-50 text-orange-700 hover:bg-orange-100 border border-orange-200"
+                        }`}
+                      >
+                        {rerunningMatches ? (
                           <>
-                            <span>·</span>
-                            <span className="text-slate-600 font-medium">
-                              {m.match_breakdown.certifications.slice(0, 3).join(", ")}
-                            </span>
+                            <span className="w-3 h-3 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
+                            Re-scoring...
+                          </>
+                        ) : (
+                          <>
+                            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                            </svg>
+                            Re-Calculate
                           </>
                         )}
-                      </div>
-                      {Array.isArray(m.match_breakdown?.matched_certifications) && m.match_breakdown.matched_certifications.length > 0 && (
-                        <div className="flex flex-wrap gap-1 pt-0.5">
-                          {m.match_breakdown.matched_certifications.map((mc: string) => (
-                            <span
-                              key={mc}
-                              className="inline-flex items-center gap-0.5 px-1.5 py-0.5 bg-emerald-50 text-emerald-800 border border-emerald-200 rounded text-[10px] font-semibold"
-                            >
-                              <span>⭐</span> {mc} (+Score Booster)
+                      </button>
+                      <Link
+                        href={`/admin/requests/${createdRequestId}`}
+                        className="text-xs font-bold text-orange-600 hover:underline"
+                      >
+                        Open →
+                      </Link>
+                    </>
+                  )}
+                </div>
+              </div>
+
+              {fetchingMatches || rerunningMatches ? (
+                <div className="py-8 text-center text-xs text-slate-500 space-y-2">
+                  <div className="w-6 h-6 border-2 border-orange-500 border-t-transparent rounded-full animate-spin mx-auto" />
+                  <p>{rerunningMatches ? "Re-scoring against full supplier database..." : "Ranking European factories by certifications & specs..."}</p>
+                </div>
+              ) : liveMatches.length > 0 ? (
+                <div className="space-y-2.5">
+                  {liveMatches.map((m, idx) => {
+                    const bd = m.match_breakdown ?? {};
+                    const score = m.match_score ?? 0;
+                    const scoreColor =
+                      score >= 85 ? "bg-emerald-500" :
+                      score >= 70 ? "bg-amber-500" :
+                      "bg-slate-400";
+                    const scoreBadgeColor =
+                      score >= 85 ? "bg-emerald-100 text-emerald-800" :
+                      score >= 70 ? "bg-amber-100 text-amber-800" :
+                      "bg-slate-100 text-slate-700";
+                    const matchedCerts: string[] = Array.isArray(bd.matched_certifications)
+                      ? bd.matched_certifications
+                      : [];
+
+                    return (
+                      <div
+                        key={m.id}
+                        className="p-3 rounded-xl bg-slate-50 hover:bg-orange-50/40 border border-slate-200/80 transition text-xs space-y-2"
+                      >
+                        {/* Top row: rank + name + score badge */}
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex items-start gap-2">
+                            <span className="w-5 h-5 rounded-full bg-slate-200 text-slate-600 text-[10px] font-black flex items-center justify-center flex-shrink-0 mt-0.5">
+                              {idx + 1}
                             </span>
-                          ))}
+                            <div>
+                              <div className="font-bold text-slate-900 leading-tight">{m.company_name}</div>
+                              <div className="text-slate-500 mt-0.5 leading-tight">{m.product_name}</div>
+                            </div>
+                          </div>
+                          <span className={`px-2 py-0.5 rounded-full font-bold text-[11px] flex-shrink-0 ${scoreBadgeColor}`}>
+                            {score}%
+                          </span>
                         </div>
-                      )}
-                    </div>
-                  ))}
+
+                        {/* Score bar */}
+                        <div className="h-1 rounded-full bg-slate-200 overflow-hidden">
+                          <div
+                            className={`h-full rounded-full transition-all ${scoreColor}`}
+                            style={{ width: `${Math.min(score, 100)}%` }}
+                          />
+                        </div>
+
+                        {/* Score breakdown chips */}
+                        <div className="flex items-center gap-1.5 flex-wrap text-[10px]">
+                          <span className="text-slate-400">📍 {m.country || "Europe"}</span>
+                          {typeof bd.vector === "number" && (
+                            <span className="px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 font-semibold">
+                              Semantic {bd.vector.toFixed(0)}
+                            </span>
+                          )}
+                          {typeof bd.category === "number" && bd.category > 0 && (
+                            <span className="px-1.5 py-0.5 rounded bg-violet-50 text-violet-700 font-semibold">
+                              Category +{bd.category}
+                            </span>
+                          )}
+                          {typeof bd.compliance === "number" && bd.compliance > 0 && (
+                            <span className="px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 font-semibold">
+                              Certs +{bd.compliance}
+                            </span>
+                          )}
+                          {typeof bd.coldChain === "number" && bd.coldChain !== 0 && (
+                            <span className={`px-1.5 py-0.5 rounded font-semibold ${bd.coldChain > 0 ? "bg-sky-50 text-sky-700" : "bg-rose-50 text-rose-700"}`}>
+                              {bd.coldChain > 0 ? `❄️ +${bd.coldChain}` : `⚠️ ${bd.coldChain}`}
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Matched certs */}
+                        {matchedCerts.length > 0 && (
+                          <div className="flex flex-wrap gap-1">
+                            {matchedCerts.slice(0, 4).map((mc: string) => (
+                              <span
+                                key={mc}
+                                className="inline-flex items-center gap-0.5 px-1.5 py-0.5 bg-emerald-50 text-emerald-800 border border-emerald-200 rounded text-[10px] font-semibold"
+                              >
+                                ⭐ {mc}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+
+                        {/* Action row */}
+                        {createdRequestId && (
+                          <Link
+                            href={`/admin/requests/${createdRequestId}#match-${m.supplier_id}`}
+                            className="inline-flex items-center gap-1 text-[11px] font-bold text-orange-600 hover:text-orange-700"
+                          >
+                            View RFQ & Contact →
+                          </Link>
+                        )}
+                      </div>
+                    );
+                  })}
+
+                  {createdRequestId && (
+                    <Link
+                      href={`/admin/requests/${createdRequestId}`}
+                      className="block w-full text-center py-2 rounded-xl bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold transition mt-1"
+                    >
+                      Open Full Match Workspace →
+                    </Link>
+                  )}
                 </div>
               ) : (
                 <div className="py-6 text-center text-xs text-slate-400 space-y-2">
                   <span className="text-2xl">🏭</span>
                   <p>Select a buyer, write a brief, confirm it, and hit run to see instant matched factories right here.</p>
+                  <p className="text-[11px] text-slate-300">Or click any request from the table below to load its matches.</p>
                 </div>
               )}
             </div>

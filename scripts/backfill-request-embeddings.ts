@@ -57,6 +57,7 @@ type SourcingRequestRow = {
   product_name: string | null;
   category: string | null;
   message: string | null;
+  ai_analysis?: Record<string, unknown> | null;
   embedding: unknown;
 };
 
@@ -90,8 +91,8 @@ async function main() {
 
   const PAGE = 1000;
   const selectCols = colError
-    ? "id, intent_json, product_name, category, message"
-    : "id, intent_json, product_name, category, message, embedding";
+    ? "id, intent_json, product_name, category, message, ai_analysis"
+    : "id, intent_json, product_name, category, message, ai_analysis, embedding";
 
   let rows: SourcingRequestRow[] = [];
   let from = 0;
@@ -166,12 +167,20 @@ async function main() {
 
     const embedStrings = batch.map((r) => {
       const pipJson = pipByRequestId.get(r.id) ?? r.intent_json ?? null;
+      const rawAi = r.ai_analysis as Record<string, unknown> | null;
+      const layeredProducts = ((rawAi?.layered_analysis as Record<string, unknown> | undefined)?.products as any[]) || [];
+      const benchmarkBrand =
+        (rawAi?.benchmark_brand as string | undefined) ||
+        (rawAi?.brand as string | undefined) ||
+        layeredProducts[0]?.brand_name ||
+        null;
       const { productText, niceToHave } = extractFromPip(pipJson, {
         productName: r.product_name,
         category: r.category,
         message: r.message,
+        layeredProducts,
       });
-      return buildRequestEmbedString(productText, niceToHave);
+      return buildRequestEmbedString(productText, niceToHave, benchmarkBrand);
     });
 
     if (DRY_RUN) {
