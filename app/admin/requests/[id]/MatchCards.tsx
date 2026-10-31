@@ -37,6 +37,39 @@ interface LocalMatch extends SavedMatch {
   localWhatsappMessage: string | null;
 }
 
+/** Maps a country name to its flag emoji, returns '' for unknowns. */
+function countryToFlag(country: string): string {
+  const map: Record<string, string> = {
+    "united states": "🇺🇸",
+    usa: "🇺🇸",
+    us: "🇺🇸",
+    israel: "🇮🇱",
+    italy: "🇮🇹",
+    spain: "🇪🇸",
+    france: "🇫🇷",
+    germany: "🇩🇪",
+    netherlands: "🇳🇱",
+    belgium: "🇧🇪",
+    turkey: "🇹🇷",
+    china: "🇨🇳",
+    india: "🇮🇳",
+    brazil: "🇧🇷",
+    argentina: "🇦🇷",
+    mexico: "🇲🇽",
+    canada: "🇨🇦",
+    "united kingdom": "🇬🇧",
+    uk: "🇬🇧",
+    poland: "🇵🇱",
+    ukraine: "🇺🇦",
+    thailand: "🇹🇭",
+    vietnam: "🇻🇳",
+  };
+  return map[country.trim().toLowerCase()] ?? "";
+}
+
+/** Ordinal emoji labels for the deck (1️⃣ … 5️⃣). */
+const ORDINAL_EMOJI = ["1️⃣", "2️⃣", "3️⃣", "4️⃣", "5️⃣"];
+
 function scoreBadgeClass(score: number): string {
   if (score >= 70) return "bg-green-100 text-green-700";
   if (score >= 50) return "bg-orange-100 text-orange-700";
@@ -113,6 +146,7 @@ export default function MatchCards({ requestId, initialMatches, productName, com
   const [rfqOpen, setRfqOpen] = useState(false);
   const [bulkChaserOpen, setBulkChaserOpen] = useState(false);
   const [chaserMatch, setChaserMatch] = useState<LocalMatch | null>(null);
+  const [showDeckModal, setShowDeckModal] = useState(false);
 
   // New Workflow States: 65%+ Filtering, Bulk Follow-up, and Quote Capture
   const [filterTab, setFilterTab] = useState<"all" | "top_tier" | "quoted" | "pending_followup">("all");
@@ -422,6 +456,16 @@ export default function MatchCards({ requestId, initialMatches, productName, com
             >
               <span>⚡</span>
               <span>Select All 65%+ ({topTierMatches.length})</span>
+            </button>
+
+            {/* Buyer Deck button */}
+            <button
+              type="button"
+              onClick={() => setShowDeckModal(true)}
+              className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-700 bg-slate-50 hover:bg-slate-100 border border-slate-300 px-3 py-1.5 rounded-lg transition shadow-xs"
+            >
+              <span>📋</span>
+              <span>Buyer Deck</span>
             </button>
 
             {pendingFollowUpMatches.length > 0 && (
@@ -1355,6 +1399,15 @@ export default function MatchCards({ requestId, initialMatches, productName, com
           }}
         />
       )}
+
+      {/* ── Buyer Assortment Deck Modal ── */}
+      {showDeckModal && (
+        <BuyerDeckModal
+          productName={productName}
+          matches={matches}
+          onClose={() => setShowDeckModal(false)}
+        />
+      )}
     </div>
   );
 }
@@ -1382,5 +1435,131 @@ function Spinner({ size = "md" }: { size?: "sm" | "md" }) {
         d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
       />
     </svg>
+  );
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// BuyerDeckModal – WhatsApp-ready buyer sourcing brief for top matches
+// ──────────────────────────────────────────────────────────────────────────
+
+interface BuyerDeckModalProps {
+  productName: string;
+  matches: LocalMatch[];
+  onClose: () => void;
+}
+
+function buildDeckText(productName: string, matches: LocalMatch[]): string {
+  // Take top 5 by score
+  const top = [...matches]
+    .sort((a, b) => b.match_score - a.match_score)
+    .slice(0, 5);
+
+  const lines: string[] = [
+    "🛒 *FDX Buyer Sourcing Brief*",
+    `📦 Product: ${productName}`,
+    "",
+    `Top ${top.length} Matched Suppliers:`,
+    "",
+  ];
+
+  top.forEach((m, i) => {
+    const ordinal = ORDINAL_EMOJI[i] ?? `${i + 1}.`;
+    const country = m.country ?? "Unknown";
+    const flag = countryToFlag(country);
+    const bd = m.match_breakdown;
+
+    // Certifications
+    const certs: string[] = bd?.matched_certifications?.length
+      ? bd.matched_certifications
+      : bd?.certifications?.length
+      ? bd.certifications
+      : [];
+    const kosherTypes: string[] = bd?.kosher_types ?? [];
+    const allCerts = [...new Set([...kosherTypes, ...certs])];
+    const certsStr = allCerts.length > 0 ? allCerts.join(", ") : "N/A";
+
+    // Packaging format (derived from format score label)
+    const formatScore = bd?.format ?? null;
+    const packagingStr = formatScore !== null ? `Score ${formatScore}pts` : "N/A";
+
+    // Cold chain
+    const coldChainVal = bd?.coldChain ?? bd?.temperature ?? null;
+    const coldChainStr = coldChainVal !== null && coldChainVal > 0 ? "✅ Yes" : "❌ No";
+
+    lines.push(
+      `${ordinal} *${m.company_name}* ${flag} (${country})`,
+      `   Score: ${m.match_score}% | Certs: ${certsStr}`,
+      `   Format: ${packagingStr} | ❄️ Cold Chain: ${coldChainStr}`,
+      "",
+    );
+  });
+
+  lines.push("---", "Powered by FDX.TRADING Sourcing AI");
+  return lines.join("\n");
+}
+
+function BuyerDeckModal({ productName, matches, onClose }: BuyerDeckModalProps) {
+  const [copied, setCopied] = useState(false);
+  const deckText = buildDeckText(productName, matches);
+  const waUrl = `https://wa.me/?text=${encodeURIComponent(deckText)}`;
+
+  function handleCopy() {
+    navigator.clipboard.writeText(deckText).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div className="w-full max-w-lg bg-slate-900 border border-orange-500/40 rounded-2xl shadow-2xl flex flex-col max-h-[90vh] overflow-hidden">
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-700">
+          <div>
+            <h2 className="text-sm font-bold text-white">📋 Buyer Assortment Deck</h2>
+            <p className="text-xs text-slate-400 mt-0.5">
+              WhatsApp-ready sourcing brief · Top {Math.min(matches.length, 5)} suppliers
+            </p>
+          </div>
+          <button
+            onClick={onClose}
+            className="text-slate-400 hover:text-white text-lg leading-none transition"
+            aria-label="Close"
+          >
+            ✕
+          </button>
+        </div>
+
+        {/* Preview */}
+        <div className="flex-1 overflow-y-auto px-5 py-4">
+          <pre className="text-xs text-emerald-400 font-mono whitespace-pre-wrap leading-relaxed bg-slate-800 rounded-xl p-4 border border-slate-700">
+            {deckText}
+          </pre>
+        </div>
+
+        {/* Actions */}
+        <div className="flex items-center gap-2 px-5 py-4 border-t border-slate-700">
+          <button
+            onClick={handleCopy}
+            className="flex-1 inline-flex items-center justify-center gap-2 text-xs font-bold bg-slate-700 hover:bg-slate-600 text-white px-4 py-2.5 rounded-xl transition"
+          >
+            {copied ? "✅ Copied!" : "📋 Copy to Clipboard"}
+          </button>
+          <a
+            href={waUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex-1 inline-flex items-center justify-center gap-2 text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2.5 rounded-xl transition"
+          >
+            💬 Send via WhatsApp
+          </a>
+        </div>
+      </div>
+    </div>
   );
 }
