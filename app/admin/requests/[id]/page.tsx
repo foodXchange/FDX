@@ -54,6 +54,12 @@ export type SavedMatch = {
     format?: number;
     compliance?: number;
     evidence?: number;
+    temperature?: number;
+    coldChain?: number;
+    origin?: number;
+    exclusion?: number;
+    matched_certifications?: string[];
+    cert_boost?: number;
     kosher_status?: 'certified' | 'not_listed' | 'unknown';
   } | null;
   status: string;

@@ -730,13 +730,38 @@ export default function MatchCards({ requestId, initialMatches, productName, com
               </div>
             </div>
 
-            {/* v1 score breakdown chips */}
+            {/* V3 score breakdown chips */}
             {hasV1Breakdown && (
-              <div className="flex flex-wrap gap-1.5 mt-3">
-                <ScoreChip label="Cat" pts={breakdown!.category!} max={40} />
-                <ScoreChip label="Fmt" pts={breakdown!.format!} max={20} />
-                <ScoreChip label="Cert" pts={breakdown!.compliance!} max={10} />
-                <ScoreChip label="Evid" pts={breakdown!.evidence!} max={20} />
+              <div className="flex flex-wrap items-center gap-1.5 mt-3">
+                {typeof breakdown!.vector === "number" && (
+                  <span className="text-xs px-2 py-0.5 rounded-full border bg-blue-50 text-blue-700 border-blue-200 font-semibold">
+                    Semantic {breakdown!.vector!.toFixed(0)}
+                  </span>
+                )}
+                <ScoreChip label="Cat" pts={breakdown!.category!} max={35} />
+                <ScoreChip label="Fmt" pts={breakdown!.format!} max={15} />
+                <ScoreChip label="Cert" pts={breakdown!.compliance!} max={20} />
+                <ScoreChip label="Evid" pts={breakdown!.evidence!} max={10} />
+                {typeof (breakdown!.temperature ?? breakdown!.coldChain) === "number" && (breakdown!.temperature ?? breakdown!.coldChain) !== 0 && (
+                  <span className={`text-xs px-2 py-0.5 rounded-full border font-semibold ${(breakdown!.temperature ?? breakdown!.coldChain)! > 0 ? "bg-sky-50 text-sky-700 border-sky-200" : "bg-rose-50 text-rose-700 border-rose-200"}`}>
+                    {(breakdown!.temperature ?? breakdown!.coldChain)! > 0 ? `❄️ +${breakdown!.temperature ?? breakdown!.coldChain}` : `⚠️ Cold ${breakdown!.temperature ?? breakdown!.coldChain}`}
+                  </span>
+                )}
+                {typeof breakdown!.origin === "number" && breakdown!.origin > 0 && (
+                  <span className="text-xs px-2 py-0.5 rounded-full border bg-teal-50 text-teal-700 border-teal-200 font-semibold">
+                    🌍 Origin +{breakdown!.origin}
+                  </span>
+                )}
+                {typeof breakdown!.exclusion === "number" && breakdown!.exclusion < 0 && (
+                  <span className="text-xs px-2 py-0.5 rounded-full border bg-rose-50 text-rose-700 border-rose-200 font-semibold">
+                    ⚠️ Excluded {breakdown!.exclusion}
+                  </span>
+                )}
+                {Array.isArray(breakdown!.matched_certifications) && breakdown!.matched_certifications.map((mc: string) => (
+                  <span key={mc} className="text-xs px-2 py-0.5 rounded-full border bg-emerald-50 text-emerald-800 border-emerald-200 font-semibold">
+                    ⭐ {mc}
+                  </span>
+                ))}
                 {kosherStatus && (
                   <span className={`text-xs px-2 py-0.5 rounded-full border ${
                     kosherStatus === "certified"

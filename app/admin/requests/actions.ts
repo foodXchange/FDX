@@ -332,6 +332,13 @@ export async function saveDraftRequestAction(
       }
     }
 
+    // Auto re-score in background so Deal Desk matches are always fresh on save
+    if (targetId) {
+      runMatchV3(targetId).catch((err) => {
+        console.warn("Background auto-match failed on save draft:", err);
+      });
+    }
+
     revalidatePath("/admin/requests");
     const savedAt = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
     if (!targetId) throw new Error("Target draft ID could not be determined");
