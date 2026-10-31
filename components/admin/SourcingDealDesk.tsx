@@ -2355,9 +2355,19 @@ export default function SourcingDealDesk({
                               Certs +{bd.compliance}
                             </span>
                           )}
-                          {typeof bd.coldChain === "number" && bd.coldChain !== 0 && (
-                            <span className={`px-1.5 py-0.5 rounded font-semibold ${bd.coldChain > 0 ? "bg-sky-50 text-sky-700" : "bg-rose-50 text-rose-700"}`}>
-                              {bd.coldChain > 0 ? `❄️ +${bd.coldChain}` : `⚠️ ${bd.coldChain}`}
+                          {typeof (bd.temperature ?? bd.coldChain) === "number" && (bd.temperature ?? bd.coldChain) !== 0 && (
+                            <span className={`px-1.5 py-0.5 rounded font-semibold ${(bd.temperature ?? bd.coldChain) > 0 ? "bg-sky-50 text-sky-700" : "bg-rose-50 text-rose-700"}`}>
+                              {(bd.temperature ?? bd.coldChain) > 0 ? `❄️ +${bd.temperature ?? bd.coldChain}` : `⚠️ Cold ${bd.temperature ?? bd.coldChain}`}
+                            </span>
+                          )}
+                          {typeof bd.origin === "number" && bd.origin > 0 && (
+                            <span className="px-1.5 py-0.5 rounded bg-teal-50 text-teal-700 font-semibold">
+                              🌍 Origin +{bd.origin}
+                            </span>
+                          )}
+                          {typeof bd.exclusion === "number" && bd.exclusion < 0 && (
+                            <span className="px-1.5 py-0.5 rounded bg-rose-50 text-rose-700 font-semibold">
+                              ⚠️ Excluded {bd.exclusion}
                             </span>
                           )}
                         </div>

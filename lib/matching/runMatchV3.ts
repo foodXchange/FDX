@@ -15,6 +15,9 @@ export type MatchV3Row = {
     format: number;
     compliance: number;
     evidence: number;
+    temperature?: number;
+    origin?: number;
+    exclusion?: number;
     kosher_status?: "certified" | "not_listed" | "unknown";
     certifications?: string[];
     kosher_types?: string[];
@@ -268,6 +271,8 @@ async function runFastCategoryAndKeywordHybridMatch(opts: {
   reqCertifications: string[];
   reqFormats: string[];
   reqTemperature?: string | null;
+  reqPreferredOrigins?: string[];
+  reqExcludedIngredients?: string[];
   requestEmbedding: number[] | null;
   limitN: number;
 }): Promise<MatchV3Row[]> {
@@ -527,7 +532,38 @@ async function runFastCategoryAndKeywordHybridMatch(opts: {
       }
     }
 
-    const totalScore = ptsCategory + ptsVector + ptsFormat + ptsCompliance + ptsEvidence + tempBonus;
+    // Preferred origins bonus/penalty
+    let originBonus = 0;
+    if (opts.reqPreferredOrigins && opts.reqPreferredOrigins.length > 0) {
+      const supCountry = (sup.country_of_origin ?? "").toLowerCase().trim();
+      const isPreferred = opts.reqPreferredOrigins.some((po) => {
+        const poLower = po.toLowerCase().trim();
+        return (
+          supCountry === poLower ||
+          (poLower.length >= 2 && supCountry.includes(poLower)) ||
+          (supCountry.length >= 2 && poLower.includes(supCountry))
+        );
+      });
+      originBonus = isPreferred ? 8 : -5;
+    }
+
+    // Excluded ingredients penalty
+    let exclusionPenalty = 0;
+    if (opts.reqExcludedIngredients && opts.reqExcludedIngredients.length > 0) {
+      const fullText = `${c.product_name} ${textCorpus}`.toLowerCase();
+      const hasExcluded = opts.reqExcludedIngredients.some((ex) => {
+        const exLower = ex.toLowerCase().trim();
+        return exLower.length >= 3 && fullText.includes(exLower);
+      });
+      if (hasExcluded) {
+        exclusionPenalty = -30; // Heavy penalty for containing an excluded ingredient
+      }
+    }
+
+    const totalScore = Math.max(
+      0,
+      ptsCategory + ptsVector + ptsFormat + ptsCompliance + ptsEvidence + tempBonus + originBonus + exclusionPenalty
+    );
 
     const hasKosher =
       allKosher.length > 0 ||
@@ -546,10 +582,12 @@ async function runFastCategoryAndKeywordHybridMatch(opts: {
             ? "not_listed"
             : "unknown";
 
-    const summaryExtra =
+    let summaryExtra =
       matchedCertifications.length > 0
         ? ` · ⭐ Boosted: ${matchedCertifications.join(", ")}`
         : "";
+    if (originBonus > 0) summaryExtra += " · 🌍 Preferred Origin";
+    if (exclusionPenalty < 0) summaryExtra += " · ⚠️ Excluded Ingredient";
 
     scored.push({
       supplier_id: sup.id,
@@ -564,6 +602,9 @@ async function runFastCategoryAndKeywordHybridMatch(opts: {
         format: ptsFormat,
         compliance: ptsCompliance,
         evidence: ptsEvidence,
+        temperature: tempBonus,
+        origin: originBonus,
+        exclusion: exclusionPenalty,
         kosher_status: kosherStatus,
         certifications: allCerts,
         kosher_types: allKosher,
@@ -591,7 +632,7 @@ export async function runMatchV3(requestId: string): Promise<RunMatchV3Result> {
       .maybeSingle(),
     supabaseAdmin
       .from("sourcing_requests")
-      .select("intent_json, product_name, category, message, private_label, certifications, packaging_preference, embedding, ai_analysis, temperature_regime, dietary_requirements")
+      .select("intent_json, product_name, category, message, private_label, certifications, packaging_preference, embedding, ai_analysis, temperature_regime, dietary_requirements, preferred_origins, excluded_ingredients")
       .eq("id", requestId)
       .single(),
   ]);
@@ -667,6 +708,14 @@ export async function runMatchV3(requestId: string): Promise<RunMatchV3Result> {
     ((rawAiAnalysis?.layered_analysis as Record<string, unknown> | undefined)?.shared_dna as any)?.temperature_regime ||
     null;
 
+  const reqPreferredOrigins: string[] = Array.isArray((srResult.data as any)?.preferred_origins)
+    ? ((srResult.data as any).preferred_origins as string[])
+    : [];
+
+  const reqExcludedIngredients: string[] = Array.isArray((srResult.data as any)?.excluded_ingredients)
+    ? ((srResult.data as any).excluded_ingredients as string[])
+    : [];
+
   // Run fast category + keyword + Voyage AI vector hybrid scorer (~120ms)
   const fastRows = await runFastCategoryAndKeywordHybridMatch({
     categoryId: resolvedCategoryId,
@@ -676,6 +725,8 @@ export async function runMatchV3(requestId: string): Promise<RunMatchV3Result> {
     reqCertifications: combinedCertAndDietary,
     reqFormats,
     reqTemperature,
+    reqPreferredOrigins,
+    reqExcludedIngredients,
     requestEmbedding,
     limitN: 30,
   });
