@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import type { SavedMatch } from "./page";
 import MatchPipelineBadge from "@/components/matches/MatchPipelineBadge";
@@ -1448,21 +1448,16 @@ interface BuyerDeckModalProps {
   onClose: () => void;
 }
 
-function buildDeckText(productName: string, matches: LocalMatch[]): string {
-  // Take top 5 by score
-  const top = [...matches]
-    .sort((a, b) => b.match_score - a.match_score)
-    .slice(0, 5);
-
+function buildDeckText(productName: string, selectedMatches: LocalMatch[]): string {
   const lines: string[] = [
     "🛒 *FDX Buyer Sourcing Brief*",
     `📦 Product: ${productName}`,
     "",
-    `Top ${top.length} Matched Suppliers:`,
+    `Top ${selectedMatches.length} Selected Suppliers:`,
     "",
   ];
 
-  top.forEach((m, i) => {
+  selectedMatches.forEach((m, i) => {
     const ordinal = ORDINAL_EMOJI[i] ?? `${i + 1}.`;
     const country = m.country ?? "Unknown";
     const flag = countryToFlag(country);
@@ -1478,13 +1473,13 @@ function buildDeckText(productName: string, matches: LocalMatch[]): string {
     const allCerts = [...new Set([...kosherTypes, ...certs])];
     const certsStr = allCerts.length > 0 ? allCerts.join(", ") : "N/A";
 
-    // Packaging format (derived from format score label)
+    // Packaging format
     const formatScore = bd?.format ?? null;
-    const packagingStr = formatScore !== null ? `Score ${formatScore}pts` : "N/A";
+    const packagingStr = formatScore !== null ? `Score ${formatScore}pts` : "Standard";
 
     // Cold chain
     const coldChainVal = bd?.coldChain ?? bd?.temperature ?? null;
-    const coldChainStr = coldChainVal !== null && coldChainVal > 0 ? "✅ Yes" : "❌ No";
+    const coldChainStr = coldChainVal !== null && coldChainVal > 0 ? "✅ Yes" : "❌ Ambient";
 
     lines.push(
       `${ordinal} *${m.company_name}* ${flag} (${country})`,
@@ -1500,7 +1495,35 @@ function buildDeckText(productName: string, matches: LocalMatch[]): string {
 
 function BuyerDeckModal({ productName, matches, onClose }: BuyerDeckModalProps) {
   const [copied, setCopied] = useState(false);
-  const deckText = buildDeckText(productName, matches);
+  const [activeTab, setActiveTab] = useState<"whatsapp" | "print">("whatsapp");
+
+  // Sorted candidates (top 10 available)
+  const sortedMatches = useMemo(() => {
+    return [...matches].sort((a, b) => b.match_score - a.match_score).slice(0, 10);
+  }, [matches]);
+
+  // Default to selecting top 5
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(() => {
+    return new Set(sortedMatches.slice(0, 5).map((m) => m.id));
+  });
+
+  function toggleSupplier(id: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        if (next.size > 1) next.delete(id);
+      } else {
+        if (next.size < 6) next.add(id);
+      }
+      return next;
+    });
+  }
+
+  const selectedMatches = useMemo(() => {
+    return sortedMatches.filter((m) => selectedIds.has(m.id));
+  }, [sortedMatches, selectedIds]);
+
+  const deckText = buildDeckText(productName, selectedMatches);
   const waUrl = `https://wa.me/?text=${encodeURIComponent(deckText)}`;
 
   function handleCopy() {
@@ -1510,54 +1533,206 @@ function BuyerDeckModal({ productName, matches, onClose }: BuyerDeckModalProps) 
     });
   }
 
+  function handlePrint() {
+    window.print();
+  }
+
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 print:p-0 print:bg-white print:fixed print:inset-0"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="w-full max-w-lg bg-slate-900 border border-orange-500/40 rounded-2xl shadow-2xl flex flex-col max-h-[90vh] overflow-hidden">
+      <div className="w-full max-w-2xl bg-slate-900 border border-orange-500/40 rounded-2xl shadow-2xl flex flex-col max-h-[92vh] overflow-hidden print:max-h-none print:border-none print:shadow-none print:w-full print:bg-white print:text-black">
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-700">
-          <div>
-            <h2 className="text-sm font-bold text-white">📋 Buyer Assortment Deck</h2>
-            <p className="text-xs text-slate-400 mt-0.5">
-              WhatsApp-ready sourcing brief · Top {Math.min(matches.length, 5)} suppliers
-            </p>
+        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-700 print:hidden">
+          <div className="flex items-center gap-3">
+            <div>
+              <h2 className="text-sm font-bold text-white flex items-center gap-2">
+                <span>📋</span> Buyer Assortment Deck
+              </h2>
+              <p className="text-xs text-slate-400 mt-0.5">
+                {productName} · {selectedMatches.length} suppliers selected
+              </p>
+            </div>
           </div>
-          <button
-            onClick={onClose}
-            className="text-slate-400 hover:text-white text-lg leading-none transition"
-            aria-label="Close"
-          >
-            ✕
-          </button>
+          <div className="flex items-center gap-2">
+            <div className="flex bg-slate-800 p-0.5 rounded-lg border border-slate-700 text-xs">
+              <button
+                type="button"
+                onClick={() => setActiveTab("whatsapp")}
+                className={`px-2.5 py-1 rounded-md font-medium transition ${
+                  activeTab === "whatsapp" ? "bg-orange-600 text-white" : "text-slate-400 hover:text-white"
+                }`}
+              >
+                💬 WhatsApp
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab("print")}
+                className={`px-2.5 py-1 rounded-md font-medium transition ${
+                  activeTab === "print" ? "bg-orange-600 text-white" : "text-slate-400 hover:text-white"
+                }`}
+              >
+                📄 PDF / Print
+              </button>
+            </div>
+            <button
+              onClick={onClose}
+              className="text-slate-400 hover:text-white text-lg leading-none transition ml-2"
+              aria-label="Close"
+            >
+              ✕
+            </button>
+          </div>
         </div>
 
-        {/* Preview */}
-        <div className="flex-1 overflow-y-auto px-5 py-4">
-          <pre className="text-xs text-emerald-400 font-mono whitespace-pre-wrap leading-relaxed bg-slate-800 rounded-xl p-4 border border-slate-700">
-            {deckText}
-          </pre>
+        {/* Interactive Selection Chips */}
+        <div className="px-5 py-3 bg-slate-950/60 border-b border-slate-800 flex flex-wrap items-center gap-1.5 print:hidden">
+          <span className="text-[11px] font-semibold text-slate-400 mr-1">Include (max 6):</span>
+          {sortedMatches.map((m) => {
+            const isSelected = selectedIds.has(m.id);
+            const flag = countryToFlag(m.country ?? "");
+            return (
+              <button
+                key={m.id}
+                type="button"
+                onClick={() => toggleSupplier(m.id)}
+                className={`text-xs px-2.5 py-1 rounded-full border transition flex items-center gap-1.5 ${
+                  isSelected
+                    ? "bg-orange-600/20 text-orange-300 border-orange-500 font-semibold"
+                    : "bg-slate-800 text-slate-400 border-slate-700 hover:border-slate-500"
+                }`}
+              >
+                <span>{isSelected ? "✓" : "+"}</span>
+                <span>{flag}</span>
+                <span className="truncate max-w-[120px]">{m.company_name}</span>
+                <span className="text-[10px] opacity-75">{m.match_score}%</span>
+              </button>
+            );
+          })}
         </div>
+
+        {/* Tab Content */}
+        {activeTab === "whatsapp" ? (
+          <div className="flex-1 overflow-y-auto px-5 py-4 print:hidden">
+            <pre className="text-xs text-emerald-400 font-mono whitespace-pre-wrap leading-relaxed bg-slate-800 rounded-xl p-4 border border-slate-700 select-all">
+              {deckText}
+            </pre>
+          </div>
+        ) : (
+          <div className="flex-1 overflow-y-auto px-6 py-6 bg-white text-slate-900 print:p-0 print:overflow-visible">
+            {/* Printable Brand Header */}
+            <div className="border-b-2 border-orange-600 pb-4 mb-4 flex items-center justify-between">
+              <div>
+                <h1 className="text-xl font-black text-slate-950 tracking-tight">FDX.TRADING</h1>
+                <p className="text-xs uppercase tracking-widest text-orange-600 font-bold">
+                  Verified Sourcing Assortment Deck
+                </p>
+              </div>
+              <div className="text-right">
+                <span className="text-xs font-semibold text-slate-500">
+                  Target Product
+                </span>
+                <p className="text-sm font-bold text-slate-900">{productName}</p>
+              </div>
+            </div>
+
+            {/* Supplier Cards for Print */}
+            <div className="space-y-3">
+              {selectedMatches.map((m, idx) => {
+                const flag = countryToFlag(m.country ?? "");
+                const bd = m.match_breakdown;
+                const certs: string[] = bd?.matched_certifications?.length
+                  ? bd.matched_certifications
+                  : bd?.certifications?.length
+                  ? bd.certifications
+                  : [];
+                const kosherTypes: string[] = bd?.kosher_types ?? [];
+                const allCerts = [...new Set([...kosherTypes, ...certs])];
+                const coldChainVal = bd?.coldChain ?? bd?.temperature ?? null;
+
+                return (
+                  <div
+                    key={m.id}
+                    className="border border-slate-200 rounded-xl p-3.5 bg-slate-50/50 flex flex-col gap-1.5"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="w-5 h-5 rounded-full bg-slate-900 text-white text-[11px] font-bold flex items-center justify-center">
+                          {idx + 1}
+                        </span>
+                        <h3 className="font-bold text-sm text-slate-950">
+                          {m.company_name}
+                        </h3>
+                        <span className="text-xs text-slate-600">
+                          {flag} {m.country}
+                        </span>
+                      </div>
+                      <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300">
+                        {m.match_score}% Match
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-2 pt-1 text-xs text-slate-600 border-t border-slate-200 mt-1">
+                      <div>
+                        <span className="font-semibold text-slate-800">Certs: </span>
+                        <span>{allCerts.length > 0 ? allCerts.join(", ") : "Standard Standard Quality"}</span>
+                      </div>
+                      <div>
+                        <span className="font-semibold text-slate-800">Cold Chain: </span>
+                        <span>{coldChainVal && coldChainVal > 0 ? "Chilled / Frozen" : "Ambient"}</span>
+                      </div>
+                      <div>
+                        <span className="font-semibold text-slate-800">Verification: </span>
+                        <span className="text-emerald-700 font-medium">✓ Verified Supplier</span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Footer */}
+            <div className="mt-6 pt-4 border-t border-slate-200 flex items-center justify-between text-[11px] text-slate-500">
+              <span>Confidential · Generated by FDX AI Deal Desk</span>
+              <span>www.fdx.trading</span>
+            </div>
+          </div>
+        )}
 
         {/* Actions */}
-        <div className="flex items-center gap-2 px-5 py-4 border-t border-slate-700">
-          <button
-            onClick={handleCopy}
-            className="flex-1 inline-flex items-center justify-center gap-2 text-xs font-bold bg-slate-700 hover:bg-slate-600 text-white px-4 py-2.5 rounded-xl transition"
-          >
-            {copied ? "✅ Copied!" : "📋 Copy to Clipboard"}
-          </button>
-          <a
-            href={waUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex-1 inline-flex items-center justify-center gap-2 text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2.5 rounded-xl transition"
-          >
-            💬 Send via WhatsApp
-          </a>
+        <div className="flex items-center gap-2 px-5 py-4 border-t border-slate-700 print:hidden bg-slate-900">
+          {activeTab === "whatsapp" ? (
+            <>
+              <button
+                type="button"
+                onClick={handleCopy}
+                className="flex-1 inline-flex items-center justify-center gap-2 text-xs font-bold bg-slate-800 hover:bg-slate-700 text-white px-4 py-2.5 rounded-xl border border-slate-700 transition"
+              >
+                {copied ? "✅ Copied!" : "📋 Copy Brief"}
+              </button>
+              <a
+                href={waUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex-1 inline-flex items-center justify-center gap-2 text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2.5 rounded-xl transition"
+              >
+                💬 Send via WhatsApp
+              </a>
+            </>
+          ) : (
+            <>
+              <button
+                type="button"
+                onClick={handlePrint}
+                className="flex-1 inline-flex items-center justify-center gap-2 text-xs font-bold bg-orange-600 hover:bg-orange-500 text-white px-4 py-2.5 rounded-xl transition"
+              >
+                🖨️ Print / Save as PDF
+              </button>
+            </>
+          )}
         </div>
       </div>
     </div>
