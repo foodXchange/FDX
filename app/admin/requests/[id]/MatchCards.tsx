@@ -7,7 +7,7 @@ import MatchPipelineBadge from "@/components/matches/MatchPipelineBadge";
 import { getPipelineStatus } from "@/lib/matches/pipelineStatus";
 import { sleep, waLink } from "@/lib/outreach/waLink";
 import RfqComposerModal, { type RfqRequestVars, type RfqTemplateRow } from "@/components/admin/RfqComposerModal";
-import { recordSupplierQuote, type SupplierQuotePayload } from "@/app/admin/requests/actions";
+import { recordSupplierQuote, type SupplierQuotePayload, autoApproveTopTierMatchesAction, createShareableDealRoomAction } from "@/app/admin/requests/actions";
 import SupplierChaserModal from "@/components/admin/SupplierChaserModal";
 import BulkChaserModal from "@/components/admin/BulkChaserModal";
 import { evaluateFollowUpUrgency } from "@/lib/outreach/chaserTemplates";
@@ -187,9 +187,32 @@ export default function MatchCards({ requestId, initialMatches, productName, com
     return true;
   });
 
-  function selectAllTopTier() {
-    const ids = topTierMatches.map((m) => m.id);
-    setSelectedIds(new Set(ids));
+  const [autoApproving, setAutoApproving] = useState(false);
+
+  async function handleAutoApproveTopTier() {
+    setAutoApproving(true);
+    setFollowUpNotice(null);
+    try {
+      const res = await autoApproveTopTierMatchesAction(requestId);
+      if (res.ok) {
+        setFollowUpNotice(`Auto-approved ${res.approvedCount} top-tier/certified factories!`);
+        startTransition(() => router.refresh());
+        setTimeout(() => setFollowUpNotice(null), 4000);
+      } else {
+        setRunError(res.error || "Failed to auto-approve");
+      }
+    } catch (err: any) {
+      setRunError(err.message || "Auto-approve error");
+    } finally {
+      setAutoApproving(false);
+    }
+  }
+
+  function handleQuickDispatchTopTier() {
+    // Select top 3-5 approved or top-scoring matches and trigger RFQ modal
+    const target = topTierMatches.length > 0 ? topTierMatches.slice(0, 5) : matches.slice(0, 5);
+    setSelectedIds(new Set(target.map((m) => m.id)));
+    setRfqOpen(true);
   }
 
   async function handleSendBulkFollowUp() {
@@ -449,9 +472,30 @@ export default function MatchCards({ requestId, initialMatches, productName, com
             </p>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            {/* Auto-Approve Top Tier (>=85% or certified) */}
             <button
-              onClick={selectAllTopTier}
+              type="button"
+              onClick={handleAutoApproveTopTier}
+              disabled={autoApproving}
+              className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 px-3 py-1.5 rounded-lg transition shadow-xs disabled:opacity-50"
+            >
+              <span>{autoApproving ? "⏳" : "✅"}</span>
+              <span>{autoApproving ? "Approving..." : "Auto-Approve Top Tier (85%+)"}</span>
+            </button>
+
+            {/* 1-Click Bulk RFQ to Top 3-5 */}
+            <button
+              type="button"
+              onClick={handleQuickDispatchTopTier}
+              className="inline-flex items-center gap-1.5 text-xs font-bold text-white bg-orange-600 hover:bg-orange-700 px-3 py-1.5 rounded-lg transition shadow-xs"
+            >
+              <span>🚀</span>
+              <span>1-Click Bulk RFQ (Top 5)</span>
+            </button>
+
+            <button
+              onClick={() => setSelectedIds(new Set(topTierMatches.map((m) => m.id)))}
               className="inline-flex items-center gap-1.5 text-xs font-bold text-orange-700 bg-orange-50 hover:bg-orange-100 border border-orange-200 px-3 py-1.5 rounded-lg transition shadow-xs"
             >
               <span>⚡</span>
@@ -465,7 +509,7 @@ export default function MatchCards({ requestId, initialMatches, productName, com
               className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-700 bg-slate-50 hover:bg-slate-100 border border-slate-300 px-3 py-1.5 rounded-lg transition shadow-xs"
             >
               <span>📋</span>
-              <span>Buyer Deck</span>
+              <span>Buyer Deck & Room</span>
             </button>
 
             {pendingFollowUpMatches.length > 0 && (
@@ -1404,6 +1448,8 @@ export default function MatchCards({ requestId, initialMatches, productName, com
       {showDeckModal && (
         <BuyerDeckModal
           productName={productName}
+          requestId={requestId}
+          buyerCompany={company}
           matches={matches}
           onClose={() => setShowDeckModal(false)}
         />
@@ -1444,6 +1490,8 @@ function Spinner({ size = "md" }: { size?: "sm" | "md" }) {
 
 interface BuyerDeckModalProps {
   productName: string;
+  requestId: string;
+  buyerCompany: string | null;
   matches: LocalMatch[];
   onClose: () => void;
 }
@@ -1493,9 +1541,12 @@ function buildDeckText(productName: string, selectedMatches: LocalMatch[]): stri
   return lines.join("\n");
 }
 
-function BuyerDeckModal({ productName, matches, onClose }: BuyerDeckModalProps) {
+function BuyerDeckModal({ productName, requestId, buyerCompany, matches, onClose }: BuyerDeckModalProps) {
   const [copied, setCopied] = useState(false);
-  const [activeTab, setActiveTab] = useState<"whatsapp" | "print">("whatsapp");
+  const [activeTab, setActiveTab] = useState<"whatsapp" | "print" | "room">("whatsapp");
+  const [roomUrl, setRoomUrl] = useState<string | null>(null);
+  const [roomLoading, setRoomLoading] = useState(false);
+  const [roomCopied, setRoomCopied] = useState(false);
 
   // Sorted candidates (top 10 available)
   const sortedMatches = useMemo(() => {
@@ -1537,6 +1588,25 @@ function BuyerDeckModal({ productName, matches, onClose }: BuyerDeckModalProps) 
     window.print();
   }
 
+  async function handleCreateDealRoom() {
+    setRoomLoading(true);
+    try {
+      const res = await createShareableDealRoomAction({
+        requestId,
+        productName,
+        buyerCompany: buyerCompany || null,
+        matchIds: Array.from(selectedIds),
+      });
+      if (res.ok) {
+        setRoomUrl(res.url);
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setRoomLoading(false);
+    }
+  }
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 print:p-0 print:bg-white print:fixed print:inset-0"
@@ -1576,6 +1646,18 @@ function BuyerDeckModal({ productName, matches, onClose }: BuyerDeckModalProps) 
                 }`}
               >
                 📄 PDF / Print
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveTab("room");
+                  if (!roomUrl) handleCreateDealRoom();
+                }}
+                className={`px-2.5 py-1 rounded-md font-medium transition ${
+                  activeTab === "room" ? "bg-orange-600 text-white" : "text-slate-400 hover:text-white"
+                }`}
+              >
+                🔗 Live Deal Room
               </button>
             </div>
             <button
@@ -1620,6 +1702,80 @@ function BuyerDeckModal({ productName, matches, onClose }: BuyerDeckModalProps) 
             <pre className="text-xs text-emerald-400 font-mono whitespace-pre-wrap leading-relaxed bg-slate-800 rounded-xl p-4 border border-slate-700 select-all">
               {deckText}
             </pre>
+          </div>
+        ) : activeTab === "room" ? (
+          <div className="flex-1 overflow-y-auto px-6 py-6 bg-slate-900 text-white flex flex-col justify-center items-center gap-4">
+            {roomLoading ? (
+              <div className="flex flex-col items-center gap-3 py-10">
+                <div className="w-8 h-8 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
+                <p className="text-xs text-slate-300">Generating secure deal room link for buyer...</p>
+              </div>
+            ) : roomUrl ? (
+              <div className="w-full max-w-lg bg-slate-800 border border-slate-700 rounded-2xl p-6 flex flex-col gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-orange-600/20 text-orange-400 flex items-center justify-center text-lg font-bold">
+                    🔗
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-white">Live Deal Room Link Ready</h3>
+                    <p className="text-xs text-slate-400">
+                      Confidential 45-day interactive presentation for {buyerCompany || "Buyer"}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="bg-slate-950 rounded-xl p-3 border border-slate-800 flex items-center justify-between gap-2">
+                  <span className="text-xs font-mono text-emerald-400 truncate">
+                    {typeof window !== "undefined" ? window.location.origin : ""}{roomUrl}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const fullUrl = `${window.location.origin}${roomUrl}`;
+                      navigator.clipboard.writeText(fullUrl);
+                      setRoomCopied(true);
+                      setTimeout(() => setRoomCopied(false), 2000);
+                    }}
+                    className="text-xs font-bold bg-slate-800 hover:bg-slate-700 text-white px-3 py-1.5 rounded-lg border border-slate-700 shrink-0"
+                  >
+                    {roomCopied ? "✓ Copied" : "Copy Link"}
+                  </button>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <a
+                    href={roomUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex-1 inline-flex items-center justify-center gap-2 text-xs font-bold bg-orange-600 hover:bg-orange-500 text-white py-2.5 rounded-xl transition"
+                  >
+                    Open Live Deal Room ↗
+                  </a>
+                  <a
+                    href={`https://wa.me/?text=${encodeURIComponent(
+                      `Hello, here is the confidential European factory assortment presentation for ${productName}:\n${
+                        typeof window !== "undefined" ? window.location.origin : ""
+                      }${roomUrl}`
+                    )}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center justify-center gap-2 text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2.5 rounded-xl transition"
+                  >
+                    Send Link on WhatsApp
+                  </a>
+                </div>
+              </div>
+            ) : (
+              <div className="flex flex-col items-center gap-3 py-10">
+                <button
+                  type="button"
+                  onClick={handleCreateDealRoom}
+                  className="bg-orange-600 hover:bg-orange-500 text-white text-xs font-bold px-5 py-2.5 rounded-xl shadow-lg transition"
+                >
+                  Generate Shareable Link Now
+                </button>
+              </div>
+            )}
           </div>
         ) : (
           <div className="flex-1 overflow-y-auto px-6 py-6 bg-white text-slate-900 print:p-0 print:overflow-visible">

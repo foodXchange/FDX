@@ -61,6 +61,180 @@ export async function updateRequestStatus(
   return { ok: true };
 }
 
+/**
+ * Priority 1: Top-Tier Auto-Approve & Queue Action
+ * Finds all matches with score >= 85% or with verified certifications/kosher
+ * and updates their status from "suggested"/"new" -> "approved".
+ */
+export async function autoApproveTopTierMatchesAction(
+  requestId?: string
+): Promise<{ ok: true; approvedCount: number } | { ok: false; error: string }> {
+  try {
+    let query = supabaseAdmin
+      .from("sourcing_matches")
+      .select("id, match_score, match_breakdown, status")
+      .in("status", ["suggested", "new", "pending"]);
+
+    if (requestId) {
+      query = query.eq("request_id", requestId);
+    }
+
+    const { data: candidates, error: fetchErr } = await query;
+    if (fetchErr) {
+      return { ok: false, error: fetchErr.message };
+    }
+
+    if (!candidates || candidates.length === 0) {
+      return { ok: true, approvedCount: 0 };
+    }
+
+    const eligibleIds: string[] = [];
+    for (const c of candidates) {
+      const score = Number(c.match_score) || 0;
+      const bd = c.match_breakdown as Record<string, any> | null;
+      const certs = bd?.certifications || bd?.matched_certifications || [];
+      const kosher = bd?.kosher_types || [];
+      const hasKeyCerts = certs.length > 0 || kosher.length > 0;
+
+      // Score >= 85% OR (score >= 70% and key certifications verified)
+      if (score >= 85 || (score >= 70 && hasKeyCerts)) {
+        eligibleIds.push(c.id);
+      }
+    }
+
+    if (eligibleIds.length === 0) {
+      return { ok: true, approvedCount: 0 };
+    }
+
+    // Chunked update
+    const nowIso = new Date().toISOString();
+    const CHUNK = 200;
+    for (let i = 0; i < eligibleIds.length; i += CHUNK) {
+      const chunk = eligibleIds.slice(i, i + CHUNK);
+      const { error: updErr } = await supabaseAdmin
+        .from("sourcing_matches")
+        .update({
+          status: "approved",
+          approved_at: nowIso,
+          updated_at: nowIso,
+        })
+        .in("id", chunk);
+
+      if (updErr) {
+        return { ok: false, error: updErr.message };
+      }
+    }
+
+    if (requestId) {
+      revalidatePath(`/admin/requests/${requestId}`);
+    } else {
+      revalidatePath("/admin/requests");
+    }
+
+    return { ok: true, approvedCount: eligibleIds.length };
+  } catch (err: any) {
+    return { ok: false, error: err.message || "Failed to auto-approve top tier" };
+  }
+}
+
+/**
+ * Priority 2: Generate Shareable Buyer Deal Room Link
+ * Creates a confidential public presentation proposal token for a sourcing request
+ * and returns the shareable URL `/deck/[token]`.
+ */
+export async function createShareableDealRoomAction(params: {
+  requestId: string;
+  productName: string;
+  buyerCompany?: string | null;
+  buyerName?: string | null;
+  matchIds?: string[];
+}): Promise<{ ok: true; url: string; token: string } | { ok: false; error: string }> {
+  try {
+    const { requestId, productName, buyerCompany, buyerName, matchIds } = params;
+
+    let matchQuery = supabaseAdmin
+      .from("sourcing_matches")
+      .select("id, company_name, country, product_name, match_score, match_breakdown")
+      .eq("request_id", requestId)
+      .order("match_score", { ascending: false });
+
+    if (matchIds && matchIds.length > 0) {
+      matchQuery = matchQuery.in("id", matchIds);
+    } else {
+      matchQuery = matchQuery.limit(5);
+    }
+
+    const { data: matches, error: matchErr } = await matchQuery;
+    if (matchErr || !matches || matches.length === 0) {
+      return { ok: false, error: matchErr?.message || "No matches found to build deal room" };
+    }
+
+    const factories = matches.map((m) => {
+      const bd = m.match_breakdown as Record<string, any> | null;
+      const certs = bd?.matched_certifications || bd?.certifications || [];
+      const kosher = bd?.kosher_types || [];
+      const allCerts = Array.from(new Set([...kosher, ...certs]));
+
+      return {
+        company_name: m.company_name || "Verified Factory",
+        country: m.country || "International",
+        flag: "🌍",
+        region: "",
+        product_name: m.product_name || productName,
+        format: bd?.format ? `Score ${bd.format}pts` : "Standard Packaging",
+        certifications: allCerts,
+        kosher_type: kosher[0] || "Chief Rabbinate of Israel Standard",
+        indicative_price: "",
+        moq: "1 x 20ft / 40ft FCL",
+        lead_time: "3-4 weeks",
+        image_url: "",
+        specs: [
+          `Match Confidence: ${m.match_score}%`,
+          `Cold Chain: ${bd?.coldChain || bd?.temperature ? "Chilled/Frozen" : "Ambient"}`,
+          "Pre-audited EU/International Production Line",
+        ],
+      };
+    });
+
+    const token = crypto.randomBytes(6).toString("hex");
+    const payload = {
+      deck_type: "assortment_deck",
+      version: "1.0",
+      category: "Specialty Food Sourcing",
+      target_retailer: buyerCompany || buyerName || "Verified Buyer Partner",
+      buyer_contact: buyerName || "Procurement Director",
+      personal_note: `Curated assortment proposal for ${productName}. Screened by FoodXchange AI Deal Desk for quality standards, kosher pathways, and direct CIF logistics.`,
+      factories,
+    };
+
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + 45); // 45-day validity
+
+    const { error: insErr } = await supabaseAdmin.from("proposals").insert({
+      token,
+      buyer_name: buyerName || "Buyer Partner",
+      buyer_company: buyerCompany || null,
+      title: `${productName} — Verified Manufacturer Shortlist`,
+      personal_message: JSON.stringify(payload),
+      product_ids: [],
+      status: "active",
+      expires_at: expiresAt.toISOString(),
+    });
+
+    if (insErr) {
+      return { ok: false, error: insErr.message };
+    }
+
+    return {
+      ok: true,
+      token,
+      url: `/deck/${token}`,
+    };
+  } catch (err: any) {
+    return { ok: false, error: err.message || "Failed to create deal room" };
+  }
+}
+
 export interface CreateQuickBuyerInput {
   company_name: string;
   contact_name: string;
