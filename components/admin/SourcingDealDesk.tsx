@@ -2096,11 +2096,72 @@ export default function SourcingDealDesk({
 
               {openSections[4] && (
                 <div className="p-5 space-y-3 animate-in fade-in duration-150">
-                  <label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider block">
-                    Operational Brief & Factory Outreach Specifications
-                  </label>
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider block">
+                      Operational Brief & Factory Outreach Specifications
+                    </label>
+
+                    {/* Quick helper to inject/sync product names & descriptions from Layer 3 cards */}
+                    {layeredAnalysis?.products && layeredAnalysis.products.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const productLines = layeredAnalysis.products.map((p, idx) => {
+                            const parts: string[] = [];
+                            if (p.sub_type) parts.push(`Type: ${p.sub_type}`);
+                            if (p.packaging_format) parts.push(`Packaging: ${p.packaging_format}`);
+                            if (p.net_weight) parts.push(`Weight: ${p.net_weight}`);
+                            if (p.origin_country) parts.push(`Origin: ${p.origin_country}`);
+                            if (p.dietary_claims && p.dietary_claims.length > 0) parts.push(`Claims: ${p.dietary_claims.join(", ")}`);
+                            if (p.sweeteners && p.sweeteners.length > 0) parts.push(`Sweeteners: ${p.sweeteners.join(", ")}`);
+                            
+                            const desc = parts.length > 0 ? ` (${parts.join(" | ")})` : "";
+                            return `• SKU ${idx + 1}: ${p.product_name || "Unnamed Product"}${desc}`;
+                          });
+
+                          const header = "### Target Product Lineup & SKU Specifications:\n" + productLines.join("\n");
+                          if (!naturalBrief.trim()) {
+                            setNaturalBrief(header);
+                          } else if (!naturalBrief.includes("Target Product Lineup")) {
+                            setNaturalBrief(`${naturalBrief.trim()}\n\n${header}`);
+                          }
+                        }}
+                        className="text-[10px] font-semibold text-orange-700 bg-orange-50 hover:bg-orange-100 border border-orange-200 px-2.5 py-1 rounded-lg transition self-start sm:self-auto flex items-center gap-1 cursor-pointer"
+                        title="Append all recognized product names, sub-types, packaging formats, and weights into the brief"
+                      >
+                        <span>✨</span>
+                        <span>Append SKU Names & Details ({layeredAnalysis.products.length})</span>
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Visual Product Reference Summary Badge in Step 4 if products exist */}
+                  {layeredAnalysis?.products && layeredAnalysis.products.length > 0 && (
+                    <div className="bg-slate-50 border border-slate-200/80 rounded-xl p-3 flex flex-wrap gap-2 items-center">
+                      <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                        Included Products:
+                      </span>
+                      {layeredAnalysis.products.map((p, i) => (
+                        <div
+                          key={p.id || i}
+                          className="inline-flex items-center gap-1.5 bg-white border border-slate-200 rounded-lg px-2 py-1 text-xs text-slate-800 shadow-2xs"
+                        >
+                          <span className="w-4 h-4 rounded-full bg-orange-100 text-orange-800 text-[10px] font-bold flex items-center justify-center">
+                            {i + 1}
+                          </span>
+                          <span className="font-semibold">{p.product_name || `Product #${i + 1}`}</span>
+                          {(p.sub_type || p.packaging_format || p.net_weight) && (
+                            <span className="text-[10px] text-slate-500 font-normal">
+                              ({[p.sub_type, p.packaging_format, p.net_weight].filter(Boolean).join(" · ")})
+                            </span>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
                   <textarea
-                    rows={6}
+                    rows={7}
                     placeholder="Enter project notes or let Layered AI synthesize formulation specifications..."
                     value={naturalBrief}
                     onChange={(e) => setNaturalBrief(e.target.value)}

@@ -133,14 +133,15 @@ You must output STRICT JSON matching this exact structure:
     }
   ],
   "conflicts_or_questions": string[], // Any discrepancies between buyer notes and packaging visuals
-  "synthesized_brief": string // Professional B2B sourcing brief ready for European factory outreach
+  "synthesized_brief": string // Professional B2B sourcing brief ready for European factory outreach. MUST explicitly enumerate all identified products with their exact product names, packaging formats, net weights, key specifications/descriptions, and formulation criteria.
 }
 
 RULES:
 1. Deduplicate images showing the same SKU (front shot, back nutrition panel, angled pack shot) into a SINGLE product card with multiple image_urls.
 2. If multiple distinct flavors/products are shown (e.g. Milk Chocolate Bark vs Dark Chocolate Bark), create distinct product cards for each.
 3. Extract legal manufacturer, EU factory sanitary approval codes, and origin regions whenever visible on packaging.
-4. Output ONLY valid JSON, no markdown code fence, no additional commentary.`;
+4. In "synthesized_brief", always include a clear structured "Product Lineup / Specifications" section that details each product's full name, product sub-type, packaging format, net weight, key attributes, and technical description so factories have immediate clarity on every SKU requested.
+5. Output ONLY valid JSON, no markdown code fence, no additional commentary.`;
 
   const userContent = `Buyer Brief Notes:\n${briefText || "No additional text provided."}\n\nVisual Extractions (${extractions.length} images):\n${JSON.stringify(extractions, null, 2)}`;
 
