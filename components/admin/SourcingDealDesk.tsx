@@ -440,13 +440,9 @@ export default function SourcingDealDesk({
         else setTemperatureRegime("ambient");
       }
 
-      // 3. Update brief text if synthesized
-      if (result.synthesized_brief) {
-        setNaturalBrief(result.synthesized_brief);
-      }
-
-      // 4. Automatically expand Step 3 and Step 4 so user can review
-      setOpenSections((prev) => ({ ...prev, 3: true, 4: true }));
+      // 3. Keep Step 4 ready to be generated manually by user button
+      // Automatically expand Step 3 so user can review & edit cards before generating brief
+      setOpenSections((prev) => ({ ...prev, 3: true }));
       setVisionSummary(
         `✓ Analyzed ${result.products?.length || 0} product SKU(s) across ${imageUrls.length} images. Shared DNA: ${result.shared_dna?.dietary?.join(", ") || "General specialty"}`
       );
@@ -466,6 +462,76 @@ export default function SourcingDealDesk({
         p.id === cardId ? { ...p, ...patch } : p
       ),
     });
+  }
+
+  // Generate / Synthesize Layer 4 Sourcing Brief from current Layer 1, 2, 3 state
+  function generateSourcingBrief() {
+    const lines: string[] = [];
+
+    // Header
+    const title = projectTitle.trim() || "B2B Sourcing Specification & Outreach Brief";
+    lines.push(`## ${title}`);
+    lines.push(`Target Market: ${targetMarket || "Israel / International"}`);
+    if (selectedBuyer?.company_name) {
+      lines.push(`Buyer Account: ${selectedBuyer.company_name} (${selectedBuyer.buyer_type || "Importer / Distributor"})`);
+    }
+    lines.push("");
+
+    // Layer 2 Parameters
+    lines.push("### 1. Commercial Scope & Logistics Requirements");
+    lines.push(`- Category: ${category || "General Specialty Food"}`);
+    if (benchmarkBrands.trim()) {
+      lines.push(`- Benchmark Reference Brand(s): ${benchmarkBrands.trim()}`);
+    }
+    const brandingLabel =
+      brandingModel === "private_label"
+        ? "Private Label (Buyer Brand OEM)"
+        : brandingModel === "supplier_brand"
+        ? "Supplier / Factory Brand"
+        : "Open to both Factory & Private Label";
+    lines.push(`- Branding Model: ${brandingLabel}`);
+    lines.push(`- Temperature Regime: ${temperatureRegime.toUpperCase()}`);
+    if (packagingFormat) lines.push(`- Target Pack Format: ${packagingFormat}`);
+    if (estimatedVolume) lines.push(`- Estimated Volume / Order Cadence: ${estimatedVolume}`);
+    if (selectedTags.length > 0) {
+      lines.push(`- Required Claims & Quality Certifications: ${selectedTags.join(", ")}`);
+    }
+    lines.push("");
+
+    // Layer 3 Product Cards
+    const products = layeredAnalysis?.products || [];
+    if (products.length > 0) {
+      lines.push(`### 2. Target Product Lineup & Formulation Specifications (${products.length} SKU${products.length > 1 ? "s" : ""})`);
+      products.forEach((p, idx) => {
+        lines.push(`#### SKU #${idx + 1}: ${p.product_name || "Unnamed Reference Product"}`);
+        if (p.brand_name) lines.push(`- Benchmark Brand: ${p.brand_name}`);
+        if (p.sub_type) lines.push(`- Product Sub-Type: ${p.sub_type}`);
+        if (p.manufacturer) lines.push(`- Legal Producer / Factory: ${p.manufacturer}`);
+        const origin = [p.origin_state, p.origin_country].filter(Boolean).join(", ");
+        if (origin) lines.push(`- Origin / Region: ${origin}`);
+        if (p.company_website) lines.push(`- Producer Website: ${p.company_website}`);
+        if (p.eu_factory_code) lines.push(`- EU Sanitary Oval Code: ${p.eu_factory_code}`);
+        if (p.packaging_format) lines.push(`- Packaging Format: ${p.packaging_format}`);
+        if (p.net_weight) lines.push(`- Net Weight / Unit Size: ${p.net_weight}`);
+        if (p.dietary_claims && p.dietary_claims.length > 0) lines.push(`- Dietary Claims: ${p.dietary_claims.join(", ")}`);
+        if (p.sweeteners && p.sweeteners.length > 0) lines.push(`- Sweeteners / Ingredients: ${p.sweeteners.join(", ")}`);
+        if (p.catalog_match?.matched) {
+          lines.push(`- Catalog Linkage: Matched to ${p.catalog_match.product_name} (${p.catalog_match.match_score}%)`);
+        }
+        lines.push("");
+      });
+    }
+
+    // Shared DNA Summary if present
+    if (layeredAnalysis?.shared_dna?.summary) {
+      lines.push("### 3. Synthesis Summary & Factory Guidance");
+      lines.push(layeredAnalysis.shared_dna.summary);
+      lines.push("");
+    }
+
+    const synthesized = lines.join("\n").trim();
+    setNaturalBrief(synthesized);
+    setOpenSections((prev) => ({ ...prev, 4: true }));
   }
 
   // Save current project draft to Cloud + Local storage
@@ -1918,8 +1984,8 @@ export default function SourcingDealDesk({
                                 </div>
                               </div>
 
-                              {/* Producer, Origin, EU Health Mark */}
-                              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
+                              {/* Producer, Origin, EU Health Mark, Company Website */}
+                              <div className="grid grid-cols-1 sm:grid-cols-4 gap-2 text-xs">
                                 <div>
                                   <label className="text-[10px] font-bold text-slate-500 uppercase block mb-0.5">
                                     Legal Producer (Back-of-Pack)
@@ -1954,6 +2020,30 @@ export default function SourcingDealDesk({
                                     onChange={(e) => updateProductCard(prod.id, { eu_factory_code: e.target.value })}
                                     className="w-full bg-white border border-slate-200 rounded px-2 py-1 font-mono text-slate-800"
                                     placeholder="e.g. BE 1234 EG"
+                                  />
+                                </div>
+                                <div>
+                                  <div className="flex items-center justify-between mb-0.5">
+                                    <label className="text-[10px] font-bold text-slate-500 uppercase">
+                                      Company / Brand Website
+                                    </label>
+                                    {prod.company_website && (
+                                      <a
+                                        href={prod.company_website.startsWith("http") ? prod.company_website : `https://${prod.company_website}`}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="text-[9px] text-orange-600 hover:underline"
+                                      >
+                                        Visit ↗
+                                      </a>
+                                    )}
+                                  </div>
+                                  <input
+                                    type="text"
+                                    value={prod.company_website || ""}
+                                    onChange={(e) => updateProductCard(prod.id, { company_website: e.target.value })}
+                                    className="w-full bg-white border border-slate-200 rounded px-2 py-1 text-slate-800"
+                                    placeholder="e.g. www.limar.be"
                                   />
                                 </div>
                               </div>
@@ -2096,7 +2186,28 @@ export default function SourcingDealDesk({
 
               {openSections[4] && (
                 <div className="p-5 space-y-3 animate-in fade-in duration-150">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  {/* Action Banner to Generate / Refresh Brief from Layers 1, 2, 3 */}
+                  <div className="p-3.5 bg-gradient-to-r from-orange-50 via-amber-50 to-orange-50/50 border border-orange-200/80 rounded-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                    <div>
+                      <h4 className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                        <span>⚡</span>
+                        <span>Compile Sourcing Brief from Steps 1, 2 & 3</span>
+                      </h4>
+                      <p className="text-[11px] text-slate-600 mt-0.5">
+                        Click the button to automatically compile all buyer scope, brand benchmarks, commercial volumes, and edited product cards (including websites & origin countries) into this brief.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={generateSourcingBrief}
+                      className="px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-xs shrink-0 cursor-pointer"
+                    >
+                      <span>🔄</span>
+                      <span>{naturalBrief ? "Recompile Brief from Steps 1-3" : "Generate Brief from Steps 1-3"}</span>
+                    </button>
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-1">
                     <label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider block">
                       Operational Brief & Factory Outreach Specifications
                     </label>
@@ -2111,7 +2222,9 @@ export default function SourcingDealDesk({
                             if (p.sub_type) parts.push(`Type: ${p.sub_type}`);
                             if (p.packaging_format) parts.push(`Packaging: ${p.packaging_format}`);
                             if (p.net_weight) parts.push(`Weight: ${p.net_weight}`);
-                            if (p.origin_country) parts.push(`Origin: ${p.origin_country}`);
+                            const origin = [p.origin_state, p.origin_country].filter(Boolean).join(", ");
+                            if (origin) parts.push(`Origin: ${origin}`);
+                            if (p.company_website) parts.push(`Web: ${p.company_website}`);
                             if (p.dietary_claims && p.dietary_claims.length > 0) parts.push(`Claims: ${p.dietary_claims.join(", ")}`);
                             if (p.sweeteners && p.sweeteners.length > 0) parts.push(`Sweeteners: ${p.sweeteners.join(", ")}`);
                             
@@ -2127,10 +2240,10 @@ export default function SourcingDealDesk({
                           }
                         }}
                         className="text-[10px] font-semibold text-orange-700 bg-orange-50 hover:bg-orange-100 border border-orange-200 px-2.5 py-1 rounded-lg transition self-start sm:self-auto flex items-center gap-1 cursor-pointer"
-                        title="Append all recognized product names, sub-types, packaging formats, and weights into the brief"
+                        title="Append all recognized product names, sub-types, packaging formats, weights, and websites into the brief"
                       >
                         <span>✨</span>
-                        <span>Append SKU Names & Details ({layeredAnalysis.products.length})</span>
+                        <span>Append SKU Details ({layeredAnalysis.products.length})</span>
                       </button>
                     )}
                   </div>
@@ -2150,9 +2263,14 @@ export default function SourcingDealDesk({
                             {i + 1}
                           </span>
                           <span className="font-semibold">{p.product_name || `Product #${i + 1}`}</span>
-                          {(p.sub_type || p.packaging_format || p.net_weight) && (
+                          {(p.sub_type || p.packaging_format || p.net_weight || p.origin_country) && (
                             <span className="text-[10px] text-slate-500 font-normal">
-                              ({[p.sub_type, p.packaging_format, p.net_weight].filter(Boolean).join(" · ")})
+                              ({[p.sub_type, p.packaging_format, p.net_weight, p.origin_country].filter(Boolean).join(" · ")})
+                            </span>
+                          )}
+                          {p.company_website && (
+                            <span className="text-[9px] text-orange-600 font-mono">
+                              🌐
                             </span>
                           )}
                         </div>
@@ -2161,8 +2279,8 @@ export default function SourcingDealDesk({
                   )}
 
                   <textarea
-                    rows={7}
-                    placeholder="Enter project notes or let Layered AI synthesize formulation specifications..."
+                    rows={8}
+                    placeholder="Click 'Generate Brief from Steps 1-3' above or enter custom operational specifications..."
                     value={naturalBrief}
                     onChange={(e) => setNaturalBrief(e.target.value)}
                     className="w-full text-xs sm:text-sm bg-slate-50 border border-slate-200 rounded-xl p-3.5 text-slate-800 outline-none focus:border-orange-500 focus:bg-white font-mono leading-relaxed"

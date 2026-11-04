@@ -13,6 +13,7 @@ export interface LayeredProductCard {
   distributor?: string | null;
   origin_country?: string | null;
   origin_state?: string | null;
+  company_website?: string | null;
   eu_factory_code?: string | null;
   ean_barcode?: string | null;
   category?: string | null;
@@ -118,6 +119,7 @@ You must output STRICT JSON matching this exact structure:
       "distributor": string or null,
       "origin_country": string or null, // e.g. "Belgium", "Germany", "Italy"
       "origin_state": string or null, // Specific province/state/region (e.g. "Flanders", "Bavaria", "Modena")
+      "company_website": string or null, // The official producer/brand website URL if visible on packaging (e.g. "www.limar.be", "https://lindt.com")
       "eu_factory_code": string or null, // The EU health mark oval code on pack (e.g. "BE 1234 EG", "IT 03 123 CE")
       "ean_barcode": string or null, // Digits of any visible barcode
       "category": string,
@@ -210,6 +212,7 @@ RULES:
         distributor: ex.distributor?.value || null,
         origin_country: ex.origin_country?.value || null,
         origin_state: ex.origin_state?.value || null,
+        company_website: null,
         eu_factory_code: ex.eu_factory_code?.value || null,
         ean_barcode: ex.ean_barcode?.value || null,
         category: ex.category?.category_name || null,
