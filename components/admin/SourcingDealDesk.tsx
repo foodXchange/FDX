@@ -72,6 +72,55 @@ const CATEGORY_PRESETS = [
   "Other Specialty",
 ];
 
+const PACKAGING_FORMAT_PRESETS = [
+  "Stand-up Pouch",
+  "Pillow Bag",
+  "Glass Jar",
+  "PET Bottle",
+  "Tetra Pak",
+  "Tin Can",
+  "Carton Box",
+  "Flow Pack",
+  "Tub / Cup",
+];
+
+function getProducerRegionBadge(country?: string | null): { label: string; cls: string } {
+  if (!country || !country.trim()) {
+    return { label: "New Unverified Producer", cls: "bg-slate-200 text-slate-700" };
+  }
+  const c = country.toLowerCase().trim();
+
+  const europe = [
+    "belgium", "italy", "spain", "france", "germany", "netherlands", "poland", "greece",
+    "uk", "united kingdom", "austria", "portugal", "switzerland", "croatia", "czech",
+    "slovakia", "denmark", "sweden", "finland", "ireland", "hungary", "romania", "bulgaria"
+  ];
+  const americas = [
+    "usa", "united states", "canada", "mexico", "brazil", "argentina", "chile",
+    "colombia", "peru", "ecuador", "uruguay"
+  ];
+  const asia = [
+    "china", "india", "vietnam", "thailand", "indonesia", "turkey", "japan",
+    "korea", "malaysia", "philippines"
+  ];
+  const middleEast = ["israel", "jordan", "egypt", "uae", "saudi arabia"];
+
+  if (europe.some((e) => c.includes(e))) {
+    return { label: `New European Producer (${country})`, cls: "bg-blue-100 text-blue-800 border border-blue-200" };
+  }
+  if (americas.some((a) => c.includes(a))) {
+    return { label: `New Americas Producer (${country})`, cls: "bg-amber-100 text-amber-800 border border-amber-200" };
+  }
+  if (asia.some((a) => c.includes(a))) {
+    return { label: `New Asian Producer (${country})`, cls: "bg-purple-100 text-purple-800 border border-purple-200" };
+  }
+  if (middleEast.some((m) => c.includes(m))) {
+    return { label: `New Middle East Producer (${country})`, cls: "bg-emerald-100 text-emerald-800 border border-emerald-200" };
+  }
+
+  return { label: `New Producer (${country})`, cls: "bg-slate-200 text-slate-700" };
+}
+
 export default function SourcingDealDesk({
   buyers: initialBuyers,
   requests,
@@ -1936,9 +1985,12 @@ export default function SourcingDealDesk({
                                   />
                                 </div>
                                 <div>
-                                  <label className="text-[10px] font-bold text-slate-500 uppercase block mb-0.5">
-                                    Packaging Format
-                                  </label>
+                                  <div className="flex items-center justify-between mb-0.5">
+                                    <label className="text-[10px] font-bold text-slate-500 uppercase">
+                                      Packaging Format
+                                    </label>
+                                    <span className="text-[9px] text-slate-400">Quick Pills ↓</span>
+                                  </div>
                                   <input
                                     type="text"
                                     value={prod.packaging_format || ""}
@@ -1946,6 +1998,23 @@ export default function SourcingDealDesk({
                                     className="w-full bg-white border border-slate-200 rounded px-2 py-1 text-slate-800"
                                     placeholder="e.g. Stand-up Pouch, Pillow Bag"
                                   />
+                                  {/* Quick Select Format Pills */}
+                                  <div className="flex flex-wrap gap-1 mt-1">
+                                    {PACKAGING_FORMAT_PRESETS.slice(0, 5).map((fmt) => (
+                                      <button
+                                        key={fmt}
+                                        type="button"
+                                        onClick={() => updateProductCard(prod.id, { packaging_format: fmt })}
+                                        className={`text-[9px] px-1.5 py-0.5 rounded transition ${
+                                          prod.packaging_format?.toLowerCase() === fmt.toLowerCase()
+                                            ? "bg-orange-600 text-white font-bold"
+                                            : "bg-slate-200/70 hover:bg-slate-300 text-slate-700"
+                                        }`}
+                                      >
+                                        {fmt}
+                                      </button>
+                                    ))}
+                                  </div>
                                 </div>
                               </div>
 
@@ -1974,9 +2043,14 @@ export default function SourcingDealDesk({
                                     <span className="text-[10px] text-emerald-700">({prod.catalog_match.match_score}%)</span>
                                   </span>
                                 ) : (
-                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-200 text-slate-700 text-[10px] font-semibold">
-                                    New European Producer
-                                  </span>
+                                  (() => {
+                                    const badge = getProducerRegionBadge(prod.origin_country || prod.origin_state);
+                                    return (
+                                      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold ${badge.cls}`}>
+                                        {badge.label}
+                                      </span>
+                                    );
+                                  })()
                                 )}
                               </div>
                             </div>
