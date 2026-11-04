@@ -21,6 +21,7 @@ export interface LayeredProductCard {
   sub_type?: string | null;
   net_weight?: string | null;
   packaging_format?: string | null;
+  temperature_regime?: "ambient" | "chilled" | "frozen" | string | null;
   sweeteners?: string[];
   dietary_claims?: string[];
   certifications?: string[];
@@ -126,6 +127,7 @@ You must output STRICT JSON matching this exact structure:
       "sub_type": string or null,
       "net_weight": string or null, // e.g. "375g", "85g (12 bars / box)"
       "packaging_format": string or null, // e.g. "Stand-up Pouch", "Flow-wrap bar", "Glass Jar"
+      "temperature_regime": string, // "ambient", "chilled", or "frozen"
       "sweeteners": string[], // Specific sweetener compounds (e.g. ["erythritol", "stevia", "monk fruit"])
       "dietary_claims": string[],
       "certifications": string[],
@@ -217,6 +219,7 @@ RULES:
         ean_barcode: ex.ean_barcode?.value || null,
         category: ex.category?.category_name || null,
         sub_type: ex.sub_type?.value || null,
+        temperature_regime: (ex.temperature_regime?.value as any) || "ambient",
         sweeteners: ex.sweeteners?.value || [],
         dietary_claims: ex.nutrition_claims?.value || [],
         certifications: ex.certifications_visible?.value || [],

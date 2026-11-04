@@ -492,12 +492,50 @@ export default function SourcingDealDesk({
   // Update a single product card field inline
   function updateProductCard(cardId: string, patch: Partial<LayeredProductCard>) {
     if (!layeredAnalysis) return;
-    setLayeredAnalysis({
+    const nextAnalysis: LayeredAnalysisResult = {
       ...layeredAnalysis,
       products: layeredAnalysis.products.map((p) =>
         p.id === cardId ? { ...p, ...patch } : p
       ),
-    });
+    };
+    setLayeredAnalysis(nextAnalysis);
+    try {
+      const raw = localStorage.getItem("fdx_deal_desk_draft");
+      if (raw) {
+        const d = JSON.parse(raw);
+        d.layeredAnalysis = nextAnalysis;
+        localStorage.setItem("fdx_deal_desk_draft", JSON.stringify(d));
+      }
+    } catch {}
+  }
+
+  // Update Temperature Regime in Layer 3 (syncs card, shared_dna, request state & localStorage immediately)
+  function handleChangeTemperatureRegime(
+    regime: "ambient" | "chilled" | "frozen",
+    cardId?: string
+  ) {
+    setTemperatureRegime(regime);
+    let nextAnalysis = layeredAnalysis;
+    if (layeredAnalysis) {
+      nextAnalysis = {
+        ...layeredAnalysis,
+        shared_dna: {
+          ...layeredAnalysis.shared_dna,
+          temperature_regime: regime,
+        },
+        products: layeredAnalysis.products.map((p) =>
+          !cardId || p.id === cardId ? { ...p, temperature_regime: regime } : p
+        ),
+      };
+      setLayeredAnalysis(nextAnalysis);
+    }
+    try {
+      const raw = localStorage.getItem("fdx_deal_desk_draft");
+      const d = raw ? JSON.parse(raw) : {};
+      d.temperatureRegime = regime;
+      if (nextAnalysis) d.layeredAnalysis = nextAnalysis;
+      localStorage.setItem("fdx_deal_desk_draft", JSON.stringify(d));
+    } catch {}
   }
 
   // Generate / Synthesize Layer 4 Sourcing Brief from current Layer 1, 2, 3 state
@@ -549,6 +587,8 @@ export default function SourcingDealDesk({
         if (p.eu_factory_code) lines.push(`- EU Sanitary Oval Code: ${p.eu_factory_code}`);
         if (p.packaging_format) lines.push(`- Packaging Format: ${p.packaging_format}`);
         if (p.net_weight) lines.push(`- Net Weight / Unit Size: ${p.net_weight}`);
+        const skuTemp = (p.temperature_regime || temperatureRegime || "ambient").toUpperCase();
+        lines.push(`- Temperature Regime: ${skuTemp}`);
         if (p.dietary_claims && p.dietary_claims.length > 0) lines.push(`- Dietary Claims: ${p.dietary_claims.join(", ")}`);
         if (p.sweeteners && p.sweeteners.length > 0) lines.push(`- Sweeteners / Ingredients: ${p.sweeteners.join(", ")}`);
         if (p.catalog_match?.matched) {
@@ -586,6 +626,9 @@ export default function SourcingDealDesk({
         estimatedVolume,
         brandingModel,
         targetMarket,
+        temperatureRegime,
+        targetWeightMinG,
+        targetWeightMaxG,
         selectedTags,
         naturalBrief,
         imageUrls,
@@ -676,11 +719,23 @@ export default function SourcingDealDesk({
     estimatedVolume,
     brandingModel,
     targetMarket,
+    temperatureRegime,
+    targetWeightMinG,
+    targetWeightMaxG,
     selectedTags,
     naturalBrief,
     imageUrls,
     layeredAnalysis,
   ]);
+
+  // Fast 1.5s cloud persistence when Temperature Regime changes on an active request/draft
+  useEffect(() => {
+    if (!createdRequestId && !projectTitle.trim() && !selectedBuyer) return;
+    const timer = setTimeout(() => {
+      handleSaveDraft(true);
+    }, 1500);
+    return () => clearTimeout(timer);
+  }, [temperatureRegime]);
 
   // Global Ctrl + S / Cmd + S keyboard shortcut to save
   useEffect(() => {
@@ -711,7 +766,19 @@ export default function SourcingDealDesk({
     if (req.packaging_preference) setPackagingFormat(req.packaging_preference);
     if (req.volume_per_year) setEstimatedVolume(req.volume_per_year);
     if (req.target_market) setTargetMarket(req.target_market);
-    if (req.temperature_regime) setTemperatureRegime(req.temperature_regime as any);
+    if (req.temperature_regime) {
+      setTemperatureRegime(req.temperature_regime as any);
+    } else if (req.ai_analysis && typeof req.ai_analysis === "object") {
+      const layered = (req.ai_analysis as any)?.layered_analysis;
+      const aiTemp = (
+        layered?.shared_dna?.temperature_regime ||
+        layered?.products?.[0]?.temperature_regime ||
+        ""
+      ).toLowerCase();
+      if (aiTemp.includes("frozen")) setTemperatureRegime("frozen");
+      else if (aiTemp.includes("chilled")) setTemperatureRegime("chilled");
+      else setTemperatureRegime("ambient");
+    }
     if (req.target_weight_min_g != null) setTargetWeightMinG(String(req.target_weight_min_g));
     if (req.target_weight_max_g != null) setTargetWeightMaxG(String(req.target_weight_max_g));
     if (req.private_label === true) setBrandingModel("private_label");
@@ -901,6 +968,15 @@ export default function SourcingDealDesk({
         if (d.estimatedVolume) setEstimatedVolume(d.estimatedVolume);
         if (d.brandingModel) setBrandingModel(d.brandingModel);
         if (d.targetMarket) setTargetMarket(d.targetMarket);
+        if (d.temperatureRegime) {
+          setTemperatureRegime(d.temperatureRegime);
+        } else if (d.layeredAnalysis?.shared_dna?.temperature_regime) {
+          const r = String(d.layeredAnalysis.shared_dna.temperature_regime).toLowerCase();
+          if (r.includes("frozen")) setTemperatureRegime("frozen");
+          else if (r.includes("chilled")) setTemperatureRegime("chilled");
+        }
+        if (d.targetWeightMinG != null) setTargetWeightMinG(String(d.targetWeightMinG));
+        if (d.targetWeightMaxG != null) setTargetWeightMaxG(String(d.targetWeightMaxG));
         if (Array.isArray(d.selectedTags) && d.selectedTags.length > 0) setSelectedTags(d.selectedTags);
         if (d.naturalBrief) setNaturalBrief(d.naturalBrief);
         if (Array.isArray(d.imageUrls)) setImageUrls(d.imageUrls);
@@ -1206,6 +1282,16 @@ export default function SourcingDealDesk({
 
           {/* Quick Actions & View Switcher */}
           <div className="flex items-center gap-2">
+            {createdRequestId && (
+              <Link
+                href={`/admin/requests/${createdRequestId}`}
+                className="text-xs font-semibold px-3 py-1.5 rounded-xl border border-indigo-200 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 transition flex items-center gap-1.5"
+                title="See full Request Page & Outreach Hub"
+              >
+                <span>📄</span>
+                <span className="hidden md:inline">See Request Page</span>
+              </Link>
+            )}
             <button
               type="button"
               onClick={handleStartNewRequest}
@@ -1745,57 +1831,6 @@ export default function SourcingDealDesk({
                     </div>
                   </div>
 
-                  {/* Temperature Regime & Target Unit Weight */}
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs bg-slate-50/60 border border-slate-200/60 rounded-xl p-3">
-                    <div>
-                      <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                        Temperature Regime
-                      </label>
-                      <div className="flex rounded-lg border border-slate-200 bg-white p-0.5">
-                        {(["ambient", "chilled", "frozen"] as const).map((regime) => (
-                          <button
-                            key={regime}
-                            type="button"
-                            onClick={() => setTemperatureRegime(regime)}
-                            className={`flex-1 py-1 text-center font-bold capitalize rounded-md transition ${
-                              temperatureRegime === regime
-                                ? "bg-orange-500 text-white shadow-2xs"
-                                : "text-slate-600 hover:text-slate-900"
-                            }`}
-                          >
-                            {regime}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                        Min Unit Weight (g)
-                      </label>
-                      <input
-                        type="number"
-                        placeholder="e.g. 100"
-                        value={targetWeightMinG}
-                        onChange={(e) => setTargetWeightMinG(e.target.value)}
-                        className="w-full bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-slate-800 outline-none focus:border-orange-500"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                        Max Unit Weight (g)
-                      </label>
-                      <input
-                        type="number"
-                        placeholder="e.g. 250"
-                        value={targetWeightMaxG}
-                        onChange={(e) => setTargetWeightMaxG(e.target.value)}
-                        className="w-full bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-slate-800 outline-none focus:border-orange-500"
-                      />
-                    </div>
-                  </div>
-
                   {/* Image Staging & Deep Vision Button */}
                   <div className="p-3.5 bg-slate-50/80 border border-slate-200/80 rounded-xl space-y-3">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
@@ -1992,13 +2027,37 @@ export default function SourcingDealDesk({
 
                       {/* Layer 3: Multi-Product Cards */}
                       <div className="space-y-3">
-                        <div className="flex items-center justify-between">
-                          <h4 className="text-xs font-extrabold text-slate-900 uppercase tracking-wider">
-                            Layer 3: Multi-Product Reference Cards (Editable)
-                          </h4>
-                          <span className="text-[11px] text-slate-500">
-                            Front & back panels merged
-                          </span>
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 bg-slate-50 border border-slate-200/80 rounded-xl p-3">
+                          <div>
+                            <h4 className="text-xs font-extrabold text-slate-900 uppercase tracking-wider">
+                              Layer 3: Multi-Product Reference Cards (Editable)
+                            </h4>
+                            <span className="text-[11px] text-slate-500">
+                              Front & back panels merged · Temperature Regime & physical specs
+                            </span>
+                          </div>
+                          {/* Layer 3 Global Temperature Regime Selector */}
+                          <div className="flex items-center gap-2">
+                            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                              Temperature Regime:
+                            </span>
+                            <div className="flex rounded-lg border border-slate-200 bg-white p-0.5 text-xs">
+                              {(["ambient", "chilled", "frozen"] as const).map((regime) => (
+                                <button
+                                  key={regime}
+                                  type="button"
+                                  onClick={() => handleChangeTemperatureRegime(regime)}
+                                  className={`px-2.5 py-1 text-center font-bold capitalize rounded-md transition cursor-pointer ${
+                                    temperatureRegime === regime
+                                      ? "bg-orange-500 text-white shadow-2xs"
+                                      : "text-slate-600 hover:text-slate-900"
+                                  }`}
+                                >
+                                  {regime}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
                         </div>
 
                         <div className="grid grid-cols-1 gap-3.5">
@@ -2113,8 +2172,8 @@ export default function SourcingDealDesk({
                                 </div>
                               </div>
 
-                              {/* Physical Specs & Format */}
-                              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs pt-1">
+                              {/* Physical Specs, Temperature Regime & Format */}
+                              <div className="grid grid-cols-1 sm:grid-cols-4 gap-2 text-xs pt-1">
                                 <div>
                                   <label className="text-[10px] font-bold text-slate-500 uppercase block mb-0.5">
                                     Product Sub-Type
@@ -2138,6 +2197,31 @@ export default function SourcingDealDesk({
                                     className="w-full bg-white border border-slate-200 rounded px-2 py-1 text-slate-800"
                                     placeholder="e.g. 170g, 6 oz"
                                   />
+                                </div>
+                                <div>
+                                  <label className="text-[10px] font-bold text-slate-500 uppercase block mb-0.5">
+                                    Temperature Regime
+                                  </label>
+                                  <div className="flex rounded border border-slate-200 bg-white p-0.5">
+                                    {(["ambient", "chilled", "frozen"] as const).map((regime) => {
+                                      const activeRegime = (prod.temperature_regime || temperatureRegime || "ambient").toLowerCase();
+                                      const isSelected = activeRegime === regime;
+                                      return (
+                                        <button
+                                          key={regime}
+                                          type="button"
+                                          onClick={() => handleChangeTemperatureRegime(regime, prod.id)}
+                                          className={`flex-1 py-0.5 text-[10px] text-center font-bold capitalize rounded transition cursor-pointer ${
+                                            isSelected
+                                              ? "bg-orange-500 text-white shadow-2xs"
+                                              : "text-slate-600 hover:text-slate-900"
+                                          }`}
+                                        >
+                                          {regime}
+                                        </button>
+                                      );
+                                    })}
+                                  </div>
                                 </div>
                                 <div>
                                   <div className="flex items-center justify-between mb-0.5">
@@ -2214,11 +2298,44 @@ export default function SourcingDealDesk({
                       </div>
                     </div>
                   ) : (
-                    <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl text-center text-xs text-slate-500 space-y-1">
-                      <p>No multi-product analysis run yet.</p>
-                      <p className="text-[11px] text-slate-400">
-                        Upload packaging images in Step 2 and click "Run AI Vision & Layered Fingerprint" to automatically synthesize specifications and check existing catalog products.
-                      </p>
+                    <div className="space-y-3">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 bg-slate-50 border border-slate-200/80 rounded-xl p-3">
+                        <div>
+                          <h4 className="text-xs font-extrabold text-slate-900 uppercase tracking-wider">
+                            Layer 3: Product Specifications & Temperature Regime
+                          </h4>
+                          <span className="text-[11px] text-slate-500">
+                            Select cold-chain / storage temperature regime for this request
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                            Temperature Regime:
+                          </span>
+                          <div className="flex rounded-lg border border-slate-200 bg-white p-0.5 text-xs">
+                            {(["ambient", "chilled", "frozen"] as const).map((regime) => (
+                              <button
+                                key={regime}
+                                type="button"
+                                onClick={() => handleChangeTemperatureRegime(regime)}
+                                className={`px-2.5 py-1 text-center font-bold capitalize rounded-md transition cursor-pointer ${
+                                  temperatureRegime === regime
+                                    ? "bg-orange-500 text-white shadow-2xs"
+                                    : "text-slate-600 hover:text-slate-900"
+                                }`}
+                              >
+                                {regime}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl text-center text-xs text-slate-500 space-y-1">
+                        <p>No multi-product vision cards extracted yet.</p>
+                        <p className="text-[11px] text-slate-400">
+                          Upload packaging images in Step 2 and click "Run AI Vision & Layered Fingerprint" to automatically synthesize specifications and check existing catalog products.
+                        </p>
+                      </div>
                     </div>
                   )}
                 </div>
@@ -2779,7 +2896,17 @@ export default function SourcingDealDesk({
                 Requests Registry · {requests.length} active requests
               </span>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
+              {createdRequestId && (
+                <Link
+                  href={`/admin/requests/${createdRequestId}`}
+                  className="text-xs font-semibold px-3 py-1.5 rounded-xl border border-indigo-200 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 transition flex items-center gap-1"
+                  title="Open the full Request Page & Outreach Hub for the active request"
+                >
+                  <span>📄</span>
+                  <span>See Request Page</span>
+                </Link>
+              )}
               {(createdRequestId || projectTitle.trim()) && (
                 <button
                   type="button"
@@ -2788,7 +2915,7 @@ export default function SourcingDealDesk({
                   title="Return to the request currently open in the Intake Desk"
                 >
                   <span>✏️</span>
-                  <span className="truncate">Resume: {projectTitle.trim() || "current draft"}</span>
+                  <span className="truncate">Edit: {projectTitle.trim() || "current draft"}</span>
                 </button>
               )}
               <button
@@ -2797,11 +2924,14 @@ export default function SourcingDealDesk({
                 className="text-xs font-bold px-3 py-1.5 rounded-xl bg-orange-600 hover:bg-orange-700 text-white transition flex items-center gap-1 cursor-pointer"
               >
                 <span>➕</span>
-                <span>New Request</span>
+                <span>Initial Request (New)</span>
               </button>
             </div>
           </div>
-          <AgentCommandRadar requests={requests} />
+          <AgentCommandRadar
+            requests={requests}
+            onEditRequest={(req: RequestRow) => loadRequestForEdit(req)}
+          />
           <div className="pt-6 border-t border-slate-200">
             <RequestsTable
               requests={requests}

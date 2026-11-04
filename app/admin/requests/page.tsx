@@ -65,7 +65,7 @@ export default async function AdminRequestsPage({ searchParams }: PageProps) {
     supabaseAdmin
       .from("sourcing_requests")
       .select(
-        "id, name, email, company, buyer_id, message, product_name, category, certifications, target_market, private_label, packaging_preference, volume_per_year, ai_analysis, source, status, brief_status, brief_version, confirmed_at, confirmed_by, confirmed_via, deleted_at, created_at, is_published, published_product_name, published_message, intent_json, pipeline_stage, pipeline_substage, exception_status, exception_reason, active_supplier_id, stage_updated_at, stage_updated_by, stage_notes"
+        "id, name, email, company, buyer_id, message, product_name, category, certifications, target_market, private_label, packaging_preference, volume_per_year, temperature_regime, dietary_requirements, target_weight_min_g, target_weight_max_g, preferred_origins, excluded_ingredients, ai_analysis, source, status, brief_status, brief_version, confirmed_at, confirmed_by, confirmed_via, deleted_at, created_at, is_published, published_product_name, published_message, intent_json, pipeline_stage, pipeline_substage, exception_status, exception_reason, active_supplier_id, stage_updated_at, stage_updated_by, stage_notes"
       )
       .is("deleted_at", null)
       .order("created_at", { ascending: false })
