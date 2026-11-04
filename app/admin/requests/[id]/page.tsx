@@ -200,11 +200,25 @@ export default async function RequestDetailPage({ params }: PageProps) {
           <div className="flex items-center gap-3">
             <Link
               href="/admin/requests?view=registry"
-              className="text-sm text-slate-500 hover:text-slate-800 transition-colors"
+              className="text-xs font-semibold px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 transition-colors whitespace-nowrap"
+              title="Back to Requests Registry (all stages)"
             >
-              ← Registry
+              ← 📋 Registry
+            </Link>
+            <Link
+              href="/admin/requests"
+              className="text-xs font-semibold px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 transition-colors whitespace-nowrap"
+              title="Go to Sourcing Intake Desk to start a new request"
+            >
+              ➕ New Request (Intake Desk)
             </Link>
             <span className="text-slate-300">/</span>
+            <span
+              className="text-[11px] font-mono font-bold px-2 py-0.5 rounded-md bg-slate-900 text-amber-300 border border-slate-700 whitespace-nowrap"
+              title="Unique FDX Request Reference Tag used in all supplier & buyer correspondence"
+            >
+              [FDX-REQ-{id.replace(/-/g, "").slice(0, 8).toUpperCase()}]
+            </span>
             <span className="text-sm font-medium text-slate-700 truncate max-w-xs">
               {cleanedName || productName || "Request"}
             </span>

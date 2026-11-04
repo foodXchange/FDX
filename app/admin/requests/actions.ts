@@ -1016,19 +1016,42 @@ async function enrichMatchesWithSupplierWebsite(matches: any[]): Promise<any[]> 
   );
   if (supplierIds.length === 0) return matches;
 
-  const { data: suppliers } = await supabaseAdmin
-    .from("supplier_offerings")
-    .select("id, website")
-    .in("id", supplierIds);
+  const [{ data: suppliers }, { data: contacts }] = await Promise.all([
+    supabaseAdmin
+      .from("supplier_offerings")
+      .select("id, website, contact_email, contact_phone")
+      .in("id", supplierIds),
+    supabaseAdmin
+      .from("supplier_contacts")
+      .select("supplier_id, email, phone, scraped_at")
+      .in("supplier_id", supplierIds)
+      .order("scraped_at", { ascending: false }),
+  ]);
 
   const websiteMap = new Map<string, string | null>();
+  const emailMap = new Map<string, string | null>();
+  const phoneMap = new Map<string, string | null>();
+
   for (const s of suppliers || []) {
     websiteMap.set(s.id, s.website || null);
+    if (s.contact_email) emailMap.set(s.id, s.contact_email);
+    if (s.contact_phone) phoneMap.set(s.id, s.contact_phone);
+  }
+
+  for (const c of contacts || []) {
+    if (!emailMap.get(c.supplier_id) && c.email) {
+      emailMap.set(c.supplier_id, c.email);
+    }
+    if (!phoneMap.get(c.supplier_id) && c.phone) {
+      phoneMap.set(c.supplier_id, c.phone);
+    }
   }
 
   return matches.map((m) => ({
     ...m,
     website: m.website || m.match_breakdown?.website || websiteMap.get(m.supplier_id) || null,
+    contact_email: m.contact_email || emailMap.get(m.supplier_id) || null,
+    contact_phone: m.contact_phone || phoneMap.get(m.supplier_id) || null,
   }));
 }
 
@@ -1046,6 +1069,8 @@ export async function getQuickMatchesAction(
         country,
         match_summary,
         status,
+        sent_at,
+        sent_via,
         supplier_id,
         match_breakdown
       `)
@@ -1081,6 +1106,8 @@ export async function rerunMatchingAction(
         country,
         match_summary,
         status,
+        sent_at,
+        sent_via,
         supplier_id,
         match_breakdown
       `)

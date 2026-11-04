@@ -15,6 +15,7 @@ const BodySchema = z.object({
   subject: z.string().trim().min(1),
   body: z.string().trim().min(1),
   deadline: z.string().min(1),
+  emailOverrides: z.record(z.string(), z.string()).optional(),
 });
 
 type MatchRow = {
@@ -46,7 +47,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid request" }, { status: 400 });
   }
 
-  const { requestId, matchIds, subject, body, deadline } = parsed.data;
+  const { requestId, matchIds, subject, body, deadline, emailOverrides } = parsed.data;
+  const requestRefTag = `[FDX-REQ-${requestId.replace(/-/g, "").slice(0, 8).toUpperCase()}]`;
 
   const { data: request } = await supabaseAdmin
     .from("sourcing_requests")
@@ -96,6 +98,7 @@ export async function POST(req: NextRequest) {
       : null;
 
   const requestVars = {
+    request_ref: requestRefTag,
     buyer_company: request.company ?? "",
     product_name: request.product_name ?? "",
     volume: pip.commercial.volume ?? "",
@@ -110,6 +113,7 @@ export async function POST(req: NextRequest) {
     const vars = {
       ...requestVars,
       supplier_company: match.company_name ?? "",
+      matched_product: match.product_name ?? "",
       product_name: match.product_name || requestVars.product_name,
     };
 
@@ -117,22 +121,34 @@ export async function POST(req: NextRequest) {
     const renderedBody = renderTemplate(body, vars);
 
     try {
-      const contactEmail = await getSupplierContactEmail(match.supplier_id);
+      const overrideEmail = emailOverrides?.[match.id]?.trim();
+      let contactEmail = overrideEmail || (await getSupplierContactEmail(match.supplier_id));
+
+      if (overrideEmail && match.supplier_id) {
+        // Persist newly provided supplier email to supplier_offerings for future outreach
+        await supabaseAdmin
+          .from("supplier_offerings")
+          .update({ contact_email: overrideEmail })
+          .eq("id", match.supplier_id);
+      }
+
       if (!contactEmail) {
         results.push({
           matchId: match.id,
           company_name: match.company_name,
           success: false,
-          error: "No email on file",
+          error: "No email on file — enter email in composer",
         });
         continue;
       }
 
       const benchmarkCardHtml = `<div style="margin:20px 0;padding:16px;border:1px solid #e2e8f0;border-radius:12px;background:#f8fafc;">
-        <p style="margin:0 0 8px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:#ea580c;">Buyer Sourcing Brief Summary</p>
+        <p style="margin:0 0 8px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:#ea580c;">Buyer Sourcing Brief Summary · ${requestRefTag}</p>
         <div style="font-size:13px;color:#334155;line-height:1.5;">
           ${benchmarkImageUrl ? `<img src="${benchmarkImageUrl}" alt="Benchmark Product" style="width:76px;height:76px;object-fit:cover;border-radius:8px;border:1px solid #cbd5e1;float:left;margin-right:12px;" />` : ""}
+          <div><strong>Project Reference:</strong> ${requestRefTag}</div>
           <div><strong>Target Product:</strong> ${request.product_name || match.product_name || "Sourcing Inquiry"}</div>
+          ${match.product_name ? `<div><strong>Matched Factory SKU:</strong> ${match.product_name}</div>` : ""}
           ${benchmarkBrand ? `<div><strong>Benchmark Brand:</strong> ${benchmarkBrand}</div>` : ""}
           ${pip.commercial.volume ? `<div><strong>Target Volume:</strong> ${pip.commercial.volume}</div>` : ""}
           ${certifications ? `<div><strong>Certifications:</strong> ${certifications}</div>` : ""}
@@ -145,6 +161,7 @@ export async function POST(req: NextRequest) {
         subject: renderedSubject,
         bodyText: renderedBody,
         matchId: match.id,
+        requestId,
         benchmarkCardHtml,
       });
 

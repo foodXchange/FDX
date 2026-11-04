@@ -296,6 +296,205 @@ export default function SourcingDealDesk({
   const [liveMatches, setLiveMatches] = useState<any[]>([]);
   const [fetchingMatches, setFetchingMatches] = useState(false);
   const [rerunningMatches, setRerunningMatches] = useState(false);
+  const [copiedRefTag, setCopiedRefTag] = useState(false);
+
+  // Stage 6: Initial Supplier Cooperation Outreach state
+  const [selectedMatchIds, setSelectedMatchIds] = useState<Set<string>>(new Set());
+  const [showOutreachModal, setShowOutreachModal] = useState(false);
+  const [outreachSubject, setOutreachSubject] = useState("");
+  const [outreachBody, setOutreachBody] = useState("");
+  const [outreachDeadline, setOutreachDeadline] = useState(() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 7);
+    return d.toISOString().slice(0, 10);
+  });
+  const [outreachPreviewIdx, setOutreachPreviewIdx] = useState(0);
+  const [supplierEmailOverrides, setSupplierEmailOverrides] = useState<Record<string, string>>({});
+  const [sendingOutreach, setSendingOutreach] = useState(false);
+  const [outreachResults, setOutreachResults] = useState<
+    Array<{ matchId: string; company_name: string | null; success: boolean; error?: string; via?: string }> | null
+  >(null);
+
+  const requestRefTag = createdRequestId
+    ? `[FDX-REQ-${createdRequestId.replace(/-/g, "").slice(0, 8).toUpperCase()}]`
+    : null;
+
+  function handleCopyRefTag() {
+    if (!requestRefTag) return;
+    navigator.clipboard.writeText(requestRefTag).catch(() => {});
+    setCopiedRefTag(true);
+    setTimeout(() => setCopiedRefTag(false), 2500);
+  }
+
+  function openSupplierOutreachComposer(targetMatchIds?: string[]) {
+    const idsToUse =
+      targetMatchIds && targetMatchIds.length > 0
+        ? targetMatchIds
+        : selectedMatchIds.size > 0
+        ? Array.from(selectedMatchIds)
+        : liveMatches.map((m) => m.id);
+
+    setSelectedMatchIds(new Set(idsToUse));
+    setOutreachPreviewIdx(0);
+    setOutreachResults(null);
+
+    // Pre-populate email overrides map from existing contact_email on liveMatches
+    const initialEmails: Record<string, string> = { ...supplierEmailOverrides };
+    for (const m of liveMatches) {
+      if (!initialEmails[m.id] && m.contact_email) {
+        initialEmails[m.id] = m.contact_email;
+      }
+    }
+    setSupplierEmailOverrides(initialEmails);
+
+    const refCode = requestRefTag || "[FDX-REQ-PENDING]";
+    const skuList =
+      layeredAnalysis?.products && layeredAnalysis.products.length > 0
+        ? layeredAnalysis.products
+            .map((p) => `${p.product_name || "SKU"}${p.net_weight ? ` (${p.net_weight})` : ""}${p.packaging_format ? ` - ${p.packaging_format}` : ""}`)
+            .join("; ")
+        : projectTitle || "Specialty Food Line";
+
+    const brandingLabel =
+      brandingModel === "private_label"
+        ? "Private Label (Buyer OEM)"
+        : brandingModel === "supplier_brand"
+        ? "Supplier / Factory Brand"
+        : "Open to Supplier Brand & Private Label";
+
+    setOutreachSubject(
+      `${refCode} Initial B2B Cooperation & Sourcing Inquiry: {{product_name}} — FoodXchange`
+    );
+
+    setOutreachBody(
+      `Dear {{supplier_company}} Export & Commercial Team,
+
+Reference: ${refCode}
+
+We are reaching out from FoodXchange (www.fdx.trading), an international B2B food sourcing and distribution platform. Following confirmation of our buyer's sourcing brief (${refCode}), your company and product range ({{matched_product}}) were selected as a top-tier match for an active distribution project in ${targetMarket || "Israel"}.
+
+─── CONFIRMED SOURCING BRIEF SUMMARY (${refCode}) ───
+• Project Scope: ${projectTitle || "Specialty Food Sourcing"}
+• Category: ${category || "Confectionery & Specialty Food"}
+• Target Reference SKUs: ${skuList}
+• Required Claims & Certifications: ${selectedTags.length > 0 ? selectedTags.join(", ") : "Standard Export Quality"}
+• Branding Model: ${brandingLabel}
+• Temperature Regime: ${temperatureRegime.toUpperCase()}
+${estimatedVolume ? `• Target Volume / Cadence: ${estimatedVolume}\n` : ""}
+─── INITIAL COOPERATION INQUIRY ───
+Could you please confirm by {{deadline}}:
+1. Whether {{supplier_company}} can supply products matching these specifications for export (under Supplier Brand and/or Private Label).
+2. Your current product catalog, technical data sheets (TDS), and active certifications.
+3. Indicative EXW / FOB / CIF pricing, MOQ per SKU, and lead times.
+
+Please keep the reference code ${refCode} in the email subject line when replying so our system routes your response directly to this project file.
+
+Best regards,
+FoodXchange Sourcing Deal Desk`
+    );
+
+    setShowOutreachModal(true);
+  }
+
+  function renderOutreachText(template: string, matchObj: any): string {
+    if (!template) return "";
+    const refCode = requestRefTag || "[FDX-REQ-PENDING]";
+    const deadlineFormatted = outreachDeadline
+      ? new Date(outreachDeadline).toLocaleDateString("en-GB", {
+          day: "numeric",
+          month: "short",
+          year: "numeric",
+        })
+      : "next week";
+
+    const vars: Record<string, string> = {
+      request_ref: refCode,
+      supplier_company: matchObj?.company_name || "Supplier Partner",
+      matched_product: matchObj?.product_name || projectTitle || "your product line",
+      product_name: matchObj?.product_name || projectTitle || "Sourcing Inquiry",
+      buyer_company: selectedBuyer?.company_name || "International Importer",
+      volume: estimatedVolume || "1 x 20ft / 40ft Container",
+      certifications: selectedTags.join(", "),
+      deadline: deadlineFormatted,
+      request_description: naturalBrief || projectTitle || "",
+    };
+
+    return template.replace(/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g, (_, key) => vars[key] ?? "");
+  }
+
+  async function handleDispatchSupplierOutreach() {
+    if (!createdRequestId) return;
+    const targetIds =
+      selectedMatchIds.size > 0
+        ? Array.from(selectedMatchIds)
+        : liveMatches.map((m) => m.id);
+    if (targetIds.length === 0) return;
+
+    setSendingOutreach(true);
+    setOutreachResults(null);
+    try {
+      const res = await fetch("/api/admin/rfq/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          requestId: createdRequestId,
+          matchIds: targetIds,
+          subject: outreachSubject,
+          body: outreachBody,
+          deadline: outreachDeadline,
+          emailOverrides: supplierEmailOverrides,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setErrorMsg(data.error || "Failed to send supplier outreach emails");
+        return;
+      }
+      const resultsList = data.results || [];
+      setOutreachResults(resultsList);
+
+      // Update liveMatches status locally for sent items
+      const sentSet = new Set(
+        resultsList.filter((r: any) => r.success).map((r: any) => r.matchId)
+      );
+      if (sentSet.size > 0) {
+        setLiveMatches((prev) =>
+          prev.map((m) =>
+            sentSet.has(m.id)
+              ? {
+                  ...m,
+                  status: "rfq_sent",
+                  sent_at: new Date().toISOString(),
+                  contact_email: supplierEmailOverrides[m.id] || m.contact_email,
+                }
+              : m
+          )
+        );
+      }
+    } catch (err: any) {
+      setErrorMsg(err?.message || "Failed to send supplier outreach emails");
+    } finally {
+      setSendingOutreach(false);
+    }
+  }
+
+  // Default-select all loaded matches when liveMatches changes
+  useEffect(() => {
+    if (liveMatches.length > 0) {
+      setSelectedMatchIds(new Set(liveMatches.map((m) => m.id)));
+      setSupplierEmailOverrides((prev) => {
+        const next = { ...prev };
+        for (const m of liveMatches) {
+          if (!next[m.id] && m.contact_email) {
+            next[m.id] = m.contact_email;
+          }
+        }
+        return next;
+      });
+    } else {
+      setSelectedMatchIds(new Set());
+    }
+  }, [liveMatches]);
 
   // Buyer selection handler
   function handleSelectBuyer(b: BuyerOption) {
@@ -1347,6 +1546,21 @@ export default function SourcingDealDesk({
                     <span>📝</span> Draft Mode
                   </span>
                 )}
+                {requestRefTag && (
+                  <button
+                    type="button"
+                    onClick={handleCopyRefTag}
+                    title="Click to copy Request Reference Code for supplier & buyer emails"
+                    className={`inline-flex items-center gap-1 text-[11px] font-mono font-bold px-2.5 py-0.5 rounded-md border transition cursor-pointer ${
+                      briefStatus === "confirmed"
+                        ? "bg-slate-900 text-amber-300 border-slate-700 hover:bg-slate-800"
+                        : "bg-slate-100 text-slate-700 border-slate-300 hover:bg-slate-200"
+                    }`}
+                  >
+                    <span>{requestRefTag}</span>
+                    <span className="text-[10px] opacity-80">{copiedRefTag ? "✓ Copied" : "📋"}</span>
+                  </button>
+                )}
               </div>
               <p className="text-[11px] text-slate-500 hidden sm:block">
                 Single-page 5-step intake, layered visual AI, buyer confirmation, and locked reverse-match
@@ -1469,6 +1683,17 @@ export default function SourcingDealDesk({
                     <span className="text-xs font-bold text-slate-900 truncate">
                       {selectedBuyer?.company_name || "Unassigned Buyer (New Lead)"}
                     </span>
+                    {requestRefTag && (
+                      <button
+                        type="button"
+                        onClick={handleCopyRefTag}
+                        title="Click to copy Request Reference Code"
+                        className="inline-flex items-center gap-1 text-[10px] font-mono font-bold px-2 py-0.5 rounded-md bg-slate-900 text-amber-300 border border-slate-700 hover:bg-slate-800 transition cursor-pointer"
+                      >
+                        <span>{requestRefTag}</span>
+                        <span>{copiedRefTag ? "✓" : "📋"}</span>
+                      </button>
+                    )}
                     <span
                       className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full ${
                         createdRequestId
@@ -2700,31 +2925,58 @@ export default function SourcingDealDesk({
                     </div>
                   ) : (
                     <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-950 space-y-3">
-                      <div className="flex items-center gap-2 font-bold text-emerald-900 text-xs sm:text-sm">
-                        <span>🔓</span>
-                        <span>Sourcing Brief 100% Confirmed &mdash; Reverse-Matching Unlocked!</span>
+                      <div className="flex items-center justify-between gap-2 flex-wrap">
+                        <div className="flex items-center gap-2 font-bold text-emerald-900 text-xs sm:text-sm">
+                          <span>🔓</span>
+                          <span>Sourcing Brief 100% Confirmed &mdash; Reverse-Matching &amp; Outreach Unlocked!</span>
+                        </div>
+                        {requestRefTag && (
+                          <button
+                            type="button"
+                            onClick={handleCopyRefTag}
+                            className="inline-flex items-center gap-1 text-[11px] font-mono font-bold px-2.5 py-1 rounded-md bg-slate-900 text-amber-300 border border-slate-700 hover:bg-slate-800 transition cursor-pointer"
+                            title="Copy project reference tag for supplier cooperation emails"
+                          >
+                            <span>Ref: {requestRefTag}</span>
+                            <span>{copiedRefTag ? "✓ Copied" : "📋"}</span>
+                          </button>
+                        )}
                       </div>
                       <p className="text-xs text-emerald-800 leading-relaxed">
-                        Specifications are verified. You can now execute reverse-matching across 80,000+ European catalog items and qualified factories.
+                        Specifications are verified under <strong>{requestRefTag || "FDX-REQ"}</strong>. Execute reverse-matching across 80,000+ European catalog items or send initial cooperation emails directly to your selected factories on the right.
                       </p>
-                      <button
-                        type="button"
-                        onClick={handleSubmitProject}
-                        disabled={isSubmitting || fetchingMatches}
-                        className="w-full py-3 px-5 rounded-xl bg-gradient-to-r from-orange-600 to-amber-600 text-white font-bold text-sm hover:opacity-95 shadow-md shadow-orange-500/20 disabled:opacity-50 transition cursor-pointer flex items-center justify-center gap-2"
-                      >
-                        {isSubmitting || fetchingMatches ? (
-                          <>
-                            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                            <span>Matching European Factories...</span>
-                          </>
-                        ) : (
-                          <>
-                            <span>🚀</span>
-                            <span>Run Reverse-Match Across European Catalog Items</span>
-                          </>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                        <button
+                          type="button"
+                          onClick={handleSubmitProject}
+                          disabled={isSubmitting || fetchingMatches}
+                          className="w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-orange-600 to-amber-600 text-white font-bold text-xs sm:text-sm hover:opacity-95 shadow-md shadow-orange-500/20 disabled:opacity-50 transition cursor-pointer flex items-center justify-center gap-2"
+                        >
+                          {isSubmitting || fetchingMatches ? (
+                            <>
+                              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                              <span>Matching Factories...</span>
+                            </>
+                          ) : (
+                            <>
+                              <span>🚀</span>
+                              <span>Run / Refresh Reverse-Match</span>
+                            </>
+                          )}
+                        </button>
+                        {liveMatches.length > 0 && (
+                          <button
+                            type="button"
+                            onClick={() => openSupplierOutreachComposer()}
+                            className="w-full py-2.5 px-4 rounded-xl bg-slate-900 hover:bg-slate-800 text-amber-300 font-bold text-xs sm:text-sm shadow-sm transition cursor-pointer flex items-center justify-center gap-2"
+                          >
+                            <span>✉️</span>
+                            <span>
+                              Write Initial Cooperation Emails ({selectedMatchIds.size || liveMatches.length})
+                            </span>
+                          </button>
                         )}
-                      </button>
+                      </div>
                     </div>
                   )}
 
@@ -2756,11 +3008,21 @@ export default function SourcingDealDesk({
             {/* Live Matches Card */}
             <div className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-xs">
               <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-3">
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                   <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                   <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
                     {liveMatches.length > 0 ? `🎯 ${liveMatches.length} Factory Matches` : "Live Sourcing Feed"}
                   </h3>
+                  {requestRefTag && (
+                    <button
+                      type="button"
+                      onClick={handleCopyRefTag}
+                      title="Copy Request Reference Tag"
+                      className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-slate-900 text-amber-300 hover:bg-slate-800 transition cursor-pointer"
+                    >
+                      {requestRefTag}
+                    </button>
+                  )}
                 </div>
                 <div className="flex items-center gap-2">
                   {createdRequestId && (
@@ -2822,6 +3084,74 @@ export default function SourcingDealDesk({
                 </div>
               ) : liveMatches.length > 0 ? (
                 <div className="space-y-2.5">
+                  {/* ── STAGE 6: SELECT FACTORIES & INITIAL COOPERATION OUTREACH BAR ── */}
+                  <div className="p-3 rounded-xl bg-slate-900 text-white space-y-2.5 border border-slate-800">
+                    <div className="flex items-center justify-between gap-2 flex-wrap text-[11px]">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="font-bold text-amber-300">
+                          Selected: {selectedMatchIds.size}/{liveMatches.length}
+                        </span>
+                        <span className="text-slate-600">|</span>
+                        <button
+                          type="button"
+                          onClick={() => setSelectedMatchIds(new Set(liveMatches.map((m) => m.id)))}
+                          className="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold transition cursor-pointer"
+                        >
+                          All ({liveMatches.length})
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setSelectedMatchIds(
+                              new Set(liveMatches.filter((m) => (m.match_score ?? 0) >= 90).map((m) => m.id))
+                            )
+                          }
+                          className="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-emerald-300 font-semibold transition cursor-pointer"
+                        >
+                          Top ≥90%
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setSelectedMatchIds(new Set())}
+                          className="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-400 font-semibold transition cursor-pointer"
+                        >
+                          Clear
+                        </button>
+                      </div>
+                      {requestRefTag && (
+                        <span className="font-mono text-[10px] text-amber-300/90 font-bold">
+                          {requestRefTag}
+                        </span>
+                      )}
+                    </div>
+
+                    {briefStatus === "confirmed" ? (
+                      <button
+                        type="button"
+                        onClick={() => openSupplierOutreachComposer()}
+                        disabled={selectedMatchIds.size === 0}
+                        className="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 disabled:opacity-40 text-white font-bold text-xs shadow-sm transition cursor-pointer flex items-center justify-center gap-1.5"
+                      >
+                        <span>✉️</span>
+                        <span>
+                          Write Initial Cooperation Email to {selectedMatchIds.size} Selected{" "}
+                          {selectedMatchIds.size === 1 ? "Factory" : "Factories"}
+                        </span>
+                      </button>
+                    ) : (
+                      <div className="text-[11px] text-amber-200/90 bg-slate-800/90 rounded-lg px-2.5 py-1.5 flex items-center justify-between gap-2">
+                        <span>🔒 Confirm brief in Step 5 to unlock initial supplier emails</span>
+                        <button
+                          type="button"
+                          onClick={() => setShowOverrideModal(true)}
+                          className="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-600 hover:bg-emerald-500 text-white shrink-0 cursor-pointer"
+                        >
+                          Confirm Now
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
                   {liveMatches.map((m, idx) => {
                     const bd = m.match_breakdown ?? {};
                     const score = m.match_score ?? 0;
@@ -2837,15 +3167,36 @@ export default function SourcingDealDesk({
                       ? bd.matched_certifications
                       : [];
                     const websiteInfo = formatWebsiteLabel(m.website || bd.website);
+                    const isSelected = selectedMatchIds.has(m.id);
+                    const resolvedEmail = supplierEmailOverrides[m.id] || m.contact_email || null;
+                    const isAlreadySent = m.status === "rfq_sent" || m.status === "sent" || Boolean(m.sent_at);
 
                     return (
                       <div
                         key={m.id}
-                        className="p-3 rounded-xl bg-slate-50 hover:bg-orange-50/40 border border-slate-200/80 transition text-xs space-y-2"
+                        className={`p-3 rounded-xl border transition text-xs space-y-2 ${
+                          isSelected
+                            ? "bg-orange-50/30 border-orange-300/80 shadow-2xs"
+                            : "bg-slate-50 hover:bg-orange-50/20 border-slate-200/80"
+                        }`}
                       >
-                        {/* Top row: rank + name + website link + score badge */}
+                        {/* Top row: checkbox + rank + name + website link + score badge */}
                         <div className="flex items-start justify-between gap-2">
                           <div className="flex items-start gap-2 min-w-0">
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={() => {
+                                setSelectedMatchIds((prev) => {
+                                  const next = new Set(prev);
+                                  if (next.has(m.id)) next.delete(m.id);
+                                  else next.add(m.id);
+                                  return next;
+                                });
+                              }}
+                              className="mt-1 w-3.5 h-3.5 rounded border-slate-300 text-orange-600 focus:ring-orange-500 cursor-pointer shrink-0"
+                              title="Select factory for initial cooperation email"
+                            />
                             <span className="w-5 h-5 rounded-full bg-slate-200 text-slate-600 text-[10px] font-black flex items-center justify-center flex-shrink-0 mt-0.5">
                               {idx + 1}
                             </span>
@@ -2864,6 +3215,11 @@ export default function SourcingDealDesk({
                                     <span className="truncate">{websiteInfo.label}</span>
                                     <span>↗</span>
                                   </a>
+                                )}
+                                {isAlreadySent && (
+                                  <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-purple-100 text-purple-800 border border-purple-200 text-[10px] font-bold">
+                                    ✓ Email Sent
+                                  </span>
                                 )}
                               </div>
                               <div className="text-slate-500 mt-0.5 leading-tight">{m.product_name}</div>
@@ -2931,15 +3287,37 @@ export default function SourcingDealDesk({
                           </div>
                         )}
 
-                        {/* Action row */}
-                        {createdRequestId && (
-                          <Link
-                            href={`/admin/requests/${createdRequestId}#match-${m.supplier_id}`}
-                            className="inline-flex items-center gap-1 text-[11px] font-bold text-orange-600 hover:text-orange-700"
-                          >
-                            View RFQ & Contact →
-                          </Link>
-                        )}
+                        {/* Action & Contact row */}
+                        <div className="flex items-center justify-between gap-2 pt-1 border-t border-slate-200/60">
+                          <span className="text-[10px] text-slate-500 truncate max-w-[190px]">
+                            {resolvedEmail ? (
+                              <span className="text-slate-700 font-medium">📧 {resolvedEmail}</span>
+                            ) : (
+                              <span className="text-amber-700">📧 Click Email to add address</span>
+                            )}
+                          </span>
+                          <div className="flex items-center gap-2 shrink-0">
+                            {briefStatus === "confirmed" && (
+                              <button
+                                type="button"
+                                onClick={() => openSupplierOutreachComposer([m.id])}
+                                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-orange-100 hover:bg-orange-200 text-orange-800 font-bold text-[10px] transition cursor-pointer"
+                                title={`Compose initial cooperation email to ${m.company_name}`}
+                              >
+                                <span>✉️</span>
+                                <span>Email Factory</span>
+                              </button>
+                            )}
+                            {createdRequestId && (
+                              <Link
+                                href={`/admin/requests/${createdRequestId}#match-${m.supplier_id}`}
+                                className="inline-flex items-center gap-1 text-[11px] font-bold text-orange-600 hover:text-orange-700"
+                              >
+                                Workspace →
+                              </Link>
+                            )}
+                          </div>
+                        </div>
                       </div>
                     );
                   })}
@@ -3313,6 +3691,284 @@ export default function SourcingDealDesk({
                 <span>Email Buyer to Confirm</span>
               </button>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* ── STAGE 6: INITIAL SUPPLIER COOPERATION EMAIL COMPOSER MODAL ── */}
+      {showOutreachModal && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 overflow-y-auto animate-in fade-in duration-150">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl max-w-4xl w-full max-h-[92vh] flex flex-col overflow-hidden my-auto">
+            {/* Header */}
+            <div className="p-4 sm:p-5 border-b border-slate-200 flex items-center justify-between bg-slate-900 text-white shrink-0">
+              <div className="flex items-center gap-3">
+                <span className="w-9 h-9 rounded-xl bg-orange-500/20 border border-orange-400/30 text-amber-300 flex items-center justify-center font-bold text-base">
+                  ✉️
+                </span>
+                <div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h3 className="text-sm sm:text-base font-bold text-white">
+                      Initial Factory Cooperation Outreach
+                    </h3>
+                    {requestRefTag && (
+                      <span className="text-[11px] font-mono font-bold px-2 py-0.5 rounded bg-amber-400/20 text-amber-300 border border-amber-400/30">
+                        {requestRefTag}
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-slate-300">
+                    Send personalized cooperation &amp; RFQ inquiries to {selectedMatchIds.size || liveMatches.length} selected European{" "}
+                    {(selectedMatchIds.size || liveMatches.length) === 1 ? "factory" : "factories"}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowOutreachModal(false)}
+                className="w-8 h-8 rounded-lg bg-slate-800 border border-slate-700 text-slate-300 hover:text-white flex items-center justify-center transition cursor-pointer text-sm font-bold"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="p-4 sm:p-6 overflow-y-auto space-y-5 text-xs sm:text-sm">
+              {outreachResults ? (
+                <div className="space-y-4">
+                  <div className="p-3.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-900 font-bold text-xs flex items-center justify-between">
+                    <span>
+                      ✓ Dispatched {outreachResults.filter((r) => r.success).length} of {outreachResults.length} factory cooperation emails ({requestRefTag})
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setOutreachResults(null)}
+                      className="text-[11px] underline text-emerald-800 hover:text-emerald-950 cursor-pointer"
+                    >
+                      ← Back to Composer
+                    </button>
+                  </div>
+                  <div className="divide-y divide-slate-100 border border-slate-200 rounded-xl overflow-hidden">
+                    {outreachResults.map((r) => (
+                      <div key={r.matchId} className="flex items-center justify-between px-4 py-2.5 text-xs bg-white">
+                        <span className="font-bold text-slate-800">{r.company_name || r.matchId}</span>
+                        {r.success ? (
+                          <span className="text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md font-bold">
+                            ✓ Sent ({r.via || "email"})
+                          </span>
+                        ) : (
+                          <span className="text-rose-700 bg-rose-50 border border-rose-200 px-2 py-0.5 rounded-md font-semibold">
+                            ✗ {r.error || "Failed"}
+                          </span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <>
+                  {/* 1. Selected Factories & Recipient Emails Table */}
+                  <div className="border border-slate-200 rounded-xl overflow-hidden bg-slate-50/60">
+                    <div className="px-3.5 py-2.5 bg-slate-100 border-b border-slate-200 flex items-center justify-between gap-2 flex-wrap">
+                      <span className="text-xs font-bold text-slate-800">
+                        1. Recipient Factories ({selectedMatchIds.size}) — Verify or Enter Contact Email
+                      </span>
+                      <span className="text-[11px] text-slate-500">
+                        Tip: Click 🌐 website to grab a factory&apos;s export email, or click 📬 Open in Gmail
+                      </span>
+                    </div>
+                    <div className="max-h-52 overflow-y-auto divide-y divide-slate-200/70">
+                      {liveMatches
+                        .filter((m) => selectedMatchIds.has(m.id))
+                        .map((m, idx) => {
+                          const bd = m.match_breakdown ?? {};
+                          const web = formatWebsiteLabel(m.website || bd.website);
+                          const emailVal = supplierEmailOverrides[m.id] ?? m.contact_email ?? "";
+                          const renderedSubj = renderOutreachText(outreachSubject, m);
+                          const renderedBodyText = renderOutreachText(outreachBody, m);
+                          const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(
+                            emailVal
+                          )}&su=${encodeURIComponent(renderedSubj)}&body=${encodeURIComponent(renderedBodyText)}`;
+
+                          return (
+                            <div
+                              key={m.id}
+                              className="px-3.5 py-2 bg-white flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs"
+                            >
+                              <div className="flex items-center gap-2 min-w-0">
+                                <span className="w-5 h-5 rounded-full bg-slate-200 text-slate-700 text-[10px] font-black flex items-center justify-center shrink-0">
+                                  {idx + 1}
+                                </span>
+                                <span className="font-bold text-slate-900 truncate">{m.company_name}</span>
+                                <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-800 font-bold shrink-0">
+                                  {m.match_score}%
+                                </span>
+                                {web && (
+                                  <a
+                                    href={web.href}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-[10px] font-semibold text-indigo-600 hover:underline truncate max-w-[140px]"
+                                  >
+                                    🌐 {web.label} ↗
+                                  </a>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-2 shrink-0">
+                                <input
+                                  type="email"
+                                  value={emailVal}
+                                  onChange={(e) =>
+                                    setSupplierEmailOverrides((prev) => ({
+                                      ...prev,
+                                      [m.id]: e.target.value,
+                                    }))
+                                  }
+                                  placeholder="export@factory.com"
+                                  className="w-48 sm:w-56 px-2.5 py-1 rounded-lg border border-slate-300 bg-white text-xs text-slate-800 focus:border-orange-500 outline-none"
+                                />
+                                <a
+                                  href={gmailUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-[11px] whitespace-nowrap transition"
+                                  title="Open pre-filled draft in Gmail web compose"
+                                >
+                                  📬 Gmail ↗
+                                </a>
+                              </div>
+                            </div>
+                          );
+                        })}
+                    </div>
+                  </div>
+
+                  {/* 2. Subject & Response Deadline */}
+                  <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+                    <div className="sm:col-span-3">
+                      <label className="block text-xs font-bold text-slate-700 mb-1">
+                        Email Subject Line (includes {requestRefTag}):
+                      </label>
+                      <input
+                        type="text"
+                        value={outreachSubject}
+                        onChange={(e) => setOutreachSubject(e.target.value)}
+                        className="w-full px-3 py-1.5 rounded-lg border border-slate-300 text-xs font-medium text-slate-900 focus:border-orange-500 outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">
+                        Reply Deadline:
+                      </label>
+                      <input
+                        type="date"
+                        value={outreachDeadline}
+                        onChange={(e) => setOutreachDeadline(e.target.value)}
+                        className="w-full px-3 py-1.5 rounded-lg border border-slate-300 text-xs font-medium text-slate-900 focus:border-orange-500 outline-none"
+                      />
+                    </div>
+                  </div>
+
+                  {/* 3. Email Body Template */}
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="text-xs font-bold text-slate-700">
+                        Initial Cooperation Email Body:
+                      </label>
+                      <span className="text-[10px] text-slate-400 font-mono">
+                        Variables: {"{{supplier_company}}"} {"{{matched_product}}"} {"{{request_ref}}"} {"{{deadline}}"}
+                      </span>
+                    </div>
+                    <textarea
+                      rows={11}
+                      value={outreachBody}
+                      onChange={(e) => setOutreachBody(e.target.value)}
+                      className="w-full p-3 rounded-xl border border-slate-300 text-xs font-mono text-slate-800 leading-relaxed focus:border-orange-500 outline-none"
+                    />
+                  </div>
+
+                  {/* 4. Live Personalized Preview per Selected Factory */}
+                  {(() => {
+                    const selectedList = liveMatches.filter((m) => selectedMatchIds.has(m.id));
+                    const previewItem = selectedList[outreachPreviewIdx] || selectedList[0];
+                    if (!previewItem) return null;
+                    return (
+                      <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[11px] font-bold text-slate-600">
+                            👁️ Personalized Preview ({outreachPreviewIdx + 1} of {selectedList.length}):{" "}
+                            <strong className="text-slate-900">{previewItem.company_name}</strong>
+                          </span>
+                          <div className="flex items-center gap-1.5">
+                            <button
+                              type="button"
+                              disabled={outreachPreviewIdx === 0}
+                              onClick={() => setOutreachPreviewIdx((i) => Math.max(0, i - 1))}
+                              className="px-2 py-0.5 rounded border border-slate-200 bg-white text-[11px] disabled:opacity-40 cursor-pointer"
+                            >
+                              ◀ Prev
+                            </button>
+                            <button
+                              type="button"
+                              disabled={outreachPreviewIdx >= selectedList.length - 1}
+                              onClick={() =>
+                                setOutreachPreviewIdx((i) => Math.min(selectedList.length - 1, i + 1))
+                              }
+                              className="px-2 py-0.5 rounded border border-slate-200 bg-white text-[11px] disabled:opacity-40 cursor-pointer"
+                            >
+                              Next ▶
+                            </button>
+                          </div>
+                        </div>
+                        <div className="text-xs font-bold text-slate-800 border-b border-slate-200 pb-1.5">
+                          Subject: {renderOutreachText(outreachSubject, previewItem)}
+                        </div>
+                        <pre className="text-[11px] text-slate-700 whitespace-pre-wrap font-sans leading-relaxed max-h-40 overflow-y-auto">
+                          {renderOutreachText(outreachBody, previewItem)}
+                        </pre>
+                      </div>
+                    );
+                  })()}
+                </>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="p-4 sm:p-5 border-t border-slate-200 bg-slate-50 flex flex-col sm:flex-row items-center justify-between gap-3 shrink-0">
+              <span className="text-[11px] text-slate-500">
+                All replies referencing <strong>{requestRefTag}</strong> automatically sync into the Inbound Correspondence Hub.
+              </span>
+              <div className="flex items-center gap-2.5 w-full sm:w-auto">
+                <button
+                  type="button"
+                  onClick={() => setShowOutreachModal(false)}
+                  className="px-4 py-2 rounded-xl bg-white border border-slate-200 text-slate-700 font-semibold hover:bg-slate-100 text-xs transition cursor-pointer"
+                >
+                  Close
+                </button>
+                {!outreachResults && (
+                  <button
+                    type="button"
+                    onClick={handleDispatchSupplierOutreach}
+                    disabled={sendingOutreach || selectedMatchIds.size === 0}
+                    className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-700 hover:to-amber-700 text-white font-bold text-xs shadow-md shadow-orange-500/20 transition cursor-pointer flex items-center justify-center gap-1.5 disabled:opacity-50"
+                  >
+                    {sendingOutreach ? (
+                      <>
+                        <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        <span>Sending {selectedMatchIds.size} Cooperation Emails...</span>
+                      </>
+                    ) : (
+                      <>
+                        <span>🚀</span>
+                        <span>
+                          Send Initial Cooperation Emails ({selectedMatchIds.size}) · {requestRefTag}
+                        </span>
+                      </>
+                    )}
+                  </button>
+                )}
+              </div>
+            </div>
           </div>
         </div>
       )}

@@ -75,6 +75,7 @@ export async function saveGmailCredentials(creds: GmailCredentials): Promise<voi
 
 export interface SendGmailOptions {
   matchId: string;
+  requestId?: string | null;
   to: string;
   subject: string;
   bodyText: string;
@@ -97,9 +98,17 @@ export async function sendSupplierEmailSmart(
   opts: SendGmailOptions
 ): Promise<SendGmailResult> {
   const refTag = getMatchRefTag(opts.matchId);
-  const baseSubject = opts.subject.includes(refTag)
-    ? opts.subject
-    : `${opts.subject} [${refTag}]`;
+  const reqRefTag = opts.requestId
+    ? `FDX-REQ-${opts.requestId.replace(/-/g, "").slice(0, 8).toUpperCase()}`
+    : null;
+
+  let baseSubject = opts.subject;
+  if (reqRefTag && !baseSubject.toUpperCase().includes(reqRefTag)) {
+    baseSubject = `[${reqRefTag}] ${baseSubject}`;
+  }
+  if (!baseSubject.includes(refTag)) {
+    baseSubject = `${baseSubject} [${refTag}]`;
+  }
 
   const finalSubject =
     opts.isFollowUp && !/^re:/i.test(baseSubject)
@@ -132,7 +141,7 @@ export async function sendSupplierEmailSmart(
   <p style="color:#334155;font-size:14px;line-height:1.6;margin:24px 0 0;">
     Best regards,<br/>
     <strong>FoodXchange Sourcing Team</strong><br/>
-    <span style="color:#64748b;font-size:12px;">www.fdx.trading · Ref: ${refTag}</span>
+    <span style="color:#64748b;font-size:12px;">www.fdx.trading · ${reqRefTag ? `Project Ref: [${reqRefTag}] · ` : ""}Match Ref: [${refTag}]</span>
   </p>
   ${quotedPreviousHtml}
 </div>`;
@@ -156,6 +165,7 @@ export async function sendSupplierEmailSmart(
       const headers: Record<string, string> = {
         "X-FDX-Match-ID": opts.matchId,
         "X-FDX-Ref": refTag,
+        ...(reqRefTag ? { "X-FDX-Request-Ref": reqRefTag } : {}),
       };
 
       const mailOptions: {
@@ -369,14 +379,15 @@ export async function syncGmailInboxReplies(): Promise<{
   const { data: activeMatches } = await supabaseAdmin
     .from("sourcing_matches")
     .select(
-      `id, supplier_id, company_name, status, sent_at, supplier_responded_at, match_breakdown,
+      `id, request_id, supplier_id, company_name, status, sent_at, supplier_responded_at, match_breakdown,
        supplier:supplier_offerings(contact_email)`
     )
-    .in("status", ["sent", "rfq_sent", "approved", "responded", "pending"])
+    .in("status", ["sent", "rfq_sent", "approved", "responded", "pending", "suggested"])
     .limit(500);
 
   const matchesList = ((activeMatches ?? []) as unknown) as Array<{
     id: string;
+    request_id: string | null;
     supplier_id: string;
     company_name: string | null;
     status: string;
@@ -416,6 +427,8 @@ export async function syncGmailInboxReplies(): Promise<{
   }>;
 
   const refToMatch = new Map<string, (typeof matchesList)[number]>();
+  const reqRefAndEmailToMatch = new Map<string, (typeof matchesList)[number]>();
+  const reqRefFallbackToMatch = new Map<string, (typeof matchesList)[number]>();
   const emailToMatch = new Map<string, (typeof matchesList)[number]>();
 
   for (const m of matchesList) {
@@ -423,6 +436,15 @@ export async function syncGmailInboxReplies(): Promise<{
     const supObj = Array.isArray(m.supplier) ? m.supplier[0] : m.supplier;
     const em = supObj?.contact_email?.toLowerCase().trim();
     if (em) emailToMatch.set(em, m);
+    if (m.request_id) {
+      const reqRef = `FDX-REQ-${m.request_id.replace(/-/g, "").slice(0, 8).toUpperCase()}`;
+      if (!reqRefFallbackToMatch.has(reqRef)) {
+        reqRefFallbackToMatch.set(reqRef, m);
+      }
+      if (em) {
+        reqRefAndEmailToMatch.set(`${reqRef}::${em}`, m);
+      }
+    }
   }
 
   const refToAssortment = new Map<string, (typeof assortmentList)[number]>();
@@ -476,10 +498,14 @@ export async function syncGmailInboxReplies(): Promise<{
           const subj = env.subject ?? "";
           const refMatch = subj.match(/FDX-[A-F0-9]{8}/i);
           const refTagStr = refMatch ? refMatch[0].toUpperCase() : null;
+          const reqRefMatch = subj.match(/FDX-REQ-[A-F0-9]{8}/i);
+          const reqRefTagStr = reqRefMatch ? reqRefMatch[0].toUpperCase() : null;
 
           const matchedRecord =
             (refTagStr ? refToMatch.get(refTagStr) : undefined) ??
-            emailToMatch.get(fromAddr);
+            (reqRefTagStr && fromAddr ? reqRefAndEmailToMatch.get(`${reqRefTagStr}::${fromAddr}`) : undefined) ??
+            emailToMatch.get(fromAddr) ??
+            (reqRefTagStr ? reqRefFallbackToMatch.get(reqRefTagStr) : undefined);
 
           const matchedAssortmentEntry =
             (refTagStr && refToAssortment.has(refTagStr)
