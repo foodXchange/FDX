@@ -538,6 +538,42 @@ export default function SourcingDealDesk({
     } catch {}
   }
 
+  // Strip tracking query params (srsltid, utm_*, fbclid, gclid) from URLs for clean B2B briefs & links
+  function cleanTrackingUrl(raw: string): string {
+    if (!raw) return "";
+    return raw.replace(
+      /(https?:\/\/[^\s,)]+)/gi,
+      (match) => {
+        try {
+          const u = new URL(match);
+          ["srsltid", "utm_source", "utm_medium", "utm_campaign", "utm_term", "utm_content", "fbclid", "gclid"].forEach((p) =>
+            u.searchParams.delete(p)
+          );
+          const out = u.toString();
+          return out.endsWith("/?") ? out.slice(0, -2) : out.replace(/\/$/, "");
+        } catch {
+          return match;
+        }
+      }
+    );
+  }
+
+  function formatWebsiteLabel(rawUrl?: string | null): { href: string; label: string } | null {
+    if (!rawUrl || !rawUrl.trim()) return null;
+    const trimmed = rawUrl.trim();
+    const withProto = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+    try {
+      const u = new URL(withProto);
+      ["srsltid", "utm_source", "utm_medium", "utm_campaign", "utm_term", "utm_content", "fbclid", "gclid"].forEach((p) =>
+        u.searchParams.delete(p)
+      );
+      const host = u.hostname.replace(/^www\./i, "");
+      return { href: u.toString(), label: host };
+    } catch {
+      return { href: withProto, label: trimmed.replace(/^https?:\/\/(www\.)?/i, "").split("/")[0] };
+    }
+  }
+
   // Generate / Synthesize Layer 4 Sourcing Brief from current Layer 1, 2, 3 state
   function generateSourcingBrief() {
     const lines: string[] = [];
@@ -555,7 +591,7 @@ export default function SourcingDealDesk({
     lines.push("### 1. Commercial Scope & Logistics Requirements");
     lines.push(`- Category: ${category || "General Specialty Food"}`);
     if (benchmarkBrands.trim()) {
-      lines.push(`- Benchmark Reference Brand(s): ${benchmarkBrands.trim()}`);
+      lines.push(`- Benchmark Reference Brand(s): ${cleanTrackingUrl(benchmarkBrands.trim())}`);
     }
     const brandingLabel =
       brandingModel === "private_label"
@@ -583,7 +619,7 @@ export default function SourcingDealDesk({
         if (p.manufacturer) lines.push(`- Legal Producer / Factory: ${p.manufacturer}`);
         const origin = [p.origin_state, p.origin_country].filter(Boolean).join(", ");
         if (origin) lines.push(`- Origin / Region: ${origin}`);
-        if (p.company_website) lines.push(`- Producer Website: ${p.company_website}`);
+        if (p.company_website) lines.push(`- Producer Website: ${cleanTrackingUrl(p.company_website)}`);
         if (p.eu_factory_code) lines.push(`- EU Sanitary Oval Code: ${p.eu_factory_code}`);
         if (p.packaging_format) lines.push(`- Packaging Format: ${p.packaging_format}`);
         if (p.net_weight) lines.push(`- Net Weight / Unit Size: ${p.net_weight}`);
@@ -960,7 +996,18 @@ export default function SourcingDealDesk({
       const raw = localStorage.getItem("fdx_deal_desk_draft");
       if (raw) {
         const d = JSON.parse(raw);
-        if (d.requestId) setCreatedRequestId(d.requestId);
+        if (d.requestId) {
+          setCreatedRequestId(d.requestId);
+          // Load live factory matches for restored request immediately
+          setFetchingMatches(true);
+          getQuickMatchesAction(d.requestId)
+            .then((res) => {
+              if (res.ok && res.matches.length > 0) {
+                setLiveMatches(res.matches);
+              }
+            })
+            .finally(() => setFetchingMatches(false));
+        }
         if (d.projectTitle) setProjectTitle(d.projectTitle);
         if (d.benchmarkBrands) setBenchmarkBrands(d.benchmarkBrands);
         if (d.category) setCategory(d.category);
@@ -981,7 +1028,15 @@ export default function SourcingDealDesk({
         if (d.naturalBrief) setNaturalBrief(d.naturalBrief);
         if (Array.isArray(d.imageUrls)) setImageUrls(d.imageUrls);
         if (d.layeredAnalysis) setLayeredAnalysis(d.layeredAnalysis);
-        if (d.briefStatus) setBriefStatus(d.briefStatus);
+
+        // Prefer authoritative DB brief_status if request was already confirmed in Supabase
+        const dbRow = d.requestId ? requests.find((r) => r.id === d.requestId) : null;
+        if (dbRow?.brief_status === "confirmed" || dbRow?.brief_status === "sent") {
+          setBriefStatus(dbRow.brief_status);
+        } else if (d.briefStatus) {
+          setBriefStatus(d.briefStatus);
+        }
+
         if (d.buyerId) {
           const matched = initialBuyers.find((b) => b.id === d.buyerId);
           if (matched) {
@@ -1001,7 +1056,7 @@ export default function SourcingDealDesk({
     } catch (e) {
       console.warn("Could not parse saved draft", e);
     }
-  }, [initialBuyers, initialEditId, initialBuyerId]);
+  }, [initialBuyers, initialEditId, initialBuyerId, requests]);
 
   // Open Preview Modal before sending confirmation email
   function handleOpenEmailPreviewModal() {
@@ -1106,6 +1161,25 @@ export default function SourcingDealDesk({
       if (res.ok) {
         setBriefStatus("confirmed");
         setShowOverrideModal(false);
+        try {
+          const raw = localStorage.getItem("fdx_deal_desk_draft");
+          if (raw) {
+            const d = JSON.parse(raw);
+            d.briefStatus = "confirmed";
+            localStorage.setItem("fdx_deal_desk_draft", JSON.stringify(d));
+          }
+        } catch {}
+
+        // Automatically run reverse-matching so the right-hand Factory Matches feed refreshes immediately
+        setRerunningMatches(true);
+        rerunMatchingAction(currentId)
+          .then((matchRes) => {
+            if (matchRes.ok) {
+              setLiveMatches(matchRes.matches || []);
+            }
+          })
+          .finally(() => setRerunningMatches(false));
+
         setSaveToast({
           visible: true,
           savedAt: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
@@ -1238,7 +1312,7 @@ export default function SourcingDealDesk({
     <main className="min-h-screen bg-slate-50 text-slate-900 pb-20">
       {/* ── TOP OPERATIONAL APP BAR ── */}
       <header className="bg-white border-b border-slate-200/90 sticky top-0 z-20 shadow-2xs">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
+        <div className="max-w-[1680px] w-full mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-orange-500 to-amber-600 text-white flex items-center justify-center font-black text-base shadow-sm">
               FDX
@@ -1378,7 +1452,7 @@ export default function SourcingDealDesk({
       )}
 
       {activeTab === "intake_desk" ? (
-        <div className="p-4 sm:p-6 max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        <div className="p-4 sm:p-6 lg:px-8 max-w-[1680px] w-full mx-auto grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
           {/* ── LEFT PANEL: 5-STEP COLLAPSIBLE FUNNEL (col 7) ── */}
           <div className="lg:col-span-7 space-y-4">
             {/* Active Request Context Bar */}
@@ -2560,14 +2634,69 @@ export default function SourcingDealDesk({
                       <p className="text-xs text-slate-600 leading-relaxed">
                         Supplier matchmaking will unlock immediately once the buyer approves this sourcing brief via their secure link, or after you apply an Admin Override. This guarantees factory outreach only runs on 100% verified specifications.
                       </p>
-                      <button
-                        type="button"
-                        disabled
-                        className="w-full py-2.5 px-4 rounded-xl bg-slate-200 text-slate-400 font-bold text-xs cursor-not-allowed flex items-center justify-center gap-2"
-                      >
-                        <span>🔒</span>
-                        <span>Reverse-Matching Locked (Confirm Brief to Unlock)</span>
-                      </button>
+                      <div className="flex flex-col sm:flex-row gap-2">
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            if (!selectedBuyer) {
+                              setErrorMsg("Please select or quick-register a buyer in Step 1 first.");
+                              return;
+                            }
+                            if (!projectTitle.trim()) {
+                              setErrorMsg("Please enter a product title in Step 2 first.");
+                              return;
+                            }
+                            setIsOverridingConfirm(true);
+                            setErrorMsg(null);
+                            try {
+                              let currentId = createdRequestId;
+                              if (!currentId) {
+                                currentId = await handleSaveDraft(true);
+                              }
+                              if (!currentId) {
+                                setErrorMsg("Could not save draft before quick confirm.");
+                                return;
+                              }
+                              const confRes = await adminOverrideConfirmBriefAction({
+                                requestId: currentId,
+                                notes: "1-Click Quick Confirm & Match via Deal Desk",
+                              });
+                              if (!confRes.ok) {
+                                setErrorMsg(confRes.error || "Confirmation override failed");
+                                return;
+                              }
+                              setBriefStatus("confirmed");
+                              setFetchingMatches(true);
+                              const matchRes = await getQuickMatchesAction(currentId);
+                              if (matchRes.ok) {
+                                setLiveMatches(matchRes.matches || []);
+                              } else {
+                                setErrorMsg(matchRes.error || "Match ranking failed");
+                              }
+                            } catch (err: any) {
+                              setErrorMsg(err?.message || "Quick confirm & match failed");
+                            } finally {
+                              setIsOverridingConfirm(false);
+                              setFetchingMatches(false);
+                            }
+                          }}
+                          disabled={isOverridingConfirm || fetchingMatches}
+                          className="w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:opacity-95 text-white font-bold text-xs shadow-sm transition cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50"
+                          title="Confirm brief and immediately run reverse-matching across European factories in 1 click"
+                        >
+                          {isOverridingConfirm || fetchingMatches ? (
+                            <>
+                              <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                              <span>Confirming & Matching Factories...</span>
+                            </>
+                          ) : (
+                            <>
+                              <span>⚡</span>
+                              <span>1-Click Quick Confirm & Run Reverse-Match</span>
+                            </>
+                          )}
+                        </button>
+                      </div>
                     </div>
                   ) : (
                     <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-950 space-y-3">
@@ -2623,7 +2752,7 @@ export default function SourcingDealDesk({
           </div>
 
           {/* ── RIGHT PANEL: LIVE MATCHES & RECENT PROJECTS (col 5) ── */}
-          <div className="lg:col-span-5 space-y-5">
+          <div className="lg:col-span-5 space-y-5 lg:sticky lg:top-20 lg:max-h-[calc(100vh-5.5rem)] lg:overflow-y-auto pr-1">
             {/* Live Matches Card */}
             <div className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-xs">
               <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-3">
@@ -2707,20 +2836,36 @@ export default function SourcingDealDesk({
                     const matchedCerts: string[] = Array.isArray(bd.matched_certifications)
                       ? bd.matched_certifications
                       : [];
+                    const websiteInfo = formatWebsiteLabel(m.website || bd.website);
 
                     return (
                       <div
                         key={m.id}
                         className="p-3 rounded-xl bg-slate-50 hover:bg-orange-50/40 border border-slate-200/80 transition text-xs space-y-2"
                       >
-                        {/* Top row: rank + name + score badge */}
+                        {/* Top row: rank + name + website link + score badge */}
                         <div className="flex items-start justify-between gap-2">
-                          <div className="flex items-start gap-2">
+                          <div className="flex items-start gap-2 min-w-0">
                             <span className="w-5 h-5 rounded-full bg-slate-200 text-slate-600 text-[10px] font-black flex items-center justify-center flex-shrink-0 mt-0.5">
                               {idx + 1}
                             </span>
-                            <div>
-                              <div className="font-bold text-slate-900 leading-tight">{m.company_name}</div>
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="font-bold text-slate-900 leading-tight">{m.company_name}</span>
+                                {websiteInfo && (
+                                  <a
+                                    href={websiteInfo.href}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200/80 text-[10px] font-semibold transition truncate max-w-[180px]"
+                                    title={`Open ${websiteInfo.href}`}
+                                  >
+                                    <span>🌐</span>
+                                    <span className="truncate">{websiteInfo.label}</span>
+                                    <span>↗</span>
+                                  </a>
+                                )}
+                              </div>
                               <div className="text-slate-500 mt-0.5 leading-tight">{m.product_name}</div>
                             </div>
                           </div>
@@ -2845,7 +2990,7 @@ export default function SourcingDealDesk({
         </div>
       ) : (
         /* ── VIEW 2: FULL TABULAR REGISTRY & MULTI-PROJECT RADAR ── */
-        <div className="p-4 sm:p-6 max-w-7xl mx-auto space-y-6">
+        <div className="p-4 sm:p-6 lg:px-8 max-w-[1680px] w-full mx-auto space-y-6">
           {/* Registry navigation bar: return to the Intake Desk / resume the active request */}
           <div className="bg-white border border-slate-200 rounded-2xl p-3 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
             <div className="flex items-center gap-2 text-xs">

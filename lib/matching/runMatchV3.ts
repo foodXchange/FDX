@@ -23,6 +23,7 @@ export type MatchV3Row = {
     kosher_types?: string[];
     matched_certifications?: string[];
     cert_boost?: number;
+    website?: string | null;
   };
   summary: string;
 };
@@ -98,15 +99,16 @@ export type RequestFallbackFields = {
 };
 
 function composeFallbackText(fallback: RequestFallbackFields): string {
-  const parts = [fallback.productName, fallback.category, fallback.message];
+  const skuParts: string[] = [];
   if (fallback.layeredProducts && fallback.layeredProducts.length > 0) {
     for (const p of fallback.layeredProducts) {
-      const desc = [p.product_name, p.sub_type, p.brand_name]
+      const desc = [p.sub_type, p.product_name]
         .filter((v): v is string => typeof v === "string" && v.trim().length > 0)
         .join(" ");
-      if (desc) parts.push(desc);
+      if (desc) skuParts.push(desc);
     }
   }
+  const parts = [...skuParts, fallback.productName, fallback.category, fallback.message];
   return parts
     .filter((v): v is string => typeof v === "string" && v.trim().length > 1)
     .join(". ");
@@ -223,12 +225,84 @@ const STOP_WORDS = new Set([
   "zero",
   "high",
   "low",
+  // Brief template & commercial boilerplate words
+  "target",
+  "market",
+  "israel",
+  "buyer",
+  "account",
+  "foodxchange",
+  "importer",
+  "distributor",
+  "commercial",
+  "scope",
+  "logistics",
+  "requirements",
+  "category",
+  "confectionery",
+  "benchmark",
+  "reference",
+  "brands",
+  "branding",
+  "model",
+  "factory",
+  "temperature",
+  "regime",
+  "chilled",
+  "ambient",
+  "frozen",
+  "format",
+  "shelf",
+  "packs",
+  "consolidated",
+  "mixed",
+  "container",
+  "estimated",
+  "volume",
+  "order",
+  "cadence",
+  "month",
+  "pallets",
+  "required",
+  "claims",
+  "quality",
+  "certifications",
+  "friendly",
+  "brc",
+  "ifs",
+  "lineup",
+  "formulation",
+  "specifications",
+  "skus",
+  "sku",
+  "sub",
+  "type",
+  "stand",
+  "pouch",
+  "net",
+  "weight",
+  "unit",
+  "added",
+  "synthesis",
+  "summary",
+  "guidance",
+  "premium",
+  "packaged",
+  "pouches",
+  "matching",
+  "carb",
+  "http",
+  "https",
+  "www",
+  "com",
+  "choczero",
 ]);
 
 function extractCoreKeywords(text: string): string[] {
+  const withoutUrls = text.replace(/https?:\/\/\S+/gi, " ");
   return Array.from(
     new Set(
-      text
+      withoutUrls
         .toLowerCase()
         .replace(/[^a-z0-9\s]/g, " ")
         .split(/\s+/)
@@ -301,6 +375,7 @@ async function runFastCategoryAndKeywordHybridMatch(opts: {
       id: string;
       company_name: string;
       country_of_origin: string | null;
+      website?: string | null;
       verified: boolean | null;
       israeli_market_fit: string | null;
       certifications: string[] | null;
@@ -310,7 +385,7 @@ async function runFastCategoryAndKeywordHybridMatch(opts: {
   };
 
   const selectCols =
-    "id, product_name, category, category_id, formats, certifications, kosher_types, kosher_level, temperature, is_gluten_free, is_sugar_free, is_organic, is_halal, private_label, manually_verified, embedding, supplier_id, supplier:supplier_offerings!inner(id, company_name, country_of_origin, verified, israeli_market_fit, certifications, kosher_types, status)";
+    "id, product_name, category, category_id, formats, certifications, kosher_types, kosher_level, temperature, is_gluten_free, is_sugar_free, is_organic, is_halal, private_label, manually_verified, embedding, supplier_id, supplier:supplier_offerings!inner(id, company_name, country_of_origin, website, verified, israeli_market_fit, certifications, kosher_types, status)";
 
   const queries = [];
 
@@ -329,7 +404,7 @@ async function runFastCategoryAndKeywordHybridMatch(opts: {
     queries.push(qNoun.limit(300));
   }
 
-  // 2. Category UUID matches
+    // 2. Category UUID matches
   if (opts.categoryId) {
     let qCat = supabaseAdmin
       .from("supplier_products")
@@ -352,6 +427,38 @@ async function runFastCategoryAndKeywordHybridMatch(opts: {
       qCatText = qCatText.eq("private_label", true);
     }
     queries.push(qCatText.limit(300));
+  }
+
+  // 3. Dedicated Dietary / Sugar-Free / Keto / Gluten-Free candidate retrieval
+  // Ensures specialized functional producers (even if categorized under "Snacks" or "Other") are never cut off by limit(300)
+  const reqCertLower = opts.reqCertifications.map((c) => c.toLowerCase());
+  const wantsSugarFreeOrKeto = reqCertLower.some((c) => c.includes("sugar") || c.includes("keto"));
+  const wantsGlutenFree = reqCertLower.some((c) => c.includes("gluten"));
+
+  if (wantsSugarFreeOrKeto) {
+    let qFunctional = supabaseAdmin
+      .from("supplier_products")
+      .select(selectCols)
+      .eq("supplier.status", "approved")
+      .eq("needs_review", false)
+      .or(
+        "is_sugar_free.eq.true,product_name.ilike.%sugar%,product_name.ilike.%keto%,product_name.ilike.%zusto%,product_name.ilike.%zùsto%,product_name.ilike.%stevia%"
+      );
+    if (opts.privateLabelRequired === true) {
+      qFunctional = qFunctional.eq("private_label", true);
+    }
+    queries.push(qFunctional.limit(300));
+  } else if (wantsGlutenFree) {
+    let qGf = supabaseAdmin
+      .from("supplier_products")
+      .select(selectCols)
+      .eq("supplier.status", "approved")
+      .eq("needs_review", false)
+      .eq("is_gluten_free", true);
+    if (opts.privateLabelRequired === true) {
+      qGf = qGf.eq("private_label", true);
+    }
+    queries.push(qGf.limit(250));
   }
 
   if (queries.length === 0) return [];
@@ -479,7 +586,19 @@ async function runFastCategoryAndKeywordHybridMatch(opts: {
           textCorpus.includes("sugar free") ||
           textCorpus.includes("sugar-free") ||
           textCorpus.includes("no sugar") ||
+          textCorpus.includes("no added sugar") ||
+          textCorpus.includes("0% added sugar") ||
+          textCorpus.includes("0g sugar") ||
+          textCorpus.includes("without added sugar") ||
+          textCorpus.includes("without sugar") ||
+          textCorpus.includes("reduced sugar") ||
           textCorpus.includes("zero sugar") ||
+          textCorpus.includes("zuckerfrei") ||
+          textCorpus.includes("senza zucchero") ||
+          textCorpus.includes("sin azucar") ||
+          textCorpus.includes("sans sucre") ||
+          textCorpus.includes("zusto") ||
+          textCorpus.includes("zùsto") ||
           Boolean((c as Record<string, unknown>).is_sugar_free);
       } else if (tagLower.includes("organic")) {
         isHit =
@@ -508,6 +627,57 @@ async function runFastCategoryAndKeywordHybridMatch(opts: {
     // Plus beneficial boost: +4 points per matched requested tag (up to +15 bonus points)
     const certBooster = Math.min(15, matchedCertifications.length * 4);
     const ptsCompliance = 5 + certBooster;
+
+    // ── Functional Formulation & Product Form Alignment ─────────────────
+    // When buyer explicitly requests Sugar-Free or Keto, reward actual Sugar-Free/Keto
+    // formulations and penalize conventional sugary items so audit certs alone cannot outrank
+    // true dietary formulation matches.
+    let formulationAdjustment = 0;
+    const matchedLower = matchedCertifications.map((m) => m.toLowerCase());
+    const hasSugarFreeHit = matchedLower.some((m) => m.includes("sugar"));
+    const hasKetoHit = matchedLower.some((m) => m.includes("keto"));
+    if (wantsSugarFreeOrKeto) {
+      if (hasSugarFreeHit) formulationAdjustment += 8;
+      if (hasKetoHit) formulationAdjustment += 6;
+      if (!hasSugarFreeHit && !hasKetoHit) {
+        formulationAdjustment -= 10;
+      }
+    }
+
+    // Form-factor precision: when sourcing solid chocolate (bark, bar, tablet),
+    // penalize spreads, peanut butter, muffins, cookies, biscuits, wafers, and beverage powders.
+    const reqTextLower = opts.productText.toLowerCase();
+    const wantsSolidChocolate =
+      (reqTextLower.includes("bark") || reqTextLower.includes("chocolate bar") || reqTextLower.includes("tablet")) &&
+      !reqTextLower.includes("spread") &&
+      !reqTextLower.includes("cookie") &&
+      !reqTextLower.includes("muffin") &&
+      !reqTextLower.includes("wafer");
+
+    if (wantsSolidChocolate) {
+      if (
+        nameLower.includes("spread") ||
+        nameLower.includes("peanut butter") ||
+        nameLower.includes("muffin") ||
+        nameLower.includes("cookie") ||
+        nameLower.includes("biscuit") ||
+        nameLower.includes("wafer") ||
+        nameLower.includes("powder") ||
+        nameLower.includes("drinking") ||
+        nameLower.includes("beverage") ||
+        nameLower.includes("syrup") ||
+        nameLower.includes("granola")
+      ) {
+        formulationAdjustment -= 14;
+      } else if (
+        nameLower.includes("bar") ||
+        nameLower.includes("bark") ||
+        nameLower.includes("tablet") ||
+        nameLower.includes("chocolate")
+      ) {
+        formulationAdjustment += 5;
+      }
+    }
 
     // pts_evidence (up to 10)
     // Global GFSI / Food safety audit cert presence gives +2 points confidence
@@ -571,7 +741,18 @@ async function runFastCategoryAndKeywordHybridMatch(opts: {
 
     const totalScore = Math.max(
       0,
-      ptsCategory + ptsVector + ptsFormat + ptsCompliance + ptsEvidence + tempBonus + originBonus + exclusionPenalty
+      Math.min(
+        99,
+        ptsCategory +
+          ptsVector +
+          ptsFormat +
+          ptsCompliance +
+          ptsEvidence +
+          tempBonus +
+          originBonus +
+          exclusionPenalty +
+          formulationAdjustment
+      )
     );
 
     const hasKosher =
@@ -619,6 +800,7 @@ async function runFastCategoryAndKeywordHybridMatch(opts: {
         kosher_types: allKosher,
         matched_certifications: matchedCertifications,
         cert_boost: certBooster,
+        website: sup.website ?? null,
       },
       summary: `${sup.company_name}${sup.country_of_origin ? ` · ${sup.country_of_origin}` : ""}${summaryExtra}`,
     });
@@ -748,18 +930,44 @@ export async function runMatchV3(requestId: string): Promise<RunMatchV3Result> {
     const nounBonus = hitCount >= 2 ? 8 : hitCount === 1 ? 5 : 0;
     return {
       ...row,
-      score: row.score + nounBonus,
+      score: Math.min(99, Math.round((row.score + nounBonus) * 100) / 100),
     };
   });
 
   if (combined.length === 0) return { inserted: 0, topScore: 0, matches: [] };
 
-  // Keep best-scoring product per supplier
+  // Keep best-scoring product per supplier (deduplicating by supplier_id, normalized company_name, and website domain)
   const bestPerSupplier = new Map<string, MatchV3Row>();
+  const seenDomains = new Map<string, string>();
   for (const row of combined) {
-    const existing = bestPerSupplier.get(row.supplier_id);
-    if (!existing || row.score > existing.score) {
-      bestPerSupplier.set(row.supplier_id, row);
+    let cleanCompany = row.company_name;
+    if (/^https?:\/\//i.test(cleanCompany)) {
+      try {
+        const host = new URL(cleanCompany).hostname.replace(/^www\./i, "").split(".")[0];
+        cleanCompany = host.charAt(0).toUpperCase() + host.slice(1);
+      } catch {}
+    }
+    const normalizedRow: MatchV3Row = { ...row, company_name: cleanCompany };
+
+    let domainKey = "";
+    if (row.breakdown.website) {
+      try {
+        const rawW = /^https?:\/\//i.test(row.breakdown.website)
+          ? row.breakdown.website
+          : `https://${row.breakdown.website}`;
+        domainKey = new URL(rawW).hostname.replace(/^www\./i, "").toLowerCase();
+      } catch {}
+    }
+
+    const nameKey = cleanCompany ? cleanCompany.trim().toLowerCase() : row.supplier_id;
+    const dedupKey = (domainKey && seenDomains.get(domainKey)) || nameKey;
+    if (domainKey && !seenDomains.has(domainKey)) {
+      seenDomains.set(domainKey, dedupKey);
+    }
+
+    const existing = bestPerSupplier.get(dedupKey);
+    if (!existing || normalizedRow.score > existing.score) {
+      bestPerSupplier.set(dedupKey, normalizedRow);
     }
   }
 

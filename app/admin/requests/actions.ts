@@ -1009,6 +1009,29 @@ export async function createRequestForBuyer(
   return { ok: true, id: requestId as string, matches: initialMatches };
 }
 
+async function enrichMatchesWithSupplierWebsite(matches: any[]): Promise<any[]> {
+  if (!matches || matches.length === 0) return [];
+  const supplierIds = Array.from(
+    new Set(matches.map((m) => m.supplier_id).filter(Boolean))
+  );
+  if (supplierIds.length === 0) return matches;
+
+  const { data: suppliers } = await supabaseAdmin
+    .from("supplier_offerings")
+    .select("id, website")
+    .in("id", supplierIds);
+
+  const websiteMap = new Map<string, string | null>();
+  for (const s of suppliers || []) {
+    websiteMap.set(s.id, s.website || null);
+  }
+
+  return matches.map((m) => ({
+    ...m,
+    website: m.website || m.match_breakdown?.website || websiteMap.get(m.supplier_id) || null,
+  }));
+}
+
 export async function getQuickMatchesAction(
   requestId: string
 ): Promise<{ ok: boolean; matches: any[]; error?: string }> {
@@ -1031,7 +1054,8 @@ export async function getQuickMatchesAction(
       .limit(10);
 
     if (error) throw error;
-    return { ok: true, matches: matches || [] };
+    const enriched = await enrichMatchesWithSupplierWebsite(matches || []);
+    return { ok: true, matches: enriched };
   } catch (err: any) {
     console.error("getQuickMatchesAction error:", err);
     return { ok: false, matches: [], error: err.message || "Failed to search matches" };
@@ -1066,9 +1090,11 @@ export async function rerunMatchingAction(
 
     if (error) throw error;
 
+    const enriched = await enrichMatchesWithSupplierWebsite(matches || []);
+
     revalidatePath("/admin/requests");
     revalidatePath(`/admin/requests/${requestId}`);
-    return { ok: true, matches: matches || [], count: matches?.length || 0 };
+    return { ok: true, matches: enriched, count: enriched.length };
   } catch (err: any) {
     console.error("rerunMatchingAction error:", err);
     return { ok: false, matches: [], count: 0, error: err.message || "Failed to re-run matching" };
