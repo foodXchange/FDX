@@ -43,7 +43,7 @@ export default async function EditBuyerPage({
         )}
         <ImpersonateButton kind="buyer" id={id} label="View as buyer" />
         <a
-          href={`/admin/requests/new?buyer_id=${id}&company=${encodeURIComponent(
+          href={`/admin/requests?buyer_id=${id}&company=${encodeURIComponent(
             String(buyerResult.data.company_name ?? "")
           )}&name=${encodeURIComponent(
             String(buyerResult.data.contact_name ?? "")

@@ -1,7 +1,8 @@
 'use client';
 
+import { Suspense } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 
 type NavItem = {
   href: string;
@@ -15,8 +16,8 @@ const sections: { title: string; links: NavItem[] }[] = [
     title: "Deal Operations",
     links: [
       { href: "/admin/pipeline", label: "Deal Pipeline", icon: "🎯" },
-      { href: "/admin/requests/new", label: "New Sourcing Request", icon: "✨", badge: "Vision" },
-      { href: "/admin/requests", label: "Sourcing Requests", icon: "📥" },
+      { href: "/admin/requests", label: "Sourcing Intake Desk", icon: "✨", badge: "New" },
+      { href: "/admin/requests?view=registry", label: "Requests Registry", icon: "📥" },
       { href: "/admin/samples", label: "Tasting Samples Desk", icon: "📦", badge: "Kit" },
       { href: "/admin/deals", label: "Pro-Forma & Deals", icon: "📑", badge: "PO" },
       { href: "/en/calculator/container", label: "Mixed Container Builder", icon: "🚢", badge: "FCL" },
@@ -75,11 +76,36 @@ interface AdminNavProps {
   collapsed?: boolean;
 }
 
-export default function AdminNav({ collapsed = false }: AdminNavProps) {
+// useSearchParams() must sit under a Suspense boundary; the fallback renders the
+// same nav with path-only highlighting so there is no layout shift.
+export default function AdminNav(props: AdminNavProps) {
+  return (
+    <Suspense fallback={<AdminNavInner {...props} search="" />}>
+      <AdminNavWithSearch {...props} />
+    </Suspense>
+  );
+}
+
+function AdminNavWithSearch(props: AdminNavProps) {
+  const searchParams = useSearchParams();
+  return <AdminNavInner {...props} search={searchParams.toString()} />;
+}
+
+function AdminNavInner({ collapsed = false, search }: AdminNavProps & { search: string }) {
   const pathname = usePathname();
+  const isRegistryView = new URLSearchParams(search).get("view") === "registry";
 
   function isLinkActive(href: string): boolean {
     if (href === "/admin") return pathname === "/admin";
+    // Requests: Intake Desk vs Registry share the same path, split by ?view=registry.
+    // Request detail pages (/admin/requests/[id]) belong to the Registry.
+    if (href === "/admin/requests?view=registry") {
+      return (pathname === "/admin/requests" && isRegistryView) ||
+        (pathname.startsWith("/admin/requests/") && pathname !== "/admin/requests/new");
+    }
+    if (href === "/admin/requests") {
+      return (pathname === "/admin/requests" && !isRegistryView) || pathname === "/admin/requests/new";
+    }
     return pathname.startsWith(href);
   }
 

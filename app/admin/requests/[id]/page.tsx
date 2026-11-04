@@ -199,10 +199,10 @@ export default async function RequestDetailPage({ params }: PageProps) {
         <div className="flex items-center justify-between gap-3 max-w-6xl mx-auto">
           <div className="flex items-center gap-3">
             <Link
-              href="/admin/requests"
+              href="/admin/requests?view=registry"
               className="text-sm text-slate-500 hover:text-slate-800 transition-colors"
             >
-              ← Requests
+              ← Registry
             </Link>
             <span className="text-slate-300">/</span>
             <span className="text-sm font-medium text-slate-700 truncate max-w-xs">
@@ -211,6 +211,13 @@ export default async function RequestDetailPage({ params }: PageProps) {
           </div>
 
           <div className="flex items-center gap-2">
+            <Link
+              href={`/admin/requests?edit=${id}`}
+              className="text-xs font-semibold px-3 py-1.5 rounded-lg border border-orange-200 bg-orange-50 text-orange-700 hover:bg-orange-100 transition-colors whitespace-nowrap"
+              title="Open this request in the Intake Desk to edit the brief, products and matching"
+            >
+              ✏️ Edit in Intake Desk
+            </Link>
             <TradeDocumentSuiteButton
               requestId={id}
               productName={cleanedName || productName || "Product"}

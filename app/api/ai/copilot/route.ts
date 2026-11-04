@@ -18,7 +18,7 @@ const SYSTEM_KNOWLEDGE_PROMPT = `You are the FoodXchange AI Copilot — an exper
 You serve Israeli supermarket buyers, private label category managers, European food manufacturers, and FoodXchange desk admins.
 
 FOODXCHANGE PLATFORM SITEMAP & ACTIONS:
-- New Sourcing Request with Machine Vision: [/admin/requests/new] (Drag & drop product/packaging photo to extract benchmark brand, size, format, SI 1145 labels, kosher marks, and run instant matching vs 80,000+ catalog items)
+- New Sourcing Request with Machine Vision: [/admin/requests] (Drag & drop product/packaging photo to extract benchmark brand, size, format, SI 1145 labels, kosher marks, and run instant matching vs 80,000+ catalog items)
 - Sourcing Requests List: [/admin/requests]
 - Deal Pipeline: [/admin/pipeline] (End-to-end deal tracker: Brief -> Spec -> Samples -> Pricing -> PO)
 - Tasting Samples Desk: [/admin/samples] (Order/dispatch physical European food sample boxes via DHL Express with nominal customs waiver €10)
@@ -103,7 +103,7 @@ Please provide a structured, step-by-step, friendly answer with exact clickable 
         replyText = `### איך להתחיל פרויקט סורסינג ב-FoodXchange 🚀
 
 1. **הזנת דרישת רכש עם בינה חזותית**:
-   היכנס אל [✨ דרישת רכש חדשה עם Vision](/admin/requests/new), גרור תמונת מוצר או אריזה. ה-AI יחלץ אוטומטית את שם המוצר, המותג, משקל/נפח וכשרויות גלויות.
+   היכנס אל [✨ דרישת רכש חדשה עם Vision](/admin/requests), גרור תמונת מוצר או אריזה. ה-AI יחלץ אוטומטית את שם המוצר, המותג, משקל/נפח וכשרויות גלויות.
 
 2. **תיאור קצר בהודעה**:
    הזן בתיבת ההערות את יעד מחיר היבוא (CIF אשדוד/חיפה), כמויות מבוקשות ודרישות מותג פרטי.
@@ -114,7 +114,7 @@ Please provide a structured, step-by-step, friendly answer with exact clickable 
 4. **הזמנת דוגמאות טעימה**:
    בדסק [📦 דוגמאות טעימה](/admin/samples) תוכלו לשגר ערכת דוגמאות ב-DHL ישירות לשולחן הבדיקה.`;
         actionPills.push(
-          { label: "דרישת רכש חדשה (Vision)", href: "/admin/requests/new" },
+          { label: "דרישת רכש חדשה (Vision)", href: "/admin/requests" },
           { label: "קטלוג מוצרים", href: "/admin/products" },
           { label: "דסק דוגמאות", href: "/admin/samples" }
         );
@@ -122,7 +122,7 @@ Please provide a structured, step-by-step, friendly answer with exact clickable 
         replyText = `### How to start your sourcing workflow on FoodXchange 🚀
 
 1. **Intake with Machine Vision**:
-   Go to [✨ New Sourcing Request (Vision Intake)](/admin/requests/new) and drop your product packaging photo. The AI automatically identifies benchmark brands, pack formats, nutrition seals, and visible kosher markings.
+   Go to [✨ New Sourcing Request (Vision Intake)](/admin/requests) and drop your product packaging photo. The AI automatically identifies benchmark brands, pack formats, nutrition seals, and visible kosher markings.
 
 2. **Specify Commercial Terms**:
    Add target CIF Ashdod/Haifa price, expected container volumes, and private label requirements.
@@ -133,7 +133,7 @@ Please provide a structured, step-by-step, friendly answer with exact clickable 
 4. **Dispatch Tasting Samples**:
    Track air courier sample kits via [📦 Tasting Samples Desk](/admin/samples) with pre-cleared nominal customs waivers.`;
         actionPills.push(
-          { label: "New Sourcing Request (Vision)", href: "/admin/requests/new" },
+          { label: "New Sourcing Request (Vision)", href: "/admin/requests" },
           { label: "Product Catalog", href: "/admin/products" },
           { label: "Deal Pipeline", href: "/admin/pipeline" }
         );

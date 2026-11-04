@@ -2,7 +2,7 @@
 
 import { useState, useTransition, useRef, useMemo, useEffect } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   createRequestForBuyer,
   createQuickBuyer,
@@ -38,6 +38,10 @@ interface Props {
   buyers: BuyerOption[];
   requests: RequestRow[];
   initialEditId?: string;
+  /** "registry" opens the Requests Registry view (URL: /admin/requests?view=registry) */
+  initialView?: "desk" | "registry";
+  /** Pre-select a buyer for a fresh request (URL: /admin/requests?buyer_id=...) */
+  initialBuyerId?: string;
   initialCounts: {
     total: number;
     matched: number;
@@ -125,13 +129,45 @@ export default function SourcingDealDesk({
   buyers: initialBuyers,
   requests,
   initialEditId,
+  initialView = "desk",
+  initialBuyerId,
   initialCounts,
 }: Props) {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Active View mode: Unified Split-Screen vs Full Tabular Registry
-  const [activeTab, setActiveTab] = useState<"intake_desk" | "registry_table">("intake_desk");
+  // The view is mirrored in the URL (?view=registry) so it can be opened from the
+  // sidebar menu, bookmarked, and navigated with the browser Back/Forward buttons.
+  const [activeTab, setActiveTab] = useState<"intake_desk" | "registry_table">(
+    initialView === "registry" && !initialEditId ? "registry_table" : "intake_desk"
+  );
+
+  function switchTab(tab: "intake_desk" | "registry_table") {
+    setActiveTab(tab);
+    try {
+      const params = new URLSearchParams(window.location.search);
+      if (tab === "registry_table") {
+        params.set("view", "registry");
+      } else {
+        params.delete("view");
+      }
+      const qs = params.toString();
+      const nextUrl = `/admin/requests${qs ? `?${qs}` : ""}`;
+      if (nextUrl !== window.location.pathname + window.location.search) {
+        window.history.pushState(null, "", nextUrl);
+      }
+    } catch {}
+    window.scrollTo({ top: 0 });
+  }
+
+  // Keep the view in sync with the URL: sidebar links (?view=registry), browser Back/Forward,
+  // and our own pushState calls all update the search params.
+  const searchParams = useSearchParams();
+  const urlView = searchParams.get("view");
+  useEffect(() => {
+    setActiveTab(urlView === "registry" ? "registry_table" : "intake_desk");
+  }, [urlView]);
 
   // 1. Collapsible 5-Step Funnel State
   const [openSections, setOpenSections] = useState<Record<number, boolean>>({
@@ -709,8 +745,16 @@ export default function SourcingDealDesk({
     setActivePipelineStage(req.pipeline_stage || "stage_1_brief");
     setActiveExceptionStatus(req.exception_status || null);
     try {
-      window.history.replaceState({}, "", "/admin/requests?edit=" + req.id);
+      // From the Registry → push a new history entry so browser Back returns to the Registry.
+      // On initial hydrate (?edit=...) → just normalise the URL in place.
+      const editUrl = "/admin/requests?edit=" + req.id;
+      if (window.location.search.includes("view=registry")) {
+        window.history.pushState(null, "", editUrl);
+      } else {
+        window.history.replaceState(null, "", editUrl);
+      }
     } catch {}
+    window.scrollTo({ top: 0 });
     setOpenSections({ 1: true, 2: true, 3: true, 4: true, 5: true });
     setActiveTab("intake_desk");
     setSavedDraftNotice(`📂 Loaded request: ${req.company || req.name || "Buyer"} (${req.product_name || "Draft"})`);
@@ -765,9 +809,13 @@ export default function SourcingDealDesk({
     setActivePipelineStage("stage_1_brief");
     setActiveExceptionStatus(null);
 
-    // 4. Reset query param in URL
+    // 4. Reset query param in URL (push when leaving the Registry so Back still works)
     try {
-      window.history.replaceState({}, "", "/admin/requests");
+      if (window.location.search.includes("view=registry")) {
+        window.history.pushState(null, "", "/admin/requests");
+      } else {
+        window.history.replaceState(null, "", "/admin/requests");
+      }
     } catch {}
 
     // 5. Open Step 1 and notify user
@@ -824,6 +872,23 @@ export default function SourcingDealDesk({
   // Restore saved draft on mount
   useEffect(() => {
     if (initialEditId) return;
+
+    // Started from a buyer profile ("New request for this buyer") → fresh desk with buyer preselected.
+    // Any previous local draft is left in place in localStorage / Registry, not restored over this one.
+    if (initialBuyerId) {
+      const buyer = initialBuyers.find((b) => b.id === initialBuyerId);
+      if (buyer) {
+        setSelectedBuyer(buyer);
+        setBuyerSearchQuery(buyer.company_name);
+        setSavedDraftNotice(`New request started for ${buyer.company_name}`);
+        setTimeout(() => setSavedDraftNotice(null), 3500);
+      }
+      try {
+        window.history.replaceState(null, "", "/admin/requests");
+      } catch {}
+      return;
+    }
+
     try {
       const raw = localStorage.getItem("fdx_deal_desk_draft");
       if (raw) {
@@ -860,7 +925,7 @@ export default function SourcingDealDesk({
     } catch (e) {
       console.warn("Could not parse saved draft", e);
     }
-  }, [initialBuyers, initialEditId]);
+  }, [initialBuyers, initialEditId, initialBuyerId]);
 
   // Open Preview Modal before sending confirmation email
   function handleOpenEmailPreviewModal() {
@@ -1173,7 +1238,7 @@ export default function SourcingDealDesk({
             <div className="bg-slate-100 p-1 rounded-xl flex items-center text-xs font-bold border border-slate-200">
               <button
                 type="button"
-                onClick={() => setActiveTab("intake_desk")}
+                onClick={() => switchTab("intake_desk")}
                 className={`px-3 py-1 rounded-lg transition ${
                   activeTab === "intake_desk"
                     ? "bg-white text-orange-600 shadow-2xs"
@@ -1184,7 +1249,7 @@ export default function SourcingDealDesk({
               </button>
               <button
                 type="button"
-                onClick={() => setActiveTab("registry_table")}
+                onClick={() => switchTab("registry_table")}
                 className={`px-3 py-1 rounded-lg transition ${
                   activeTab === "registry_table"
                     ? "bg-white text-orange-600 shadow-2xs"
@@ -1275,7 +1340,7 @@ export default function SourcingDealDesk({
               <div className="flex items-center gap-2 shrink-0">
                 <button
                   type="button"
-                  onClick={() => setActiveTab("registry_table")}
+                  onClick={() => switchTab("registry_table")}
                   className="text-xs font-semibold px-2.5 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 hover:text-slate-900 transition shadow-2xs flex items-center gap-1 cursor-pointer"
                   title="View all requests and their statuses in the registry"
                 >
@@ -2699,6 +2764,43 @@ export default function SourcingDealDesk({
       ) : (
         /* ── VIEW 2: FULL TABULAR REGISTRY & MULTI-PROJECT RADAR ── */
         <div className="p-4 sm:p-6 max-w-7xl mx-auto space-y-6">
+          {/* Registry navigation bar: return to the Intake Desk / resume the active request */}
+          <div className="bg-white border border-slate-200 rounded-2xl p-3 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+            <div className="flex items-center gap-2 text-xs">
+              <button
+                type="button"
+                onClick={() => switchTab("intake_desk")}
+                className="font-semibold px-3 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 transition flex items-center gap-1 cursor-pointer"
+              >
+                <span>←</span>
+                <span>Back to Intake Desk</span>
+              </button>
+              <span className="text-slate-400 hidden sm:inline">
+                Requests Registry · {requests.length} active requests
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              {(createdRequestId || projectTitle.trim()) && (
+                <button
+                  type="button"
+                  onClick={() => switchTab("intake_desk")}
+                  className="text-xs font-semibold px-3 py-1.5 rounded-xl border border-orange-200 bg-orange-50 hover:bg-orange-100 text-orange-800 transition flex items-center gap-1 cursor-pointer max-w-xs"
+                  title="Return to the request currently open in the Intake Desk"
+                >
+                  <span>✏️</span>
+                  <span className="truncate">Resume: {projectTitle.trim() || "current draft"}</span>
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={handleStartNewRequest}
+                className="text-xs font-bold px-3 py-1.5 rounded-xl bg-orange-600 hover:bg-orange-700 text-white transition flex items-center gap-1 cursor-pointer"
+              >
+                <span>➕</span>
+                <span>New Request</span>
+              </button>
+            </div>
+          </div>
           <AgentCommandRadar requests={requests} />
           <div className="pt-6 border-t border-slate-200">
             <RequestsTable

@@ -166,7 +166,7 @@ export default function FoodXchangeCopilot() {
     }
     if (isAdmin) {
       return `Welcome to **FoodXchange Deal Desk AI** 🤖.
-I can guide you step-by-step through our [✨ Machine Vision Intake](/admin/requests/new), [🎯 Deal Pipeline](/admin/pipeline), [📦 Samples Desk](/admin/samples), or [🔬 SI 1145 Label Checker](/admin/tools/spec-extractor).
+I can guide you step-by-step through our [✨ Machine Vision Intake](/admin/requests), [🎯 Deal Pipeline](/admin/pipeline), [📦 Samples Desk](/admin/samples), or [🔬 SI 1145 Label Checker](/admin/tools/spec-extractor).
 
 Ask me anything about starting requests, buyer proposals, or supplier matchmaking!`;
     }

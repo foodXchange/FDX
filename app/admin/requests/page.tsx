@@ -52,12 +52,14 @@ export type RequestRow = {
 };
 
 interface PageProps {
-  searchParams?: Promise<{ edit?: string }>;
+  searchParams?: Promise<{ edit?: string; view?: string; buyer_id?: string }>;
 }
 
 export default async function AdminRequestsPage({ searchParams }: PageProps) {
   const resolvedParams = searchParams ? await searchParams : {};
   const editId = resolvedParams?.edit;
+  const initialView = resolvedParams?.view === "registry" ? "registry" : "desk";
+  const initialBuyerId = resolvedParams?.buyer_id;
 
   const [requestsResult, imagesResult, buyersResult] = await Promise.all([
     supabaseAdmin
@@ -164,6 +166,8 @@ export default async function AdminRequestsPage({ searchParams }: PageProps) {
       buyers={buyers}
       requests={requests}
       initialEditId={editId}
+      initialView={initialView}
+      initialBuyerId={initialBuyerId}
       initialCounts={{
         total: totalCount,
         matched: matchedCount,
