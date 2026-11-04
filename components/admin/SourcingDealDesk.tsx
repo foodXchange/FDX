@@ -2389,45 +2389,10 @@ export default function SourcingDealDesk({
                     </button>
                   </div>
 
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-1">
+                  <div className="pt-1">
                     <label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider block">
                       Operational Brief & Factory Outreach Specifications
                     </label>
-
-                    {/* Quick helper to inject/sync product names & descriptions from Layer 3 cards */}
-                    {layeredAnalysis?.products && layeredAnalysis.products.length > 0 && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const productLines = layeredAnalysis.products.map((p, idx) => {
-                            const parts: string[] = [];
-                            if (p.sub_type) parts.push(`Type: ${p.sub_type}`);
-                            if (p.packaging_format) parts.push(`Packaging: ${p.packaging_format}`);
-                            if (p.net_weight) parts.push(`Weight: ${p.net_weight}`);
-                            const origin = [p.origin_state, p.origin_country].filter(Boolean).join(", ");
-                            if (origin) parts.push(`Origin: ${origin}`);
-                            if (p.company_website) parts.push(`Web: ${p.company_website}`);
-                            if (p.dietary_claims && p.dietary_claims.length > 0) parts.push(`Claims: ${p.dietary_claims.join(", ")}`);
-                            if (p.sweeteners && p.sweeteners.length > 0) parts.push(`Sweeteners: ${p.sweeteners.join(", ")}`);
-                            
-                            const desc = parts.length > 0 ? ` (${parts.join(" | ")})` : "";
-                            return `• SKU ${idx + 1}: ${p.product_name || "Unnamed Product"}${desc}`;
-                          });
-
-                          const header = "### Target Product Lineup & SKU Specifications:\n" + productLines.join("\n");
-                          if (!naturalBrief.trim()) {
-                            setNaturalBrief(header);
-                          } else if (!naturalBrief.includes("Target Product Lineup")) {
-                            setNaturalBrief(`${naturalBrief.trim()}\n\n${header}`);
-                          }
-                        }}
-                        className="text-[10px] font-semibold text-orange-700 bg-orange-50 hover:bg-orange-100 border border-orange-200 px-2.5 py-1 rounded-lg transition self-start sm:self-auto flex items-center gap-1 cursor-pointer"
-                        title="Append all recognized product names, sub-types, packaging formats, weights, and websites into the brief"
-                      >
-                        <span>✨</span>
-                        <span>Append SKU Details ({layeredAnalysis.products.length})</span>
-                      </button>
-                    )}
                   </div>
 
                   {/* Visual Product Reference Summary Badge in Step 4 if products exist */}
@@ -2445,9 +2410,9 @@ export default function SourcingDealDesk({
                             {i + 1}
                           </span>
                           <span className="font-semibold">{p.product_name || `Product #${i + 1}`}</span>
-                          {(p.sub_type || p.packaging_format || p.net_weight || p.origin_country) && (
+                          {(p.sub_type || p.packaging_format || p.net_weight || p.origin_country || p.temperature_regime || temperatureRegime) && (
                             <span className="text-[10px] text-slate-500 font-normal">
-                              ({[p.sub_type, p.packaging_format, p.net_weight, p.origin_country].filter(Boolean).join(" · ")})
+                              ({[p.sub_type, p.packaging_format, p.net_weight, (p.temperature_regime || temperatureRegime), p.origin_country].filter(Boolean).join(" · ")})
                             </span>
                           )}
                           {p.company_website && (
