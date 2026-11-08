@@ -22,6 +22,10 @@ export default async function EmailOutreachHubPage({ searchParams }: PageProps) 
   const initialRequestId = sp.request_id || "all";
 
   // 1. Fetch active Sourcing Requests
+  let requests: OutreachRequestOption[] = [];
+  let quotaRestricted = false;
+  let quotaMessage = "";
+
   const { data: rawRequests, error: reqErr } = await supabaseAdmin
     .from("sourcing_requests")
     .select("*")
@@ -30,10 +34,15 @@ export default async function EmailOutreachHubPage({ searchParams }: PageProps) 
     .limit(100);
 
   if (reqErr) {
-    console.error("EmailOutreachHubPage rawRequests error:", reqErr);
+    const errMsg = reqErr.message || JSON.stringify(reqErr);
+    console.error("EmailOutreachHubPage rawRequests error:", errMsg);
+    if (errMsg.includes("restricted") || errMsg.includes("quota")) {
+      quotaRestricted = true;
+      quotaMessage = errMsg;
+    }
   }
 
-  const requests: OutreachRequestOption[] = (rawRequests || []).map((r: any) => ({
+  requests = (rawRequests || []).map((r: any) => ({
     id: r.id,
     shortTag: `FDX-REQ-${r.id.slice(0, 8).toUpperCase()}`,
     product_name: cleanRequestName(r.product_name || "Sourcing Inquiry"),
@@ -59,7 +68,12 @@ export default async function EmailOutreachHubPage({ searchParams }: PageProps) 
     .limit(600);
 
   if (matchErr) {
-    console.error("EmailOutreachHubPage rawMatches error:", matchErr);
+    const errMsg = matchErr.message || JSON.stringify(matchErr);
+    console.error("EmailOutreachHubPage rawMatches error:", errMsg);
+    if (errMsg.includes("restricted") || errMsg.includes("quota")) {
+      quotaRestricted = true;
+      quotaMessage = errMsg;
+    }
   }
 
   const filteredRawMatches = (rawMatches || []).filter((m) =>
@@ -163,6 +177,7 @@ export default async function EmailOutreachHubPage({ searchParams }: PageProps) 
       requests={requests}
       initialMatches={initialMatches}
       initialRequestId={initialRequestId}
+      quotaWarning={quotaRestricted ? quotaMessage : null}
     />
   );
 }

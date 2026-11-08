@@ -80,6 +80,7 @@ interface Props {
   requests: OutreachRequestOption[];
   initialMatches: OutreachMatchItem[];
   initialRequestId?: string;
+  quotaWarning?: string | null;
 }
 
 type FilterTab = "all" | "replies" | "awaiting" | "overdue_48h" | "ready_to_send";
@@ -104,6 +105,7 @@ export default function EmailOutreachHubClient({
   requests,
   initialMatches,
   initialRequestId,
+  quotaWarning,
 }: Props) {
   const router = useRouter();
   const [matches, setMatches] = useState<OutreachMatchItem[]>(initialMatches);
@@ -1158,6 +1160,26 @@ Email: udi@foodxchange.com`);
         {imapStatusMsg && (
           <div className="mt-3 px-3.5 py-2 rounded-xl bg-slate-800 border border-slate-700 text-xs text-emerald-300 font-medium">
             {imapStatusMsg}
+          </div>
+        )}
+
+        {quotaWarning && (
+          <div className="mt-3 p-3.5 rounded-2xl bg-amber-500/20 border border-amber-500/40 text-amber-200 text-xs flex items-start gap-2.5">
+            <span className="text-base shrink-0">⚠️</span>
+            <div className="flex-1">
+              <span className="font-extrabold text-amber-100 block">Supabase Project Quota Notice</span>
+              <span className="text-amber-200/90 leading-relaxed block mt-0.5">
+                {quotaWarning}
+              </span>
+              <a
+                href="https://supabase.com/dashboard/project/orzfgccllmkmhzkfswha/settings/billing"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 mt-1.5 font-bold underline text-amber-300 hover:text-white"
+              >
+                Open Supabase Billing / Remove Spend Cap ↗
+              </a>
+            </div>
           </div>
         )}
 
