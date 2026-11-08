@@ -6,6 +6,10 @@ import EmailOutreachHubClient, {
   type OutreachRequestOption,
   type OutreachThreadMessage,
 } from "@/components/admin/EmailOutreachHubClient";
+import {
+  FALLBACK_SOURCING_REQUESTS,
+  FALLBACK_SOURCING_MATCHES,
+} from "@/lib/outreach/fallbackOutreachData";
 
 export const metadata: Metadata = {
   title: "Email & Outreach Hub | FoodXchange Mission Control",
@@ -56,9 +60,16 @@ export default async function EmailOutreachHubPage({ searchParams }: PageProps) 
     created_at: r.created_at || new Date().toISOString(),
   }));
 
+  // If Supabase has quota restrictions or is temporarily empty, inject cached active requests
+  if (requests.length === 0) {
+    requests = FALLBACK_SOURCING_REQUESTS;
+  }
+
   const activeRequestIds = new Set(requests.map((r) => r.id));
 
   // 2. Fetch Sourcing Matches across active requests
+  let initialMatches: OutreachMatchItem[] = [];
+
   const { data: rawMatches, error: matchErr } = await supabaseAdmin
     .from("sourcing_matches")
     .select(
@@ -126,7 +137,7 @@ export default async function EmailOutreachHubPage({ searchParams }: PageProps) 
   }
 
   // 4. Normalize into OutreachMatchItem[]
-  const initialMatches: OutreachMatchItem[] = filteredRawMatches.map((m) => {
+  initialMatches = filteredRawMatches.map((m) => {
     const bd = (m.match_breakdown as Record<string, any> | null) || {};
     const suppMeta = offeringsMap[m.supplier_id] || {
       website: null,
@@ -171,6 +182,11 @@ export default async function EmailOutreachHubPage({ searchParams }: PageProps) 
       outreach_history: rawHistory,
     };
   });
+
+  // If Supabase is quota-blocked, load the cached sourcing matches for [FDX-REQ-74DD0220]
+  if (initialMatches.length === 0) {
+    initialMatches = FALLBACK_SOURCING_MATCHES;
+  }
 
   return (
     <EmailOutreachHubClient
