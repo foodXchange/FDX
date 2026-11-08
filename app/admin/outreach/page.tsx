@@ -39,10 +39,12 @@ export default async function EmailOutreachHubPage({ searchParams }: PageProps) 
 
   if (reqErr) {
     const errMsg = reqErr.message || JSON.stringify(reqErr);
-    console.error("EmailOutreachHubPage rawRequests error:", errMsg);
     if (errMsg.includes("restricted") || errMsg.includes("quota")) {
       quotaRestricted = true;
       quotaMessage = errMsg;
+      console.warn("EmailOutreachHubPage: Supabase quota restriction active. Seamless fallback engaged.");
+    } else {
+      console.error("EmailOutreachHubPage rawRequests error:", errMsg);
     }
   }
 
@@ -80,10 +82,12 @@ export default async function EmailOutreachHubPage({ searchParams }: PageProps) 
 
   if (matchErr) {
     const errMsg = matchErr.message || JSON.stringify(matchErr);
-    console.error("EmailOutreachHubPage rawMatches error:", errMsg);
     if (errMsg.includes("restricted") || errMsg.includes("quota")) {
       quotaRestricted = true;
       quotaMessage = errMsg;
+      console.warn("EmailOutreachHubPage: Supabase quota restriction active. Seamless match fallback engaged.");
+    } else {
+      console.error("EmailOutreachHubPage rawMatches error:", errMsg);
     }
   }
 
