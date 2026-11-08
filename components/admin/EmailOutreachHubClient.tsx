@@ -252,6 +252,61 @@ export default function EmailOutreachHubClient({
   // Request Brief Detail Drawer State
   const [requestDetailModalOpen, setRequestDetailModalOpen] = useState(false);
 
+  // Layout Flexibility: Collapsible Header & Resizable/Collapsible Panes
+  const [headerCollapsed, setHeaderCollapsed] = useState(false);
+  const [leftPaneCollapsed, setLeftPaneCollapsed] = useState(false);
+  const [rightPaneCollapsed, setRightPaneCollapsed] = useState(false);
+
+  const isFocusMode = leftPaneCollapsed && rightPaneCollapsed;
+
+  const toggleFocusMode = () => {
+    if (isFocusMode) {
+      setLeftPaneCollapsed(false);
+      setRightPaneCollapsed(false);
+      try {
+        localStorage.setItem("fdx_outreach_left_collapsed", "false");
+        localStorage.setItem("fdx_outreach_right_collapsed", "false");
+      } catch {}
+    } else {
+      setLeftPaneCollapsed(true);
+      setRightPaneCollapsed(true);
+      try {
+        localStorage.setItem("fdx_outreach_left_collapsed", "true");
+        localStorage.setItem("fdx_outreach_right_collapsed", "true");
+      } catch {}
+    }
+  };
+
+  const toggleLeftPane = () => {
+    setLeftPaneCollapsed((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem("fdx_outreach_left_collapsed", String(next));
+      } catch {}
+      return next;
+    });
+  };
+
+  const toggleRightPane = () => {
+    setRightPaneCollapsed((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem("fdx_outreach_right_collapsed", String(next));
+      } catch {}
+      return next;
+    });
+  };
+
+  const toggleHeader = () => {
+    setHeaderCollapsed((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem("fdx_outreach_header_collapsed", String(next));
+      } catch {}
+      return next;
+    });
+  };
+
   // UX Optimization: Density Mode ("dense" vs "comfortable")
   const [densityMode, setDensityMode] = useState<"comfortable" | "dense">("comfortable");
 
@@ -273,6 +328,16 @@ export default function EmailOutreachHubClient({
 
   useEffect(() => {
     setMounted(true);
+    try {
+      const savedHeader = localStorage.getItem("fdx_outreach_header_collapsed");
+      if (savedHeader !== null) setHeaderCollapsed(savedHeader === "true");
+      const savedLeft = localStorage.getItem("fdx_outreach_left_collapsed");
+      if (savedLeft !== null) setLeftPaneCollapsed(savedLeft === "true");
+      const savedRight = localStorage.getItem("fdx_outreach_right_collapsed");
+      if (savedRight !== null) setRightPaneCollapsed(savedRight === "true");
+    } catch {
+      // ignore
+    }
   }, []);
 
   function startEditingAccount(acc: {
@@ -1117,27 +1182,42 @@ Email: udi@foodxchange.com`);
 
   return (
     <div className="flex-1 flex flex-col bg-slate-50 min-h-0">
-      {/* Top Mission Control Outreach Header */}
-      <header className="bg-slate-900 text-white border-b border-slate-800 px-4 sm:px-6 py-3.5 shrink-0">
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
-          <div>
-            <div className="flex items-center gap-2 text-xs text-orange-400 font-bold uppercase tracking-wider">
-              <Link href="/admin" className="hover:underline">
-                ← Mission Control
-              </Link>
-              <span>·</span>
-              <span>Unified Supplier Email &amp; Correspondence Command Center</span>
+      {/* Top Mission Control Outreach Header (Compact & Collapsible) */}
+      <header className="bg-slate-900 text-white border-b border-slate-800 px-4 sm:px-6 py-2.5 shrink-0 transition-all">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-2.5">
+          <div className="flex items-center gap-3">
+            <div>
+              <div className="flex items-center gap-2 text-[11px] text-orange-400 font-bold uppercase tracking-wider">
+                <Link href="/admin" className="hover:underline">
+                  ← Mission Control
+                </Link>
+                <span>·</span>
+                <span>Outreach Command Center</span>
+              </div>
+              <h1 className="text-lg lg:text-xl font-extrabold tracking-tight flex items-center gap-2">
+                <span>✉️ Email &amp; Outreach Hub</span>
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                  AI Active
+                </span>
+              </h1>
             </div>
-            <h1 className="text-xl lg:text-2xl font-extrabold tracking-tight mt-0.5 flex items-center gap-2.5">
-              <span>✉️ Email &amp; Outreach Hub</span>
-              <span className="text-xs font-mono px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-                Plus-Addressed + AI Auto-Routing Active
+
+            {/* Quick Header Mini-KPI & Collapse Toggle */}
+            <button
+              type="button"
+              onClick={toggleHeader}
+              className="ml-2 px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 text-xs font-semibold cursor-pointer flex items-center gap-1.5 transition select-none"
+              title={headerCollapsed ? "Expand Top Banner & KPIs" : "Compact Top Banner to Maximize Workspace"}
+            >
+              <span>{headerCollapsed ? "Expand Header ▾" : "Compact Header ▴"}</span>
+              <span className="text-[10px] bg-slate-900 px-1.5 py-0.5 rounded text-orange-400 font-bold">
+                {kpiStats.total} Factories
               </span>
-            </h1>
+            </button>
           </div>
 
           {/* Primary Action Bar */}
-          <div className="flex items-center gap-2.5 flex-wrap">
+          <div className="flex items-center gap-2 flex-wrap">
             <button
               type="button"
               onClick={() => {
@@ -1145,14 +1225,14 @@ Email: udi@foodxchange.com`);
                 setAccFeedback(null);
                 void loadAccountsSnapshot();
               }}
-              className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-600 text-xs font-bold text-white transition-colors cursor-pointer flex items-center gap-2"
+              className="px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-600 text-xs font-bold text-white transition-colors cursor-pointer flex items-center gap-1.5"
               title="View, add, switch, or remove connected Gmail / SMTP accounts"
             >
               <span>⚙️</span>
-              <span>
+              <span className="max-w-[140px] truncate">
                 {accountsData?.activeAccount
-                  ? `Connected: ${accountsData.activeAccount.user}`
-                  : "Email Accounts & Settings"}
+                  ? accountsData.activeAccount.user
+                  : "Email Accounts"}
               </span>
               <span
                 className={`h-2 w-2 rounded-full ${
@@ -1167,229 +1247,328 @@ Email: udi@foodxchange.com`);
               type="button"
               onClick={handleSyncImap}
               disabled={syncingImap}
-              className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-bold text-slate-100 transition-colors cursor-pointer disabled:opacity-50"
+              className="px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-bold text-slate-100 transition-colors cursor-pointer disabled:opacity-50"
             >
-              {syncingImap ? "🔄 Syncing Inbox..." : "🔄 Sync Incoming Replies"}
+              {syncingImap ? "🔄 Syncing..." : "🔄 Sync Replies"}
             </button>
 
             <button
               type="button"
               onClick={() => setNewSupplierModalOpen(true)}
-              className="px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-xs font-bold text-white shadow-xs transition-colors cursor-pointer"
+              className="px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-xs font-bold text-white shadow-xs transition-colors cursor-pointer"
             >
-              ➕ Email Brand-New Supplier
+              ➕ Add Supplier
             </button>
 
             <button
               type="button"
               onClick={() => openBulkEmailModal("initial")}
-              className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-xs font-extrabold text-white shadow-xs transition-colors cursor-pointer"
+              className="px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-xs font-extrabold text-white shadow-xs transition-colors cursor-pointer"
             >
-              ⚡ Bulk Email Selected ({checkedMatchIds.size || filteredMatches.length})
+              ⚡ Bulk Email ({checkedMatchIds.size || filteredMatches.length})
             </button>
 
             <button
               type="button"
               onClick={() => openBulkEmailModal("followup")}
-              className="px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-xs font-extrabold text-slate-950 shadow-xs transition-colors cursor-pointer"
+              className="px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-xs font-extrabold text-slate-950 shadow-xs transition-colors cursor-pointer"
             >
-              🔔 Bulk Chaser Follow-Up
+              🔔 Chaser
             </button>
           </div>
         </div>
 
-        {imapStatusMsg && (
-          <div className="mt-3 px-3.5 py-2 rounded-xl bg-slate-800 border border-slate-700 text-xs text-emerald-300 font-medium">
-            {imapStatusMsg}
-          </div>
-        )}
-
-        {quotaWarning && (
-          <div className="mt-3 p-3.5 rounded-2xl bg-amber-500/20 border border-amber-500/40 text-amber-200 text-xs flex items-start gap-2.5">
-            <span className="text-base shrink-0">⚠️</span>
-            <div className="flex-1">
-              <span className="font-extrabold text-amber-100 block">Supabase Project Quota Notice</span>
-              <span className="text-amber-200/90 leading-relaxed block mt-0.5">
-                {quotaWarning}
-              </span>
-              <a
-                href="https://supabase.com/dashboard/project/orzfgccllmkmhzkfswha/settings/billing"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 mt-1.5 font-bold underline text-amber-300 hover:text-white"
+        {/* Compact Mode Inline Mini Filter Ribbon */}
+        {headerCollapsed && (
+          <div className="flex items-center gap-1.5 mt-2 pt-2 border-t border-slate-800/80 overflow-x-auto text-[11px] pb-0.5">
+            <span className="text-slate-400 font-bold uppercase text-[9px] mr-1 shrink-0">Filter:</span>
+            {[
+              { id: "all", label: "All", count: kpiStats.total, color: "text-slate-300" },
+              { id: "ready_to_send", label: "🎯 Ready", count: kpiStats.ready, color: "text-emerald-400" },
+              { id: "awaiting", label: "📤 Sent", count: kpiStats.awaiting, color: "text-sky-400" },
+              { id: "overdue_48h", label: "⏰ Overdue", count: kpiStats.overdue, color: "text-amber-400" },
+              { id: "replies", label: "📥 Quotes", count: kpiStats.replied, color: "text-purple-300" },
+            ].map((tab) => (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setActiveTab(tab.id as any)}
+                className={`px-2 py-0.5 rounded-lg border text-xs font-bold transition cursor-pointer shrink-0 flex items-center gap-1 ${
+                  activeTab === tab.id
+                    ? "bg-slate-800 border-orange-500 text-white shadow-2xs"
+                    : "bg-slate-850/60 border-slate-700/60 text-slate-400 hover:text-white hover:bg-slate-800"
+                }`}
               >
-                Open Supabase Billing / Remove Spend Cap ↗
-              </a>
+                <span>{tab.label}</span>
+                <span className={`font-mono text-[10px] ${tab.color}`}>({tab.count})</span>
+              </button>
+            ))}
+
+            <div className="ml-auto flex items-center gap-1.5 shrink-0">
+              <button
+                type="button"
+                onClick={toggleFocusMode}
+                className={`px-2.5 py-0.5 rounded-lg border text-[11px] font-bold cursor-pointer transition flex items-center gap-1 ${
+                  isFocusMode
+                    ? "bg-indigo-600 border-indigo-400 text-white"
+                    : "bg-slate-800 border-slate-700 text-slate-300 hover:text-white hover:bg-slate-700"
+                }`}
+                title="Toggle Focus Mode (maximize composer width by hiding side panes)"
+              >
+                <span>{isFocusMode ? "🗗 3-Panes" : "🗖 Focus Composer"}</span>
+              </button>
             </div>
           </div>
         )}
 
-        {/* 4 Real-Time KPI Filter Cards */}
-        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mt-4 pt-3 border-t border-slate-800">
-          <button
-            type="button"
-            onClick={() => setActiveTab("all")}
-            className={`text-left p-3 rounded-xl border transition-all cursor-pointer ${
-              activeTab === "all"
-                ? "bg-slate-800 border-orange-500"
-                : "bg-slate-800/50 border-slate-700/70 hover:bg-slate-800"
-            }`}
-          >
-            <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-              All Matched Factories
-            </div>
-            <div className="text-xl font-black text-white mt-0.5">
-              {kpiStats.total}
-            </div>
-          </button>
+        {/* Collapsible KPI Bars and Notices (toggled off when compacting) */}
+        {!headerCollapsed && (
+          <>
+            {imapStatusMsg && (
+              <div className="mt-2.5 px-3 py-1.5 rounded-xl bg-slate-800 border border-slate-700 text-xs text-emerald-300 font-medium">
+                {imapStatusMsg}
+              </div>
+            )}
 
-          <button
-            type="button"
-            onClick={() => setActiveTab("ready_to_send")}
-            className={`text-left p-3 rounded-xl border transition-all cursor-pointer ${
-              activeTab === "ready_to_send"
-                ? "bg-slate-800 border-emerald-400"
-                : "bg-slate-800/50 border-slate-700/70 hover:bg-slate-800"
-            }`}
-          >
-            <div className="text-[10px] font-bold uppercase tracking-wider text-emerald-400">
-              🎯 Ready to Email
-            </div>
-            <div className="text-xl font-black text-white mt-0.5">
-              {kpiStats.ready}
-            </div>
-          </button>
+            {quotaWarning && (
+              <div className="mt-2.5 p-2 rounded-xl bg-amber-500/20 border border-amber-500/40 text-amber-200 text-xs flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2 truncate">
+                  <span className="text-base shrink-0">⚠️</span>
+                  <span className="font-semibold truncate">
+                    Free quota limit reached on Supabase. Using resilient local cache.
+                  </span>
+                </div>
+                <a
+                  href="https://supabase.com/dashboard/project/orzfgccllmkmhzkfswha/settings/billing"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-bold underline text-amber-300 hover:text-white shrink-0 text-[11px]"
+                >
+                  Billing ↗
+                </a>
+              </div>
+            )}
 
-          <button
-            type="button"
-            onClick={() => setActiveTab("awaiting")}
-            className={`text-left p-3 rounded-xl border transition-all cursor-pointer ${
-              activeTab === "awaiting"
-                ? "bg-slate-800 border-sky-400"
-                : "bg-slate-800/50 border-slate-700/70 hover:bg-slate-800"
-            }`}
-          >
-            <div className="text-[10px] font-bold uppercase tracking-wider text-sky-400">
-              📤 Sent · Awaiting Reply
-            </div>
-            <div className="text-xl font-black text-white mt-0.5">
-              {kpiStats.awaiting}
-            </div>
-          </button>
+            {/* 5 Real-Time KPI Filter Buttons */}
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 mt-2.5 pt-2.5 border-t border-slate-800">
+              <button
+                type="button"
+                onClick={() => setActiveTab("all")}
+                className={`text-left p-2 rounded-xl border transition-all cursor-pointer ${
+                  activeTab === "all"
+                    ? "bg-slate-800 border-orange-500"
+                    : "bg-slate-800/50 border-slate-700/70 hover:bg-slate-800"
+                }`}
+              >
+                <div className="text-[9px] font-bold uppercase tracking-wider text-slate-400">
+                  All Factories
+                </div>
+                <div className="text-base font-black text-white mt-0.5">
+                  {kpiStats.total}
+                </div>
+              </button>
 
-          <button
-            type="button"
-            onClick={() => setActiveTab("overdue_48h")}
-            className={`text-left p-3 rounded-xl border transition-all cursor-pointer ${
-              activeTab === "overdue_48h"
-                ? "bg-slate-800 border-amber-400"
-                : "bg-slate-800/50 border-slate-700/70 hover:bg-slate-800"
-            }`}
-          >
-            <div className="text-[10px] font-bold uppercase tracking-wider text-amber-400">
-              ⏰ Overdue &gt;48h Follow-Up
-            </div>
-            <div className="text-xl font-black text-amber-300 mt-0.5">
-              {kpiStats.overdue}
-            </div>
-          </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab("ready_to_send")}
+                className={`text-left p-2 rounded-xl border transition-all cursor-pointer ${
+                  activeTab === "ready_to_send"
+                    ? "bg-slate-800 border-emerald-400"
+                    : "bg-slate-800/50 border-slate-700/70 hover:bg-slate-800"
+                }`}
+              >
+                <div className="text-[9px] font-bold uppercase tracking-wider text-emerald-400">
+                  🎯 Ready
+                </div>
+                <div className="text-base font-black text-white mt-0.5">
+                  {kpiStats.ready}
+                </div>
+              </button>
 
-          <button
-            type="button"
-            onClick={() => setActiveTab("replies")}
-            className={`text-left p-3 rounded-xl border transition-all cursor-pointer ${
-              activeTab === "replies"
-                ? "bg-slate-800 border-purple-400"
-                : "bg-slate-800/50 border-slate-700/70 hover:bg-slate-800"
-            }`}
-          >
-            <div className="text-[10px] font-bold uppercase tracking-wider text-purple-300">
-              📥 Replies &amp; Quotes
+              <button
+                type="button"
+                onClick={() => setActiveTab("awaiting")}
+                className={`text-left p-2 rounded-xl border transition-all cursor-pointer ${
+                  activeTab === "awaiting"
+                    ? "bg-slate-800 border-sky-400"
+                    : "bg-slate-800/50 border-slate-700/70 hover:bg-slate-800"
+                }`}
+              >
+                <div className="text-[9px] font-bold uppercase tracking-wider text-sky-400">
+                  📤 Sent
+                </div>
+                <div className="text-base font-black text-white mt-0.5">
+                  {kpiStats.awaiting}
+                </div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveTab("overdue_48h")}
+                className={`text-left p-2 rounded-xl border transition-all cursor-pointer ${
+                  activeTab === "overdue_48h"
+                    ? "bg-slate-800 border-amber-400"
+                    : "bg-slate-800/50 border-slate-700/70 hover:bg-slate-800"
+                }`}
+              >
+                <div className="text-[9px] font-bold uppercase tracking-wider text-amber-400">
+                  ⏰ Overdue &gt;48h
+                </div>
+                <div className="text-base font-black text-amber-300 mt-0.5">
+                  {kpiStats.overdue}
+                </div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveTab("replies")}
+                className={`text-left p-2 rounded-xl border transition-all cursor-pointer ${
+                  activeTab === "replies"
+                    ? "bg-slate-800 border-purple-400"
+                    : "bg-slate-800/50 border-slate-700/70 hover:bg-slate-800"
+                }`}
+              >
+                <div className="text-[9px] font-bold uppercase tracking-wider text-purple-300">
+                  📥 Quotes
+                </div>
+                <div className="text-base font-black text-purple-200 mt-0.5">
+                  {kpiStats.replied}
+                </div>
+              </button>
             </div>
-            <div className="text-xl font-black text-purple-200 mt-0.5">
-              {kpiStats.replied}
-            </div>
-          </button>
-        </div>
+          </>
+        )}
       </header>
 
-      {/* Main 3-Pane Command Workspace */}
-      <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 min-h-0 overflow-hidden">
-        {/* LEFT PANE: Supplier Thread Queue & Request Filter (4 cols) */}
-        <aside className="lg:col-span-4 border-r border-slate-200 bg-white flex flex-col h-[calc(100vh-270px)] min-h-[500px]">
-          {/* Request Selector + Search */}
-          <div className="p-3.5 border-b border-slate-200 space-y-2.5 bg-slate-50/70">
-            <div>
-              <div className="flex items-center justify-between mb-1">
-                <label className="block text-[10px] font-extrabold uppercase tracking-wider text-slate-500">
-                  Filter by Sourcing Request ([FDX-REQ-...])
-                </label>
-                {selectedRequestId !== "all" && (
+      {/* Main 3-Pane Command Workspace (Flexible & Independently Collapsible) */}
+      <div className="flex-1 flex flex-col lg:flex-row min-h-0 overflow-hidden bg-slate-100">
+        {/* LEFT PANE: Supplier Thread Queue & Request Filter */}
+        {leftPaneCollapsed ? (
+          <aside
+            onClick={toggleLeftPane}
+            className="w-12 shrink-0 bg-slate-900 border-r border-slate-800 flex flex-col items-center py-3 select-none cursor-pointer hover:bg-slate-850 transition-all h-full min-h-0 group"
+            title="Click to expand Supplier Queue"
+          >
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                toggleLeftPane();
+              }}
+              className="w-7 h-7 rounded-lg bg-slate-800 hover:bg-slate-700 text-amber-400 font-bold flex items-center justify-center cursor-pointer shadow-xs transition"
+              title="Expand Supplier Queue"
+            >
+              ▶
+            </button>
+            <div className="flex flex-col items-center gap-1.5 mt-3">
+              <span className="px-1.5 py-0.5 rounded bg-slate-800 text-[10px] text-slate-300 font-mono font-bold" title="Total matches">
+                {kpiStats.total}
+              </span>
+              {kpiStats.ready > 0 && (
+                <span className="px-1.5 py-0.5 rounded bg-emerald-950 text-[10px] text-emerald-400 font-mono font-bold" title="Ready to email">
+                  {kpiStats.ready}
+                </span>
+              )}
+              {kpiStats.replied > 0 && (
+                <span className="px-1.5 py-0.5 rounded bg-purple-950 text-[10px] text-purple-300 font-mono font-bold" title="Quotes &amp; Replies">
+                  {kpiStats.replied}
+                </span>
+              )}
+            </div>
+            <div className="my-auto">
+              <span className="text-[10px] tracking-widest uppercase font-extrabold text-slate-400 rotate-90 block whitespace-nowrap group-hover:text-amber-400 transition">
+                Queue ({filteredMatches.length})
+              </span>
+            </div>
+          </aside>
+        ) : (
+          <aside className="w-full lg:w-[370px] xl:w-[400px] shrink-0 border-r border-slate-200 bg-white flex flex-col h-full min-h-0">
+            {/* Request Selector + Search */}
+            <div className="p-3 border-b border-slate-200 space-y-2 bg-slate-50/70">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-600 flex items-center gap-1.5">
+                  <span>📋 Supplier Queue</span>
+                  <span className="px-1.5 py-0.2 rounded bg-slate-200 text-slate-700 font-mono font-bold text-[10px]">
+                    {filteredMatches.length}
+                  </span>
+                </span>
+                <div className="flex items-center gap-1.5">
+                  {selectedRequestId !== "all" && (
+                    <button
+                      type="button"
+                      onClick={() => setRequestDetailModalOpen(true)}
+                      className="text-[11px] font-bold text-orange-600 hover:text-orange-700 hover:underline cursor-pointer flex items-center gap-1"
+                    >
+                      <span>🔍 Brief</span>
+                    </button>
+                  )}
                   <button
                     type="button"
-                    onClick={() => setRequestDetailModalOpen(true)}
-                    className="text-[11px] font-bold text-orange-600 hover:text-orange-700 hover:underline cursor-pointer flex items-center gap-1"
+                    onClick={toggleLeftPane}
+                    className="p-1 rounded-lg hover:bg-slate-200 text-slate-500 hover:text-slate-800 text-xs cursor-pointer transition font-bold"
+                    title="Collapse Supplier Queue"
                   >
-                    <span>🔍 View Brief Details</span>
+                    ◀
                   </button>
-                )}
+                </div>
               </div>
-              <select
-                value={selectedRequestId}
-                onChange={(e) => {
-                  setSelectedRequestId(e.target.value);
-                  setCheckedMatchIds(new Set());
-                }}
-                className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-bold text-slate-900 focus:border-orange-500 focus:outline-none"
-              >
-                <option value="all">
-                  All Active Sourcing Requests ({matches.length} matches)
-                </option>
-                {requests.map((r) => (
-                  <option key={r.id} value={r.id}>
-                    [{r.shortTag}] {r.product_name}{" "}
-                    {r.company ? `— ${r.company}` : ""}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search supplier, country, email, or [FDX-REQ...]..."
-                className="flex-1 rounded-xl border border-slate-300 bg-white px-3 py-1.5 text-xs text-slate-900 focus:border-orange-500 focus:outline-none"
-              />
-              <button
-                type="button"
-                onClick={() => setDensityMode((prev) => (prev === "comfortable" ? "dense" : "comfortable"))}
-                className="px-2 py-1.5 rounded-lg border border-slate-300 bg-white hover:bg-slate-100 text-[11px] font-bold text-slate-700 cursor-pointer shrink-0"
-                title="Toggle between dense single-line rows and comfortable detailed cards"
-              >
-                {densityMode === "comfortable" ? "🗜️ Dense" : "📋 Detailed"}
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  if (checkedMatchIds.size === filteredMatches.length) {
+              <div>
+                <select
+                  value={selectedRequestId}
+                  onChange={(e) => {
+                    setSelectedRequestId(e.target.value);
                     setCheckedMatchIds(new Set());
-                  } else {
-                    setCheckedMatchIds(
-                      new Set(filteredMatches.map((m) => m.id))
-                    );
-                  }
-                }}
-                className="px-2.5 py-1.5 rounded-lg border border-slate-300 bg-white hover:bg-slate-100 text-[11px] font-bold text-slate-700 cursor-pointer shrink-0"
-              >
-                {checkedMatchIds.size === filteredMatches.length &&
-                filteredMatches.length > 0
-                  ? "Unselect All"
-                  : `Select All (${filteredMatches.length})`}
-              </button>
+                  }}
+                  className="w-full rounded-xl border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-bold text-slate-900 focus:border-orange-500 focus:outline-none"
+                >
+                  <option value="all">
+                    All Active Sourcing Requests ({matches.length} matches)
+                  </option>
+                  {requests.map((r) => (
+                    <option key={r.id} value={r.id}>
+                      [{r.shortTag}] {r.product_name}{" "}
+                      {r.company ? `— ${r.company}` : ""}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="flex items-center gap-1.5">
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search supplier, country, [FDX-REQ]..."
+                  className="flex-1 rounded-xl border border-slate-300 bg-white px-2.5 py-1 text-xs text-slate-900 focus:border-orange-500 focus:outline-none"
+                />
+                <button
+                  type="button"
+                  onClick={() => setDensityMode((prev) => (prev === "comfortable" ? "dense" : "comfortable"))}
+                  className="px-2 py-1 rounded-lg border border-slate-300 bg-white hover:bg-slate-100 text-[10px] font-bold text-slate-700 cursor-pointer shrink-0"
+                  title="Toggle between dense single-line rows and comfortable detailed cards"
+                >
+                  {densityMode === "comfortable" ? "🗜️" : "📋"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (checkedMatchIds.size === filteredMatches.length) {
+                      setCheckedMatchIds(new Set());
+                    } else {
+                      setCheckedMatchIds(
+                        new Set(filteredMatches.map((m) => m.id))
+                      );
+                    }
+                  }}
+                  className="px-2 py-1 rounded-lg border border-slate-300 bg-white hover:bg-slate-100 text-[10px] font-bold text-slate-700 cursor-pointer shrink-0"
+                >
+                  {checkedMatchIds.size === filteredMatches.length &&
+                  filteredMatches.length > 0
+                    ? "Clear"
+                    : `All (${filteredMatches.length})`}
+                </button>
+              </div>
             </div>
-          </div>
 
           {/* Supplier Thread List */}
           <div className="flex-1 overflow-y-auto divide-y divide-slate-100">
@@ -1439,6 +1618,18 @@ Email: udi@foodxchange.com`);
                           onClick={(e) => e.stopPropagation()}
                           className="h-3.5 w-3.5 rounded border-slate-300 text-orange-600 cursor-pointer shrink-0"
                         />
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedRequestId(m.request_id);
+                            setRequestDetailModalOpen(true);
+                          }}
+                          className="font-mono text-[9px] font-bold px-1 py-0.5 rounded bg-indigo-50 hover:bg-indigo-100 text-indigo-800 border border-indigo-200 cursor-pointer shrink-0"
+                          title="Click to view sourcing request brief"
+                        >
+                          [{reqTag}]
+                        </button>
                         <span className="truncate font-extrabold text-slate-900 text-xs">
                           {m.company_name}
                         </span>
@@ -1503,9 +1694,19 @@ Email: udi@foodxchange.com`);
 
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between gap-1.5">
-                        <span className="font-mono text-[10px] font-bold px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-800 border border-indigo-200">
-                          [{reqTag}]
-                        </span>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedRequestId(m.request_id);
+                            setRequestDetailModalOpen(true);
+                          }}
+                          className="font-mono text-[10px] font-bold px-1.5 py-0.5 rounded bg-indigo-50 hover:bg-indigo-100 hover:border-indigo-400 text-indigo-800 border border-indigo-200 cursor-pointer transition flex items-center gap-1"
+                          title="Click to view sourcing request brief & requirements"
+                        >
+                          <span>[{reqTag}]</span>
+                          <span className="text-[9px]">🔍</span>
+                        </button>
                         <div className="flex items-center gap-1">
                           {replied ? (
                             <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-purple-100 text-purple-800">
@@ -1575,9 +1776,10 @@ Email: udi@foodxchange.com`);
             )}
           </div>
         </aside>
+        )}
 
-        {/* CENTER PANE: Full Conversation Thread + Multi-Stage Smart Composer (5 cols) */}
-        <section className="lg:col-span-5 border-r border-slate-200 bg-slate-50/40 flex flex-col h-[calc(100vh-270px)] min-h-[500px] overflow-y-auto">
+        {/* CENTER PANE: Full Conversation Thread + Multi-Stage Smart Composer */}
+        <section className="flex-1 min-w-0 border-r border-slate-200 bg-slate-50/40 flex flex-col h-full min-h-0 overflow-y-auto">
           {!activeMatch ? (
             <div className="p-12 text-center text-sm text-slate-500">
               Select a supplier from the left queue to view correspondence and compose outreach.
@@ -1635,12 +1837,40 @@ Email: udi@foodxchange.com`);
                     </p>
                   </div>
 
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <button
+                      type="button"
+                      onClick={toggleLeftPane}
+                      className="px-2 py-1 rounded-lg border border-slate-200 bg-slate-50 hover:bg-slate-100 text-[11px] font-semibold text-slate-700 cursor-pointer transition flex items-center gap-1"
+                      title={leftPaneCollapsed ? "Show Left Queue" : "Hide Left Queue"}
+                    >
+                      <span>{leftPaneCollapsed ? "▶ Show Queue" : "◀ Hide Queue"}</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={toggleFocusMode}
+                      className={`px-2.5 py-1 rounded-lg border text-[11px] font-bold cursor-pointer transition flex items-center gap-1 ${
+                        isFocusMode
+                          ? "bg-indigo-600 border-indigo-400 text-white"
+                          : "border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700"
+                      }`}
+                      title="Focus Mode expands composer to full width by hiding side panes"
+                    >
+                      <span>{isFocusMode ? "🗗 3-Panes" : "⛶ Focus Mode"}</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={toggleRightPane}
+                      className="px-2 py-1 rounded-lg border border-slate-200 bg-slate-50 hover:bg-slate-100 text-[11px] font-semibold text-slate-700 cursor-pointer transition flex items-center gap-1"
+                      title={rightPaneCollapsed ? "Show AI Deal Desk" : "Hide AI Deal Desk"}
+                    >
+                      <span>{rightPaneCollapsed ? "Show AI Desk ◀" : "Hide AI Desk ▶"}</span>
+                    </button>
                     <Link
                       href={`/admin/requests/${activeMatch.request_id}`}
                       className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs transition-colors"
                     >
-                      Open Request Deal Desk ↗
+                      Deal Desk ↗
                     </Link>
                   </div>
                 </div>
@@ -2013,8 +2243,49 @@ Email: udi@foodxchange.com`);
           )}
         </section>
 
-        {/* RIGHT PANE: AI Reply Parser & Quick Commercial Quote Capture (3 cols) */}
-        <aside className="lg:col-span-3 bg-white flex flex-col h-[calc(100vh-270px)] min-h-[500px] overflow-y-auto p-4 space-y-5">
+        {/* RIGHT PANE: AI Reply Parser & Quick Commercial Quote Capture */}
+        {rightPaneCollapsed ? (
+          <aside
+            onClick={toggleRightPane}
+            className="w-12 shrink-0 bg-slate-900 border-l border-slate-800 flex flex-col items-center py-3 select-none cursor-pointer hover:bg-slate-850 transition-all h-full min-h-0 group"
+            title="Click to expand AI Parser & Deal Desk"
+          >
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                toggleRightPane();
+              }}
+              className="w-7 h-7 rounded-lg bg-slate-800 hover:bg-slate-700 text-purple-400 font-bold flex items-center justify-center cursor-pointer shadow-xs transition"
+              title="Expand AI Parser & Deal Desk"
+            >
+              ◀
+            </button>
+            <div className="flex flex-col items-center gap-2 mt-4 text-sm">
+              <span title="Gemini AI Parser">🤖</span>
+              <span title="Deal Desk Quotes">💼</span>
+            </div>
+            <div className="my-auto">
+              <span className="text-[10px] tracking-widest uppercase font-extrabold text-slate-400 -rotate-90 block whitespace-nowrap group-hover:text-purple-400 transition">
+                AI Deal Desk
+              </span>
+            </div>
+          </aside>
+        ) : (
+          <aside className="w-full lg:w-[370px] xl:w-[410px] shrink-0 bg-white flex flex-col h-full min-h-0 overflow-y-auto p-4 space-y-4 border-l border-slate-200">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+              <span className="text-xs font-black uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
+                <span>🤖 AI Parser &amp; Deal Desk</span>
+              </span>
+              <button
+                type="button"
+                onClick={toggleRightPane}
+                className="p-1 rounded-lg hover:bg-slate-100 text-slate-500 hover:text-slate-800 text-xs cursor-pointer transition font-bold"
+                title="Collapse AI Parser & Deal Desk"
+              >
+                ▶
+              </button>
+            </div>
           {!activeMatch ? (
             <div className="text-xs text-slate-400 text-center py-10">
               Select a supplier thread to parse replies or record quotes.
@@ -2299,6 +2570,7 @@ Email: udi@foodxchange.com`);
             </>
           )}
         </aside>
+        )}
       </div>
 
       {/* MODAL 1: Bulk Email Selected Suppliers */}
