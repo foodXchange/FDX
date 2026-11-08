@@ -2454,64 +2454,136 @@ Email: udi@foodxchange.com`);
               </div>
 
               {/* Section 3: Add or Update a Gmail / Google Workspace Account */}
-              <div className="rounded-2xl border border-indigo-200 bg-indigo-50/40 p-4 space-y-3.5">
-                <div className="flex items-center justify-between flex-wrap gap-2">
+              <div className="rounded-2xl border-2 border-indigo-200 bg-gradient-to-br from-indigo-50/70 via-white to-indigo-50/40 p-5 space-y-4 shadow-xs">
+                <div className="flex items-start justify-between flex-wrap gap-2">
                   <div>
-                    <h3 className="text-xs font-extrabold uppercase tracking-wider text-indigo-950">
-                      ➕ Connect a Gmail / Google Workspace Account
+                    <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-800 text-[10px] font-extrabold uppercase tracking-wider mb-1">
+                      <span>🚀 Step-by-Step Setup</span>
+                      <span>·</span>
+                      <span>Takes 30 seconds</span>
+                    </div>
+                    <h3 className="text-sm font-extrabold text-indigo-950 flex items-center gap-1.5">
+                      <span>➕ Connect a Gmail / Google Workspace Account</span>
                     </h3>
-                    <p className="text-[11px] text-slate-600 mt-0.5">
-                      Uses Google&apos;s official 16-character App Password so your emails appear in your native Gmail &ldquo;Sent&rdquo; folder and sync replies via IMAP.
+                    <p className="text-xs text-slate-600 mt-0.5">
+                      Enables real 2-way syncing: outgoing emails appear in your native Gmail <strong>&ldquo;Sent&rdquo;</strong> folder, and supplier replies trigger instant AI quote parsing.
                     </p>
                   </div>
                   <a
                     href="https://myaccount.google.com/apppasswords"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="px-2.5 py-1 rounded-lg bg-white border border-indigo-200 text-[11px] font-bold text-indigo-700 hover:bg-indigo-50"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-extrabold shadow-xs transition"
                   >
-                    🔑 Get Google App Password ↗
+                    <span>🔑</span>
+                    <span>1-Click: Open Google App Passwords ↗</span>
                   </a>
+                </div>
+
+                {/* 3-Step Guided Onboarding Visual Banner */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5 p-3 rounded-xl bg-white border border-indigo-100 text-xs">
+                  <div className="flex items-start gap-2">
+                    <span className="w-5 h-5 rounded-full bg-indigo-600 text-white font-extrabold text-[11px] flex items-center justify-center shrink-0 mt-0.5">
+                      1
+                    </span>
+                    <div>
+                      <span className="font-extrabold text-slate-900 block">Open Security Page</span>
+                      <span className="text-[11px] text-slate-500 leading-tight">
+                        Click the blue button above to visit your Google 2-Step Verification settings.
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start gap-2">
+                    <span className="w-5 h-5 rounded-full bg-indigo-600 text-white font-extrabold text-[11px] flex items-center justify-center shrink-0 mt-0.5">
+                      2
+                    </span>
+                    <div>
+                      <span className="font-extrabold text-slate-900 block">Create App Password</span>
+                      <span className="text-[11px] text-slate-500 leading-tight">
+                        Name it &ldquo;FoodXchange&rdquo; and click Create to get a 16-character code.
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start gap-2">
+                    <span className="w-5 h-5 rounded-full bg-indigo-600 text-white font-extrabold text-[11px] flex items-center justify-center shrink-0 mt-0.5">
+                      3
+                    </span>
+                    <div>
+                      <span className="font-extrabold text-slate-900 block">Paste &amp; Connect</span>
+                      <span className="text-[11px] text-slate-500 leading-tight">
+                        Paste the 16 characters below. We test the SMTP connection automatically!
+                      </span>
+                    </div>
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <div>
-                    <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                      Gmail / Workspace Address *
+                    <label className="block text-[11px] font-extrabold text-slate-700 mb-1 flex items-center gap-1">
+                      <span>Gmail / Workspace Address *</span>
+                      <span
+                        className="cursor-help text-slate-400 hover:text-slate-600"
+                        title="Your primary Google Workspace or Gmail email (e.g. udi@foodxchange.com or udi@gmail.com)."
+                      >
+                        ℹ️
+                      </span>
                     </label>
                     <input
                       type="email"
                       value={accFormUser}
                       onChange={(e) => setAccFormUser(e.target.value)}
                       placeholder="udi@foodxchange.com"
-                      className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-mono text-slate-900"
+                      className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-mono text-slate-900 focus:border-indigo-500 focus:outline-none"
                     />
+                    <span className="text-[10px] text-slate-400 mt-0.5 block">
+                      The email address suppliers will see.
+                    </span>
                   </div>
 
                   <div>
-                    <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                      16-Char App Password *
+                    <label className="block text-[11px] font-extrabold text-slate-700 mb-1 flex items-center gap-1">
+                      <span>16-Char Google App Password *</span>
+                      <span
+                        className="cursor-help text-indigo-600 hover:text-indigo-800"
+                        title="NOT your personal login password! This is the special 16-letter code generated by Google (e.g. abcd efgh ijkl mnop) for secure mailer access."
+                      >
+                        ℹ️
+                      </span>
                     </label>
                     <input
                       type="password"
                       value={accFormPassword}
                       onChange={(e) => setAccFormPassword(e.target.value)}
-                      placeholder="xxxx xxxx xxxx xxxx"
-                      className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-mono text-slate-900"
+                      placeholder="abcd efgh ijkl mnop"
+                      className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-mono text-slate-900 focus:border-indigo-500 focus:outline-none"
                     />
+                    <span className="text-[10px] text-indigo-700 font-semibold mt-0.5 block">
+                      16 letters generated from Google (spaces ignored)
+                    </span>
                   </div>
 
                   <div>
-                    <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                      Sender Display Name
+                    <label className="block text-[11px] font-extrabold text-slate-700 mb-1 flex items-center gap-1">
+                      <span>Sender Display Name</span>
+                      <span
+                        className="cursor-help text-slate-400 hover:text-slate-600"
+                        title="Display name shown in the recipient factory's inbox (e.g. 'FoodXchange Sourcing Desk' or 'Udi from FoodXchange')."
+                      >
+                        ℹ️
+                      </span>
                     </label>
                     <input
                       type="text"
                       value={accFormSenderName}
                       onChange={(e) => setAccFormSenderName(e.target.value)}
                       placeholder="FoodXchange Sourcing Desk"
-                      className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs text-slate-900"
+                      className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs text-slate-900 focus:border-indigo-500 focus:outline-none"
                     />
+                    <span className="text-[10px] text-slate-400 mt-0.5 block">
+                      Appears as the &ldquo;From:&rdquo; name in inboxes.
+                    </span>
                   </div>
                 </div>
 
