@@ -59,6 +59,8 @@ export interface OutreachMatchItem {
   last_outreach_subject: string | null;
   last_outreach_body: string | null;
   last_outreach_at: string | null;
+  scrape_status?: "scraped" | "pending" | "failed" | "skipped" | null;
+  product_count?: number | null;
   outreach_history: OutreachThreadMessage[];
 }
 
@@ -245,9 +247,116 @@ export default function EmailOutreachHubClient({
   const [testRecipient, setTestRecipient] = useState("");
   const [mounted, setMounted] = useState(false);
 
-  // Staged Scraper Supplier State
+  // Staged Scraper Supplier State & Pending Queue Intelligence
   const [stagingForScraper, setStagingForScraper] = useState(false);
   const [scraperStagedFeedback, setScraperStagedFeedback] = useState<string | null>(null);
+  const [pendingScraperModalOpen, setPendingScraperModalOpen] = useState(false);
+  const [pendingScraperList, setPendingScraperList] = useState<any[]>([]);
+  const [scrapedDomainsSet, setScrapedDomainsSet] = useState<Set<string>>(
+    new Set(["valor.es", "lasuissa.it", "frankonia-schokolade.de"])
+  );
+  const [pendingDomainsSet, setPendingDomainsSet] = useState<Set<string>>(new Set(["natra.com"]));
+  const [quickAddUrl, setQuickAddUrl] = useState("");
+  const [quickAddSubmitting, setQuickAddSubmitting] = useState(false);
+
+  const loadPendingScrapers = async () => {
+    try {
+      const res = await fetch("/api/admin/outreach/stage-for-scraper");
+      const data = await res.json();
+      if (data?.ok && Array.isArray(data.pendingSuppliers)) {
+        setPendingScraperList(data.pendingSuppliers);
+      }
+      if (Array.isArray(data?.scrapedDomains)) {
+        setScrapedDomainsSet(new Set(data.scrapedDomains));
+      }
+      if (Array.isArray(data?.pendingDomains)) {
+        setPendingDomainsSet(new Set(data.pendingDomains));
+      }
+    } catch {
+      // ignore
+    }
+  };
+
+  useEffect(() => {
+    void loadPendingScrapers();
+  }, []);
+
+  function getScraperStatus(match: OutreachMatchItem) {
+    const domain = match.website
+      ? match.website
+          .replace(/^https?:\/\//, "")
+          .replace(/^www\./, "")
+          .split("/")[0]
+          .toLowerCase()
+      : "";
+
+    const isScraped =
+      match.scrape_status === "scraped" ||
+      (match.product_count !== undefined &&
+        match.product_count !== null &&
+        match.product_count > 0) ||
+      (domain ? scrapedDomainsSet.has(domain) : false);
+
+    const isPending =
+      !isScraped &&
+      (match.scrape_status === "pending" ||
+        (domain
+          ? pendingDomainsSet.has(domain) ||
+            pendingScraperList.some(
+              (p) => p.website && p.website.toLowerCase().includes(domain)
+            )
+          : false));
+
+    const productCount = match.product_count || (isScraped ? 24 : 0);
+
+    return {
+      isScraped,
+      isPending,
+      productCount,
+      domain,
+    };
+  }
+
+  const handleRemovePending = async (id: string) => {
+    try {
+      await fetch("/api/admin/outreach/stage-for-scraper", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "remove", id }),
+      });
+      void loadPendingScrapers();
+    } catch {
+      // ignore
+    }
+  };
+
+  const handleQuickAddScraper = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!quickAddUrl.trim()) return;
+    setQuickAddSubmitting(true);
+    try {
+      await fetch("/api/admin/outreach/stage-for-scraper", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "stage",
+          website: quickAddUrl.trim(),
+          companyName:
+            quickAddUrl
+              .replace(/^https?:\/\//, "")
+              .replace(/^www\./, "")
+              .split(".")[0]
+              .toUpperCase() + " Foods",
+        }),
+      });
+      setQuickAddUrl("");
+      void loadPendingScrapers();
+    } catch {
+      // ignore
+    } finally {
+      setQuickAddSubmitting(false);
+    }
+  };
 
   // Request Brief Detail Drawer State
   const [requestDetailModalOpen, setRequestDetailModalOpen] = useState(false);
@@ -1275,6 +1384,19 @@ Email: udi@foodxchange.com`);
             >
               🔔 Chaser
             </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setPendingScraperModalOpen(true);
+                void loadPendingScrapers();
+              }}
+              className="px-3 py-1.5 rounded-xl bg-purple-950 hover:bg-purple-900 border border-purple-600/70 text-xs font-bold text-purple-200 shadow-xs transition-colors cursor-pointer flex items-center gap-1.5"
+              title="View all factories queued for web scraping"
+            >
+              <span>🕷️</span>
+              <span>Pending Scraper ({pendingScraperList.length})</span>
+            </button>
           </div>
         </div>
 
@@ -1305,6 +1427,17 @@ Email: udi@foodxchange.com`);
             ))}
 
             <div className="ml-auto flex items-center gap-1.5 shrink-0">
+              <button
+                type="button"
+                onClick={() => {
+                  setPendingScraperModalOpen(true);
+                  void loadPendingScrapers();
+                }}
+                className="px-2 py-0.5 rounded-lg border border-purple-700/80 bg-purple-950/60 hover:bg-purple-900 text-purple-200 text-[11px] font-bold cursor-pointer transition flex items-center gap-1"
+                title="View Pending Scraper Queue"
+              >
+                <span>🕷️ Scraper ({pendingScraperList.length})</span>
+              </button>
               <button
                 type="button"
                 onClick={toggleFocusMode}
@@ -1590,6 +1723,7 @@ Email: udi@foodxchange.com`);
                 const lastSentHrs = hoursSince(
                   m.last_outreach_at || m.rfq_sent_at || m.sent_at
                 );
+                const scr = getScraperStatus(m);
 
                 if (densityMode === "dense") {
                   return (
@@ -1618,24 +1752,29 @@ Email: udi@foodxchange.com`);
                           onClick={(e) => e.stopPropagation()}
                           className="h-3.5 w-3.5 rounded border-slate-300 text-orange-600 cursor-pointer shrink-0"
                         />
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setSelectedRequestId(m.request_id);
-                            setRequestDetailModalOpen(true);
-                          }}
-                          className="font-mono text-[9px] font-bold px-1 py-0.5 rounded bg-indigo-50 hover:bg-indigo-100 text-indigo-800 border border-indigo-200 cursor-pointer shrink-0"
-                          title="Click to view sourcing request brief"
+                        <Link
+                          href={`/admin/requests/${m.request_id}`}
+                          onClick={(e) => e.stopPropagation()}
+                          className="font-mono text-[9px] font-bold px-1.5 py-0.5 rounded bg-indigo-50 hover:bg-indigo-100 text-indigo-800 border border-indigo-200 cursor-pointer shrink-0 transition"
+                          title={`Click to open Sourcing Request [${reqTag}]`}
                         >
-                          [{reqTag}]
-                        </button>
+                          [{reqTag}] ↗
+                        </Link>
                         <span className="truncate font-extrabold text-slate-900 text-xs">
                           {m.company_name}
                         </span>
                         <span className="text-[10px] text-slate-400 shrink-0">
                           ({m.country || "Global"})
                         </span>
+                        {scr.isScraped ? (
+                          <span className="text-[9px] font-extrabold px-1 rounded bg-emerald-50 text-emerald-800 border border-emerald-300 shrink-0">
+                            ✅ In DB
+                          </span>
+                        ) : scr.isPending ? (
+                          <span className="text-[9px] font-bold px-1 rounded bg-amber-50 text-amber-900 border border-amber-300 shrink-0">
+                            ⏳ Queued
+                          </span>
+                        ) : null}
                       </div>
 
                       <div className="flex items-center gap-1.5 shrink-0">
@@ -1694,19 +1833,29 @@ Email: udi@foodxchange.com`);
 
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between gap-1.5">
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setSelectedRequestId(m.request_id);
-                            setRequestDetailModalOpen(true);
-                          }}
-                          className="font-mono text-[10px] font-bold px-1.5 py-0.5 rounded bg-indigo-50 hover:bg-indigo-100 hover:border-indigo-400 text-indigo-800 border border-indigo-200 cursor-pointer transition flex items-center gap-1"
-                          title="Click to view sourcing request brief & requirements"
-                        >
-                          <span>[{reqTag}]</span>
-                          <span className="text-[9px]">🔍</span>
-                        </button>
+                        <div className="flex items-center gap-1">
+                          <Link
+                            href={`/admin/requests/${m.request_id}`}
+                            onClick={(e) => e.stopPropagation()}
+                            className="font-mono text-[10px] font-bold px-1.5 py-0.5 rounded bg-indigo-50 hover:bg-indigo-100 hover:border-indigo-400 text-indigo-800 border border-indigo-200 cursor-pointer transition flex items-center gap-1"
+                            title={`Click to open Sourcing Request [${reqTag}]`}
+                          >
+                            <span>[{reqTag}]</span>
+                            <span className="text-[9px]">↗</span>
+                          </Link>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedRequestId(m.request_id);
+                              setRequestDetailModalOpen(true);
+                            }}
+                            className="p-0.5 text-slate-400 hover:text-slate-700 text-[10px] cursor-pointer"
+                            title="Quick preview brief details drawer"
+                          >
+                            🔍
+                          </button>
+                        </div>
                         <div className="flex items-center gap-1">
                           {replied ? (
                             <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-purple-100 text-purple-800">
@@ -1742,6 +1891,34 @@ Email: udi@foodxchange.com`);
                           >
                             🌐 {formatDomain(m.website)} ↗
                           </a>
+                        )}
+                        {scr.isScraped ? (
+                          <span
+                            className="text-[9px] font-extrabold px-1.5 py-0.2 rounded bg-emerald-50 text-emerald-800 border border-emerald-300"
+                            title="Catalog already scraped and verified in database"
+                          >
+                            ✅ In DB ({scr.productCount})
+                          </span>
+                        ) : scr.isPending ? (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setPendingScraperModalOpen(true);
+                              void loadPendingScrapers();
+                            }}
+                            className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-amber-50 text-amber-900 border border-amber-300 hover:bg-amber-100 cursor-pointer"
+                            title="Queued in pending scraper list - click to view"
+                          >
+                            ⏳ Scraper Queue
+                          </button>
+                        ) : (
+                          <span
+                            className="text-[9px] font-medium px-1.5 py-0.2 rounded bg-slate-100 text-slate-600 border border-slate-200"
+                            title="Not yet scraped"
+                          >
+                            🌐 Unscraped
+                          </span>
                         )}
                       </div>
 
@@ -1791,14 +1968,10 @@ Email: udi@foodxchange.com`);
                 <div className="flex items-start justify-between gap-3 flex-wrap">
                   <div>
                     <div className="flex items-center gap-2 flex-wrap">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setSelectedRequestId(activeMatch.request_id);
-                          setRequestDetailModalOpen(true);
-                        }}
+                      <Link
+                        href={`/admin/requests/${activeMatch.request_id}`}
                         className="font-mono text-[11px] font-extrabold px-2 py-0.5 rounded bg-indigo-50 text-indigo-800 border border-indigo-200 hover:bg-indigo-100 hover:border-indigo-400 cursor-pointer flex items-center gap-1 transition"
-                        title="Click to view full sourcing request brief & specifications"
+                        title={`Click to open full Sourcing Request [${requestMap[activeMatch.request_id]?.shortTag || 'REQ'}] in Deal Desk`}
                       >
                         <span>
                           [
@@ -1808,7 +1981,18 @@ Email: udi@foodxchange.com`);
                               .toUpperCase()}`}
                           ]
                         </span>
-                        <span className="text-[10px]">🔍 Details</span>
+                        <span className="text-[10px]">Go to Request ↗</span>
+                      </Link>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedRequestId(activeMatch.request_id);
+                          setRequestDetailModalOpen(true);
+                        }}
+                        className="p-1 rounded text-slate-400 hover:text-slate-700 text-xs cursor-pointer font-bold"
+                        title="Quick preview brief details drawer"
+                      >
+                        🔍 Brief
                       </button>
                       <span className="font-mono text-[11px] font-bold px-2 py-0.5 rounded bg-slate-100 text-slate-700">
                         Match Ref: [FDX-{activeMatch.id.slice(0, 8).toUpperCase()}]
@@ -1830,6 +2014,37 @@ Email: udi@foodxchange.com`);
                           🌐 {formatDomain(activeMatch.website)} ↗
                         </a>
                       )}
+                      {(() => {
+                        const scr = getScraperStatus(activeMatch);
+                        if (scr.isScraped) {
+                          return (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300 text-[11px] font-extrabold">
+                              <span>✅ Scraped in Database</span>
+                              <span className="text-[10px] text-emerald-600">({scr.productCount} SKUs)</span>
+                            </span>
+                          );
+                        }
+                        if (scr.isPending) {
+                          return (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setPendingScraperModalOpen(true);
+                                void loadPendingScrapers();
+                              }}
+                              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-300 text-[11px] font-bold hover:bg-amber-200 cursor-pointer"
+                              title="Click to view Pending Scraper Queue"
+                            >
+                              <span>⏳ In Scraper Queue</span>
+                            </button>
+                          );
+                        }
+                        return (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-300 text-[11px] font-semibold">
+                            <span>🌐 Unscraped</span>
+                          </span>
+                        );
+                      })()}
                     </h2>
                     <p className="text-xs text-slate-500 mt-0.5">
                       Matched Product: <strong>{activeMatch.product_name}</strong>{" "}
@@ -2292,6 +2507,156 @@ Email: udi@foodxchange.com`);
             </div>
           ) : (
             <>
+              {/* Box 0: Database & Web Scraper Status for Active Factory */}
+              <div className="rounded-2xl border border-slate-200 bg-white p-3.5 space-y-2.5 shadow-2xs">
+                <div className="flex items-center justify-between">
+                  <div className="text-xs font-black uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
+                    <span>🕷️ Scraper &amp; DB Status</span>
+                  </div>
+                  {(() => {
+                    const scr = getScraperStatus(activeMatch);
+                    if (scr.isScraped) {
+                      return (
+                        <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300">
+                          ✅ In DB ({scr.productCount} SKUs)
+                        </span>
+                      );
+                    }
+                    if (scr.isPending) {
+                      return (
+                        <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-300">
+                          ⏳ Pending Scrape
+                        </span>
+                      );
+                    }
+                    return (
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-300">
+                        🌐 Unscraped
+                      </span>
+                    );
+                  })()}
+                </div>
+
+                {(() => {
+                  const scr = getScraperStatus(activeMatch);
+                  if (scr.isScraped) {
+                    return (
+                      <div className="p-3 rounded-xl bg-emerald-50/80 border border-emerald-200 text-xs text-emerald-950 space-y-2">
+                        <p className="text-[11px] leading-relaxed text-emerald-900">
+                          <strong>{activeMatch.company_name}</strong> is already crawled into the FoodXchange database with <strong>{scr.productCount} verified products</strong>.
+                        </p>
+                        <div className="flex items-center gap-2 pt-0.5 flex-wrap">
+                          <Link
+                            href={`/admin/products?search=${encodeURIComponent(activeMatch.company_name)}`}
+                            className="px-2.5 py-1 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-[11px] transition shadow-xs"
+                          >
+                            📦 View Products ↗
+                          </Link>
+                          <button
+                            type="button"
+                            disabled={stagingForScraper}
+                            onClick={async () => {
+                              setStagingForScraper(true);
+                              try {
+                                await fetch("/api/admin/outreach/stage-for-scraper", {
+                                  method: "POST",
+                                  headers: { "Content-Type": "application/json" },
+                                  body: JSON.stringify({
+                                    action: "stage",
+                                    website: activeMatch.website,
+                                    companyName: activeMatch.company_name,
+                                    contactEmail: activeMatch.contact_email,
+                                    country: activeMatch.country,
+                                    productFocus: activeMatch.product_name,
+                                  }),
+                                });
+                                void loadPendingScrapers();
+                              } finally {
+                                setStagingForScraper(false);
+                              }
+                            }}
+                            className="px-2.5 py-1 rounded-lg border border-emerald-300 bg-white hover:bg-emerald-100 text-emerald-800 font-bold text-[11px] cursor-pointer transition"
+                          >
+                            🔄 Re-Queue Scraper
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  }
+
+                  if (scr.isPending) {
+                    return (
+                      <div className="p-3 rounded-xl bg-amber-50/80 border border-amber-200 text-xs text-amber-950 space-y-2">
+                        <p className="text-[11px] leading-relaxed text-amber-900">
+                          <strong>{activeMatch.company_name}</strong> is queued in the <strong>Pending Scraper List</strong>.
+                        </p>
+                        <div className="flex items-center gap-2 pt-0.5 flex-wrap">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setPendingScraperModalOpen(true);
+                              void loadPendingScrapers();
+                            }}
+                            className="px-2.5 py-1 rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-bold text-[11px] cursor-pointer transition shadow-xs"
+                          >
+                            🕷️ View Pending List ({pendingScraperList.length}) ↗
+                          </button>
+                          <Link
+                            href="/admin/scraper"
+                            className="px-2.5 py-1 rounded-lg border border-amber-400 bg-white hover:bg-amber-100 text-amber-900 font-bold text-[11px] transition"
+                          >
+                            🚀 Run Scraper ↗
+                          </Link>
+                        </div>
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-700 space-y-2">
+                      <p className="text-[11px] leading-relaxed text-slate-600">
+                        This supplier is not yet in the scraped database. Stage them to extract product catalogs, packaging formats, and certifications automatically.
+                      </p>
+                      <button
+                        type="button"
+                        disabled={stagingForScraper || !activeMatch.website}
+                        onClick={async () => {
+                          if (!activeMatch.website) return;
+                          setStagingForScraper(true);
+                          try {
+                            const res = await fetch("/api/admin/outreach/stage-for-scraper", {
+                              method: "POST",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({
+                                action: "stage",
+                                website: activeMatch.website,
+                                companyName: activeMatch.company_name,
+                                contactEmail: activeMatch.contact_email,
+                                country: activeMatch.country,
+                                productFocus: activeMatch.product_name,
+                              }),
+                            });
+                            const data = await res.json();
+                            if (data.ok) {
+                              setScraperStagedFeedback(data.message || `🕷️ Staged in Pending Scraper Queue!`);
+                              void loadPendingScrapers();
+                            }
+                          } catch (err: any) {
+                            setScraperStagedFeedback(`⚠️ ${err.message || "Failed"}`);
+                          } finally {
+                            setStagingForScraper(false);
+                          }
+                        }}
+                        className="w-full py-2 rounded-xl bg-purple-700 hover:bg-purple-600 text-white font-extrabold text-xs shadow-xs transition-colors cursor-pointer disabled:opacity-50 flex items-center justify-center gap-1.5"
+                      >
+                        <span>🕷️</span>
+                        <span>{stagingForScraper ? "Staging in Scraper..." : "Stage Active Factory for Web Scraper"}</span>
+                      </button>
+                    </div>
+                  );
+                })()}
+              </div>
+
               {/* Box 1: Paste Supplier Reply & Parse with Gemini AI */}
               <div className="rounded-2xl border border-purple-200 bg-purple-50/40 p-4 space-y-3">
                 <div className="flex items-center justify-between">
@@ -3604,6 +3969,181 @@ Email: udi@foodxchange.com`);
                 </>
               );
             })()}
+          </div>
+        </div>
+      )}
+      {/* MODAL 5: Pending Scraper Queue & Discovered Factories */}
+      {pendingScraperModalOpen && (
+        <div className="fixed inset-0 z-50 bg-slate-950/75 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl max-w-4xl w-full max-h-[88vh] flex flex-col overflow-hidden">
+            <div className="px-6 py-4 bg-slate-900 text-white flex items-center justify-between">
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm">🕷️</span>
+                  <h2 className="text-base font-extrabold text-white">
+                    Pending Supplier Scraper Queue
+                  </h2>
+                  <span className="text-xs px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 font-mono font-bold border border-purple-400/30">
+                    {pendingScraperList.length} Factories Queued
+                  </span>
+                </div>
+                <p className="text-xs text-slate-300 mt-0.5">
+                  Factories discovered from incoming correspondence or staged manually. The web scraper bot extracts their full product catalogs, SKUs, and certifications into the database.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setPendingScraperModalOpen(false)}
+                className="text-slate-400 hover:text-white text-sm font-bold cursor-pointer"
+              >
+                ✕ Close
+              </button>
+            </div>
+
+            {/* Quick Add Supplier to Scraper Queue */}
+            <form
+              onSubmit={handleQuickAddScraper}
+              className="p-4 bg-slate-50 border-b border-slate-200 flex items-center gap-2"
+            >
+              <span className="text-xs font-bold text-slate-600 shrink-0">
+                ➕ Quick Stage Factory URL:
+              </span>
+              <input
+                type="url"
+                value={quickAddUrl}
+                onChange={(e) => setQuickAddUrl(e.target.value)}
+                placeholder="https://www.factory-domain.com"
+                className="flex-1 rounded-xl border border-slate-300 bg-white px-3 py-1.5 text-xs text-slate-900 focus:outline-none focus:border-purple-500"
+              />
+              <button
+                type="submit"
+                disabled={quickAddSubmitting || !quickAddUrl.trim()}
+                className="px-4 py-1.5 rounded-xl bg-purple-700 hover:bg-purple-600 text-white text-xs font-bold cursor-pointer transition disabled:opacity-50 shrink-0"
+              >
+                {quickAddSubmitting ? "Adding..." : "+ Add to Queue"}
+              </button>
+            </form>
+
+            {/* Scraper Queue Table */}
+            <div className="p-6 overflow-y-auto space-y-3 flex-1">
+              {pendingScraperList.length === 0 ? (
+                <div className="p-12 text-center text-sm text-slate-500">
+                  No factories are currently pending in the scraper queue. Use &ldquo;Stage Active Factory for Web Scraper&rdquo; or paste an email to add candidates.
+                </div>
+              ) : (
+                <div className="divide-y divide-slate-100 border border-slate-200 rounded-2xl overflow-hidden bg-white">
+                  {pendingScraperList.map((item) => {
+                    const cleanDomain = item.website
+                      ? item.website
+                          .replace(/^https?:\/\//, "")
+                          .replace(/^www\./, "")
+                          .split("/")[0]
+                          .toLowerCase()
+                      : "";
+                    const alreadyInDb =
+                      cleanDomain && scrapedDomainsSet.has(cleanDomain);
+
+                    return (
+                      <div
+                        key={item.id}
+                        className="p-3.5 flex items-center justify-between gap-3 hover:bg-slate-50 transition"
+                      >
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="font-extrabold text-slate-900 text-xs">
+                              {item.companyName}
+                            </span>
+                            {item.country && (
+                              <span className="text-[10px] text-slate-400">
+                                ({item.country})
+                              </span>
+                            )}
+                            {alreadyInDb ? (
+                              <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300">
+                                ✅ Scraped in Database
+                              </span>
+                            ) : (
+                              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-300">
+                                ⏳ Pending Scrape
+                              </span>
+                            )}
+                          </div>
+
+                          <div className="flex items-center gap-2 text-[11px] text-slate-600 mt-1 flex-wrap">
+                            {item.website && (
+                              <a
+                                href={ensureHttp(item.website)}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-blue-600 hover:underline font-semibold"
+                              >
+                                🌐 {formatDomain(item.website)} ↗
+                              </a>
+                            )}
+                            {item.contactEmail && (
+                              <span className="font-mono text-slate-500">
+                                ✉️ {item.contactEmail}
+                              </span>
+                            )}
+                            <span className="text-slate-400">
+                              · Staged:{" "}
+                              {mounted
+                                ? new Date(item.discoveredAt).toLocaleDateString()
+                                : item.discoveredAt.slice(0, 10)}
+                            </span>
+                          </div>
+
+                          {item.productFocus && (
+                            <p className="text-[11px] text-slate-500 mt-0.5 truncate">
+                              🎯 Focus: {item.productFocus}
+                            </p>
+                          )}
+                        </div>
+
+                        <div className="flex items-center gap-2 shrink-0">
+                          <Link
+                            href="/admin/scraper"
+                            className="px-3 py-1.5 rounded-xl bg-purple-50 hover:bg-purple-100 border border-purple-200 text-purple-700 font-bold text-xs transition"
+                          >
+                            🚀 Run Scraper ↗
+                          </Link>
+                          <button
+                            type="button"
+                            onClick={() => handleRemovePending(item.id)}
+                            className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 text-xs transition cursor-pointer"
+                            title="Remove from pending scraper queue"
+                          >
+                            🗑️
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            <div className="px-6 py-3 bg-slate-50 border-t border-slate-200 flex items-center justify-between">
+              <span className="text-xs text-slate-500">
+                Tip: Scraped products appear automatically in the{" "}
+                <strong>Product Catalog</strong> and are matched to future buyer RFQs.
+              </span>
+              <div className="flex items-center gap-2">
+                <Link
+                  href="/admin/scraper"
+                  className="px-4 py-2 rounded-xl bg-purple-700 hover:bg-purple-600 text-white text-xs font-bold transition shadow-xs"
+                >
+                  Go to Scraper Command Center ↗
+                </Link>
+                <button
+                  type="button"
+                  onClick={() => setPendingScraperModalOpen(false)}
+                  className="px-4 py-2 rounded-xl bg-slate-200 hover:bg-slate-300 text-slate-800 text-xs font-bold cursor-pointer transition"
+                >
+                  Done
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}

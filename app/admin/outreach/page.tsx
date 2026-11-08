@@ -102,7 +102,13 @@ export default async function EmailOutreachHubPage({ searchParams }: PageProps) 
 
   const offeringsMap: Record<
     string,
-    { website: string | null; email: string | null; phone: string | null }
+    {
+      website: string | null;
+      email: string | null;
+      phone: string | null;
+      scrape_status: "scraped" | "pending" | "failed" | "skipped" | null;
+      product_count: number | null;
+    }
   > = {};
 
   if (supplierIds.length > 0) {
@@ -112,7 +118,7 @@ export default async function EmailOutreachHubPage({ searchParams }: PageProps) 
       const [{ data: offerings }, { data: contacts }] = await Promise.all([
         supabaseAdmin
           .from("supplier_offerings")
-          .select("id, website, contact_email, contact_phone")
+          .select("id, website, contact_email, contact_phone, scrape_status, product_count")
           .in("id", slice),
         supabaseAdmin
           .from("supplier_contacts")
@@ -125,6 +131,8 @@ export default async function EmailOutreachHubPage({ searchParams }: PageProps) 
           website: o.website || null,
           email: o.contact_email || null,
           phone: o.contact_phone || null,
+          scrape_status: (o.scrape_status as any) || null,
+          product_count: o.product_count ?? null,
         };
       }
       for (const c of contacts || []) {
@@ -132,6 +140,8 @@ export default async function EmailOutreachHubPage({ searchParams }: PageProps) 
           website: null,
           email: null,
           phone: null,
+          scrape_status: null,
+          product_count: null,
         };
         if (!cur.email && c.email) cur.email = c.email;
         if (!cur.phone && c.phone) cur.phone = c.phone;
@@ -147,6 +157,8 @@ export default async function EmailOutreachHubPage({ searchParams }: PageProps) 
       website: null,
       email: null,
       phone: null,
+      scrape_status: null,
+      product_count: null,
     };
 
     const rawHistory = Array.isArray(bd.outreach_history)
@@ -174,6 +186,8 @@ export default async function EmailOutreachHubPage({ searchParams }: PageProps) 
       contact_phone: suppMeta.phone || null,
       delivery_status: bd.delivery_status || null,
       quote: bd.quote || null,
+      scrape_status: suppMeta.scrape_status ?? null,
+      product_count: suppMeta.product_count ?? null,
       matched_certifications: Array.isArray(bd.matched_certifications)
         ? bd.matched_certifications
         : Array.isArray(bd.certifications)

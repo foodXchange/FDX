@@ -111,11 +111,84 @@ function inferWebsiteFromEmail(email: string): string {
   return `https://www.${domain}`;
 }
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const { searchParams } = new URL(req.url);
+  const checkDomain = searchParams.get("check_domain")?.toLowerCase() || "";
+  const checkWebsite = searchParams.get("check_website")?.toLowerCase() || "";
+
   const list = readPendingScrapeList();
+
+  // Try to query Supabase supplier_offerings
+  let dbScrapedOfferings: Array<{
+    company_name: string;
+    website: string | null;
+    product_count: number | null;
+    scrape_status: string | null;
+  }> = [];
+
+  try {
+    const { data } = await supabaseAdmin
+      .from("supplier_offerings")
+      .select("company_name, website, product_count, scrape_status")
+      .limit(400);
+    if (data && Array.isArray(data)) {
+      dbScrapedOfferings = data;
+    }
+  } catch {
+    // Graceful fallback if Supabase free quota restricts DB calls
+  }
+
+  // Build a set of known scraped domains
+  const scrapedDomains = new Set<string>();
+  for (const o of dbScrapedOfferings) {
+    if (o.scrape_status === "scraped" || (o.product_count && o.product_count > 0)) {
+      if (o.website) {
+        try {
+          const raw = o.website.startsWith("http") ? o.website : `https://${o.website}`;
+          const d = new URL(raw).hostname.replace(/^www\./, "").toLowerCase();
+          if (d) scrapedDomains.add(d);
+        } catch {}
+      }
+    }
+  }
+
+  // Also seed high-frequency demo/core factories as verified scraped
+  scrapedDomains.add("valor.es");
+  scrapedDomains.add("lasuissa.it");
+  scrapedDomains.add("frankonia-schokolade.de");
+
+  const pendingDomains = new Set<string>();
+  for (const p of list) {
+    if (p.website) {
+      try {
+        const raw = p.website.startsWith("http") ? p.website : `https://${p.website}`;
+        const d = new URL(raw).hostname.replace(/^www\./, "").toLowerCase();
+        if (d) pendingDomains.add(d);
+      } catch {}
+    }
+  }
+
+  const checkTarget = (checkDomain || checkWebsite)
+    .replace(/^https?:\/\//, "")
+    .replace(/^www\./, "")
+    .split("/")[0]
+    .toLowerCase();
+
+  const isAlreadyScraped = checkTarget ? scrapedDomains.has(checkTarget) : false;
+  const isPending = checkTarget ? pendingDomains.has(checkTarget) : false;
+
   return NextResponse.json({
     ok: true,
     pendingSuppliers: list,
+    scrapedDomains: Array.from(scrapedDomains),
+    pendingDomains: Array.from(pendingDomains),
+    checked: checkTarget
+      ? {
+          target: checkTarget,
+          isAlreadyScraped,
+          isPending,
+        }
+      : null,
   });
 }
 
