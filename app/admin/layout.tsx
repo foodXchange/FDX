@@ -44,12 +44,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   }
 
   return (
-    <div className="flex min-h-screen bg-slate-50/70 text-slate-800">
+    <div className="flex h-screen overflow-hidden bg-slate-50/70 text-slate-800">
       {/* Sleek Dark Admin Sidebar with Sticky Floating Collapse Toggle */}
       <aside
         className={`relative ${
           isCollapsed ? "w-16" : "w-60"
-        } flex-shrink-0 bg-slate-950 border-r border-slate-900 flex flex-col z-30 shadow-md transition-all duration-300 ease-in-out`}
+        } flex-shrink-0 bg-slate-950 border-r border-slate-900 flex flex-col h-full z-30 shadow-md transition-all duration-300 ease-in-out`}
       >
         {/* Sticky floating collapse/expand arrow that moves/stays visible all along scrolling */}
         <div className="sticky top-1/2 -translate-y-1/2 z-50 pointer-events-none h-0 flex items-center justify-end">
@@ -127,7 +127,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         )}
 
         {/* Navigation Links */}
-        <AdminNav collapsed={isCollapsed} />
+        <div className="flex-1 overflow-y-auto min-h-0">
+          <AdminNav collapsed={isCollapsed} />
+        </div>
 
         {/* Sidebar Footer Controls */}
         <div className="mt-auto px-2 py-3 border-t border-slate-800/80 space-y-1 bg-slate-950/80 shrink-0">
@@ -247,7 +249,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </header>
 
         {/* Page Content */}
-        <div className="flex-1 min-w-0">
+        <div className="flex-1 min-w-0 flex flex-col overflow-y-auto">
           {children}
         </div>
       </div>

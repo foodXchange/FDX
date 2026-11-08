@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense } from "react";
+import { Suspense, useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 
@@ -96,6 +96,28 @@ function AdminNavInner({ collapsed = false, search }: AdminNavProps & { search: 
   const pathname = usePathname();
   const isRegistryView = new URLSearchParams(search).get("view") === "registry";
 
+  // Accordion state for compacted sidebar: default first section open, rest collapsed
+  const [openSections, setOpenSections] = useState<Record<string, boolean>>({
+    "Deal Operations": true,
+    "Catalog & Directory": false,
+    "Sales & Content": false,
+    "Configuration": false,
+  });
+
+  // Automatically expand the section containing the active URL
+  useEffect(() => {
+    for (const section of sections) {
+      if (section.links.some((l) => isLinkActive(l.href))) {
+        setOpenSections((prev) => ({ ...prev, [section.title]: true }));
+        break;
+      }
+    }
+  }, [pathname, search]);
+
+  const toggleSection = (title: string) => {
+    setOpenSections((prev) => ({ ...prev, [title]: !prev[title] }));
+  };
+
   function isLinkActive(href: string): boolean {
     if (href === "/admin") return pathname === "/admin";
     // Requests: Intake Desk vs Registry share the same path, split by ?view=registry.
@@ -111,7 +133,7 @@ function AdminNavInner({ collapsed = false, search }: AdminNavProps & { search: 
   }
 
   return (
-    <nav className="px-2 py-3 space-y-3 flex-1 overflow-y-auto overflow-x-hidden">
+    <nav className="px-2 py-3 space-y-2 flex-1 overflow-y-auto overflow-x-hidden">
       {/* Quick Dashboard Home Link */}
       <div>
         <Link
@@ -128,49 +150,65 @@ function AdminNavInner({ collapsed = false, search }: AdminNavProps & { search: 
         </Link>
       </div>
 
-      {sections.map((section) => (
-        <div key={section.title} className="space-y-1">
-          {!collapsed ? (
-            <p className="px-3 text-[10px] font-bold uppercase tracking-wider text-slate-500">
-              {section.title}
-            </p>
-          ) : (
-            <div className="h-px bg-slate-800/60 my-2 mx-1" />
-          )}
+      {sections.map((section) => {
+        const isOpen = collapsed || openSections[section.title] !== false;
+        const hasActiveChild = section.links.some((l) => isLinkActive(l.href));
 
-          <div className="space-y-0.5">
-            {section.links.map((link) => {
-              const active = isLinkActive(link.href);
-              return (
-                <Link
-                  key={link.href}
-                  href={link.href}
-                  title={collapsed ? link.label : undefined}
-                  className={`flex items-center ${
-                    collapsed ? "justify-center px-2 py-2" : "justify-between px-3 py-2"
-                  } rounded-lg text-xs font-medium transition-all group ${
-                    active
-                      ? "bg-slate-800 text-white border-l-2 border-orange-500 font-semibold" + (collapsed ? "" : " pl-2.5")
-                      : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/60"
-                  }`}
-                >
-                  <div className={`flex items-center ${collapsed ? "justify-center" : "gap-2.5"} truncate`}>
-                    <span className="text-xs shrink-0 group-hover:scale-110 transition-transform">
-                      {link.icon}
-                    </span>
-                    {!collapsed && <span className="truncate">{link.label}</span>}
-                  </div>
-                  {!collapsed && link.badge && (
-                    <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-slate-700 text-slate-300 font-bold shrink-0">
-                      {link.badge}
-                    </span>
-                  )}
-                </Link>
-              );
-            })}
+        return (
+          <div key={section.title} className="space-y-0.5">
+            {!collapsed ? (
+              <button
+                type="button"
+                onClick={() => toggleSection(section.title)}
+                className="w-full flex items-center justify-between px-3 py-1.5 rounded-lg text-left text-[10px] font-bold uppercase tracking-wider text-slate-400 hover:text-slate-200 hover:bg-slate-900/60 transition-colors cursor-pointer select-none"
+              >
+                <span className={hasActiveChild ? "text-orange-400 font-extrabold" : ""}>
+                  {section.title}
+                </span>
+                <span className="text-[10px] text-slate-500 transition-transform duration-200">
+                  {isOpen ? "▾" : "▸"}
+                </span>
+              </button>
+            ) : (
+              <div className="h-px bg-slate-800/60 my-2 mx-1" />
+            )}
+
+            {isOpen && (
+              <div className="space-y-0.5">
+                {section.links.map((link) => {
+                  const active = isLinkActive(link.href);
+                  return (
+                    <Link
+                      key={link.href}
+                      href={link.href}
+                      title={collapsed ? link.label : undefined}
+                      className={`flex items-center ${
+                        collapsed ? "justify-center px-2 py-1.5" : "justify-between px-3 py-1.5"
+                      } rounded-lg text-xs font-medium transition-all group ${
+                        active
+                          ? "bg-slate-800 text-white border-l-2 border-orange-500 font-semibold" + (collapsed ? "" : " pl-2.5")
+                          : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/60"
+                      }`}
+                    >
+                      <div className={`flex items-center ${collapsed ? "justify-center" : "gap-2.5"} truncate`}>
+                        <span className="text-xs shrink-0 group-hover:scale-110 transition-transform">
+                          {link.icon}
+                        </span>
+                        {!collapsed && <span className="truncate">{link.label}</span>}
+                      </div>
+                      {!collapsed && link.badge && (
+                        <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-slate-700 text-slate-300 font-bold shrink-0">
+                          {link.badge}
+                        </span>
+                      )}
+                    </Link>
+                  );
+                })}
+              </div>
+            )}
           </div>
-        </div>
-      ))}
+        );
+      })}
     </nav>
   );
 }
