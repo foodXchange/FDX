@@ -1,0 +1,23 @@
+{
+  "activeUser": "info@fdx.trading",
+  "accounts": [
+    {
+      "user": "udi@foodxchange.com",
+      "appPassword": "",
+      "senderName": "Udi — FoodXchange Sourcing Desk",
+      "provider": "gmail",
+      "replyTo": "udi@foodxchange.com",
+      "role": "Sourcing Director (Add App Password to Activate)",
+      "addedAt": "2026-11-08T18:29:09.057Z"
+    },
+    {
+      "user": "info@fdx.trading",
+      "appPassword": "",
+      "senderName": "FoodXchange Sourcing",
+      "provider": "resend",
+      "replyTo": "udi@foodxchange.com",
+      "role": "Transactional Domain Mailer (Resend)",
+      "addedAt": "2026-11-08T18:29:09.057Z"
+    }
+  ]
+}

@@ -243,6 +243,15 @@ export default function EmailOutreachHubClient({
     text: string;
   } | null>(null);
   const [testRecipient, setTestRecipient] = useState("");
+  const [mounted, setMounted] = useState(false);
+
+  // Staged Scraper Supplier State
+  const [stagingForScraper, setStagingForScraper] = useState(false);
+  const [scraperStagedFeedback, setScraperStagedFeedback] = useState<string | null>(null);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   function startEditingAccount(acc: {
     user: string;
@@ -258,7 +267,17 @@ export default function EmailOutreachHubClient({
     setAccFormReplyTo(acc.replyTo || acc.user);
     setAccFormRole(acc.role || "Primary Sourcing & 2-Way Sync");
     setAccFormPassword("");
-    setAccFeedback(null);
+    setAccFeedback({
+      type: "ok",
+      text: `✏️ Editing account "${acc.user}". Update fields below or paste App Password and click Save.`,
+    });
+    // Scroll editor smoothly into view
+    setTimeout(() => {
+      const formEl = document.getElementById("email-account-editor-section");
+      if (formEl) {
+        formEl.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+    }, 50);
   }
 
   function resetAccountForm() {
@@ -975,7 +994,7 @@ Email: udi@foodxchange.com`);
           )
         );
         setBulkResultMsg(
-          `✅ Dispatched ${data.sent || 0} of ${targetIds.length} emails in parallel!`
+          `✅ Dispatched ${data.sent || 0} of ${targetIds.length} emails with anti-spam pacing intervals!`
         );
       }
     } catch (err: any) {
@@ -1540,7 +1559,9 @@ Email: udi@foodxchange.com`);
                                 : `📤 SENT TO ${msg.to || activeMatch.contact_email || "Supplier"}`}
                             </span>
                             <span>
-                              {new Date(msg.created_at).toLocaleString()}
+                              {mounted
+                                ? new Date(msg.created_at).toLocaleString()
+                                : msg.created_at.slice(0, 16).replace("T", " ")}
                             </span>
                           </div>
                           {msg.subject && (
@@ -1566,9 +1587,13 @@ Email: udi@foodxchange.com`);
                               <span>📤 LAST OUTBOUND EMAIL</span>
                               <span>
                                 {activeMatch.last_outreach_at
-                                  ? new Date(
-                                      activeMatch.last_outreach_at
-                                    ).toLocaleString()
+                                  ? mounted
+                                    ? new Date(
+                                        activeMatch.last_outreach_at
+                                      ).toLocaleString()
+                                    : activeMatch.last_outreach_at
+                                        .slice(0, 16)
+                                        .replace("T", " ")
                                   : ""}
                               </span>
                             </div>
@@ -1798,6 +1823,66 @@ Email: udi@foodxchange.com`);
                     ? "🤖 Extracting Terms with AI..."
                     : "🤖 Parse Reply & Update Deal Desk"}
                 </button>
+
+                {/* 1-Click Discover New Supplier & Stage for Scraper */}
+                <div className="pt-2 border-t border-purple-200/80">
+                  <button
+                    type="button"
+                    disabled={stagingForScraper || !pasteBody.trim()}
+                    onClick={async () => {
+                      if (!pasteBody.trim()) return;
+                      setStagingForScraper(true);
+                      setScraperStagedFeedback(null);
+                      try {
+                        const res = await fetch("/api/admin/outreach/stage-for-scraper", {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({
+                            action: "extract_from_email",
+                            rawEmailText: pasteBody.trim(),
+                            fromEmail:
+                              activeMatch?.contact_email ||
+                              "discovered-supplier@domain.com",
+                          }),
+                        });
+                        const data = await res.json();
+                        if (data.ok) {
+                          setScraperStagedFeedback(
+                            data.message ||
+                              "🕷️ Discovered supplier added to Pending Scraper Queue!"
+                          );
+                        } else {
+                          setScraperStagedFeedback(`⚠️ ${data.error || "Failed to stage supplier"}`);
+                        }
+                      } catch (err: any) {
+                        setScraperStagedFeedback(`⚠️ ${err.message || "Network error"}`);
+                      } finally {
+                        setStagingForScraper(false);
+                      }
+                    }}
+                    className="w-full py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-amber-300 hover:text-amber-200 text-xs font-extrabold shadow-xs transition-colors cursor-pointer disabled:opacity-50 flex items-center justify-center gap-1.5"
+                    title="Extract manufacturer name, catalog links & domain from this email to stage into the Web Scraper queue"
+                  >
+                    <span>🕷️</span>
+                    <span>
+                      {stagingForScraper
+                        ? "Discovering & Staging..."
+                        : "Discover & Stage for Web Scraper"}
+                    </span>
+                  </button>
+
+                  {scraperStagedFeedback && (
+                    <div className="mt-2 p-2 rounded-xl bg-amber-50 border border-amber-300 text-[11px] font-bold text-amber-950 flex items-center justify-between">
+                      <span className="flex-1">{scraperStagedFeedback}</span>
+                      <Link
+                        href="/admin/scraper"
+                        className="ml-2 text-blue-600 underline text-[10px] shrink-0"
+                      >
+                        Open Scraper ↗
+                      </Link>
+                    </div>
+                  )}
+                </div>
               </div>
 
               {/* Box 2: Direct Quote & Commercial Terms Capture */}
@@ -1965,7 +2050,7 @@ Email: udi@foodxchange.com`);
                 <p className="text-xs text-slate-300 mt-0.5">
                   Uses{" "}
                   <code className="text-orange-300">{"{{Supplier_Name}}"}</code>{" "}
-                  personalization + parallel dispatch + plus-addressed Reply-To routing.
+                  personalization + 🛡️ sequential 1-by-1 anti-spam pacing + plus-addressed reply routing.
                 </p>
               </div>
               <button
@@ -1978,6 +2063,19 @@ Email: udi@foodxchange.com`);
             </div>
 
             <div className="p-6 overflow-y-auto space-y-4 flex-1">
+              {/* Anti-Spam Human-Like Pacing Notice */}
+              <div className="p-3 rounded-2xl bg-emerald-50 border border-emerald-200 text-xs text-emerald-950 flex items-start gap-2.5">
+                <span className="text-base shrink-0">🛡️</span>
+                <div>
+                  <span className="font-extrabold text-emerald-900 block">
+                    Anti-Spam Human-Like Pacing Active
+                  </span>
+                  <span className="text-emerald-800 text-[11px] leading-relaxed">
+                    Emails are dispatched sequentially 1-at-a-time with random human jitter intervals (1.8s - 3.0s) so Google Workspace, Microsoft 365, and corporate recipient mail gateways never flag your domain or Gmail account as a spam burst.
+                  </span>
+                </div>
+              </div>
+
               {/* Recipient List with inline email input if missing */}
               <div>
                 <label className="block text-xs font-extrabold uppercase text-slate-600 mb-2">
@@ -2088,8 +2186,8 @@ Email: udi@foodxchange.com`);
                 className="px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-extrabold shadow-sm cursor-pointer disabled:opacity-50"
               >
                 {bulkSending
-                  ? "🚀 Dispatching Parallel Batch..."
-                  : `🚀 Send to All ${checkedMatchIds.size} Factories Now`}
+                  ? "🛡️ Dispatching 1-by-1 with Anti-Spam Pacing..."
+                  : `🚀 Send to All ${checkedMatchIds.size} Factories (Paced)`}
               </button>
             </div>
           </div>
@@ -2414,7 +2512,7 @@ Email: udi@foodxchange.com`);
                       return (
                         <div
                           key={acc.user}
-                          className={`p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition ${
+                          className={`p-4 transition ${
                             isBeingEdited
                               ? "bg-indigo-50/70"
                               : acc.isActive
@@ -2422,124 +2520,140 @@ Email: udi@foodxchange.com`);
                               : "hover:bg-slate-50"
                           }`}
                         >
-                          <div className="space-y-1 min-w-0">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <span className="text-xs font-extrabold text-slate-900 font-mono">
-                                {acc.user}
-                              </span>
-                              <span
-                                className={`text-[10px] font-bold px-2 py-0.5 rounded border ${
-                                  acc.provider === "resend"
-                                    ? "bg-sky-50 text-sky-800 border-sky-200"
-                                    : "bg-purple-50 text-purple-800 border-purple-200"
-                                }`}
-                              >
-                                {acc.provider === "resend"
-                                  ? "🌐 Resend Domain Mailer"
-                                  : "📬 Gmail / Workspace (2-Way)"}
-                              </span>
-                              {acc.isActive && (
-                                <span className="text-[10px] font-extrabold px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 border border-emerald-300">
-                                  ⭐ Primary Active
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                            <div className="space-y-1 min-w-0">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="text-xs font-extrabold text-slate-900 font-mono">
+                                  {acc.user}
                                 </span>
-                              )}
-                              {!acc.hasCredentials && acc.provider !== "resend" && (
-                                <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-amber-100 text-amber-800 border border-amber-300">
-                                  ⚠️ Click &apos;Edit&apos; to Add 16-Char App Password
+                                <span
+                                  className={`text-[10px] font-bold px-2 py-0.5 rounded border ${
+                                    acc.provider === "resend"
+                                      ? "bg-sky-50 text-sky-800 border-sky-200"
+                                      : "bg-purple-50 text-purple-800 border-purple-200"
+                                  }`}
+                                >
+                                  {acc.provider === "resend"
+                                    ? "🌐 Resend Domain Mailer"
+                                    : "📬 Gmail / Workspace (2-Way)"}
                                 </span>
-                              )}
-                            </div>
-
-                            <div className="text-[11px] text-slate-600 flex items-center gap-3 flex-wrap">
-                              <span>
-                                From Name: <strong>{acc.senderName}</strong>
-                              </span>
-                              <span>·</span>
-                              <span>
-                                Reply-To:{" "}
-                                <code className="font-mono text-slate-800">
-                                  {acc.replyTo || acc.user}
-                                </code>
-                              </span>
-                              {acc.provider !== "resend" && (
-                                <>
-                                  <span>·</span>
-                                  <span>
-                                    App Password:{" "}
-                                    <code className="font-mono">
-                                      {acc.maskedPassword || "Not set"}
-                                    </code>
+                                {acc.isActive && (
+                                  <span className="text-[10px] font-extrabold px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 border border-emerald-300">
+                                    ⭐ Primary Active
                                   </span>
-                                </>
+                                )}
+                                {!acc.hasCredentials && acc.provider !== "resend" && (
+                                  <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-amber-100 text-amber-800 border border-amber-300">
+                                    ⚠️ Click &apos;Edit&apos; to Add 16-Char App Password
+                                  </span>
+                                )}
+                              </div>
+
+                              <div className="text-[11px] text-slate-600 flex items-center gap-3 flex-wrap">
+                                <span>
+                                  From Name: <strong>{acc.senderName}</strong>
+                                </span>
+                                <span>·</span>
+                                <span>
+                                  Reply-To:{" "}
+                                  <code className="font-mono text-slate-800">
+                                    {acc.replyTo || acc.user}
+                                  </code>
+                                </span>
+                                {acc.provider !== "resend" && (
+                                  <>
+                                    <span>·</span>
+                                    <span>
+                                      App Password:{" "}
+                                      <code className="font-mono">
+                                        {acc.maskedPassword || "Not set"}
+                                      </code>
+                                    </span>
+                                  </>
+                                )}
+                              </div>
+
+                              {acc.role && (
+                                <div className="text-[10px] text-slate-400 font-semibold">
+                                  Purpose: {acc.role}
+                                </div>
                               )}
                             </div>
 
-                            {acc.role && (
-                              <div className="text-[10px] text-slate-400 font-semibold">
-                                Purpose: {acc.role}
-                              </div>
-                            )}
-                          </div>
+                            {/* 1-Click Action Bar: Set Primary | Verify | Edit | Delete */}
+                            <div className="flex items-center gap-1.5 shrink-0 flex-wrap">
+                              {!acc.isActive && (
+                                <button
+                                  type="button"
+                                  disabled={accBusy}
+                                  onClick={() =>
+                                    handleAccountAction({
+                                      action: "set_active",
+                                      user: acc.user,
+                                    })
+                                  }
+                                  className="px-2.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] font-extrabold cursor-pointer"
+                                  title="Make this the primary sender for all outreach"
+                                >
+                                  ⭐ Set Primary
+                                </button>
+                              )}
 
-                          {/* 1-Click Action Bar: Set Primary | Verify | Edit | Delete */}
-                          <div className="flex items-center gap-1.5 shrink-0 flex-wrap">
-                            {!acc.isActive && (
                               <button
                                 type="button"
                                 disabled={accBusy}
                                 onClick={() =>
                                   handleAccountAction({
-                                    action: "set_active",
+                                    action: "test_connection",
                                     user: acc.user,
                                   })
                                 }
-                                className="px-2.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] font-extrabold cursor-pointer"
-                                title="Make this the primary sender for all outreach"
+                                className="px-2.5 py-1.5 rounded-xl border border-slate-300 bg-white hover:bg-slate-100 text-slate-700 text-[11px] font-bold cursor-pointer"
+                                title="Verify connection for this account"
                               >
-                                ⭐ Set Primary
+                                🔌 Verify
                               </button>
-                            )}
 
-                            <button
-                              type="button"
-                              disabled={accBusy}
-                              onClick={() =>
-                                handleAccountAction({
-                                  action: "test_connection",
-                                  user: acc.user,
-                                })
-                              }
-                              className="px-2.5 py-1.5 rounded-xl border border-slate-300 bg-white hover:bg-slate-100 text-slate-700 text-[11px] font-bold cursor-pointer"
-                              title="Verify connection for this account"
-                            >
-                              🔌 Verify
-                            </button>
+                              <button
+                                type="button"
+                                disabled={accBusy}
+                                onClick={() => startEditingAccount(acc)}
+                                className="px-2.5 py-1.5 rounded-xl border border-indigo-200 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-[11px] font-extrabold cursor-pointer"
+                                title="Edit email address, display name, reply-to, or App Password"
+                              >
+                                ✏️ Edit
+                              </button>
 
-                            <button
-                              type="button"
-                              disabled={accBusy}
-                              onClick={() => startEditingAccount(acc)}
-                              className="px-2.5 py-1.5 rounded-xl border border-indigo-200 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-[11px] font-extrabold cursor-pointer"
-                              title="Edit email address, display name, reply-to, or App Password"
-                            >
-                              ✏️ Edit
-                            </button>
-
-                            <button
-                              type="button"
-                              disabled={accBusy}
-                              onClick={() =>
-                                handleAccountAction({
-                                  action: "remove",
-                                  user: acc.user,
-                                })
-                              }
-                              className="px-2.5 py-1.5 rounded-xl border border-rose-200 bg-rose-50 hover:bg-rose-100 text-rose-700 text-[11px] font-extrabold cursor-pointer"
-                              title="Delete this email account from the list"
-                            >
-                              🗑️ Delete
-                            </button>
+                              <button
+                                type="button"
+                                disabled={accBusy}
+                                onClick={() =>
+                                  handleAccountAction({
+                                    action: "remove",
+                                    user: acc.user,
+                                  })
+                                }
+                                className="px-2.5 py-1.5 rounded-xl border border-rose-200 bg-rose-50 hover:bg-rose-100 text-rose-700 text-[11px] font-extrabold cursor-pointer"
+                                title="Delete this email account from the list"
+                              >
+                                🗑️ Delete
+                              </button>
+                            </div>
                           </div>
+
+                          {/* Quick inline indicator when currently being edited */}
+                          {isBeingEdited && (
+                            <div className="mt-2.5 pt-2 border-t border-indigo-200 text-xs text-indigo-800 font-bold flex items-center justify-between">
+                              <span>👇 Editing fields loaded below in the editor form.</span>
+                              <button
+                                type="button"
+                                onClick={() => resetAccountForm()}
+                                className="text-slate-600 hover:text-slate-900 underline text-[11px]"
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          )}
                         </div>
                       );
                     })
@@ -2548,7 +2662,10 @@ Email: udi@foodxchange.com`);
               </div>
 
               {/* Section 3: Add New Account OR Edit Selected Account Form */}
-              <div className="rounded-2xl border-2 border-indigo-200 bg-gradient-to-br from-indigo-50/70 via-white to-indigo-50/40 p-5 space-y-4 shadow-xs">
+              <div
+                id="email-account-editor-section"
+                className="rounded-2xl border-2 border-indigo-200 bg-gradient-to-br from-indigo-50/70 via-white to-indigo-50/40 p-5 space-y-4 shadow-xs"
+              >
                 <div className="flex items-start justify-between flex-wrap gap-2">
                   <div>
                     <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-800 text-[10px] font-extrabold uppercase tracking-wider mb-1">

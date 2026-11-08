@@ -1,3 +1,5 @@
+import fs from "fs";
+import path from "path";
 import nodemailer from "nodemailer";
 import { ImapFlow } from "imapflow";
 import { Resend } from "resend";
@@ -7,6 +9,60 @@ import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { createNotification } from "@/lib/notifications/createNotification";
 export { getMatchRefTag, buildGmailThreadUrl } from "@/lib/notifications/gmailHelper";
 import { getMatchRefTag } from "@/lib/notifications/gmailHelper";
+
+const LOCAL_ACCOUNTS_CONFIG_PATH = path.join(
+  process.cwd(),
+  "data",
+  "email-accounts-config.json"
+);
+
+declare global {
+  // eslint-disable-next-line no-var
+  var __fdxEmailAccountsConfig: GmailAccountsConfig | undefined;
+}
+
+function readLocalAccountsConfig(): GmailAccountsConfig | null {
+  if (globalThis.__fdxEmailAccountsConfig) {
+    return globalThis.__fdxEmailAccountsConfig;
+  }
+  try {
+    if (fs.existsSync(LOCAL_ACCOUNTS_CONFIG_PATH)) {
+      const raw = fs.readFileSync(LOCAL_ACCOUNTS_CONFIG_PATH, "utf-8");
+      const parsed = JSON.parse(raw);
+      if (parsed && Array.isArray(parsed.accounts)) {
+        const cfg: GmailAccountsConfig = {
+          activeUser: parsed.activeUser ?? null,
+          accounts: parsed.accounts,
+        };
+        globalThis.__fdxEmailAccountsConfig = cfg;
+        return cfg;
+      }
+    }
+  } catch {
+    // ignore fs read errors on read-only serverless fs
+  }
+  return null;
+}
+
+function writeLocalAccountsConfig(config: GmailAccountsConfig): void {
+  globalThis.__fdxEmailAccountsConfig = {
+    activeUser: config.activeUser,
+    accounts: [...config.accounts],
+  };
+  try {
+    const dir = path.dirname(LOCAL_ACCOUNTS_CONFIG_PATH);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+    fs.writeFileSync(
+      LOCAL_ACCOUNTS_CONFIG_PATH,
+      JSON.stringify(config, null, 2),
+      "utf-8"
+    );
+  } catch {
+    // ignore fs write errors if read-only fs, globalThis still holds it in memory
+  }
+}
 
 export interface GmailCredentials {
   user: string;
@@ -76,20 +132,29 @@ function getDefaultSeededAccounts(): StoredGmailAccount[] {
 }
 
 export async function getStoredGmailAccountsConfig(): Promise<GmailAccountsConfig> {
+  // 1. Check local disk / in-memory store first so edits, deletions, and primary switches
+  // persist immediately and are never overwritten by a quota-blocked Supabase read.
+  const localCfg = readLocalAccountsConfig();
+  if (localCfg) {
+    return localCfg;
+  }
+
   try {
-    const { data } = await supabaseAdmin
+    const { data, error } = await supabaseAdmin
       .from("scrape_batches")
       .select("original_filename")
       .eq("batch_key", "__gmail_config__")
       .maybeSingle();
 
-    if (data?.original_filename) {
+    if (!error && data?.original_filename) {
       const parsed = JSON.parse(data.original_filename);
       if (Array.isArray(parsed.accounts)) {
-        return {
+        const dbCfg: GmailAccountsConfig = {
           activeUser: parsed.activeUser ?? null,
           accounts: parsed.accounts,
         };
+        writeLocalAccountsConfig(dbCfg);
+        return dbCfg;
       }
       if (parsed.user) {
         const single: StoredGmailAccount = {
@@ -101,14 +166,21 @@ export async function getStoredGmailAccountsConfig(): Promise<GmailAccountsConfi
           role: parsed.role || "Primary Sourcing & 2-Way Sync",
           addedAt: new Date().toISOString(),
         };
-        return {
+        const dbCfg: GmailAccountsConfig = {
           activeUser: single.user,
-          accounts: [single, ...getDefaultSeededAccounts().filter((d) => d.user.toLowerCase() !== single.user.toLowerCase())],
+          accounts: [
+            single,
+            ...getDefaultSeededAccounts().filter(
+              (d) => d.user.toLowerCase() !== single.user.toLowerCase()
+            ),
+          ],
         };
+        writeLocalAccountsConfig(dbCfg);
+        return dbCfg;
       }
     }
   } catch {
-    // ignore
+    // ignore Supabase error (e.g. quota restriction)
   }
 
   const seeded = getDefaultSeededAccounts();
@@ -118,20 +190,32 @@ export async function getStoredGmailAccountsConfig(): Promise<GmailAccountsConfi
     seeded[0]?.user ||
     null;
 
-  return { activeUser: activeDefault, accounts: seeded };
+  const initialCfg: GmailAccountsConfig = {
+    activeUser: activeDefault,
+    accounts: seeded,
+  };
+  writeLocalAccountsConfig(initialCfg);
+  return initialCfg;
 }
 
 export async function saveStoredGmailAccountsConfig(
   config: GmailAccountsConfig
 ): Promise<void> {
-  await supabaseAdmin.from("scrape_batches").upsert(
-    {
-      batch_key: "__gmail_config__",
-      original_filename: JSON.stringify(config),
-      total_rows: config.accounts.length,
-    },
-    { onConflict: "batch_key" }
-  );
+  // Always persist immediately to memory + local disk so account actions work even when Supabase is restricted
+  writeLocalAccountsConfig(config);
+
+  try {
+    await supabaseAdmin.from("scrape_batches").upsert(
+      {
+        batch_key: "__gmail_config__",
+        original_filename: JSON.stringify(config),
+        total_rows: config.accounts.length,
+      },
+      { onConflict: "batch_key" }
+    );
+  } catch {
+    // ignore if Supabase is temporarily restricted by quota
+  }
 }
 
 /**

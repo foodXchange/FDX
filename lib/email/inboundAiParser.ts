@@ -1,5 +1,5 @@
 import { GoogleGenAI } from "@google/genai";
-import { GEMINI_MODEL } from "@/lib/ai/models";
+import { generateGeminiWithFallback } from "@/lib/ai/models";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { logAdminAction } from "@/lib/auditLog";
 import { revalidatePath } from "next/cache";
@@ -15,6 +15,9 @@ export interface InboundAiParseResult {
   confidence: number;
   english_summary: string;
   detected_supplier_name?: string;
+  detected_supplier_website?: string;
+  detected_supplier_country?: string;
+  detected_product_categories?: string[];
   quote_data?: {
     unit_price?: number | null;
     currency?: string;
@@ -66,12 +69,11 @@ export async function parseInboundCorrespondenceWithAI(
     recommended_stage: "Inquiry",
   };
 
-  if (!process.env.GEMINI_API_KEY || rawText.trim().length < 5) {
+  if (rawText.trim().length < 5) {
     return fallback;
   }
 
   try {
-    const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
     const prompt = `You are an expert B2B food trade analyst at FoodXchange (FDX).
 Analyze the following supplier email/message from "${fromEmail}" regarding food sourcing.
 The message may be in English, Spanish, Italian, French, German, Greek, Portuguese, Turkish, or Hebrew.
@@ -85,7 +87,7 @@ Analyze the intent and extract all structured data:
    - "declined": Supplier cannot supply or declines the RFQ.
    - "general_inquiry": General questions or comments.
 
-2. Extract structured fields if present.
+2. Extract structured fields if present, including supplier website (from signature or sender domain if corporate), country, and product categories.
 
 Subject: ${subject}
 Message Body:
@@ -97,6 +99,9 @@ Return ONLY valid JSON matching this exact structure:
   "confidence": number between 0.1 and 1.0,
   "english_summary": "1-3 concise sentences summarizing the supplier's message in professional English",
   "detected_supplier_name": "Supplier company name if stated, else null",
+  "detected_supplier_website": "https://... website URL from signature or corporate email domain, else null",
+  "detected_supplier_country": "Country name if stated or inferred from address/phone/TLD, else null",
+  "detected_product_categories": ["list of product lines mentioned"],
   "quote_data": {
     "unit_price": number or null,
     "currency": "EUR" | "USD" | "ILS" | "GBP",
@@ -131,8 +136,8 @@ Return ONLY valid JSON matching this exact structure:
   "recommended_stage": "Stage 3 (Decision Board)" | "Stage 4 (Samples)" | "Stage 5 (QA)" | "Stage 7 (Logistics)" | "Inquiry"
 }`;
 
-    const res = await ai.models.generateContent({
-      model: GEMINI_MODEL,
+    const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "dummy" });
+    const res = await generateGeminiWithFallback(ai, {
       contents: prompt,
       config: {
         responseMimeType: "application/json",
@@ -146,6 +151,9 @@ Return ONLY valid JSON matching this exact structure:
       confidence: typeof parsed.confidence === "number" ? parsed.confidence : 0.85,
       english_summary: parsed.english_summary || fallback.english_summary,
       detected_supplier_name: parsed.detected_supplier_name,
+      detected_supplier_website: parsed.detected_supplier_website,
+      detected_supplier_country: parsed.detected_supplier_country,
+      detected_product_categories: parsed.detected_product_categories,
       quote_data: parsed.quote_data,
       sample_data: parsed.sample_data,
       qa_data: parsed.qa_data,
