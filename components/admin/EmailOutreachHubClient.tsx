@@ -1094,10 +1094,10 @@ Email: udi@foodxchange.com`);
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col">
+    <div className="flex-1 flex flex-col bg-slate-50 min-h-0">
       {/* Top Mission Control Outreach Header */}
-      <header className="bg-slate-900 text-white border-b border-slate-800 px-6 py-4">
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+      <header className="bg-slate-900 text-white border-b border-slate-800 px-4 sm:px-6 py-3.5 shrink-0">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
           <div>
             <div className="flex items-center gap-2 text-xs text-orange-400 font-bold uppercase tracking-wider">
               <Link href="/admin" className="hover:underline">
@@ -1292,9 +1292,9 @@ Email: udi@foodxchange.com`);
       </header>
 
       {/* Main 3-Pane Command Workspace */}
-      <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 min-h-0">
+      <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 min-h-0 overflow-hidden">
         {/* LEFT PANE: Supplier Thread Queue & Request Filter (4 cols) */}
-        <aside className="lg:col-span-4 border-r border-slate-200 bg-white flex flex-col max-h-[calc(100vh-190px)]">
+        <aside className="lg:col-span-4 border-r border-slate-200 bg-white flex flex-col h-[calc(100vh-270px)] min-h-[500px]">
           {/* Request Selector + Search */}
           <div className="p-3.5 border-b border-slate-200 space-y-2.5 bg-slate-50/70">
             <div>
@@ -1473,7 +1473,7 @@ Email: udi@foodxchange.com`);
         </aside>
 
         {/* CENTER PANE: Full Conversation Thread + Multi-Stage Smart Composer (5 cols) */}
-        <section className="lg:col-span-5 border-r border-slate-200 bg-slate-50/40 flex flex-col max-h-[calc(100vh-190px)] overflow-y-auto">
+        <section className="lg:col-span-5 border-r border-slate-200 bg-slate-50/40 flex flex-col h-[calc(100vh-270px)] min-h-[500px] overflow-y-auto">
           {!activeMatch ? (
             <div className="p-12 text-center text-sm text-slate-500">
               Select a supplier from the left queue to view correspondence and compose outreach.
@@ -1770,7 +1770,7 @@ Email: udi@foodxchange.com`);
         </section>
 
         {/* RIGHT PANE: AI Reply Parser & Quick Commercial Quote Capture (3 cols) */}
-        <aside className="lg:col-span-3 bg-white flex flex-col max-h-[calc(100vh-190px)] overflow-y-auto p-4 space-y-5">
+        <aside className="lg:col-span-3 bg-white flex flex-col h-[calc(100vh-270px)] min-h-[500px] overflow-y-auto p-4 space-y-5">
           {!activeMatch ? (
             <div className="text-xs text-slate-400 text-center py-10">
               Select a supplier thread to parse replies or record quotes.
