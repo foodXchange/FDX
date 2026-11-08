@@ -249,6 +249,25 @@ export default function EmailOutreachHubClient({
   const [stagingForScraper, setStagingForScraper] = useState(false);
   const [scraperStagedFeedback, setScraperStagedFeedback] = useState<string | null>(null);
 
+  // UX Optimization: Density Mode ("dense" vs "comfortable")
+  const [densityMode, setDensityMode] = useState<"comfortable" | "dense">("comfortable");
+
+  // UX Optimization: WhatsApp Composer Direct Web Link
+  function getWhatsAppUrl(phone: string | null | undefined, company: string, messageBody: string): string {
+    const rawNumber = (phone || "").replace(/[^0-9]/g, "");
+    const cleanNumber = rawNumber.length >= 8 ? rawNumber : "";
+    const intro = `Hello ${company} Export Team,\n\n${messageBody}`;
+    const encoded = encodeURIComponent(intro);
+    return cleanNumber
+      ? `https://wa.me/${cleanNumber}?text=${encoded}`
+      : `https://wa.me/?text=${encoded}`;
+  }
+
+  // Quick Reply Snippet Inserter
+  function handleInsertSnippet(snippet: string) {
+    setBodyText((prev) => `${prev.trim()}\n\n${snippet.trim()}`);
+  }
+
   useEffect(() => {
     setMounted(true);
   }, []);
@@ -1331,6 +1350,14 @@ Email: udi@foodxchange.com`);
               />
               <button
                 type="button"
+                onClick={() => setDensityMode((prev) => (prev === "comfortable" ? "dense" : "comfortable"))}
+                className="px-2 py-1.5 rounded-lg border border-slate-300 bg-white hover:bg-slate-100 text-[11px] font-bold text-slate-700 cursor-pointer shrink-0"
+                title="Toggle between dense single-line rows and comfortable detailed cards"
+              >
+                {densityMode === "comfortable" ? "🗜️ Dense" : "📋 Detailed"}
+              </button>
+              <button
+                type="button"
                 onClick={() => {
                   if (checkedMatchIds.size === filteredMatches.length) {
                     setCheckedMatchIds(new Set());
@@ -1370,6 +1397,69 @@ Email: udi@foodxchange.com`);
                 const lastSentHrs = hoursSince(
                   m.last_outreach_at || m.rfq_sent_at || m.sent_at
                 );
+
+                if (densityMode === "dense") {
+                  return (
+                    <div
+                      key={m.id}
+                      onClick={() => setSelectedMatchId(m.id)}
+                      className={`px-3 py-2 transition-colors cursor-pointer flex items-center justify-between gap-2 text-xs ${
+                        isSelected
+                          ? "bg-orange-50/90 border-l-4 border-l-orange-500 font-bold"
+                          : "hover:bg-slate-50"
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 min-w-0 flex-1">
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={(e) => {
+                            e.stopPropagation();
+                            setCheckedMatchIds((prev) => {
+                              const next = new Set(prev);
+                              if (next.has(m.id)) next.delete(m.id);
+                              else next.add(m.id);
+                              return next;
+                            });
+                          }}
+                          onClick={(e) => e.stopPropagation()}
+                          className="h-3.5 w-3.5 rounded border-slate-300 text-orange-600 cursor-pointer shrink-0"
+                        />
+                        <span className="truncate font-extrabold text-slate-900 text-xs">
+                          {m.company_name}
+                        </span>
+                        <span className="text-[10px] text-slate-400 shrink-0">
+                          ({m.country || "Global"})
+                        </span>
+                      </div>
+
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        {m.quote?.unit_price ? (
+                          <span className="font-extrabold text-[10px] text-purple-700 bg-purple-50 px-1 py-0.5 rounded border border-purple-200">
+                            {m.quote.currency || "EUR"} {m.quote.unit_price}
+                          </span>
+                        ) : null}
+                        {replied ? (
+                          <span className="text-[9px] font-extrabold px-1.5 py-0.5 rounded bg-purple-100 text-purple-800">
+                            📥 Replied
+                          </span>
+                        ) : overdue ? (
+                          <span className="text-[9px] font-extrabold px-1.5 py-0.5 rounded bg-amber-100 text-amber-800">
+                            ⏰ Overdue
+                          </span>
+                        ) : awaiting ? (
+                          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-sky-100 text-sky-800">
+                            📤 Sent
+                          </span>
+                        ) : (
+                          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800">
+                            {m.match_score}%
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                }
 
                 return (
                   <div
@@ -1520,12 +1610,67 @@ Email: udi@foodxchange.com`);
                     </p>
                   </div>
 
-                  <Link
-                    href={`/admin/requests/${activeMatch.request_id}`}
-                    className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs transition-colors"
-                  >
-                    Open Request Deal Desk ↗
-                  </Link>
+                  <div className="flex items-center gap-2">
+                    <Link
+                      href={`/admin/requests/${activeMatch.request_id}`}
+                      className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs transition-colors"
+                    >
+                      Open Request Deal Desk ↗
+                    </Link>
+                  </div>
+                </div>
+
+                {/* UX Optimization 3: Visual 5-Stage Deal Health Tracker */}
+                <div className="mt-3.5 pt-3 border-t border-slate-100">
+                  <div className="flex items-center justify-between text-[10px] font-extrabold uppercase tracking-wider text-slate-400 mb-2">
+                    <span>Deal Progression Pipeline</span>
+                    <span className="text-emerald-700 font-bold">
+                      {isReplied(activeMatch)
+                        ? "Stage 3 · Commercial Quote Captured"
+                        : isSentAwaiting(activeMatch)
+                        ? "Stage 2 · Outbound RFQ Active"
+                        : "Stage 1 · Ready for Initial Outreach"}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-5 gap-1.5">
+                    {[
+                      { step: 1, label: "1. Matched", active: true },
+                      {
+                        step: 2,
+                        label: "2. RFQ Sent",
+                        active:
+                          activeMatch.status === "rfq_sent" ||
+                          activeMatch.status === "sent" ||
+                          isReplied(activeMatch),
+                      },
+                      {
+                        step: 3,
+                        label: "3. Quote Received",
+                        active: isReplied(activeMatch),
+                      },
+                      {
+                        step: 4,
+                        label: "4. Samples AWB",
+                        active: Boolean(activeMatch.quote?.cooperation_status === "cooperating" && isReplied(activeMatch)),
+                      },
+                      {
+                        step: 5,
+                        label: "5. Decision Board",
+                        active: Boolean(activeMatch.quote?.unit_price),
+                      },
+                    ].map((st) => (
+                      <div
+                        key={st.step}
+                        className={`py-1 px-1.5 rounded-lg text-center text-[10px] font-extrabold border transition-all ${
+                          st.active
+                            ? "bg-emerald-50 border-emerald-300 text-emerald-800"
+                            : "bg-slate-50 border-slate-200 text-slate-400"
+                        }`}
+                      >
+                        {st.label}
+                      </div>
+                    ))}
+                  </div>
                 </div>
 
                 {/* Conversation Thread History */}
@@ -1722,6 +1867,61 @@ Email: udi@foodxchange.com`);
                   </span>
                 </label>
 
+                {/* UX Optimization 2: Quick Reply Inserter Chips */}
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500">
+                      ⚡ Quick Paragraph Inserters (Click to Append to Message)
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        handleInsertSnippet(
+                          "Could you kindly attach your technical product specifications (TDS), allergen breakdown, and shelf-life statement (PDF)?"
+                        )
+                      }
+                      className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 border border-slate-200 text-[11px] font-bold text-slate-700 cursor-pointer"
+                    >
+                      + Spec Sheet / TDS Request
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        handleInsertSnippet(
+                          "Please confirm your current Kosher certification status (agency, Rabbi signature, and whether Pareve or Dairy)."
+                        )
+                      }
+                      className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 border border-slate-200 text-[11px] font-bold text-slate-700 cursor-pointer"
+                    >
+                      + Kosher Cert Request
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        handleInsertSnippet(
+                          "Could you confirm your master carton packing configuration (units per carton, cartons per standard euro pallet, Ti/Hi)?"
+                        )
+                      }
+                      className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 border border-slate-200 text-[11px] font-bold text-slate-700 cursor-pointer"
+                    >
+                      + Master Carton & Ti/Hi
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        handleInsertSnippet(
+                          "Are commercial tasting samples available to be dispatched this week via DHL/FedEx Express to our sampling office in Tel Aviv?"
+                        )
+                      }
+                      className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 border border-slate-200 text-[11px] font-bold text-slate-700 cursor-pointer"
+                    >
+                      + Request Courier Samples
+                    </button>
+                  </div>
+                </div>
+
                 {/* Message Body */}
                 <div>
                   <textarea
@@ -1745,13 +1945,32 @@ Email: udi@foodxchange.com`);
                 )}
 
                 <div className="flex items-center justify-between gap-2 pt-1 flex-wrap">
-                  <button
-                    type="button"
-                    onClick={handleOpenInGmail}
-                    className="px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white hover:bg-slate-100 text-xs font-bold text-slate-700 cursor-pointer"
-                  >
-                    📬 Open in Gmail Web ↗
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={handleOpenInGmail}
+                      className="px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white hover:bg-slate-100 text-xs font-bold text-slate-700 cursor-pointer flex items-center gap-1.5"
+                    >
+                      <span>📬</span>
+                      <span>Open in Gmail ↗</span>
+                    </button>
+
+                    {/* UX Optimization 5: One-Click WhatsApp Web Direct Launcher */}
+                    <a
+                      href={getWhatsAppUrl(
+                        activeMatch.contact_phone,
+                        activeMatch.company_name,
+                        bodyText
+                      )}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="px-3.5 py-2.5 rounded-xl border border-emerald-300 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 text-xs font-bold transition-colors cursor-pointer flex items-center gap-1.5"
+                      title="Open WhatsApp Web pre-loaded with this message text"
+                    >
+                      <span>💬</span>
+                      <span>WhatsApp Direct ↗</span>
+                    </a>
+                  </div>
 
                   <button
                     type="button"
@@ -1947,6 +2166,27 @@ Email: udi@foodxchange.com`);
                     </select>
                   </div>
                 </div>
+
+                {/* UX Optimization 4: Live Estimated Landed Cost Calculator */}
+                {Boolean(Number(quotePrice) > 0) && (
+                  <div className="p-2.5 rounded-xl bg-indigo-50 border border-indigo-200 text-xs">
+                    <div className="text-[10px] font-extrabold uppercase tracking-wider text-indigo-900 mb-0.5">
+                      🇮🇱 Israeli Landed Cost Estimate
+                    </div>
+                    <div className="flex items-baseline justify-between">
+                      <span className="text-[11px] text-slate-600">
+                        Ex-Works {quoteCurrency} {Number(quotePrice).toFixed(2)} + 12% Freight/Duty:
+                      </span>
+                      <span className="font-extrabold text-indigo-950 font-mono text-xs">
+                        {quoteCurrency === "EUR"
+                          ? `≈ ₪${(Number(quotePrice) * 1.12 * 4.02).toFixed(2)}`
+                          : quoteCurrency === "USD"
+                          ? `≈ ₪${(Number(quotePrice) * 1.12 * 3.75).toFixed(2)}`
+                          : `≈ ₪${(Number(quotePrice) * 1.12).toFixed(2)}`}
+                      </span>
+                    </div>
+                  </div>
+                )}
 
                 <div className="grid grid-cols-2 gap-2">
                   <div>
