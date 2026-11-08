@@ -1,5 +1,9 @@
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import SourcingDealDesk, { type BuyerOption } from "@/components/admin/SourcingDealDesk";
+import {
+  DEMO_REQUEST_ID,
+  FALLBACK_SOURCING_REQUESTS,
+} from "@/lib/outreach/fallbackOutreachData";
 
 export type RequestRow = {
   id: string;
@@ -151,20 +155,76 @@ export default async function AdminRequestsPage({ searchParams }: PageProps) {
     buyer_logo_url: r.buyer_id ? buyerLogoMap.get(r.buyer_id) ?? null : null,
   }));
 
-  const totalCount = requests.length;
-  const matchedCount = requests.filter((r) => r.status === "matched").length;
-  const unmatchedCount = requests.filter(
+  let finalRequests: RequestRow[] = requests;
+  if (finalRequests.length === 0) {
+    finalRequests = FALLBACK_SOURCING_REQUESTS.map((fr) => ({
+      id: fr.id,
+      name: "Udi FDX",
+      email: "udi@foodxchange.com",
+      company: fr.company,
+      buyer_id: null,
+      message: "Direct sourcing mandate for Israeli retail and pharmacy chain distribution.",
+      product_name: fr.product_name,
+      category: fr.category,
+      certifications: fr.certifications,
+      target_market: fr.target_market,
+      private_label: true,
+      packaging_preference: "Display Box / Retail Flowpack",
+      volume_per_year: fr.volume_per_year,
+      ai_analysis: {
+        seller_brief: "FDX Mandate: Seeking certified European food manufacturer for retail distribution.",
+        benchmark_brand: "Market Benchmark",
+      },
+      source: "direct",
+      status: "matched",
+      brief_status: (fr.brief_status as RequestRow["brief_status"]) ?? "confirmed",
+      brief_version: 1,
+      confirmed_at: null,
+      confirmed_by: null,
+      confirmed_via: null,
+      deleted_at: null,
+      created_at: fr.created_at || new Date().toISOString(),
+      images: [],
+      match_count: fr.id === DEMO_REQUEST_ID ? 5 : 3,
+      best_match_score: fr.id === DEMO_REQUEST_ID ? 96 : 88,
+      sent_count: 2,
+      replied_count: 1,
+      is_published: true,
+      published_product_name: fr.product_name,
+      published_message: null,
+      intent_json: null,
+      buyer_logo_url: null,
+      temperature_regime: fr.temperature_regime,
+      dietary_requirements: fr.certifications,
+      target_weight_min_g: null,
+      target_weight_max_g: null,
+      preferred_origins: ["Spain", "Italy", "Belgium", "Germany"],
+      excluded_ingredients: [],
+      pipeline_stage: "rfq_negotiation",
+      pipeline_substage: null,
+      exception_status: null,
+      exception_reason: null,
+      active_supplier_id: null,
+      stage_updated_at: null,
+      stage_updated_by: null,
+      stage_notes: null,
+    }));
+  }
+
+  const totalCount = finalRequests.length;
+  const matchedCount = finalRequests.filter((r) => r.status === "matched").length;
+  const unmatchedCount = finalRequests.filter(
     (r) => r.status !== "matched" && r.status !== "closed"
   ).length;
-  const highScoreCount = requests.filter(
+  const highScoreCount = finalRequests.filter(
     (r) => (r.best_match_score ?? 0) >= 70
   ).length;
-  const awaitingCount = requests.filter((r) => r.status === "matched").length;
+  const awaitingCount = finalRequests.filter((r) => r.status === "matched").length;
 
   return (
     <SourcingDealDesk
       buyers={buyers}
-      requests={requests}
+      requests={finalRequests}
       initialEditId={editId}
       initialView={initialView}
       initialBuyerId={initialBuyerId}
