@@ -251,12 +251,11 @@ export async function POST(req: NextRequest) {
           .from("sourcing_matches")
           .update({
             status: "rfq_sent",
-            rfq_sent_at: sentAtIso,
             sent_at: sentAtIso,
             sent_via: "email",
-            rfq_deadline: body.deadline || null,
             match_breakdown: {
               ...existingBreakdown,
+              rfq_deadline: body.deadline || null,
               website: website || existingBreakdown.website || null,
               contact_email: contactEmail,
               last_outreach_subject: emailResult.subjectUsed || personalizedSubject,

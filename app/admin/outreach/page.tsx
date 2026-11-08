@@ -22,16 +22,18 @@ export default async function EmailOutreachHubPage({ searchParams }: PageProps) 
   const initialRequestId = sp.request_id || "all";
 
   // 1. Fetch active Sourcing Requests
-  const { data: rawRequests } = await supabaseAdmin
+  const { data: rawRequests, error: reqErr } = await supabaseAdmin
     .from("sourcing_requests")
-    .select(
-      "id, product_name, company, category, certifications, volume_per_year, brief_status, target_market, temperature_regime, created_at"
-    )
+    .select("*")
     .is("deleted_at", null)
     .order("created_at", { ascending: false })
     .limit(100);
 
-  const requests: OutreachRequestOption[] = (rawRequests || []).map((r) => ({
+  if (reqErr) {
+    console.error("EmailOutreachHubPage rawRequests error:", reqErr);
+  }
+
+  const requests: OutreachRequestOption[] = (rawRequests || []).map((r: any) => ({
     id: r.id,
     shortTag: `FDX-REQ-${r.id.slice(0, 8).toUpperCase()}`,
     product_name: cleanRequestName(r.product_name || "Sourcing Inquiry"),
@@ -48,13 +50,17 @@ export default async function EmailOutreachHubPage({ searchParams }: PageProps) 
   const activeRequestIds = new Set(requests.map((r) => r.id));
 
   // 2. Fetch Sourcing Matches across active requests
-  const { data: rawMatches } = await supabaseAdmin
+  const { data: rawMatches, error: matchErr } = await supabaseAdmin
     .from("sourcing_matches")
     .select(
-      "id, request_id, supplier_id, company_name, product_name, country, match_score, status, sent_at, rfq_sent_at, responded_at, supplier_responded_at, supplier_response, supplier_message, match_breakdown"
+      "id, request_id, supplier_id, company_name, product_name, country, match_score, status, sent_at, responded_at, supplier_responded_at, supplier_response, supplier_message, match_breakdown"
     )
     .order("match_score", { ascending: false })
     .limit(600);
+
+  if (matchErr) {
+    console.error("EmailOutreachHubPage rawMatches error:", matchErr);
+  }
 
   const filteredRawMatches = (rawMatches || []).filter((m) =>
     activeRequestIds.has(m.request_id)
@@ -128,7 +134,7 @@ export default async function EmailOutreachHubPage({ searchParams }: PageProps) 
       match_score: Number(m.match_score) || 0,
       status: m.status || "suggested",
       sent_at: m.sent_at || null,
-      rfq_sent_at: m.rfq_sent_at || null,
+      rfq_sent_at: bd.last_outreach_at || m.sent_at || null,
       responded_at: m.responded_at || null,
       supplier_responded_at: m.supplier_responded_at || null,
       supplier_response: m.supplier_response || null,
@@ -147,7 +153,7 @@ export default async function EmailOutreachHubPage({ searchParams }: PageProps) 
       kosher_types: Array.isArray(bd.kosher_types) ? bd.kosher_types : [],
       last_outreach_subject: bd.last_outreach_subject || null,
       last_outreach_body: bd.last_outreach_body || null,
-      last_outreach_at: bd.last_outreach_at || m.rfq_sent_at || m.sent_at || null,
+      last_outreach_at: bd.last_outreach_at || m.sent_at || null,
       outreach_history: rawHistory,
     };
   });

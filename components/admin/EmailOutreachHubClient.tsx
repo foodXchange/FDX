@@ -189,7 +189,11 @@ export default function EmailOutreachHubClient({
     activeAccount: {
       user: string;
       senderName: string;
+      provider?: "gmail" | "resend";
+      replyTo?: string;
+      role?: string;
       maskedPassword: string;
+      hasCredentials?: boolean;
       source: "database" | "env";
     } | null;
     envAccount: {
@@ -202,7 +206,11 @@ export default function EmailOutreachHubClient({
     savedAccounts: Array<{
       user: string;
       senderName: string;
+      provider?: "gmail" | "resend";
+      replyTo?: string;
+      role?: string;
       maskedPassword: string;
+      hasCredentials?: boolean;
       addedAt: string;
       isActive: boolean;
     }>;
@@ -211,10 +219,20 @@ export default function EmailOutreachHubClient({
       fromEmail: string;
     };
   } | null>(null);
+  const [editingOriginalUser, setEditingOriginalUser] = useState<string | null>(
+    null
+  );
   const [accFormUser, setAccFormUser] = useState("");
+  const [accFormProvider, setAccFormProvider] = useState<"gmail" | "resend">(
+    "gmail"
+  );
   const [accFormPassword, setAccFormPassword] = useState("");
   const [accFormSenderName, setAccFormSenderName] = useState(
     "FoodXchange Sourcing Desk"
+  );
+  const [accFormReplyTo, setAccFormReplyTo] = useState("");
+  const [accFormRole, setAccFormRole] = useState(
+    "Primary Sourcing & 2-Way Sync"
   );
   const [accVerifyFirst, setAccVerifyFirst] = useState(true);
   const [accBusy, setAccBusy] = useState(false);
@@ -223,6 +241,33 @@ export default function EmailOutreachHubClient({
     text: string;
   } | null>(null);
   const [testRecipient, setTestRecipient] = useState("");
+
+  function startEditingAccount(acc: {
+    user: string;
+    senderName: string;
+    provider?: "gmail" | "resend";
+    replyTo?: string;
+    role?: string;
+  }) {
+    setEditingOriginalUser(acc.user);
+    setAccFormUser(acc.user);
+    setAccFormProvider(acc.provider || "gmail");
+    setAccFormSenderName(acc.senderName || "FoodXchange Sourcing Desk");
+    setAccFormReplyTo(acc.replyTo || acc.user);
+    setAccFormRole(acc.role || "Primary Sourcing & 2-Way Sync");
+    setAccFormPassword("");
+    setAccFeedback(null);
+  }
+
+  function resetAccountForm() {
+    setEditingOriginalUser(null);
+    setAccFormUser("");
+    setAccFormProvider("gmail");
+    setAccFormSenderName("FoodXchange Sourcing Desk");
+    setAccFormReplyTo("");
+    setAccFormRole("Primary Sourcing & 2-Way Sync");
+    setAccFormPassword("");
+  }
 
   async function loadAccountsSnapshot() {
     setAccountsLoading(true);
@@ -270,8 +315,7 @@ export default function EmailOutreachHubClient({
           text: data.message || "Settings updated!",
         });
         if (payload.action === "add_or_update") {
-          setAccFormUser("");
-          setAccFormPassword("");
+          resetAccountForm();
         }
       }
     } catch (err: any) {
@@ -2189,15 +2233,15 @@ Email: udi@foodxchange.com`);
       {/* MODAL 3: Connected Email Accounts & SMTP / IMAP Settings */}
       {emailSettingsOpen && (
         <div className="fixed inset-0 z-50 bg-slate-950/75 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl max-w-3xl w-full max-h-[90vh] flex flex-col overflow-hidden">
+          <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl max-w-4xl w-full max-h-[92vh] flex flex-col overflow-hidden">
             {/* Modal Header */}
             <div className="px-6 py-4 bg-slate-900 text-white flex items-center justify-between">
               <div>
                 <h2 className="text-base font-extrabold flex items-center gap-2">
-                  <span>⚙️ Connected Email Accounts &amp; Hybrid Mailer Settings</span>
+                  <span>⚙️ Email Accounts Manager — View, Edit, Delete &amp; Switch Senders</span>
                 </h2>
                 <p className="text-xs text-slate-300 mt-0.5">
-                  Manage which Gmail / Google Workspace account sends your outreach and syncs incoming supplier replies.
+                  Full control over every email address connected to FoodXchange (`udi@foodxchange.com`, `info@fdx.trading`, and custom Gmail / Workspace accounts).
                 </p>
               </div>
               <button
@@ -2222,12 +2266,12 @@ Email: udi@foodxchange.com`);
                 </div>
               )}
 
-              {/* Section 1: Currently Active Sending & Receiving Account */}
+              {/* Section 1: Currently Active Sending & Receiving Account + Live Test Bar */}
               <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4 space-y-3">
                 <div className="flex items-center justify-between flex-wrap gap-2">
                   <div>
-                    <span className="text-[10px] font-extrabold uppercase tracking-wider text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">
-                      Primary Active Account (Gmail SMTP + IMAP)
+                    <span className="text-[10px] font-extrabold uppercase tracking-wider text-emerald-700 bg-emerald-100 px-2.5 py-0.5 rounded-full">
+                      ⭐ Primary Active Outbound &amp; Reply Routing Account
                     </span>
                     {accountsLoading ? (
                       <div className="text-xs text-slate-500 mt-2">
@@ -2235,26 +2279,29 @@ Email: udi@foodxchange.com`);
                       </div>
                     ) : accountsData?.activeAccount ? (
                       <div className="mt-2">
-                        <div className="text-sm font-extrabold text-slate-900 flex items-center gap-2">
-                          <span>🟢 {accountsData.activeAccount.user}</span>
-                          <span className="text-[11px] font-semibold px-2 py-0.5 rounded bg-slate-200 text-slate-700">
-                            {accountsData.activeAccount.source === "database"
-                              ? "Custom Admin Account"
-                              : "System .env Account"}
+                        <div className="text-sm font-extrabold text-slate-900 flex items-center gap-2 flex-wrap">
+                          <span>🟢 {accountsData.activeAccount.senderName}</span>
+                          <span className="font-mono text-emerald-700">
+                            &lt;{accountsData.activeAccount.user}&gt;
+                          </span>
+                          <span className="text-[11px] font-bold px-2 py-0.5 rounded bg-indigo-100 text-indigo-800">
+                            {accountsData.activeAccount.provider === "resend"
+                              ? "Resend Domain Mailer"
+                              : "Gmail 2-Way SMTP + IMAP"}
                           </span>
                         </div>
-                        <p className="text-xs text-slate-600 mt-0.5">
-                          Display Name:{" "}
-                          <strong>{accountsData.activeAccount.senderName}</strong>{" "}
-                          · App Password:{" "}
-                          <code className="text-[11px] bg-white px-1.5 py-0.5 rounded border border-slate-200">
-                            {accountsData.activeAccount.maskedPassword}
+                        <p className="text-xs text-slate-600 mt-1">
+                          Role: <strong>{accountsData.activeAccount.role}</strong> ·{" "}
+                          Replies route to:{" "}
+                          <code className="text-[11px] bg-white px-1.5 py-0.5 rounded border border-slate-200 font-mono">
+                            {accountsData.activeAccount.replyTo ||
+                              accountsData.activeAccount.user}
                           </code>
                         </p>
                       </div>
                     ) : (
                       <div className="mt-2 text-xs font-bold text-amber-700">
-                        ⚠️ No active Gmail account connected. Add an account below or use Resend fallback.
+                        ⚠️ No active email account selected. Choose one from the list below or add a new account.
                       </div>
                     )}
                   </div>
@@ -2265,24 +2312,24 @@ Email: udi@foodxchange.com`);
                         type="button"
                         disabled={accBusy}
                         onClick={() =>
-                          handleAccountAction({ action: "test_connection" })
+                          handleAccountAction({
+                            action: "test_connection",
+                            user: accountsData.activeAccount?.user,
+                          })
                         }
                         className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-extrabold cursor-pointer disabled:opacity-50"
                       >
-                        🔌 Verify SMTP Handshake
+                        🔌 Verify Active Account
                       </button>
                       <button
                         type="button"
-                        disabled={accBusy}
                         onClick={() =>
-                          handleAccountAction({
-                            action: "set_active",
-                            user: "__none__",
-                          })
+                          accountsData.activeAccount &&
+                          startEditingAccount(accountsData.activeAccount)
                         }
-                        className="px-3 py-1.5 rounded-xl border border-rose-200 bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-bold cursor-pointer disabled:opacity-50"
+                        className="px-3 py-1.5 rounded-xl border border-slate-300 bg-white hover:bg-slate-100 text-slate-800 text-xs font-bold cursor-pointer"
                       >
-                        Disconnect
+                        ✏️ Edit Active
                       </button>
                     </div>
                   )}
@@ -2297,7 +2344,7 @@ Email: udi@foodxchange.com`);
                     type="email"
                     value={testRecipient}
                     onChange={(e) => setTestRecipient(e.target.value)}
-                    placeholder="your-email@domain.com"
+                    placeholder="udi@foodxchange.com"
                     className="flex-1 min-w-[200px] rounded-xl border border-slate-300 bg-white px-3 py-1.5 text-xs font-mono text-slate-900"
                   />
                   <button
@@ -2316,216 +2363,269 @@ Email: udi@foodxchange.com`);
                 </div>
               </div>
 
-              {/* Section 2: All Connected / Saved Accounts List */}
+              {/* Section 2: All Connected Email Accounts — See, Edit, Delete, Set Primary */}
               <div className="space-y-2.5">
-                <h3 className="text-xs font-extrabold uppercase tracking-wider text-slate-600">
-                  📬 Available Email Accounts (Switch or Remove)
-                </h3>
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xs font-extrabold uppercase tracking-wider text-slate-700">
+                    📬 All Connected Email Accounts ({accountsData?.savedAccounts?.length || 0}) — Click Edit or Delete on Any Account
+                  </h3>
+                  <button
+                    type="button"
+                    onClick={() => resetAccountForm()}
+                    className="text-xs font-bold text-indigo-600 hover:underline cursor-pointer"
+                  >
+                    + Add Another Email Account
+                  </button>
+                </div>
 
                 <div className="divide-y divide-slate-200 border border-slate-200 rounded-2xl overflow-hidden bg-white">
-                  {/* System Environment Account Row */}
-                  {accountsData?.envAccount?.configured && (
-                    <div className="p-3.5 flex items-center justify-between gap-3 bg-slate-50/50">
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs font-extrabold text-slate-900 font-mono">
-                            {accountsData.envAccount.user}
-                          </span>
-                          <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200">
-                            System .env (GMAIL_USER)
-                          </span>
-                          {accountsData.envAccount.isActive && (
-                            <span className="text-[10px] font-extrabold px-2 py-0.5 rounded bg-emerald-100 text-emerald-800">
-                              ✓ Active
-                            </span>
-                          )}
-                        </div>
-                        <div className="text-[11px] text-slate-500 mt-0.5">
-                          Sender Name: {accountsData.envAccount.senderName} · Key:{" "}
-                          {accountsData.envAccount.maskedPassword}
-                        </div>
-                      </div>
-
-                      {!accountsData.envAccount.isActive && (
-                        <button
-                          type="button"
-                          disabled={accBusy}
-                          onClick={() =>
-                            handleAccountAction({
-                              action: "set_active",
-                              user: "__env__",
-                            })
-                          }
-                          className="px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold cursor-pointer"
-                        >
-                          Use This Account
-                        </button>
-                      )}
+                  {(!accountsData?.savedAccounts ||
+                    accountsData.savedAccounts.length === 0) ? (
+                    <div className="p-6 text-center text-xs text-slate-500">
+                      No email accounts in list. Use the form below to add your first email account.
                     </div>
-                  )}
-
-                  {/* Custom Saved Accounts in Supabase */}
-                  {accountsData?.savedAccounts?.map((acc) => (
-                    <div
-                      key={acc.user}
-                      className="p-3.5 flex items-center justify-between gap-3"
-                    >
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs font-extrabold text-slate-900 font-mono">
-                            {acc.user}
-                          </span>
-                          <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-purple-50 text-purple-700 border border-purple-200">
-                            Saved Account
-                          </span>
-                          {acc.isActive && (
-                            <span className="text-[10px] font-extrabold px-2 py-0.5 rounded bg-emerald-100 text-emerald-800">
-                              ✓ Active
-                            </span>
-                          )}
-                        </div>
-                        <div className="text-[11px] text-slate-500 mt-0.5">
-                          Sender Name: {acc.senderName} · App Password:{" "}
-                          {acc.maskedPassword}
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-2">
-                        {!acc.isActive && (
-                          <button
-                            type="button"
-                            disabled={accBusy}
-                            onClick={() =>
-                              handleAccountAction({
-                                action: "set_active",
-                                user: acc.user,
-                              })
-                            }
-                            className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold cursor-pointer"
-                          >
-                            Set Active
-                          </button>
-                        )}
-                        <button
-                          type="button"
-                          disabled={accBusy}
-                          onClick={() =>
-                            handleAccountAction({
-                              action: "remove",
-                              user: acc.user,
-                            })
-                          }
-                          className="px-2.5 py-1.5 rounded-xl border border-rose-200 bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-bold cursor-pointer"
-                        >
-                          Remove
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-
-                  {/* Resend Enterprise Backup Engine Row */}
-                  <div className="p-3.5 flex items-center justify-between gap-3 bg-slate-50/40">
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs font-extrabold text-slate-800">
-                          Resend Transactional Backup Engine
-                        </span>
-                        <span
-                          className={`text-[10px] font-bold px-2 py-0.5 rounded ${
-                            accountsData?.resend?.configured
-                              ? "bg-emerald-100 text-emerald-800"
-                              : "bg-slate-200 text-slate-600"
+                  ) : (
+                    accountsData.savedAccounts.map((acc) => {
+                      const isBeingEdited =
+                        editingOriginalUser?.toLowerCase() ===
+                        acc.user.toLowerCase();
+                      return (
+                        <div
+                          key={acc.user}
+                          className={`p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition ${
+                            isBeingEdited
+                              ? "bg-indigo-50/70"
+                              : acc.isActive
+                              ? "bg-emerald-50/30"
+                              : "hover:bg-slate-50"
                           }`}
                         >
-                          {accountsData?.resend?.configured
-                            ? "✓ Configured (Auto-Failover Ready)"
-                            : "Not Configured"}
-                        </span>
-                      </div>
-                      <div className="text-[11px] text-slate-500 mt-0.5">
-                        From Address: {accountsData?.resend?.fromEmail || "N/A"} · Inbound Webhook:{" "}
-                        <code className="text-[10px] bg-slate-100 px-1 py-0.5 rounded">
-                          /api/webhooks/resend
-                        </code>
-                      </div>
-                    </div>
-                  </div>
+                          <div className="space-y-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="text-xs font-extrabold text-slate-900 font-mono">
+                                {acc.user}
+                              </span>
+                              <span
+                                className={`text-[10px] font-bold px-2 py-0.5 rounded border ${
+                                  acc.provider === "resend"
+                                    ? "bg-sky-50 text-sky-800 border-sky-200"
+                                    : "bg-purple-50 text-purple-800 border-purple-200"
+                                }`}
+                              >
+                                {acc.provider === "resend"
+                                  ? "🌐 Resend Domain Mailer"
+                                  : "📬 Gmail / Workspace (2-Way)"}
+                              </span>
+                              {acc.isActive && (
+                                <span className="text-[10px] font-extrabold px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 border border-emerald-300">
+                                  ⭐ Primary Active
+                                </span>
+                              )}
+                              {!acc.hasCredentials && acc.provider !== "resend" && (
+                                <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-amber-100 text-amber-800 border border-amber-300">
+                                  ⚠️ Click &apos;Edit&apos; to Add 16-Char App Password
+                                </span>
+                              )}
+                            </div>
+
+                            <div className="text-[11px] text-slate-600 flex items-center gap-3 flex-wrap">
+                              <span>
+                                From Name: <strong>{acc.senderName}</strong>
+                              </span>
+                              <span>·</span>
+                              <span>
+                                Reply-To:{" "}
+                                <code className="font-mono text-slate-800">
+                                  {acc.replyTo || acc.user}
+                                </code>
+                              </span>
+                              {acc.provider !== "resend" && (
+                                <>
+                                  <span>·</span>
+                                  <span>
+                                    App Password:{" "}
+                                    <code className="font-mono">
+                                      {acc.maskedPassword || "Not set"}
+                                    </code>
+                                  </span>
+                                </>
+                              )}
+                            </div>
+
+                            {acc.role && (
+                              <div className="text-[10px] text-slate-400 font-semibold">
+                                Purpose: {acc.role}
+                              </div>
+                            )}
+                          </div>
+
+                          {/* 1-Click Action Bar: Set Primary | Verify | Edit | Delete */}
+                          <div className="flex items-center gap-1.5 shrink-0 flex-wrap">
+                            {!acc.isActive && (
+                              <button
+                                type="button"
+                                disabled={accBusy}
+                                onClick={() =>
+                                  handleAccountAction({
+                                    action: "set_active",
+                                    user: acc.user,
+                                  })
+                                }
+                                className="px-2.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] font-extrabold cursor-pointer"
+                                title="Make this the primary sender for all outreach"
+                              >
+                                ⭐ Set Primary
+                              </button>
+                            )}
+
+                            <button
+                              type="button"
+                              disabled={accBusy}
+                              onClick={() =>
+                                handleAccountAction({
+                                  action: "test_connection",
+                                  user: acc.user,
+                                })
+                              }
+                              className="px-2.5 py-1.5 rounded-xl border border-slate-300 bg-white hover:bg-slate-100 text-slate-700 text-[11px] font-bold cursor-pointer"
+                              title="Verify connection for this account"
+                            >
+                              🔌 Verify
+                            </button>
+
+                            <button
+                              type="button"
+                              disabled={accBusy}
+                              onClick={() => startEditingAccount(acc)}
+                              className="px-2.5 py-1.5 rounded-xl border border-indigo-200 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-[11px] font-extrabold cursor-pointer"
+                              title="Edit email address, display name, reply-to, or App Password"
+                            >
+                              ✏️ Edit
+                            </button>
+
+                            <button
+                              type="button"
+                              disabled={accBusy}
+                              onClick={() =>
+                                handleAccountAction({
+                                  action: "remove",
+                                  user: acc.user,
+                                })
+                              }
+                              className="px-2.5 py-1.5 rounded-xl border border-rose-200 bg-rose-50 hover:bg-rose-100 text-rose-700 text-[11px] font-extrabold cursor-pointer"
+                              title="Delete this email account from the list"
+                            >
+                              🗑️ Delete
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
                 </div>
               </div>
 
-              {/* Section 3: Add or Update a Gmail / Google Workspace Account */}
+              {/* Section 3: Add New Account OR Edit Selected Account Form */}
               <div className="rounded-2xl border-2 border-indigo-200 bg-gradient-to-br from-indigo-50/70 via-white to-indigo-50/40 p-5 space-y-4 shadow-xs">
                 <div className="flex items-start justify-between flex-wrap gap-2">
                   <div>
                     <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-800 text-[10px] font-extrabold uppercase tracking-wider mb-1">
-                      <span>🚀 Step-by-Step Setup</span>
-                      <span>·</span>
-                      <span>Takes 30 seconds</span>
+                      <span>
+                        {editingOriginalUser
+                          ? `✏️ Editing ${editingOriginalUser}`
+                          : "🚀 Step-by-Step Setup · Takes 30 Seconds"}
+                      </span>
                     </div>
                     <h3 className="text-sm font-extrabold text-indigo-950 flex items-center gap-1.5">
-                      <span>➕ Connect a Gmail / Google Workspace Account</span>
+                      <span>
+                        {editingOriginalUser
+                          ? `✏️ Edit Email Account (${editingOriginalUser})`
+                          : "➕ Add / Connect an Email Account"}
+                      </span>
                     </h3>
                     <p className="text-xs text-slate-600 mt-0.5">
-                      Enables real 2-way syncing: outgoing emails appear in your native Gmail <strong>&ldquo;Sent&rdquo;</strong> folder, and supplier replies trigger instant AI quote parsing.
+                      {editingOriginalUser
+                        ? "Update the email address, sender display name, Reply-To address, or paste a 16-character Google App Password below."
+                        : "Connect a Gmail / Google Workspace account (2-way sync) or add a verified Resend domain address."}
                     </p>
                   </div>
-                  <a
-                    href="https://myaccount.google.com/apppasswords"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-extrabold shadow-xs transition"
-                  >
-                    <span>🔑</span>
-                    <span>1-Click: Open Google App Passwords ↗</span>
-                  </a>
+
+                  <div className="flex items-center gap-2">
+                    {editingOriginalUser && (
+                      <button
+                        type="button"
+                        onClick={() => resetAccountForm()}
+                        className="px-3 py-1.5 rounded-xl border border-slate-300 bg-white hover:bg-slate-100 text-xs font-bold text-slate-700 cursor-pointer"
+                      >
+                        Cancel Edit
+                      </button>
+                    )}
+                    <a
+                      href="https://myaccount.google.com/apppasswords"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-extrabold shadow-xs transition"
+                    >
+                      <span>🔑</span>
+                      <span>1-Click: Open Google App Passwords ↗</span>
+                    </a>
+                  </div>
                 </div>
 
                 {/* 3-Step Guided Onboarding Visual Banner */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5 p-3 rounded-xl bg-white border border-indigo-100 text-xs">
-                  <div className="flex items-start gap-2">
-                    <span className="w-5 h-5 rounded-full bg-indigo-600 text-white font-extrabold text-[11px] flex items-center justify-center shrink-0 mt-0.5">
-                      1
-                    </span>
-                    <div>
-                      <span className="font-extrabold text-slate-900 block">Open Security Page</span>
-                      <span className="text-[11px] text-slate-500 leading-tight">
-                        Click the blue button above to visit your Google 2-Step Verification settings.
+                {accFormProvider === "gmail" && (
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5 p-3 rounded-xl bg-white border border-indigo-100 text-xs">
+                    <div className="flex items-start gap-2">
+                      <span className="w-5 h-5 rounded-full bg-indigo-600 text-white font-extrabold text-[11px] flex items-center justify-center shrink-0 mt-0.5">
+                        1
                       </span>
+                      <div>
+                        <span className="font-extrabold text-slate-900 block">
+                          Open Security Page
+                        </span>
+                        <span className="text-[11px] text-slate-500 leading-tight">
+                          Click the blue button above to open Google App Passwords.
+                        </span>
+                      </div>
                     </div>
-                  </div>
 
-                  <div className="flex items-start gap-2">
-                    <span className="w-5 h-5 rounded-full bg-indigo-600 text-white font-extrabold text-[11px] flex items-center justify-center shrink-0 mt-0.5">
-                      2
-                    </span>
-                    <div>
-                      <span className="font-extrabold text-slate-900 block">Create App Password</span>
-                      <span className="text-[11px] text-slate-500 leading-tight">
-                        Name it &ldquo;FoodXchange&rdquo; and click Create to get a 16-character code.
+                    <div className="flex items-start gap-2">
+                      <span className="w-5 h-5 rounded-full bg-indigo-600 text-white font-extrabold text-[11px] flex items-center justify-center shrink-0 mt-0.5">
+                        2
                       </span>
+                      <div>
+                        <span className="font-extrabold text-slate-900 block">
+                          Create App Password
+                        </span>
+                        <span className="text-[11px] text-slate-500 leading-tight">
+                          Name it &ldquo;FoodXchange&rdquo; and click Create to get a 16-character code.
+                        </span>
+                      </div>
                     </div>
-                  </div>
 
-                  <div className="flex items-start gap-2">
-                    <span className="w-5 h-5 rounded-full bg-indigo-600 text-white font-extrabold text-[11px] flex items-center justify-center shrink-0 mt-0.5">
-                      3
-                    </span>
-                    <div>
-                      <span className="font-extrabold text-slate-900 block">Paste &amp; Connect</span>
-                      <span className="text-[11px] text-slate-500 leading-tight">
-                        Paste the 16 characters below. We test the SMTP connection automatically!
+                    <div className="flex items-start gap-2">
+                      <span className="w-5 h-5 rounded-full bg-indigo-600 text-white font-extrabold text-[11px] flex items-center justify-center shrink-0 mt-0.5">
+                        3
                       </span>
+                      <div>
+                        <span className="font-extrabold text-slate-900 block">
+                          Paste &amp; Save
+                        </span>
+                        <span className="text-[11px] text-slate-500 leading-tight">
+                          Paste the 16 characters below and click Save.
+                        </span>
+                      </div>
                     </div>
                   </div>
-                </div>
+                )}
 
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <div>
                     <label className="block text-[11px] font-extrabold text-slate-700 mb-1 flex items-center gap-1">
-                      <span>Gmail / Workspace Address *</span>
+                      <span>Email Address *</span>
                       <span
                         className="cursor-help text-slate-400 hover:text-slate-600"
-                        title="Your primary Google Workspace or Gmail email (e.g. udi@foodxchange.com or udi@gmail.com)."
+                        title="The sender email address (e.g. udi@foodxchange.com or info@fdx.trading)."
                       >
                         ℹ️
                       </span>
@@ -2537,31 +2637,34 @@ Email: udi@foodxchange.com`);
                       placeholder="udi@foodxchange.com"
                       className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-mono text-slate-900 focus:border-indigo-500 focus:outline-none"
                     />
-                    <span className="text-[10px] text-slate-400 mt-0.5 block">
-                      The email address suppliers will see.
-                    </span>
                   </div>
 
                   <div>
                     <label className="block text-[11px] font-extrabold text-slate-700 mb-1 flex items-center gap-1">
-                      <span>16-Char Google App Password *</span>
+                      <span>Account Provider Type</span>
                       <span
-                        className="cursor-help text-indigo-600 hover:text-indigo-800"
-                        title="NOT your personal login password! This is the special 16-letter code generated by Google (e.g. abcd efgh ijkl mnop) for secure mailer access."
+                        className="cursor-help text-slate-400 hover:text-slate-600"
+                        title="Choose Gmail/Workspace for 2-way SMTP+IMAP sync, or Resend Domain for transactional domain sending."
                       >
                         ℹ️
                       </span>
                     </label>
-                    <input
-                      type="password"
-                      value={accFormPassword}
-                      onChange={(e) => setAccFormPassword(e.target.value)}
-                      placeholder="abcd efgh ijkl mnop"
-                      className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-mono text-slate-900 focus:border-indigo-500 focus:outline-none"
-                    />
-                    <span className="text-[10px] text-indigo-700 font-semibold mt-0.5 block">
-                      16 letters generated from Google (spaces ignored)
-                    </span>
+                    <select
+                      value={accFormProvider}
+                      onChange={(e) =>
+                        setAccFormProvider(
+                          e.target.value as "gmail" | "resend"
+                        )
+                      }
+                      className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-bold text-slate-900 focus:border-indigo-500 focus:outline-none"
+                    >
+                      <option value="gmail">
+                        📬 Gmail / Google Workspace (2-Way SMTP+IMAP)
+                      </option>
+                      <option value="resend">
+                        🌐 Resend Verified Domain (e.g. @fdx.trading)
+                      </option>
+                    </select>
                   </div>
 
                   <div>
@@ -2569,7 +2672,7 @@ Email: udi@foodxchange.com`);
                       <span>Sender Display Name</span>
                       <span
                         className="cursor-help text-slate-400 hover:text-slate-600"
-                        title="Display name shown in the recipient factory's inbox (e.g. 'FoodXchange Sourcing Desk' or 'Udi from FoodXchange')."
+                        title="Display name shown in the recipient factory's inbox (e.g. 'Udi — FoodXchange Sourcing Desk')."
                       >
                         ℹ️
                       </span>
@@ -2581,42 +2684,113 @@ Email: udi@foodxchange.com`);
                       placeholder="FoodXchange Sourcing Desk"
                       className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs text-slate-900 focus:border-indigo-500 focus:outline-none"
                     />
-                    <span className="text-[10px] text-slate-400 mt-0.5 block">
-                      Appears as the &ldquo;From:&rdquo; name in inboxes.
-                    </span>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  {accFormProvider === "gmail" && (
+                    <div>
+                      <label className="block text-[11px] font-extrabold text-slate-700 mb-1 flex items-center gap-1">
+                        <span>
+                          16-Char Google App Password{" "}
+                          {editingOriginalUser ? "(optional if unchanged)" : "*"}
+                        </span>
+                        <span
+                          className="cursor-help text-indigo-600 hover:text-indigo-800"
+                          title="NOT your personal login password! This is the 16-letter code generated by Google App Passwords."
+                        >
+                          ℹ️
+                        </span>
+                      </label>
+                      <input
+                        type="password"
+                        value={accFormPassword}
+                        onChange={(e) => setAccFormPassword(e.target.value)}
+                        placeholder={
+                          editingOriginalUser
+                            ? "Leave blank to keep existing, or paste new 16-char code"
+                            : "abcd efgh ijkl mnop"
+                        }
+                        className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-mono text-slate-900 focus:border-indigo-500 focus:outline-none"
+                      />
+                    </div>
+                  )}
+
+                  <div>
+                    <label className="block text-[11px] font-extrabold text-slate-700 mb-1 flex items-center gap-1">
+                      <span>Reply-To Email Address</span>
+                      <span
+                        className="cursor-help text-slate-400 hover:text-slate-600"
+                        title="Where supplier replies are routed (e.g. udi@foodxchange.com)."
+                      >
+                        ℹ️
+                      </span>
+                    </label>
+                    <input
+                      type="email"
+                      value={accFormReplyTo}
+                      onChange={(e) => setAccFormReplyTo(e.target.value)}
+                      placeholder={accFormUser || "udi@foodxchange.com"}
+                      className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-mono text-slate-900 focus:border-indigo-500 focus:outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-extrabold text-slate-700 mb-1">
+                      Role / Label
+                    </label>
+                    <input
+                      type="text"
+                      value={accFormRole}
+                      onChange={(e) => setAccFormRole(e.target.value)}
+                      placeholder="Primary Sourcing & 2-Way Sync"
+                      className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs text-slate-900 focus:border-indigo-500 focus:outline-none"
+                    />
                   </div>
                 </div>
 
                 <div className="flex items-center justify-between flex-wrap gap-3 pt-1">
-                  <label className="flex items-center gap-2 text-xs font-semibold text-slate-700 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={accVerifyFirst}
-                      onChange={(e) => setAccVerifyFirst(e.target.checked)}
-                      className="h-4 w-4 rounded border-slate-300 text-indigo-600"
-                    />
-                    <span>
-                      Verify live SMTP login with Google before saving
+                  {accFormProvider === "gmail" ? (
+                    <label className="flex items-center gap-2 text-xs font-semibold text-slate-700 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={accVerifyFirst}
+                        onChange={(e) => setAccVerifyFirst(e.target.checked)}
+                        className="h-4 w-4 rounded border-slate-300 text-indigo-600"
+                      />
+                      <span>
+                        Verify live SMTP login with Google when App Password is provided
+                      </span>
+                    </label>
+                  ) : (
+                    <span className="text-xs text-slate-500">
+                      Uses your verified Resend domain (`RESEND_API_KEY`) and routes replies to the Reply-To address above.
                     </span>
-                  </label>
+                  )}
 
                   <button
                     type="button"
-                    disabled={accBusy || !accFormUser.trim() || !accFormPassword.trim()}
+                    disabled={accBusy || !accFormUser.trim()}
                     onClick={() =>
                       handleAccountAction({
                         action: "add_or_update",
+                        originalUser: editingOriginalUser,
                         user: accFormUser.trim(),
+                        provider: accFormProvider,
                         appPassword: accFormPassword.trim(),
                         senderName: accFormSenderName.trim(),
+                        replyTo: accFormReplyTo.trim() || accFormUser.trim(),
+                        role: accFormRole.trim(),
                         verifyFirst: accVerifyFirst,
                       })
                     }
-                    className="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-extrabold shadow-xs cursor-pointer disabled:opacity-50"
+                    className="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-extrabold shadow-xs cursor-pointer disabled:opacity-50"
                   >
                     {accBusy
-                      ? "🔌 Verifying & Saving..."
-                      : "➕ Connect & Activate Account"}
+                      ? "💾 Saving Account..."
+                      : editingOriginalUser
+                      ? `💾 Save Changes to ${accFormUser}`
+                      : "➕ Save & Activate Email Account"}
                   </button>
                 </div>
               </div>

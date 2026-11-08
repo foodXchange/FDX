@@ -12,6 +12,9 @@ export interface GmailCredentials {
   user: string;
   appPassword: string;
   senderName?: string;
+  provider?: "gmail" | "resend";
+  replyTo?: string;
+  role?: string;
   source?: "database" | "env";
 }
 
@@ -19,12 +22,57 @@ export interface StoredGmailAccount {
   user: string;
   appPassword: string;
   senderName: string;
+  provider?: "gmail" | "resend";
+  replyTo?: string;
+  role?: string;
   addedAt: string;
 }
 
 export interface GmailAccountsConfig {
-  activeUser: string | null; // null or "env" means use environment variables if available
+  activeUser: string | null;
   accounts: StoredGmailAccount[];
+}
+
+function getDefaultSeededAccounts(): StoredGmailAccount[] {
+  const defaults: StoredGmailAccount[] = [];
+  const envUser = process.env.GMAIL_USER?.trim();
+  const envPass = process.env.GMAIL_APP_PASSWORD?.replace(/\s+/g, "").trim() || "";
+  const envSenderName =
+    process.env.GMAIL_SENDER_NAME?.trim() || "FoodXchange Sourcing Desk";
+
+  if (envUser) {
+    defaults.push({
+      user: envUser,
+      appPassword: envPass,
+      senderName: envSenderName,
+      provider: "gmail",
+      replyTo: envUser,
+      role: "Primary Sourcing & 2-Way Sync",
+      addedAt: new Date().toISOString(),
+    });
+  } else {
+    defaults.push({
+      user: "udi@foodxchange.com",
+      appPassword: "",
+      senderName: "Udi — FoodXchange Sourcing Desk",
+      provider: "gmail",
+      replyTo: "udi@foodxchange.com",
+      role: "Sourcing Director (Add App Password to Activate)",
+      addedAt: new Date().toISOString(),
+    });
+  }
+
+  defaults.push({
+    user: "info@fdx.trading",
+    appPassword: "",
+    senderName: "FoodXchange Sourcing",
+    provider: "resend",
+    replyTo: envUser || "udi@foodxchange.com",
+    role: "Transactional Domain Mailer (Resend)",
+    addedAt: new Date().toISOString(),
+  });
+
+  return defaults;
 }
 
 export async function getStoredGmailAccountsConfig(): Promise<GmailAccountsConfig> {
@@ -37,31 +85,40 @@ export async function getStoredGmailAccountsConfig(): Promise<GmailAccountsConfi
 
     if (data?.original_filename) {
       const parsed = JSON.parse(data.original_filename);
-      // Multi-account format
       if (Array.isArray(parsed.accounts)) {
         return {
           activeUser: parsed.activeUser ?? null,
           accounts: parsed.accounts,
         };
       }
-      // Legacy single-account format
-      if (parsed.user && parsed.appPassword) {
+      if (parsed.user) {
         const single: StoredGmailAccount = {
           user: parsed.user.trim(),
-          appPassword: parsed.appPassword.replace(/\s+/g, "").trim(),
+          appPassword: (parsed.appPassword || "").replace(/\s+/g, "").trim(),
           senderName: parsed.senderName?.trim() || "FoodXchange Sourcing",
+          provider: parsed.provider || "gmail",
+          replyTo: parsed.replyTo || parsed.user.trim(),
+          role: parsed.role || "Primary Sourcing & 2-Way Sync",
           addedAt: new Date().toISOString(),
         };
         return {
           activeUser: single.user,
-          accounts: [single],
+          accounts: [single, ...getDefaultSeededAccounts().filter((d) => d.user.toLowerCase() !== single.user.toLowerCase())],
         };
       }
     }
   } catch {
     // ignore
   }
-  return { activeUser: null, accounts: [] };
+
+  const seeded = getDefaultSeededAccounts();
+  const activeDefault =
+    seeded.find((a) => a.provider === "gmail" && a.appPassword)?.user ||
+    seeded.find((a) => a.provider === "resend")?.user ||
+    seeded[0]?.user ||
+    null;
+
+  return { activeUser: activeDefault, accounts: seeded };
 }
 
 export async function saveStoredGmailAccountsConfig(
@@ -84,15 +141,18 @@ export async function saveStoredGmailAccountsConfig(
 export async function getGmailCredentials(): Promise<GmailCredentials | null> {
   const store = await getStoredGmailAccountsConfig();
 
-  if (store.activeUser && store.activeUser !== "__env__") {
+  if (store.activeUser && store.activeUser !== "__env__" && store.activeUser !== "__none__") {
     const matched = store.accounts.find(
       (a) => a.user.toLowerCase() === store.activeUser!.toLowerCase()
     );
-    if (matched && matched.user && matched.appPassword) {
+    if (matched && matched.provider !== "resend" && matched.user && matched.appPassword) {
       return {
         user: matched.user.trim(),
         appPassword: matched.appPassword.replace(/\s+/g, "").trim(),
         senderName: matched.senderName?.trim() || "FoodXchange Sourcing",
+        provider: "gmail",
+        replyTo: matched.replyTo || matched.user.trim(),
+        role: matched.role,
         source: "database",
       };
     }
@@ -105,17 +165,24 @@ export async function getGmailCredentials(): Promise<GmailCredentials | null> {
       user: envUser,
       appPassword: envPass,
       senderName: process.env.GMAIL_SENDER_NAME?.trim() || "FoodXchange Sourcing",
+      provider: "gmail",
+      replyTo: envUser,
       source: "env",
     };
   }
 
-  // Fallback to first stored account if env is not set
-  if (store.accounts.length > 0 && store.activeUser !== "__none__") {
-    const first = store.accounts[0];
+  // Fallback to first stored Gmail account with an appPassword
+  const firstGmail = store.accounts.find(
+    (a) => a.provider !== "resend" && a.user && a.appPassword
+  );
+  if (firstGmail && store.activeUser !== "__none__") {
     return {
-      user: first.user.trim(),
-      appPassword: first.appPassword.replace(/\s+/g, "").trim(),
-      senderName: first.senderName?.trim() || "FoodXchange Sourcing",
+      user: firstGmail.user.trim(),
+      appPassword: firstGmail.appPassword.replace(/\s+/g, "").trim(),
+      senderName: firstGmail.senderName?.trim() || "FoodXchange Sourcing",
+      provider: "gmail",
+      replyTo: firstGmail.replyTo || firstGmail.user.trim(),
+      role: firstGmail.role,
       source: "database",
     };
   }
@@ -126,7 +193,7 @@ export async function getGmailCredentials(): Promise<GmailCredentials | null> {
 export async function saveGmailCredentials(creds: GmailCredentials): Promise<void> {
   const store = await getStoredGmailAccountsConfig();
   const cleanUser = creds.user.trim().toLowerCase();
-  const cleanPass = creds.appPassword.replace(/\s+/g, "").trim();
+  const cleanPass = (creds.appPassword || "").replace(/\s+/g, "").trim();
   const cleanName = creds.senderName?.trim() || "FoodXchange Sourcing";
 
   const existingIdx = store.accounts.findIndex(
@@ -134,9 +201,12 @@ export async function saveGmailCredentials(creds: GmailCredentials): Promise<voi
   );
   const entry: StoredGmailAccount = {
     user: creds.user.trim(),
-    appPassword: cleanPass,
+    appPassword: cleanPass || store.accounts[existingIdx]?.appPassword || "",
     senderName: cleanName,
-    addedAt: new Date().toISOString(),
+    provider: creds.provider || store.accounts[existingIdx]?.provider || "gmail",
+    replyTo: creds.replyTo?.trim() || creds.user.trim(),
+    role: creds.role?.trim() || store.accounts[existingIdx]?.role || "Primary Sourcing & 2-Way Sync",
+    addedAt: store.accounts[existingIdx]?.addedAt || new Date().toISOString(),
   };
 
   if (existingIdx >= 0) {

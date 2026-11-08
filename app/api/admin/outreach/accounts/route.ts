@@ -4,8 +4,8 @@ import {
   getGmailCredentials,
   getStoredGmailAccountsConfig,
   saveStoredGmailAccountsConfig,
-  saveGmailCredentials,
   sendSupplierEmailSmart,
+  type StoredGmailAccount,
 } from "@/lib/email/gmailEngine";
 
 function maskSecret(secret: string | undefined | null): string {
@@ -28,26 +28,52 @@ async function buildAccountsSnapshot() {
   const resendFrom =
     process.env.RESEND_FROM_EMAIL?.trim() ||
     process.env.EMAIL_FROM?.trim() ||
-    "FoodXchange Sourcing <onboarding@resend.dev>";
+    "FoodXchange Sourcing <info@fdx.trading>";
 
-  const savedAccounts = store.accounts.map((acc) => ({
-    user: acc.user,
-    senderName: acc.senderName || "FoodXchange Sourcing",
-    maskedPassword: maskSecret(acc.appPassword),
-    addedAt: acc.addedAt,
-    isActive:
-      activeCreds?.source === "database" &&
-      activeCreds.user.toLowerCase() === acc.user.toLowerCase(),
-  }));
+  const activeUserNorm = (
+    store.activeUser ||
+    activeCreds?.user ||
+    "info@fdx.trading"
+  ).toLowerCase();
+
+  const savedAccounts = store.accounts.map((acc) => {
+    const provider = acc.provider || (acc.user.endsWith("@fdx.trading") && !acc.appPassword ? "resend" : "gmail");
+    const hasCredentials =
+      provider === "resend" ? resendConfigured : Boolean(acc.appPassword);
+    const isActive = acc.user.toLowerCase() === activeUserNorm;
+
+    return {
+      user: acc.user,
+      senderName: acc.senderName || "FoodXchange Sourcing Desk",
+      provider,
+      replyTo: acc.replyTo || acc.user,
+      role:
+        acc.role ||
+        (provider === "resend"
+          ? "Transactional Domain Mailer"
+          : "Primary Sourcing & 2-Way Sync"),
+      maskedPassword: maskSecret(acc.appPassword),
+      hasCredentials,
+      addedAt: acc.addedAt,
+      isActive,
+    };
+  });
+
+  const activeAccountEntry =
+    savedAccounts.find((a) => a.isActive) || savedAccounts[0] || null;
 
   return {
     ok: true,
-    activeAccount: activeCreds
+    activeAccount: activeAccountEntry
       ? {
-          user: activeCreds.user,
-          senderName: activeCreds.senderName || "FoodXchange Sourcing",
-          maskedPassword: maskSecret(activeCreds.appPassword),
-          source: activeCreds.source || "env",
+          user: activeAccountEntry.user,
+          senderName: activeAccountEntry.senderName,
+          provider: activeAccountEntry.provider,
+          replyTo: activeAccountEntry.replyTo,
+          role: activeAccountEntry.role,
+          maskedPassword: activeAccountEntry.maskedPassword,
+          hasCredentials: activeAccountEntry.hasCredentials,
+          source: "database" as const,
         }
       : null,
     envAccount: {
@@ -82,9 +108,15 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const action = typeof body.action === "string" ? body.action : "";
 
-    // 1. Add or Update a Gmail / Google Workspace Account
+    // 1. Add or Update / Edit an Email Account
     if (action === "add_or_update") {
+      const originalUser =
+        typeof body.originalUser === "string"
+          ? body.originalUser.trim().toLowerCase()
+          : "";
       const user = typeof body.user === "string" ? body.user.trim() : "";
+      const provider: "gmail" | "resend" =
+        body.provider === "resend" ? "resend" : "gmail";
       const appPassword =
         typeof body.appPassword === "string"
           ? body.appPassword.replace(/\s+/g, "").trim()
@@ -93,7 +125,18 @@ export async function POST(req: NextRequest) {
         typeof body.senderName === "string" && body.senderName.trim()
           ? body.senderName.trim()
           : "FoodXchange Sourcing Desk";
-      const verifyFirst = body.verifyFirst !== false;
+      const replyTo =
+        typeof body.replyTo === "string" && body.replyTo.trim()
+          ? body.replyTo.trim()
+          : user;
+      const role =
+        typeof body.role === "string" && body.role.trim()
+          ? body.role.trim()
+          : provider === "resend"
+          ? "Transactional Domain Mailer"
+          : "Primary Sourcing & 2-Way Sync";
+      const verifyFirst = Boolean(body.verifyFirst) && provider === "gmail";
+      const makeActive = body.makeActive !== false;
 
       if (!user || !user.includes("@")) {
         return NextResponse.json(
@@ -103,23 +146,15 @@ export async function POST(req: NextRequest) {
       }
 
       const store = await getStoredGmailAccountsConfig();
-      const existing = store.accounts.find(
-        (a) => a.user.toLowerCase() === user.toLowerCase()
+      const lookupKey = originalUser || user.toLowerCase();
+      const existingIdx = store.accounts.findIndex(
+        (a) => a.user.toLowerCase() === lookupKey
       );
-      const effectivePassword = appPassword || existing?.appPassword || "";
+      const existing = existingIdx >= 0 ? store.accounts[existingIdx] : null;
+      const effectivePassword =
+        appPassword || existing?.appPassword || "";
 
-      if (!effectivePassword) {
-        return NextResponse.json(
-          {
-            ok: false,
-            error:
-              "Please enter a 16-character Google App Password for this account.",
-          },
-          { status: 400 }
-        );
-      }
-
-      if (verifyFirst) {
+      if (provider === "gmail" && verifyFirst && effectivePassword) {
         try {
           const transporter = nodemailer.createTransport({
             host: "smtp.gmail.com",
@@ -132,8 +167,8 @@ export async function POST(req: NextRequest) {
           return NextResponse.json(
             {
               ok: false,
-              error: `Gmail SMTP verification failed: ${
-                smtpErr.message || "Invalid credentials or App Password"
+              error: `Gmail SMTP verification failed for ${user}: ${
+                smtpErr.message || "Invalid 16-char Google App Password"
               }`,
             },
             { status: 400 }
@@ -141,23 +176,53 @@ export async function POST(req: NextRequest) {
         }
       }
 
-      await saveGmailCredentials({
+      const updatedEntry: StoredGmailAccount = {
         user,
-        appPassword: effectivePassword,
+        appPassword: provider === "resend" ? "" : effectivePassword,
         senderName,
-      });
+        provider,
+        replyTo,
+        role,
+        addedAt: existing?.addedAt || new Date().toISOString(),
+      };
+
+      if (existingIdx >= 0) {
+        store.accounts[existingIdx] = updatedEntry;
+      } else {
+        // Also check if target `user` already exists at another index
+        const dupIdx = store.accounts.findIndex(
+          (a) => a.user.toLowerCase() === user.toLowerCase()
+        );
+        if (dupIdx >= 0) {
+          store.accounts[dupIdx] = updatedEntry;
+        } else {
+          store.accounts.push(updatedEntry);
+        }
+      }
+
+      if (
+        makeActive ||
+        (originalUser &&
+          store.activeUser?.toLowerCase() === originalUser)
+      ) {
+        store.activeUser = user;
+      }
+
+      await saveStoredGmailAccountsConfig(store);
 
       const snapshot = await buildAccountsSnapshot();
       return NextResponse.json({
         ...snapshot,
-        message: `Connected and activated ${user} (${senderName}).`,
+        message: existing
+          ? `✅ Updated account ${user} (${senderName}).`
+          : `✅ Added and connected ${user} (${senderName}).`,
       });
     }
 
-    // 2. Switch Active Account (to a saved account, "__env__", or "__none__")
+    // 2. Switch Primary Active Account
     if (action === "set_active") {
       const targetUser =
-        typeof body.user === "string" ? body.user.trim() : "__env__";
+        typeof body.user === "string" ? body.user.trim() : "";
       const store = await getStoredGmailAccountsConfig();
       store.activeUser = targetUser;
       await saveStoredGmailAccountsConfig(store);
@@ -167,14 +232,12 @@ export async function POST(req: NextRequest) {
         ...snapshot,
         message:
           targetUser === "__none__"
-            ? "Disconnected Gmail account (using Resend fallback only)."
-            : targetUser === "__env__"
-            ? "Switched active account to System Environment (GMAIL_USER)."
-            : `Switched active account to ${targetUser}.`,
+            ? "Paused active account."
+            : `⭐ Switched primary active email account to ${targetUser}.`,
       });
     }
 
-    // 3. Remove a Saved Account from Database
+    // 3. Delete an Account from the Managed List
     if (action === "remove") {
       const targetUser =
         typeof body.user === "string" ? body.user.trim().toLowerCase() : "";
@@ -183,28 +246,51 @@ export async function POST(req: NextRequest) {
         (a) => a.user.toLowerCase() !== targetUser
       );
       if (store.activeUser && store.activeUser.toLowerCase() === targetUser) {
-        store.activeUser =
-          store.accounts[0]?.user ||
-          (process.env.GMAIL_USER ? "__env__" : "__none__");
+        store.activeUser = store.accounts[0]?.user || "__none__";
       }
       await saveStoredGmailAccountsConfig(store);
 
       const snapshot = await buildAccountsSnapshot();
       return NextResponse.json({
         ...snapshot,
-        message: `Removed ${body.user} from saved email accounts.`,
+        message: `🗑️ Deleted ${body.user} from connected email accounts.`,
       });
     }
 
-    // 4. Test Active SMTP Connection
+    // 4. Test SMTP Connection for a Specific or Active Account
     if (action === "test_connection") {
-      const creds = await getGmailCredentials();
-      if (!creds) {
+      const targetUser =
+        typeof body.user === "string" ? body.user.trim().toLowerCase() : "";
+      const store = await getStoredGmailAccountsConfig();
+      const targetAcc = targetUser
+        ? store.accounts.find((a) => a.user.toLowerCase() === targetUser)
+        : null;
+
+      if (targetAcc?.provider === "resend") {
+        if (!process.env.RESEND_API_KEY) {
+          return NextResponse.json(
+            { ok: false, error: "RESEND_API_KEY is not configured." },
+            { status: 400 }
+          );
+        }
+        return NextResponse.json({
+          ok: true,
+          message: `✅ Resend Domain Mailer (${targetAcc.user}) is verified and active! Replies forward to ${targetAcc.replyTo || targetAcc.user}.`,
+        });
+      }
+
+      const creds =
+        targetAcc && targetAcc.appPassword
+          ? { user: targetAcc.user, appPassword: targetAcc.appPassword }
+          : await getGmailCredentials();
+
+      if (!creds || !creds.appPassword) {
         return NextResponse.json(
           {
             ok: false,
-            error:
-              "No active Gmail account configured. Add an account below or configure GMAIL_USER in .env.",
+            error: `Account ${
+              targetAcc?.user || ""
+            } does not have a 16-character Google App Password saved yet. Click '✏️ Edit' on the account card to paste its App Password.`,
           },
           { status: 400 }
         );
@@ -222,7 +308,7 @@ export async function POST(req: NextRequest) {
 
       return NextResponse.json({
         ok: true,
-        message: `✅ Gmail SMTP verified for ${creds.user} in ${latencyMs}ms! Outbound & plus-addressed Reply-To routing are ready.`,
+        message: `✅ Gmail SMTP verified for ${creds.user} in ${latencyMs}ms!`,
       });
     }
 
