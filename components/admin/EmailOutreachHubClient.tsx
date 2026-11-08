@@ -97,6 +97,53 @@ function ensureHttp(url: string): string {
   return url.startsWith("http") ? url : `https://${url}`;
 }
 
+function getGmailSearchUrl(params: {
+  subject?: string | null;
+  from?: string | null;
+  to?: string | null;
+  email?: string | null;
+  companyName?: string | null;
+  shortTag?: string | null;
+  mode?: "inbound" | "outbound" | "thread";
+}): string {
+  const parts: string[] = [];
+
+  // 1. Extract reference tag like [FDX-REQ-74DD0220] from subject if present, or use shortTag
+  const tagInSubject = params.subject?.match(/\[FDX-[A-Z0-9-]+\]/i)?.[0];
+  const tag =
+    tagInSubject ||
+    (params.shortTag
+      ? params.shortTag.startsWith("[")
+        ? params.shortTag
+        : `[${params.shortTag}]`
+      : null);
+
+  if (tag) {
+    parts.push(tag);
+  }
+
+  // 2. Add sender / recipient / company / email filter
+  if (params.mode === "inbound" && params.from) {
+    parts.push(`from:${params.from}`);
+  } else if (params.mode === "outbound" && params.to) {
+    parts.push(`to:${params.to}`);
+  } else if (params.email) {
+    parts.push(params.email);
+  } else if (params.from) {
+    parts.push(params.from);
+  } else if (params.companyName) {
+    parts.push(`"${params.companyName}"`);
+  }
+
+  // Fallback to subject snippet if no tag or email
+  if (parts.length === 0 && params.subject) {
+    parts.push(`"${params.subject.slice(0, 35)}"`);
+  }
+
+  const query = parts.join(" ");
+  return `https://mail.google.com/mail/u/0/#search/${encodeURIComponent(query)}`;
+}
+
 function hoursSince(isoDate: string | null | undefined): number {
   if (!isoDate) return 0;
   const ms = Date.now() - new Date(isoDate).getTime();
@@ -1361,6 +1408,17 @@ Email: udi@foodxchange.com`);
               {syncingImap ? "🔄 Syncing..." : "🔄 Sync Replies"}
             </button>
 
+            <a
+              href="https://mail.google.com/mail/u/0/#inbox"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-bold text-slate-100 transition-colors flex items-center gap-1.5"
+              title="Open Gmail Inbox in new tab"
+            >
+              <span>📬 Gmail</span>
+              <span className="text-[10px] text-slate-400">↗</span>
+            </a>
+
             <button
               type="button"
               onClick={() => setNewSupplierModalOpen(true)}
@@ -2087,6 +2145,22 @@ Email: udi@foodxchange.com`);
                     >
                       Deal Desk ↗
                     </Link>
+                    <a
+                      href={getGmailSearchUrl({
+                        subject: activeMatch.last_outreach_subject,
+                        email: activeMatch.contact_email,
+                        companyName: activeMatch.company_name,
+                        shortTag: requestMap[activeMatch.request_id]?.shortTag,
+                        mode: "thread",
+                      })}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="px-3 py-1.5 rounded-xl bg-red-50 hover:bg-red-100 text-red-700 font-bold text-xs transition-colors border border-red-200 flex items-center gap-1 shadow-2xs"
+                      title="Open full email conversation thread in Gmail"
+                    >
+                      <span>📬 Gmail Thread</span>
+                      <span className="text-[10px]">↗</span>
+                    </a>
                   </div>
                 </div>
 
@@ -2145,16 +2219,46 @@ Email: udi@foodxchange.com`);
 
                 {/* Conversation Thread History */}
                 <div className="mt-4 pt-3 border-t border-slate-100 space-y-2.5">
-                  <div className="text-[11px] font-extrabold uppercase tracking-wider text-slate-400">
-                    Correspondence Timeline ({activeMatch.outreach_history.length}{" "}
-                    messages)
+                  <div className="flex items-center justify-between gap-2 flex-wrap">
+                    <div className="text-[11px] font-extrabold uppercase tracking-wider text-slate-400">
+                      Correspondence Timeline ({activeMatch.outreach_history.length}{" "}
+                      messages)
+                    </div>
+                    <a
+                      href={getGmailSearchUrl({
+                        subject: activeMatch.last_outreach_subject,
+                        email: activeMatch.contact_email,
+                        companyName: activeMatch.company_name,
+                        shortTag: requestMap[activeMatch.request_id]?.shortTag,
+                        mode: "thread",
+                      })}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 text-xs font-bold transition-colors shadow-2xs cursor-pointer"
+                      title="Search & open this entire conversation thread in Gmail"
+                    >
+                      <span>📬 Open Thread in Gmail</span>
+                      <span className="text-[10px]">↗</span>
+                    </a>
                   </div>
 
                   {activeMatch.outreach_history.length === 0 &&
                   !activeMatch.last_outreach_body &&
                   !activeMatch.supplier_message ? (
-                    <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/80 text-xs text-slate-500">
-                      No emails sent yet to {activeMatch.company_name}. Use the composer below to send the Initial Cooperation Inquiry.
+                    <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/80 text-xs text-slate-500 flex items-center justify-between gap-2">
+                      <span>No emails sent yet to {activeMatch.company_name}. Use the composer below to send the Initial Cooperation Inquiry.</span>
+                      <a
+                        href={getGmailSearchUrl({
+                          email: activeMatch.contact_email,
+                          companyName: activeMatch.company_name,
+                          shortTag: requestMap[activeMatch.request_id]?.shortTag,
+                        })}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-[11px] font-bold text-red-600 hover:text-red-700 underline shrink-0"
+                      >
+                        Search Gmail ↗
+                      </a>
                     </div>
                   ) : (
                     <div className="space-y-2.5 max-h-60 overflow-y-auto pr-1">
@@ -2163,25 +2267,52 @@ Email: udi@foodxchange.com`);
                           key={msg.id}
                           className={`p-3 rounded-xl border text-xs ${
                             msg.direction === "inbound"
-                              ? "bg-purple-50/70 border-purple-200"
+                              ? "bg-purple-50/70 border-purple-200 ring-1 ring-purple-200/80"
                               : "bg-slate-50 border-slate-200"
                           }`}
                         >
-                          <div className="flex items-center justify-between text-[10px] font-bold text-slate-500 mb-1">
-                            <span>
-                              {msg.direction === "inbound"
-                                ? `📥 INBOUND REPLY (${msg.from || "Supplier"})`
-                                : `📤 SENT TO ${msg.to || activeMatch.contact_email || "Supplier"}`}
+                          <div className="flex items-center justify-between text-[10px] font-bold text-slate-500 mb-1.5 gap-2 flex-wrap">
+                            <span className="flex items-center gap-1.5 flex-wrap">
+                              <span>
+                                {msg.direction === "inbound"
+                                  ? `📥 INBOUND REPLY (${msg.from || "Supplier"})`
+                                  : `📤 SENT TO ${msg.to || activeMatch.contact_email || "Supplier"}`}
+                              </span>
+                              <a
+                                href={getGmailSearchUrl({
+                                  subject: msg.subject || activeMatch.last_outreach_subject,
+                                  from: msg.from,
+                                  to: msg.to,
+                                  email: activeMatch.contact_email,
+                                  shortTag: requestMap[activeMatch.request_id]?.shortTag,
+                                  mode: msg.direction,
+                                })}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold transition shadow-2xs ${
+                                  msg.direction === "inbound"
+                                    ? "bg-red-600 hover:bg-red-700 text-white"
+                                    : "bg-white hover:bg-slate-100 text-slate-700 border border-slate-300"
+                                }`}
+                                title={
+                                  msg.direction === "inbound"
+                                    ? "Open this incoming reply directly in Gmail"
+                                    : "View sent message in Gmail"
+                                }
+                              >
+                                <span>📬 Open in Gmail</span>
+                                <span className="text-[9px]">↗</span>
+                              </a>
                             </span>
-                            <span>
+                            <span className="text-slate-400">
                               {mounted
                                 ? new Date(msg.created_at).toLocaleString()
                                 : msg.created_at.slice(0, 16).replace("T", " ")}
                             </span>
                           </div>
                           {msg.subject && (
-                            <div className="font-bold text-slate-800 mb-1">
-                              {msg.subject}
+                            <div className="font-bold text-slate-800 mb-1 flex items-center justify-between gap-2 flex-wrap">
+                              <span>{msg.subject}</span>
                             </div>
                           )}
                           {msg.ai_summary && (
@@ -2198,8 +2329,26 @@ Email: udi@foodxchange.com`);
                       {activeMatch.outreach_history.length === 0 &&
                         activeMatch.last_outreach_body && (
                           <div className="p-3 rounded-xl border bg-slate-50 border-slate-200 text-xs">
-                            <div className="flex items-center justify-between text-[10px] font-bold text-slate-500 mb-1">
-                              <span>📤 LAST OUTBOUND EMAIL</span>
+                            <div className="flex items-center justify-between text-[10px] font-bold text-slate-500 mb-1 gap-2 flex-wrap">
+                              <span className="flex items-center gap-1.5">
+                                <span>📤 LAST OUTBOUND EMAIL</span>
+                                <a
+                                  href={getGmailSearchUrl({
+                                    subject: activeMatch.last_outreach_subject,
+                                    to: activeMatch.contact_email,
+                                    email: activeMatch.contact_email,
+                                    shortTag: requestMap[activeMatch.request_id]?.shortTag,
+                                    mode: "outbound",
+                                  })}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 text-[10px] font-bold transition shadow-2xs"
+                                  title="View sent email in Gmail"
+                                >
+                                  <span>📬 Open in Gmail</span>
+                                  <span className="text-[9px]">↗</span>
+                                </a>
+                              </span>
                               <span>
                                 {activeMatch.last_outreach_at
                                   ? mounted
@@ -2223,8 +2372,26 @@ Email: udi@foodxchange.com`);
                           (h) => h.direction === "inbound"
                         ) && (
                           <div className="p-3 rounded-xl border bg-purple-50/70 border-purple-200 text-xs">
-                            <div className="text-[10px] font-bold text-purple-700 mb-1">
-                              📥 RECORDED SUPPLIER RESPONSE
+                            <div className="flex items-center justify-between text-[10px] font-bold text-purple-700 mb-1 gap-2 flex-wrap">
+                              <span className="flex items-center gap-1.5">
+                                <span>📥 RECORDED SUPPLIER RESPONSE</span>
+                                <a
+                                  href={getGmailSearchUrl({
+                                    subject: activeMatch.last_outreach_subject,
+                                    from: activeMatch.contact_email,
+                                    email: activeMatch.contact_email,
+                                    shortTag: requestMap[activeMatch.request_id]?.shortTag,
+                                    mode: "inbound",
+                                  })}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-red-600 hover:bg-red-700 text-white text-[10px] font-bold transition shadow-2xs"
+                                  title="Open incoming reply in Gmail"
+                                >
+                                  <span>📬 Open in Gmail</span>
+                                  <span className="text-[9px]">↗</span>
+                                </a>
+                              </span>
                             </div>
                             <p className="text-slate-800 font-medium">
                               {activeMatch.supplier_message}
@@ -2667,9 +2834,29 @@ Email: udi@foodxchange.com`);
                     Multi-Lingual
                   </span>
                 </div>
-                <p className="text-[11px] text-slate-600 leading-relaxed">
-                  Received a reply via direct email or WhatsApp? Paste it below — Gemini AI translates it and extracts unit price, MOQ, samples AWB, and QA certs automatically.
-                </p>
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                  <p className="text-[11px] text-slate-600 leading-relaxed flex-1 min-w-[200px]">
+                    Received a reply via direct email or WhatsApp? Paste it below — Gemini AI translates it and extracts unit price, MOQ, samples AWB, and QA certs automatically.
+                  </p>
+                  {activeMatch && (
+                    <a
+                      href={getGmailSearchUrl({
+                        subject: activeMatch.last_outreach_subject,
+                        email: activeMatch.contact_email,
+                        companyName: activeMatch.company_name,
+                        shortTag: requestMap[activeMatch.request_id]?.shortTag,
+                        mode: "inbound",
+                      })}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-red-600 hover:bg-red-700 text-white font-bold text-[11px] transition-colors shadow-2xs shrink-0 cursor-pointer"
+                      title="Open Gmail to search for incoming replies from this factory"
+                    >
+                      <span>📬 Find in Gmail</span>
+                      <span className="text-[9px]">↗</span>
+                    </a>
+                  )}
+                </div>
 
                 <input
                   type="text"
