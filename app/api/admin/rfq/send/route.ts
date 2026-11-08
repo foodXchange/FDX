@@ -16,14 +16,41 @@ const BodySchema = z.object({
   body: z.string().trim().min(1),
   deadline: z.string().min(1),
   emailOverrides: z.record(z.string(), z.string()).optional(),
+  isFollowUp: z.boolean().optional(),
+  nativeLanguagePrefix: z.boolean().optional(),
 });
+
+function buildNativeLanguageBanner(country: string | null | undefined, companyName: string, reqRef: string): string {
+  const c = (country || "").toLowerCase().trim();
+  if (c.includes("spain") || c.includes("españa") || c.includes("mexico") || c.includes("argentina")) {
+    return `[ES] Estimado equipo de exportación de ${companyName}: Le contactamos desde FoodXchange (${reqRef}) para una consulta comercial B2B de distribución e importación. A continuación encontrará las especificaciones técnicas en inglés.\n────────────────────────────────────────\n\n`;
+  }
+  if (c.includes("italy") || c.includes("italia")) {
+    return `[IT] Gentile Ufficio Export di ${companyName}, Vi contattiamo da FoodXchange (${reqRef}) per una richiesta di fornitura e distribuzione B2B. Di seguito trovate le specifiche tecniche del progetto in inglese.\n────────────────────────────────────────\n\n`;
+  }
+  if (c.includes("germany") || c.includes("austria") || c.includes("switzerland")) {
+    return `[DE] Sehr geehrtes Export-Team von ${companyName}, wir kontaktieren Sie von FoodXchange (${reqRef}) bezüglich einer B2B-Beschaffungs- und Vertriebsanfrage. Nachfolgend finden Sie die Projektspezifikationen.\n────────────────────────────────────────\n\n`;
+  }
+  if (c.includes("france") || c.includes("belgium")) {
+    return `[FR] Cher service Export de ${companyName}, nous vous contactons de la part de FoodXchange (${reqRef}) concernant une demande d'approvisionnement et de distribution B2B. Vous trouverez ci-dessous le cahier des charges.\n────────────────────────────────────────\n\n`;
+  }
+  if (c.includes("greece")) {
+    return `[EL] Αγαπητή ομάδα εξαγωγών της ${companyName}, επικοινωνούμε μαζί σας από την FoodXchange (${reqRef}) σχετικά με ένα έργο προμήθειας και διανομής B2B. Παρακάτω θα βρείτε τις προδιαγραφές στα αγγλικά.\n────────────────────────────────────────\n\n`;
+  }
+  if (c.includes("poland")) {
+    return `[PL] Szanowny Dziale Eksportu ${companyName}, kontaktujemy się z Państwem z platformy FoodXchange (${reqRef}) w sprawie zapytania ofertowego B2B. Poniżej znajdują się szczegółowe specyfikacje.\n────────────────────────────────────────\n\n`;
+  }
+  return "";
+}
 
 type MatchRow = {
   id: string;
   supplier_id: string;
   company_name: string | null;
   product_name: string | null;
+  country: string | null;
   status: string | null;
+  sent_at: string | null;
   match_breakdown: Record<string, unknown> | null;
 };
 
@@ -47,7 +74,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid request" }, { status: 400 });
   }
 
-  const { requestId, matchIds, subject, body, deadline, emailOverrides } = parsed.data;
+  const { requestId, matchIds, subject, body, deadline, emailOverrides, isFollowUp, nativeLanguagePrefix } = parsed.data;
   const requestRefTag = `[FDX-REQ-${requestId.replace(/-/g, "").slice(0, 8).toUpperCase()}]`;
 
   const { data: request } = await supabaseAdmin
@@ -71,7 +98,7 @@ export async function POST(req: NextRequest) {
 
   const { data: matchData } = await supabaseAdmin
     .from("sourcing_matches")
-    .select("id, supplier_id, company_name, product_name, status, match_breakdown")
+    .select("id, supplier_id, company_name, product_name, country, status, sent_at, match_breakdown")
     .eq("request_id", requestId)
     .in("id", matchIds);
 
@@ -108,8 +135,9 @@ export async function POST(req: NextRequest) {
   };
 
   const results: RfqResult[] = [];
+  const CONCURRENCY = 4;
 
-  for (const match of matches) {
+  async function processSingleMatch(match: MatchRow): Promise<RfqResult> {
     const vars = {
       ...requestVars,
       supplier_company: match.company_name ?? "",
@@ -118,14 +146,16 @@ export async function POST(req: NextRequest) {
     };
 
     const renderedSubject = renderTemplate(subject, vars);
-    const renderedBody = renderTemplate(body, vars);
+    const nativePrefix = nativeLanguagePrefix
+      ? buildNativeLanguageBanner(match.country, match.company_name || "Partner", requestRefTag)
+      : "";
+    const renderedBody = `${nativePrefix}${renderTemplate(body, vars)}`;
 
     try {
       const overrideEmail = emailOverrides?.[match.id]?.trim();
-      let contactEmail = overrideEmail || (await getSupplierContactEmail(match.supplier_id));
+      const contactEmail = overrideEmail || (await getSupplierContactEmail(match.supplier_id));
 
       if (overrideEmail && match.supplier_id) {
-        // Persist newly provided supplier email to supplier_offerings for future outreach
         await supabaseAdmin
           .from("supplier_offerings")
           .update({ contact_email: overrideEmail })
@@ -133,21 +163,25 @@ export async function POST(req: NextRequest) {
       }
 
       if (!contactEmail) {
-        results.push({
+        return {
           matchId: match.id,
           company_name: match.company_name,
           success: false,
           error: "No email on file — enter email in composer",
-        });
-        continue;
+        };
       }
+
+      const prevBreakdown =
+        match.match_breakdown && typeof match.match_breakdown === "object"
+          ? match.match_breakdown
+          : {};
 
       const benchmarkCardHtml = `<div style="margin:20px 0;padding:16px;border:1px solid #e2e8f0;border-radius:12px;background:#f8fafc;">
         <p style="margin:0 0 8px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:#ea580c;">Buyer Sourcing Brief Summary · ${requestRefTag}</p>
         <div style="font-size:13px;color:#334155;line-height:1.5;">
           ${benchmarkImageUrl ? `<img src="${benchmarkImageUrl}" alt="Benchmark Product" style="width:76px;height:76px;object-fit:cover;border-radius:8px;border:1px solid #cbd5e1;float:left;margin-right:12px;" />` : ""}
           <div><strong>Project Reference:</strong> ${requestRefTag}</div>
-          <div><strong>Target Product:</strong> ${request.product_name || match.product_name || "Sourcing Inquiry"}</div>
+          <div><strong>Target Product:</strong> ${request?.product_name || match.product_name || "Sourcing Inquiry"}</div>
           ${match.product_name ? `<div><strong>Matched Factory SKU:</strong> ${match.product_name}</div>` : ""}
           ${benchmarkBrand ? `<div><strong>Benchmark Brand:</strong> ${benchmarkBrand}</div>` : ""}
           ${pip.commercial.volume ? `<div><strong>Target Volume:</strong> ${pip.commercial.volume}</div>` : ""}
@@ -163,23 +197,25 @@ export async function POST(req: NextRequest) {
         matchId: match.id,
         requestId,
         benchmarkCardHtml,
+        isFollowUp: Boolean(isFollowUp),
+        previousMessageId: (prevBreakdown.gmail_message_id as string | undefined) ?? null,
+        previousSentAt: (prevBreakdown.last_outreach_at as string | undefined) ?? match.sent_at ?? null,
+        previousBodyText: (prevBreakdown.last_outreach_body as string | undefined) ?? null,
       });
 
       if (!sendResult.success) {
-        results.push({
+        return {
           matchId: match.id,
           company_name: match.company_name,
           success: false,
           error: sendResult.error,
-        });
-        continue;
+        };
       }
 
       const now = new Date().toISOString();
-      const prevBreakdown =
-        match.match_breakdown && typeof match.match_breakdown === "object"
-          ? match.match_breakdown
-          : {};
+      const prevHistory = Array.isArray(prevBreakdown.outreach_history)
+        ? (prevBreakdown.outreach_history as Array<Record<string, unknown>>)
+        : [];
 
       const updatedBreakdown: Record<string, unknown> = {
         ...prevBreakdown,
@@ -188,45 +224,72 @@ export async function POST(req: NextRequest) {
         last_outreach_body: renderedBody,
         last_outreach_at: now,
         sent_via_provider: sendResult.via,
+        recipient_email: contactEmail,
+        outreach_count: ((prevBreakdown.outreach_count as number) || 0) + 1,
+        outreach_history: [
+          ...prevHistory,
+          {
+            direction: "outbound",
+            type: isFollowUp ? "chaser" : "initial_rfq",
+            to: contactEmail,
+            subject: sendResult.subjectUsed ?? renderedSubject,
+            body: renderedBody,
+            sent_at: now,
+            via: sendResult.via,
+          },
+        ],
       };
 
       await supabaseAdmin
         .from("sourcing_matches")
         .update({
-          status: "rfq_sent",
+          status: match.status === "responded" ? "responded" : "rfq_sent",
           sent_at: now,
           sent_via: "email",
           match_breakdown: updatedBreakdown,
         })
         .eq("id", match.id);
 
-      await supabaseAdmin.from("match_messages").insert({
-        match_id: match.id,
-        sender_type: "admin",
-        message: `[SUBJECT: ${sendResult.subjectUsed ?? renderedSubject}]\n\n${renderedBody}`,
-      });
+      await supabaseAdmin
+        .from("supplier_outreach_logs")
+        .insert({
+          match_id: match.id,
+          supplier_id: match.supplier_id,
+          channel: "email",
+          message: `[SUBJECT: ${sendResult.subjectUsed ?? renderedSubject}]\n\n${renderedBody}`,
+          sent_by: "admin",
+          sent_at: now,
+        })
+        .then(() => {});
 
       void logEvent(null, "admin", "rfq_sent", "match", match.id, {
         request_id: requestId,
         supplier_id: match.supplier_id,
         deadline,
         via: sendResult.via,
+        is_follow_up: Boolean(isFollowUp),
       });
 
-      results.push({
+      return {
         matchId: match.id,
         company_name: match.company_name,
         success: true,
         via: sendResult.via,
-      });
+      };
     } catch (err) {
-      results.push({
+      return {
         matchId: match.id,
         company_name: match.company_name,
         success: false,
         error: err instanceof Error ? err.message : "Unknown error",
-      });
+      };
     }
+  }
+
+  for (let i = 0; i < matches.length; i += CONCURRENCY) {
+    const batch = matches.slice(i, i + CONCURRENCY);
+    const batchResults = await Promise.all(batch.map((m) => processSingleMatch(m)));
+    results.push(...batchResults);
   }
 
   const sent = results.filter((r) => r.success).length;

@@ -15,6 +15,7 @@ const sections: { title: string; links: NavItem[] }[] = [
   {
     title: "Deal Operations",
     links: [
+      { href: "/admin/outreach", label: "Email & Outreach Hub", icon: "✉️", badge: "Hub" },
       { href: "/admin/pipeline", label: "Deal Pipeline", icon: "🎯" },
       { href: "/admin/requests", label: "Sourcing Intake Desk", icon: "✨", badge: "New" },
       { href: "/admin/requests?view=registry", label: "Requests Registry", icon: "📥" },
@@ -101,10 +102,10 @@ function AdminNavInner({ collapsed = false, search }: AdminNavProps & { search: 
     // Request detail pages (/admin/requests/[id]) belong to the Registry.
     if (href === "/admin/requests?view=registry") {
       return (pathname === "/admin/requests" && isRegistryView) ||
-        (pathname.startsWith("/admin/requests/") && pathname !== "/admin/requests/new");
+        pathname.startsWith("/admin/requests/");
     }
     if (href === "/admin/requests") {
-      return (pathname === "/admin/requests" && !isRegistryView) || pathname === "/admin/requests/new";
+      return pathname === "/admin/requests" && !isRegistryView;
     }
     return pathname.startsWith(href);
   }

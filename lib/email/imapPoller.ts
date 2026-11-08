@@ -148,12 +148,25 @@ export async function pollAndSyncInboundEmails(options?: {
           }
 
           const subj = env.subject ?? "";
+          const toAddrs = (env.to ?? []).map((t: any) => t?.address || "").join(" ");
           const msgId = env.messageId || `uid-${msg.uid}`;
           const msgDate = env.date ? new Date(env.date).toISOString() : new Date().toISOString();
 
-          // 1. Resolve Project Reference [FDX-REQ-XXXXXXXX] or Match Tag [FDX-XXXXXXXX]
+          // 1. Resolve Plus-Addressed Reply-To (+fdx-XXXXXXXX), Project Reference [FDX-REQ-XXXXXXXX], or Match Tag [FDX-XXXXXXXX]
           let resolvedRequestId: string | null = null;
           let resolvedMatchId: string | null = null;
+
+          const plusMatch = toAddrs.match(/\+fdx-([a-f0-9]{8})@/i);
+          if (plusMatch) {
+            const shortMatchId = plusMatch[1].toLowerCase();
+            const matchedRow = Array.from(matchIdMap.values()).find((m) =>
+              m.id.toLowerCase().startsWith(shortMatchId)
+            );
+            if (matchedRow) {
+              resolvedMatchId = matchedRow.id;
+              resolvedRequestId = matchedRow.request_id;
+            }
+          }
 
           const reqMatch = `${subj}`.match(/FDX-REQ-([A-F0-9]{8})/i);
           if (reqMatch) {
@@ -169,8 +182,8 @@ export async function pollAndSyncInboundEmails(options?: {
             }
           }
 
-          const matchRef = `${subj}`.match(/FDX-([A-F0-9]{8})/i);
-          if (matchRef && !reqMatch) {
+          const matchRef = `${subj}`.replace(/FDX-REQ-[A-F0-9]{8}/gi, "").match(/FDX-([A-F0-9]{8})/i);
+          if (matchRef && !resolvedMatchId) {
             const shortMatchId = matchRef[1].toLowerCase();
             const matchedRow = Array.from(matchIdMap.values()).find((m) =>
               m.id.toLowerCase().startsWith(shortMatchId)

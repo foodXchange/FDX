@@ -53,7 +53,7 @@ export async function middleware(req: NextRequest) {
     if (!cookie || !(await verifySession(cookie))) {
       const loginUrl = new URL("/admin/login", req.url);
       if (pathname && pathname !== "/admin") {
-        loginUrl.searchParams.set("next", pathname);
+        loginUrl.searchParams.set("next", `${pathname}${req.nextUrl.search || ""}`);
       }
       return NextResponse.redirect(loginUrl);
     }

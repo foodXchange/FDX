@@ -103,9 +103,12 @@ function AdminLoginContent() {
 
   const inCooldown = cooldownUntil !== null && cooldownRemaining > 0;
 
-  async function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    if (!password || loading || success || inCooldown) return;
+    const formEl = e.currentTarget;
+    const domPassword = (formEl.elements.namedItem("password") as HTMLInputElement | null)?.value ?? "";
+    const resolvedPassword = password || domPassword;
+    if (!resolvedPassword || loading || success || inCooldown) return;
 
     setLoading(true);
     setError("");
@@ -114,7 +117,7 @@ function AdminLoginContent() {
       const res = await fetch("/api/admin/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ password }),
+        body: JSON.stringify({ password: resolvedPassword }),
       });
 
       if (res.ok) {
@@ -180,7 +183,18 @@ function AdminLoginContent() {
               Restricted access. Enter your admin password to continue.
             </p>
 
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handleSubmit} className="space-y-4" method="post" action="/admin/login">
+              {/* Standard username field for 1Password & browser password manager autofill */}
+              <input
+                type="email"
+                name="username"
+                autoComplete="username"
+                defaultValue="udi@fdx.trading"
+                readOnly
+                tabIndex={-1}
+                aria-hidden="true"
+                className="sr-only"
+              />
               <div>
                 <label htmlFor="admin-password" className="sr-only">
                   Password
@@ -188,6 +202,7 @@ function AdminLoginContent() {
                 <div className="relative">
                   <input
                     id="admin-password"
+                    name="password"
                     type={showPassword ? "text" : "password"}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}

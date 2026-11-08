@@ -221,8 +221,16 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               <Link
                 href="/admin/requests"
                 className="px-2.5 py-1 text-xs font-semibold rounded-md border border-slate-200 bg-white text-slate-700 hover:border-orange-300 hover:text-orange-600 transition-colors shadow-2xs whitespace-nowrap"
+                title="Open Sourcing Intake Desk (Initial & Edit Request)"
               >
-                📥 Requests
+                ✨ Intake Desk
+              </Link>
+              <Link
+                href="/admin/requests?view=registry"
+                className="px-2.5 py-1 text-xs font-semibold rounded-md border border-slate-200 bg-white text-slate-700 hover:border-orange-300 hover:text-orange-600 transition-colors shadow-2xs whitespace-nowrap"
+                title="Open Requests Registry organized by stages"
+              >
+                📋 Registry
               </Link>
             </div>
 

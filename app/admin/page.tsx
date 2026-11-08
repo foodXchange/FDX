@@ -122,6 +122,13 @@ export default async function AdminHome() {
           {/* Quick Action Buttons */}
           <div className="flex items-center gap-2.5 flex-wrap">
             <Link
+              href="/admin/outreach"
+              className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs transition-colors shadow-sm cursor-pointer"
+            >
+              <span>✉️</span>
+              <span>Email &amp; Outreach Hub</span>
+            </Link>
+            <Link
               href="/admin/pipeline"
               className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-semibold text-xs transition-colors shadow-sm cursor-pointer"
             >
@@ -355,6 +362,32 @@ export default async function AdminHome() {
                 2. Matching &amp; Deal Flow
               </h3>
             </div>
+
+            <Link
+              href="/admin/outreach"
+              className="group block bg-emerald-50/40 border border-emerald-200 hover:border-emerald-400 rounded-2xl p-4.5 shadow-2xs hover:shadow-xs transition-all"
+            >
+              <div className="flex items-start justify-between">
+                <div>
+                  <span className="text-[10px] font-bold text-emerald-700 uppercase tracking-wider">
+                    Supplier Correspondence Hub
+                  </span>
+                  <h4 className="text-sm font-bold text-slate-900 group-hover:text-emerald-700 transition-colors mt-0.5">
+                    Email &amp; Outreach Command Center
+                  </h4>
+                  <p className="text-xs text-slate-600 mt-1 leading-relaxed">
+                    Bulk-email matched factories, send Day-3/Day-7 follow-up chasers, email brand-new suppliers, and parse incoming quotes with AI.
+                  </p>
+                </div>
+                <span className="text-sm text-emerald-600 group-hover:translate-x-0.5 transition-transform">
+                  →
+                </span>
+              </div>
+              <div className="mt-3 flex items-center gap-1.5 text-[11px] font-semibold text-emerald-800">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                <span>3-Pane Inbox · Bulk Send · AI Quote Parser</span>
+              </div>
+            </Link>
 
             <Link
               href="/admin/pipeline"

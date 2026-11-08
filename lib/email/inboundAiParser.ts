@@ -190,30 +190,63 @@ export async function applyInboundParseToRequest(
   const existingAiAnalysis = (req.ai_analysis as Record<string, any> | null) ?? {};
   let newAiAnalysis = { ...existingAiAnalysis };
 
-  // 1. If Quote Data exists -> Update Sourcing Match & Stage 3 Decision Board
-  if (parsed.quote_data?.unit_price && matchId) {
+  // 1. Update Sourcing Match thread history, status, and optional quote whenever matchId is present
+  if (matchId) {
     const { data: match } = await supabaseAdmin
       .from("sourcing_matches")
-      .select("id, match_breakdown")
+      .select("id, supplier_id, match_breakdown")
       .eq("id", matchId)
       .single();
 
     if (match) {
       const existingBreakdown = (match.match_breakdown as Record<string, any>) ?? {};
-      const updatedQuote = {
-        unit_price: parsed.quote_data.unit_price,
-        currency: parsed.quote_data.currency || "EUR",
-        net_weight: parsed.quote_data.net_weight || "1L",
-        packaging_format: parsed.quote_data.packaging_format || "Standard packaging",
-        moq: parsed.quote_data.moq || "1 x 40ft HQ FCL",
-        lead_time_weeks: parsed.quote_data.lead_time_weeks || 3,
-        incoterm: parsed.quote_data.incoterm || "CIF Ashdod",
-        kosher_type: parsed.quote_data.kosher_type || "Kosher (Chief Rabbinate)",
-        cooperation_status: parsed.intent === "declined" ? "declined" : "cooperating",
-        supplier_notes: parsed.quote_data.supplier_notes || parsed.english_summary,
-        quoted_at: rawSource.receivedAt || new Date().toISOString(),
-        parsed_by_ai: true,
+      const existingHistory = Array.isArray(existingBreakdown.outreach_history)
+        ? existingBreakdown.outreach_history
+        : [];
+      const receivedAtIso = rawSource.receivedAt || new Date().toISOString();
+
+      const inboundEntry = {
+        id: `in_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+        direction: "inbound",
+        from: rawSource.fromEmail,
+        subject: rawSource.subject,
+        body: rawSource.bodyText.slice(0, 4000),
+        ai_summary: parsed.english_summary,
+        intent: parsed.intent,
+        quote_data: parsed.quote_data || null,
+        created_at: receivedAtIso,
       };
+
+      const hasQuoteInfo = Boolean(
+        parsed.quote_data?.unit_price ||
+          parsed.quote_data?.moq ||
+          parsed.quote_data?.lead_time_weeks
+      );
+
+      const updatedQuote = hasQuoteInfo
+        ? {
+            ...(existingBreakdown.quote || {}),
+            unit_price: parsed.quote_data?.unit_price ?? existingBreakdown.quote?.unit_price ?? 0,
+            currency: parsed.quote_data?.currency || existingBreakdown.quote?.currency || "EUR",
+            net_weight: parsed.quote_data?.net_weight || existingBreakdown.quote?.net_weight || "1L",
+            packaging_format:
+              parsed.quote_data?.packaging_format ||
+              existingBreakdown.quote?.packaging_format ||
+              "Standard packaging",
+            moq: parsed.quote_data?.moq || existingBreakdown.quote?.moq || "1 x 40ft HQ FCL",
+            lead_time_weeks:
+              parsed.quote_data?.lead_time_weeks || existingBreakdown.quote?.lead_time_weeks || 3,
+            incoterm: parsed.quote_data?.incoterm || existingBreakdown.quote?.incoterm || "CIF Ashdod",
+            kosher_type:
+              parsed.quote_data?.kosher_type ||
+              existingBreakdown.quote?.kosher_type ||
+              "Kosher (Chief Rabbinate)",
+            cooperation_status: parsed.intent === "declined" ? "declined" : "cooperating",
+            supplier_notes: parsed.quote_data?.supplier_notes || parsed.english_summary,
+            quoted_at: receivedAtIso,
+            parsed_by_ai: true,
+          }
+        : existingBreakdown.quote;
 
       await supabaseAdmin
         .from("sourcing_matches")
@@ -221,15 +254,33 @@ export async function applyInboundParseToRequest(
           status: parsed.intent === "declined" ? "rejected" : "responded",
           supplier_response: parsed.intent === "declined" ? "declined" : "accepted",
           supplier_message: parsed.english_summary,
-          supplier_responded_at: rawSource.receivedAt || new Date().toISOString(),
+          supplier_responded_at: receivedAtIso,
+          responded_at: receivedAtIso,
+          response_note: parsed.english_summary,
           match_breakdown: {
             ...existingBreakdown,
-            quote: updatedQuote,
+            ...(updatedQuote ? { quote: updatedQuote } : {}),
+            last_inbound_from: rawSource.fromEmail,
+            last_inbound_subject: rawSource.subject,
+            last_inbound_body: rawSource.bodyText.slice(0, 4000),
+            last_inbound_at: receivedAtIso,
+            outreach_history: [...existingHistory, inboundEntry],
           },
         })
         .eq("id", matchId);
 
-      updatedStages.push("Stage 3 (Decision Board Quote)");
+      await supabaseAdmin.from("supplier_outreach_logs").insert({
+        match_id: matchId,
+        supplier_id: match.supplier_id,
+        channel: "email_inbound",
+        message: `[Inbound Reply from ${rawSource.fromEmail}]\nSubject: ${rawSource.subject}\nAI Summary: ${parsed.english_summary}\n\n${rawSource.bodyText.slice(0, 2000)}`,
+        sent_by: rawSource.fromEmail || "supplier",
+        sent_at: receivedAtIso,
+      });
+
+      updatedStages.push(
+        hasQuoteInfo ? "Stage 3 (Decision Board Quote)" : "Stage 2 (Supplier Reply Logged)"
+      );
     }
   }
 
@@ -294,15 +345,6 @@ export async function applyInboundParseToRequest(
       .eq("id", requestId);
   }
 
-  // 6. Record inbound message log into match_messages if matchId is known
-  if (matchId) {
-    await supabaseAdmin.from("match_messages").insert({
-      match_id: matchId,
-      sender_type: "supplier",
-      message: `[Inbound Reply from ${rawSource.fromEmail}]\nSubject: ${rawSource.subject}\nAI Summary: ${parsed.english_summary}\nDetected Intent: ${parsed.intent}\n\nFull Body:\n${rawSource.bodyText.slice(0, 1000)}`,
-    });
-  }
-
   await logAdminAction({
     adminEmail: "system_ai_inbound",
     action: "inbound_ai_parse_applied",
@@ -319,6 +361,7 @@ export async function applyInboundParseToRequest(
   try {
     revalidatePath(`/admin/requests/${requestId}`);
     revalidatePath("/admin/requests");
+    revalidatePath("/admin/outreach");
   } catch {}
 
   return { ok: true, updatedStages };

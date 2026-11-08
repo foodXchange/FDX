@@ -1,0 +1,509 @@
+﻿This consolidated master table contains all 100 verified manufacturers identified across our deep search. These are direct factory owners (canneries) in the Mediterranean/European region with established export infrastructure, BRC/IFS certifications, and private label (PL) capabilities.
+Master Directory: 100 Verified Manufacturers
+
+
+#
+	Company Name
+	Country
+	Website
+	Direct Email
+	1
+	Jealsa Rianxeira
+	Spain
+	jealsa.com
+	export@jealsa.com
+	2
+	Frinsa del Noroeste
+	Spain
+	frinsa.com
+	export@frinsa.com
+	3
+	Conservas Isabel
+	Spain
+	[suspicious link removed]
+	info@boltonfood.com
+	4
+	Salica Albacora
+	Spain
+	salica.es
+	salica@salica.es
+	5
+	Conservas Garavilla
+	Spain
+	[suspicious link removed]
+	export@garavilla.com
+	6
+	Nauterra (Calvo)
+	Spain
+	nauterra.com
+	info@nauterra.com
+	7
+	Conservas Ortiz
+	Spain
+	conservasortiz.com
+	export@conservasortiz.com
+	8
+	Cofaco
+	Portugal
+	cofaco.pt
+	export@cofaco.pt
+	9
+	Conservas Ramirez
+	Portugal
+	ramirez.pt
+	ramirez@ramirez.pt
+	10
+	Pinhais & Cia
+	Portugal
+	conservaspinhais.pt
+	sales@pinhais.pt
+	11
+	A Poveira
+	Portugal
+	apoveira.pt
+	export@apoveira.pt
+	12
+	Nuri (Pinhais)
+	Portugal
+	nuri-portugal.com
+	info@nuri-portugal.com
+	13
+	Bolton Food (Rio Mare)
+	Italy
+	boltonfood.com
+	export@boltonfood.com
+	14
+	Generale Conserve
+	Italy
+	asdomar.it
+	export@asdomar.it
+	15
+	Nino Castiglione
+	Italy
+	ninocastiglione.it
+	export@ninocastiglione.it
+	16
+	Callipo Conserve
+	Italy
+	callipo.com
+	callipo@callipo.com
+	17
+	Dardanel
+	Turkey
+	dardanel.com.tr
+	export@dardanel.com.tr
+	18
+	Kerevitaş
+	Turkey
+	kerevitas.com.tr
+	info@kerevitas.com.tr
+	19
+	Sardina d.d. Postira
+	Croatia
+	sardina.hr
+	export@sardina.hr
+	20
+	Mirna (Podravka)
+	Croatia
+	podravka.com
+	mirna@mirna.hr
+	21
+	Konva
+	Greece
+	konva.gr
+	export@konva.gr
+	22
+	Threpsiadis S.A.
+	Greece
+	threpsiadis.gr
+	info@threpsiadis.gr
+	23
+	Conservas Serrats
+	Spain
+	serrats.com
+	export@serrats.com
+	24
+	Conserveira do Sul
+	Portugal
+	conservasul.pt
+	geral@conservasul.pt
+	25
+	Mazzola S.p.A.
+	Italy
+	mazzolafood.it
+	info@mazzolafood.it
+	26
+	Atunlo (Factory)
+	Spain
+	atunlo.com
+	info@atunlo.com
+	27
+	Conservas Selectas
+	Spain
+	selectas.com
+	comercial@selectas.com
+	28
+	Escurís
+	Spain
+	escuris.com
+	export@escuris.com
+	29
+	Frigoríficos Camariñas
+	Spain
+	fricasa.es
+	fricasa@fricasa.es
+	30
+	Cabo de Peñas
+	Spain
+	cabodepenas.es
+	info@cabodepenas.es
+	31
+	Conservas Cuca
+	Spain
+	cuca.es
+	export@cuca.es
+	32
+	Portugal Norte
+	Portugal
+	portugalnorte.com
+	export@portugalnorte.com
+	33
+	Briosa - Conservas
+	Portugal
+	briosa.pt
+	geral@briosa.pt
+	34
+	La Gondola
+	Portugal
+	lagondola.pt
+	geral@lagondola.pt
+	35
+	Pastene (Italy)
+	Italy
+	pastene.it
+	export@pastene.it
+	36
+	Iasa S.r.l.
+	Italy
+	iasa.it
+	info@iasa.it
+	37
+	Interfood S.p.A.
+	Italy
+	interfood.it
+	export@interfood.it
+	38
+	Coalma (Macaluso)
+	Italy
+	coalma.it
+	export@coalma.it
+	39
+	Sardanelli
+	Italy
+	sardanelli.it
+	info@sardanelli.it
+	40
+	Drago Conserve
+	Italy
+	dragoconserve.it
+	export@dragoconserve.it
+	41
+	Marmarabirlik
+	Turkey
+	marmarabirlik.org.tr
+	export@marmarabirlik.com.tr
+	42
+	Akua Group
+	Turkey
+	akuagroup.com
+	export@akuagroup.com
+	43
+	Ostrea S.A.
+	Croatia
+	ostrea.hr
+	info@ostrea.hr
+	44
+	Marea Seafood
+	Croatia
+	marea.hr
+	export@marea.hr
+	45
+	Trata (Konva)
+	Greece
+	trata.gr
+	export@trata.gr
+	46
+	Flokos (Factory)
+	Greece
+	flokos.gr
+	info@flokos.gr
+	47
+	Compass Bulgaria
+	Bulgaria
+	compass-bg.com
+	export@compass-bg.com
+	48
+	Negro 2000
+	Romania
+	negro2000.ro
+	export@negro2000.ro
+	49
+	Delta Invest
+	Romania
+	deltainvest.ro
+	office@deltainvest.ro
+	50
+	Diavena Ltd
+	Bulgaria
+	diavena.com
+	diavena@diavena.com
+	51
+	Arbacommerce
+	Croatia
+	arbacommerce.hr
+	info@arbacommerce.hr
+	52
+	Conex Trade
+	Croatia
+	conex-trade.com
+	info@conex-trade.com
+	53
+	Conservas El Capricho
+	Spain
+	elcapricho.es
+	info@conservaselcapricho.es
+	54
+	Real Conservera
+	Spain
+	realconservera.com
+	export@realconservera.com
+	55
+	La Brújula
+	Spain
+	labrujula.es
+	comercial@labrujula.es
+	56
+	Conservas Angelachu
+	Spain
+	angelachu.com
+	info@angelachu.com
+	57
+	Conservas Zallo
+	Spain
+	zallo.com
+	zallo@zallo.com
+	58
+	Conservas Valcárcel
+	Spain
+	valcarcel.es
+	export@valcarcel.es
+	59
+	União de Conservas
+	Portugal
+	ucp.pt
+	geral@ucp.pt
+	60
+	Sanyo Foods
+	Italy
+	sanyofoods.it
+	info@sanyofoods.it
+	61
+	Airone Seafood
+	Italy
+	airone-seafood.com
+	info@airone-seafood.com
+	62
+	Adria Seafood
+	Croatia
+	adriaseafood.hr
+	sales@adriaseafood.hr
+	63
+	Euro Gıda
+	Turkey
+	eurogida.com.tr
+	info@eurogida.com.tr
+	64
+	Marmara Gıda
+	Turkey
+	marmaragida.com
+	export@marmaragida.com
+	65
+	Kaptanoglu
+	Turkey
+	kaptanoglu.com
+	info@kaptanoglu.com
+	66
+	Bagna Cauda S.A.
+	Greece
+	bagnacauda.gr
+	info@bagnacauda.gr
+	67
+	Vigo Seafood
+	Spain
+	vigoseafood.com
+	sales@vigoseafood.com
+	68
+	Conservas Dardo
+	Spain
+	dardoconservas.com
+	export@dardoconservas.com
+	69
+	Genco S.p.A.
+	Italy
+	gencofish.it
+	info@gencofish.it
+	70
+	P.N.O. (Factory)
+	Portugal
+	portugalnorte.com
+	sales@pno.pt
+	71
+	Mestres & Filhos
+	Portugal
+	mestres.pt
+	geral@mestres.pt
+	72
+	Cerqueira (Pay Pay)
+	Spain
+	paypay.es
+	export@paypay.es
+	73
+	Antonio Alonso
+	Spain
+	palaciodeoriente.net
+	export@palaciodeoriente.net
+	74
+	Conservas Friscos
+	Spain
+	friscos.es
+	info@friscos.es
+	75
+	Pescamar
+	Spain
+	pescamar.es
+	export@pescamar.es
+	76
+	Conservas Ferba
+	Spain
+	conservasferba.com
+	info@conservasferba.com
+	77
+	Hijos Carlos Albo
+	Spain
+	albo.es
+	export@albo.es
+	78
+	Justo López Valcárcel
+	Spain
+	valcarcel.es
+	export@valcarcel.es
+	79
+	Conservas Cortizo
+	Spain
+	conservascortizo.com
+	info@conservascortizo.com
+	80
+	Conservas Daporta
+	Spain
+	daportasl.com
+	info@daportasl.com
+	81
+	Alfageme (Miau)
+	Spain
+	alfageme.com
+	export@alfageme.com
+	82
+	Porthos
+	Portugal
+	porthos.pt
+	export@porthos.pt
+	83
+	Manná (Cons. Sul)
+	Portugal
+	manna.pt
+	geral@manna.pt
+	84
+	Kaptanoglu Seafood
+	Turkey
+	kaptanoglu.com.tr
+	export@kaptanoglu.com.tr
+	85
+	Group Sagun
+	Turkey
+	sagun.com
+	export@sagun.com
+	86
+	Hora Gıda
+	Turkey
+	horagida.com.tr
+	info@horagida.com.tr
+	87
+	SNM Gıda
+	Turkey
+	snmgida.com.tr
+	info@snmgida.com.tr
+	88
+	Frigo Food S.A.
+	Greece
+	frigofood.gr
+	frigofood@frigofood.gr
+	89
+	Zanae S.A.
+	Greece
+	zanae.gr
+	export@zanae.gr
+	90
+	Abeiro (Factory)
+	Spain
+	abeiro.es
+	info@abeiro.es
+	91
+	Conserveira de Gaia
+	Portugal
+	conserveiradegaia.pt
+	geral@conserveiradegaia.pt
+	92
+	Rizzoli Emanuelli
+	Italy
+	rizzoliemanuelli.com
+	info@rizzoliemanuelli.it
+	93
+	Conservas Palacio
+	Spain
+	palacio.es
+	export@palacio.es
+	94
+	Atlantis Food
+	Spain
+	atlantis.es
+	info@atlantis.es
+	95
+	Albacora (Group)
+	Spain
+	albacora.es
+	info@albacora.es
+	96
+	Fripesa
+	Spain
+	fripesa.com
+	info@fripesa.com
+	97
+	Ugurlu Fish
+	Turkey
+	ugurlufish.com
+	export@ugurlufish.com
+	98
+	Kalkan Fish
+	Turkey
+	kalkanfish.com
+	info@kalkanfish.com
+	99
+	Aegean Seafood
+	Greece
+	aegeanseafood.gr
+	sales@aegeanseafood.gr
+	100
+	Intercom Bulgaria
+	Bulgaria
+	intercom-bg.com
+	export@intercom-bg.com

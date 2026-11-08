@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition, useEffect } from "react";
+import Link from "next/link";
 import type { RequestRow } from "@/app/admin/requests/page";
 import { updateRequestStatus } from "@/app/admin/requests/actions";
 import ProductImage from "@/components/ProductImage";
@@ -38,6 +39,7 @@ interface Props {
   onClose: () => void;
   onStatusChange: (id: string, status: string) => void;
   onMatchComplete: (id: string, count: number) => void;
+  onEditRequest?: (req: RequestRow) => void;
 }
 
 const STATUS_OPTIONS = ["new", "reviewed", "matched", "closed"] as const;
@@ -80,6 +82,7 @@ export default function RequestSlideOver({
   onClose,
   onStatusChange,
   onMatchComplete,
+  onEditRequest,
 }: Props) {
   const [matchLoading, setMatchLoading] = useState(false);
   const [matches, setMatches] = useState<SavedMatch[] | null>(null);
@@ -453,6 +456,33 @@ export default function RequestSlideOver({
                     {request.source}
                   </span>
                 )}
+              </div>
+              <div className="flex flex-wrap items-center gap-2 mt-2.5 pt-2.5 border-t border-slate-100">
+                {onEditRequest ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onClose();
+                      onEditRequest(request);
+                    }}
+                    className="text-xs font-semibold px-2.5 py-1 rounded-lg border border-orange-200 bg-orange-50 text-orange-700 hover:bg-orange-100 transition cursor-pointer"
+                  >
+                    ✏️ Edit in Intake Desk
+                  </button>
+                ) : (
+                  <Link
+                    href={`/admin/requests?edit=${request.id}`}
+                    className="text-xs font-semibold px-2.5 py-1 rounded-lg border border-orange-200 bg-orange-50 text-orange-700 hover:bg-orange-100 transition"
+                  >
+                    ✏️ Edit in Intake Desk
+                  </Link>
+                )}
+                <Link
+                  href={`/admin/requests/${request.id}`}
+                  className="text-xs font-semibold px-2.5 py-1 rounded-lg border border-indigo-200 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 transition"
+                >
+                  📄 See Request Page →
+                </Link>
               </div>
             </div>
             <button

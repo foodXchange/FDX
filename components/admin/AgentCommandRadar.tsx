@@ -47,12 +47,13 @@ import { cleanRequestName } from "@/lib/matching/cleanRequestName";
 
 interface Props {
   requests: RequestRow[];
+  onEditRequest?: (req: RequestRow) => void;
 }
 
 type ViewMode = "radar" | "bottlenecks";
 type FilterBottleneck = "all" | "agent" | "buyer" | "factory" | "logistics" | "subcontractor";
 
-export default function AgentCommandRadar({ requests }: Props) {
+export default function AgentCommandRadar({ requests, onEditRequest }: Props) {
   const [viewMode, setViewMode] = useState<ViewMode>("radar");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedStage, setSelectedStage] = useState<number | "all">("all");
@@ -378,6 +379,7 @@ export default function AgentCommandRadar({ requests }: Props) {
                         project={project}
                         copiedId={copiedId}
                         onCopyTag={handleCopyTag}
+                        onEditRequest={onEditRequest}
                       />
                     ))
                   )}
@@ -491,11 +493,28 @@ export default function AgentCommandRadar({ requests }: Props) {
 
                   {/* Actions */}
                   <div className="flex items-center gap-2 shrink-0">
+                    {onEditRequest ? (
+                      <button
+                        type="button"
+                        onClick={() => onEditRequest(project)}
+                        className="inline-flex items-center gap-1 text-xs font-semibold px-3 py-2 border border-orange-200 bg-orange-50 text-orange-700 rounded-lg hover:bg-orange-100 transition-colors cursor-pointer"
+                        title="Edit request in Intake Desk"
+                      >
+                        ✏️ Edit Request
+                      </button>
+                    ) : (
+                      <Link
+                        href={`/admin/requests?edit=${project.id}`}
+                        className="inline-flex items-center gap-1 text-xs font-semibold px-3 py-2 border border-orange-200 bg-orange-50 text-orange-700 rounded-lg hover:bg-orange-100 transition-colors"
+                      >
+                        ✏️ Edit Request
+                      </Link>
+                    )}
                     <Link
                       href={`/admin/requests/${project.id}`}
                       className="inline-flex items-center gap-1 text-xs font-semibold px-3.5 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors shadow-2xs"
                     >
-                      Open Project Hub →
+                      See Request Page →
                     </Link>
                   </div>
                 </div>
@@ -511,10 +530,12 @@ function ProjectDealCard({
   project,
   copiedId,
   onCopyTag,
+  onEditRequest,
 }: {
   project: RequestRow & { cleanedName: string; stageInfo: AgentProjectStageInfo };
   copiedId: string | null;
   onCopyTag: (tag: string, id: string) => void;
+  onEditRequest?: (req: RequestRow) => void;
 }) {
   const reqTag = `[FDX-REQ-${project.id.slice(0, 8).toUpperCase()}]`;
 
@@ -601,16 +622,37 @@ function ProjectDealCard({
       </div>
 
       {/* Footer: Commission & Action */}
-      <div className="pt-2 border-t border-gray-100 flex items-center justify-between text-[11px]">
-        <div className="text-emerald-700 font-semibold" title="Estimated Brokerage Fee">
+      <div className="pt-2 border-t border-gray-100 flex items-center justify-between text-[11px] gap-1">
+        <div className="text-emerald-700 font-semibold truncate" title="Estimated Brokerage Fee">
           +€{project.stageInfo.estimatedCommissionEur.toLocaleString()}
         </div>
-        <Link
-          href={`/admin/requests/${project.id}`}
-          className="text-indigo-600 hover:text-indigo-800 font-bold hover:underline"
-        >
-          Manage →
-        </Link>
+        <div className="flex items-center gap-2 shrink-0">
+          {onEditRequest ? (
+            <button
+              type="button"
+              onClick={() => onEditRequest(project)}
+              className="text-orange-600 hover:text-orange-800 font-bold hover:underline cursor-pointer"
+              title="Edit request in Intake Desk"
+            >
+              ✏️ Edit
+            </button>
+          ) : (
+            <Link
+              href={`/admin/requests?edit=${project.id}`}
+              className="text-orange-600 hover:text-orange-800 font-bold hover:underline"
+              title="Edit request in Intake Desk"
+            >
+              ✏️ Edit
+            </Link>
+          )}
+          <Link
+            href={`/admin/requests/${project.id}`}
+            className="text-indigo-600 hover:text-indigo-800 font-bold hover:underline"
+            title="See full Request Page"
+          >
+            See Page →
+          </Link>
+        </div>
       </div>
     </div>
   );

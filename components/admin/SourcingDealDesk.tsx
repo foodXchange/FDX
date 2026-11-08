@@ -3126,18 +3126,29 @@ FoodXchange Sourcing Deal Desk`
                     </div>
 
                     {briefStatus === "confirmed" ? (
-                      <button
-                        type="button"
-                        onClick={() => openSupplierOutreachComposer()}
-                        disabled={selectedMatchIds.size === 0}
-                        className="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 disabled:opacity-40 text-white font-bold text-xs shadow-sm transition cursor-pointer flex items-center justify-center gap-1.5"
-                      >
-                        <span>✉️</span>
-                        <span>
-                          Write Initial Cooperation Email to {selectedMatchIds.size} Selected{" "}
-                          {selectedMatchIds.size === 1 ? "Factory" : "Factories"}
-                        </span>
-                      </button>
+                      <div className="space-y-1.5">
+                        <button
+                          type="button"
+                          onClick={() => openSupplierOutreachComposer()}
+                          disabled={selectedMatchIds.size === 0}
+                          className="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 disabled:opacity-40 text-white font-bold text-xs shadow-sm transition cursor-pointer flex items-center justify-center gap-1.5"
+                        >
+                          <span>✉️</span>
+                          <span>
+                            Write Initial Cooperation Email to {selectedMatchIds.size} Selected{" "}
+                            {selectedMatchIds.size === 1 ? "Factory" : "Factories"}
+                          </span>
+                        </button>
+                        {createdRequestId && (
+                          <Link
+                            href={`/admin/outreach?request_id=${createdRequestId}`}
+                            className="w-full py-2 px-3 rounded-xl bg-emerald-600/90 hover:bg-emerald-500 text-white font-bold text-[11px] transition flex items-center justify-center gap-1.5"
+                          >
+                            <span>📬</span>
+                            <span>Open Full 3-Pane Email &amp; Outreach Hub for {requestRefTag || "This Request"} →</span>
+                          </Link>
+                        )}
+                      </div>
                     ) : (
                       <div className="text-[11px] text-amber-200/90 bg-slate-800/90 rounded-lg px-2.5 py-1.5 flex items-center justify-between gap-2">
                         <span>🔒 Confirm brief in Step 5 to unlock initial supplier emails</span>

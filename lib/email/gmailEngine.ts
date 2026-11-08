@@ -168,6 +168,13 @@ export async function sendSupplierEmailSmart(
         ...(reqRefTag ? { "X-FDX-Request-Ref": reqRefTag } : {}),
       };
 
+      const shortMatchRef = opts.matchId.replace(/-/g, "").slice(0, 8).toLowerCase();
+      const [localPart, domainPart] = creds.user.split("@");
+      const plusReplyTo =
+        localPart && domainPart
+          ? `${localPart}+fdx-${shortMatchRef}@${domainPart}`
+          : creds.user;
+
       const mailOptions: {
         from: string;
         to: string;
@@ -182,7 +189,7 @@ export async function sendSupplierEmailSmart(
       } = {
         from: `"${creds.senderName || "FoodXchange Sourcing"}" <${creds.user}>`,
         to: opts.to,
-        replyTo: creds.user,
+        replyTo: plusReplyTo,
         subject: finalSubject,
         text: opts.bodyText,
         html,
@@ -228,12 +235,23 @@ export async function sendSupplierEmailSmart(
     const resend = new Resend(process.env.RESEND_API_KEY);
     const from =
       process.env.SOURCING_FROM_EMAIL ??
-      "FoodXchange Sourcing <sourcing@fdx.trading>";
+      process.env.RESEND_FROM ??
+      "FoodXchange Sourcing <info@fdx.trading>";
+    const shortMatchRef = opts.matchId.replace(/-/g, "").slice(0, 8).toLowerCase();
+    const replyDomain = process.env.RESEND_REPLY_DOMAIN || "fdx.trading";
+    const replyToAddr = `info+fdx-${shortMatchRef}@${replyDomain}`;
+
     const { data, error } = await resend.emails.send({
       from,
       to: opts.to,
+      replyTo: replyToAddr,
       subject: finalSubject,
       html,
+      headers: {
+        "X-FDX-Match-ID": opts.matchId,
+        "X-FDX-Ref": refTag,
+        ...(reqRefTag ? { "X-FDX-Request-Ref": reqRefTag } : {}),
+      },
     });
     if (error) {
       return { success: false, via: "resend", error: error.message };

@@ -1067,6 +1067,7 @@ export default function RequestsTable({ requests, onEditRequest, onNewRequest }:
         onClose={() => setOpenRequest(null)}
         onStatusChange={handleStatusChange}
         onMatchComplete={handleMatchComplete}
+        onEditRequest={onEditRequest}
       />
     </>
   );
