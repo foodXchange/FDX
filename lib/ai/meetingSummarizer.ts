@@ -1,5 +1,5 @@
 import { GoogleGenAI } from "@google/genai";
-import { GEMINI_MODEL } from "@/lib/ai/models";
+import { GEMINI_MODEL, generateGeminiWithFallback } from "@/lib/ai/models";
 
 export interface ActionItem {
   task: string;
@@ -146,8 +146,8 @@ ${transcriptOrNotes.slice(0, 8000)}
 
 Return ONLY the raw JSON object. Do not wrap in markdown quotes if possible, or return strictly valid JSON.`;
 
-    const response = await ai.models.generateContent({
-      model: GEMINI_MODEL,
+    const response = await generateGeminiWithFallback(ai, {
+      preferredModel: GEMINI_MODEL,
       contents: prompt,
     });
 

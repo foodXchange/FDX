@@ -1,6 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { GoogleGenAI } from "@google/genai";
-import { GEMINI_MODEL } from "./models";
+import { GEMINI_MODEL, CLAUDE_HAIKU_MODEL, generateGeminiWithFallback } from "./models";
 import { IntentSchema, EMPTY_INTENT } from "@/lib/ai/intentSchema";
 import type { IntentResult } from "@/lib/ai/intentSchema";
 import { parseIntent as parseIntentV1 } from "@/lib/matching/heuristicIntentParser";
@@ -51,8 +51,8 @@ Buyer request: ${text}`;
 
 async function geminiParser(text: string): Promise<IntentResult> {
   const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-  const response = await ai.models.generateContent({
-    model: GEMINI_MODEL,
+  const response = await generateGeminiWithFallback(ai, {
+    preferredModel: GEMINI_MODEL,
     contents: `${SYSTEM_PROMPT}\n\n${buildUserMessage(text)}`,
     config: {
       temperature: 0.1,
@@ -74,7 +74,7 @@ async function anthropicParser(text: string): Promise<IntentResult> {
 
   async function attempt(): Promise<IntentResult> {
     const response = await client.messages.create({
-      model: "claude-sonnet-4-5",
+      model: CLAUDE_HAIKU_MODEL,
       max_tokens: 800,
       system: SYSTEM_PROMPT,
       messages: [{ role: "user", content: buildUserMessage(text) }],

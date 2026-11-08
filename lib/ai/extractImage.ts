@@ -1,6 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { GoogleGenAI } from "@google/genai";
-import { GEMINI_MODEL } from "./models";
+import { GEMINI_MODEL, CLAUDE_HAIKU_MODEL, generateGeminiWithFallback } from "./models";
 import { z } from "zod";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import buildImageExtractionPrompt from "@/lib/ai/imageExtractionPrompt";
@@ -118,8 +118,8 @@ export async function extractImage(opts: {
       if (imgData) {
         try {
           const ai = new GoogleGenAI({ apiKey: geminiKey });
-          const response = await ai.models.generateContent({
-            model: GEMINI_MODEL,
+          const response = await generateGeminiWithFallback(ai, {
+            preferredModel: GEMINI_MODEL,
             contents: [
               {
                 role: "user",
@@ -149,7 +149,7 @@ export async function extractImage(opts: {
     if (!raw && anthropicKey) {
       const client = new Anthropic({ apiKey: anthropicKey });
       const response = await client.messages.create({
-        model: "claude-sonnet-4-5",
+        model: CLAUDE_HAIKU_MODEL,
         max_tokens: 2400,
         system: SYSTEM_PROMPT,
         messages: [

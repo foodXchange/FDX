@@ -12,24 +12,22 @@ export interface GmailCredentials {
   user: string;
   appPassword: string;
   senderName?: string;
+  source?: "database" | "env";
 }
 
-/**
- * Resolves Gmail credentials from environment variables (`GMAIL_USER`, `GMAIL_APP_PASSWORD`)
- * or from the `category_images` / admin metadata store if saved via UI.
- */
-export async function getGmailCredentials(): Promise<GmailCredentials | null> {
-  const envUser = process.env.GMAIL_USER?.trim();
-  const envPass = process.env.GMAIL_APP_PASSWORD?.replace(/\s+/g, "").trim();
-  if (envUser && envPass) {
-    return {
-      user: envUser,
-      appPassword: envPass,
-      senderName: process.env.GMAIL_SENDER_NAME?.trim() || "FoodXchange Sourcing",
-    };
-  }
+export interface StoredGmailAccount {
+  user: string;
+  appPassword: string;
+  senderName: string;
+  addedAt: string;
+}
 
-  // Fallback: check if stored in scrape_batches metadata key "__gmail_config__"
+export interface GmailAccountsConfig {
+  activeUser: string | null; // null or "env" means use environment variables if available
+  accounts: StoredGmailAccount[];
+}
+
+export async function getStoredGmailAccountsConfig(): Promise<GmailAccountsConfig> {
   try {
     const { data } = await supabaseAdmin
       .from("scrape_batches")
@@ -38,39 +36,116 @@ export async function getGmailCredentials(): Promise<GmailCredentials | null> {
       .maybeSingle();
 
     if (data?.original_filename) {
-      const parsed = JSON.parse(data.original_filename) as {
-        user?: string;
-        appPassword?: string;
-        senderName?: string;
-      };
-      if (parsed.user && parsed.appPassword) {
+      const parsed = JSON.parse(data.original_filename);
+      // Multi-account format
+      if (Array.isArray(parsed.accounts)) {
         return {
+          activeUser: parsed.activeUser ?? null,
+          accounts: parsed.accounts,
+        };
+      }
+      // Legacy single-account format
+      if (parsed.user && parsed.appPassword) {
+        const single: StoredGmailAccount = {
           user: parsed.user.trim(),
           appPassword: parsed.appPassword.replace(/\s+/g, "").trim(),
           senderName: parsed.senderName?.trim() || "FoodXchange Sourcing",
+          addedAt: new Date().toISOString(),
+        };
+        return {
+          activeUser: single.user,
+          accounts: [single],
         };
       }
     }
   } catch {
     // ignore
   }
+  return { activeUser: null, accounts: [] };
+}
+
+export async function saveStoredGmailAccountsConfig(
+  config: GmailAccountsConfig
+): Promise<void> {
+  await supabaseAdmin.from("scrape_batches").upsert(
+    {
+      batch_key: "__gmail_config__",
+      original_filename: JSON.stringify(config),
+      total_rows: config.accounts.length,
+    },
+    { onConflict: "batch_key" }
+  );
+}
+
+/**
+ * Resolves Gmail credentials from the UI-managed account store (`__gmail_config__`) first,
+ * falling back to environment variables (`GMAIL_USER`, `GMAIL_APP_PASSWORD`).
+ */
+export async function getGmailCredentials(): Promise<GmailCredentials | null> {
+  const store = await getStoredGmailAccountsConfig();
+
+  if (store.activeUser && store.activeUser !== "__env__") {
+    const matched = store.accounts.find(
+      (a) => a.user.toLowerCase() === store.activeUser!.toLowerCase()
+    );
+    if (matched && matched.user && matched.appPassword) {
+      return {
+        user: matched.user.trim(),
+        appPassword: matched.appPassword.replace(/\s+/g, "").trim(),
+        senderName: matched.senderName?.trim() || "FoodXchange Sourcing",
+        source: "database",
+      };
+    }
+  }
+
+  const envUser = process.env.GMAIL_USER?.trim();
+  const envPass = process.env.GMAIL_APP_PASSWORD?.replace(/\s+/g, "").trim();
+  if (envUser && envPass && store.activeUser !== "__none__") {
+    return {
+      user: envUser,
+      appPassword: envPass,
+      senderName: process.env.GMAIL_SENDER_NAME?.trim() || "FoodXchange Sourcing",
+      source: "env",
+    };
+  }
+
+  // Fallback to first stored account if env is not set
+  if (store.accounts.length > 0 && store.activeUser !== "__none__") {
+    const first = store.accounts[0];
+    return {
+      user: first.user.trim(),
+      appPassword: first.appPassword.replace(/\s+/g, "").trim(),
+      senderName: first.senderName?.trim() || "FoodXchange Sourcing",
+      source: "database",
+    };
+  }
 
   return null;
 }
 
 export async function saveGmailCredentials(creds: GmailCredentials): Promise<void> {
-  await supabaseAdmin.from("scrape_batches").upsert(
-    {
-      batch_key: "__gmail_config__",
-      original_filename: JSON.stringify({
-        user: creds.user.trim(),
-        appPassword: creds.appPassword.replace(/\s+/g, "").trim(),
-        senderName: creds.senderName?.trim() || "FoodXchange Sourcing",
-      }),
-      total_rows: 0,
-    },
-    { onConflict: "batch_key" }
+  const store = await getStoredGmailAccountsConfig();
+  const cleanUser = creds.user.trim().toLowerCase();
+  const cleanPass = creds.appPassword.replace(/\s+/g, "").trim();
+  const cleanName = creds.senderName?.trim() || "FoodXchange Sourcing";
+
+  const existingIdx = store.accounts.findIndex(
+    (a) => a.user.toLowerCase() === cleanUser
   );
+  const entry: StoredGmailAccount = {
+    user: creds.user.trim(),
+    appPassword: cleanPass,
+    senderName: cleanName,
+    addedAt: new Date().toISOString(),
+  };
+
+  if (existingIdx >= 0) {
+    store.accounts[existingIdx] = entry;
+  } else {
+    store.accounts.push(entry);
+  }
+  store.activeUser = entry.user;
+  await saveStoredGmailAccountsConfig(store);
 }
 
 export interface SendGmailOptions {

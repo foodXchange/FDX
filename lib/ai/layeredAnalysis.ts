@@ -1,5 +1,5 @@
 import { GoogleGenAI } from "@google/genai";
-import { GEMINI_MODEL } from "./models";
+import { GEMINI_MODEL, generateGeminiWithFallback } from "./models";
 import { extractImage } from "./extractImage";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { trackApiUsage } from "@/lib/usage/trackUsage";
@@ -152,8 +152,8 @@ RULES:
   let parsedResult: LayeredAnalysisResult;
 
   try {
-    const response = await ai.models.generateContent({
-      model: GEMINI_MODEL,
+    const response = await generateGeminiWithFallback(ai, {
+      preferredModel: GEMINI_MODEL,
       contents: [
         {
           role: "user",
@@ -168,17 +168,16 @@ RULES:
     });
 
     const latencyMs = Date.now() - startTime;
-    const usage = response.usageMetadata;
     const rawText = response.text || "{}";
 
     await trackApiUsage({
       provider: "gemini",
-      model: GEMINI_MODEL,
+      model: response.modelUsed || GEMINI_MODEL,
       feature: "deal_desk.layered_analysis",
       requestId: requestId || null,
-      keyAlias: "GEMINI_API_KEY",
-      inputTokens: usage?.promptTokenCount,
-      outputTokens: usage?.candidatesTokenCount,
+      keyAlias: response.tierUsed || "GEMINI_API_KEY",
+      inputTokens: Math.ceil(userContent.length / 4),
+      outputTokens: Math.ceil(rawText.length / 4),
       latencyMs,
       ok: true,
     });
