@@ -8,6 +8,7 @@ import NotificationBell from "@/components/admin/NotificationBell";
 import AdminUserMenu from "@/components/admin/AdminUserMenu";
 import AdminLocaleSwitcher from "@/components/admin/AdminLocaleSwitcher";
 import RoleAcademyModal from "@/components/admin/RoleAcademyModal";
+import AdminWorkspaceTabBar from "@/components/admin/AdminWorkspaceTabBar";
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -247,6 +248,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             <AdminUserMenu />
           </div>
         </header>
+
+        {/* Multi-Desk Workspace Tab Strip */}
+        <AdminWorkspaceTabBar />
 
         {/* Page Content */}
         <div className="flex-1 min-w-0 flex flex-col overflow-y-auto">
