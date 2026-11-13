@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
+import { requireAdminApiAuth } from "@/lib/adminAuth";
 
 const BUCKET = "content-images";
 
@@ -16,6 +17,9 @@ function publicUrlFor(supabaseUrl: string, bucket: string, path: string) {
 }
 
 export async function POST(req: Request) {
+  const authResponse = await requireAdminApiAuth();
+  if (authResponse) return authResponse;
+
   const body = await req.json().catch(() => ({}));
   const slug = String(body.slug || "").trim();
   const trashed_object_path = String(body.trashed_object_path || "").trim();

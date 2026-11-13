@@ -14,6 +14,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { requireAdminApiAuth } from "@/lib/adminAuth";
 
 function supabase() {
   return createClient(
@@ -34,6 +35,9 @@ function mapRow(row: any) {
 
 // ── GET — load all prompts ─────────────────────────────────────────────────────
 export async function GET() {
+  const authResponse = await requireAdminApiAuth();
+  if (authResponse) return authResponse;
+
   const { data, error } = await supabase()
     .from("prompt_library")
     .select("*")
@@ -49,6 +53,9 @@ export async function GET() {
 
 // ── POST — create a new prompt ────────────────────────────────────────────────
 export async function POST(req: NextRequest) {
+  const authResponse = await requireAdminApiAuth();
+  if (authResponse) return authResponse;
+
   const body = await req.json().catch(() => ({}));
   const { name, category, text } = body;
 
@@ -72,6 +79,9 @@ export async function POST(req: NextRequest) {
 
 // ── PATCH — update an existing prompt ─────────────────────────────────────────
 export async function PATCH(req: NextRequest) {
+  const authResponse = await requireAdminApiAuth();
+  if (authResponse) return authResponse;
+
   const body = await req.json().catch(() => ({}));
   const { id, name, category, text } = body;
 
@@ -98,6 +108,9 @@ export async function PATCH(req: NextRequest) {
 
 // ── DELETE — remove a prompt ──────────────────────────────────────────────────
 export async function DELETE(req: NextRequest) {
+  const authResponse = await requireAdminApiAuth();
+  if (authResponse) return authResponse;
+
   const id = new URL(req.url).searchParams.get("id");
   if (!id) return NextResponse.json({ error: "id required" }, { status: 400 });
 

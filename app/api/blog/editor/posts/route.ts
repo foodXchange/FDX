@@ -1,6 +1,10 @@
 import { createClient } from "@supabase/supabase-js";
+import { requireAdminApiAuth } from "@/lib/adminAuth";
 
 export async function GET() {
+  const authResponse = await requireAdminApiAuth();
+  if (authResponse) return authResponse;
+
   const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!

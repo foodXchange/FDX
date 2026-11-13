@@ -1,6 +1,10 @@
 import { createClient } from "@supabase/supabase-js";
+import { requireAdminApiAuth } from "@/lib/adminAuth";
 
 export async function GET() {
+  const authResponse = await requireAdminApiAuth();
+  if (authResponse) return authResponse;
+
   const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!
@@ -20,6 +24,9 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
+  const authResponse = await requireAdminApiAuth();
+  if (authResponse) return authResponse;
+
   const body = await req.json().catch(() => ({}));
   const trash_enabled = String(body.trash_enabled);
   const trash_days = String(body.trash_days);

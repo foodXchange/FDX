@@ -5,6 +5,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { requireAdminApiAuth } from "@/lib/adminAuth";
 
 function supabase() {
   return createClient(
@@ -14,6 +15,9 @@ function supabase() {
 }
 
 export async function POST(req: NextRequest) {
+  const authResponse = await requireAdminApiAuth();
+  if (authResponse) return authResponse;
+
   const body = await req.json().catch(() => ({}));
   const prompts = body.prompts as { name: string; category: string; text: string }[];
 

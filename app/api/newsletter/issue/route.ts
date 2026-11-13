@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
+import { requireAdminApiAuth } from "@/lib/adminAuth";
 
 function normalizeStatus(s: string) {
   const v = (s || "").toLowerCase().trim();
@@ -7,6 +8,9 @@ function normalizeStatus(s: string) {
 }
 
 export async function GET(req: Request) {
+  const authResponse = await requireAdminApiAuth();
+  if (authResponse) return authResponse;
+
   const url = new URL(req.url);
   const slug = (url.searchParams.get("slug") || "").trim();
   if (!slug) return Response.json({ error: "Missing slug" }, { status: 400 });
@@ -27,6 +31,9 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
+  const authResponse = await requireAdminApiAuth();
+  if (authResponse) return authResponse;
+
   const body = await req.json().catch(() => ({}));
 
   const slug = String(body.slug || "").trim();

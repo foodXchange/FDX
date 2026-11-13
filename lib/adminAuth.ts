@@ -1,3 +1,5 @@
+import { cookies } from "next/headers";
+
 const COOKIE_NAME = "admin_session";
 const MAX_AGE_DAYS = 7;
 
@@ -42,6 +44,35 @@ export async function verifySession(cookie: string): Promise<boolean> {
 
 export function getAdminEmail(): string {
   return process.env.ADMIN_EMAIL ?? "admin";
+}
+
+export function getAllowedAdminEmails(): string[] {
+  const configured = process.env.ADMIN_EMAILS
+    ?.split(",")
+    .map((email) => email.trim().toLowerCase())
+    .filter(Boolean);
+
+  if (configured && configured.length > 0) return configured;
+
+  const fallback = process.env.ADMIN_EMAIL?.trim().toLowerCase();
+  if (fallback && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(fallback)) {
+    return [fallback];
+  }
+
+  return ["udi@fdx.trading"];
+}
+
+export function isAllowedAdminEmail(email: string | null | undefined): boolean {
+  return Boolean(email && getAllowedAdminEmails().includes(email.trim().toLowerCase()));
+}
+
+export async function requireAdminApiAuth(): Promise<Response | null> {
+  const cookieStore = await cookies();
+  const session = cookieStore.get(COOKIE_NAME)?.value;
+  if (!session || !(await verifySession(session))) {
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  return null;
 }
 
 export { COOKIE_NAME };

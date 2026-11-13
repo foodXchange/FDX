@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
-import { signSession, COOKIE_NAME } from "@/lib/adminAuth";
+import { signSession, COOKIE_NAME, isAllowedAdminEmail } from "@/lib/adminAuth";
 import { getOriginFromHeaders } from "@/lib/getOrigin";
 
 export async function GET(request: Request) {
@@ -16,6 +16,11 @@ export async function GET(request: Request) {
       const { error } = await supabase.auth.verifyOtp({ token_hash: tokenHash, type });
 
       if (!error) {
+        const { data: userData, error: userError } = await supabase.auth.getUser();
+        if (userError || !isAllowedAdminEmail(userData.user?.email)) {
+          return NextResponse.redirect(`${origin}/admin/login?error=unauthorized`);
+        }
+
         const token = await signSession();
         const cookieStore = await cookies();
         cookieStore.set(COOKIE_NAME, token, {

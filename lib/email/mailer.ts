@@ -1,4 +1,5 @@
 import { Resend } from "resend";
+import { getAllowedAdminEmails } from "@/lib/adminAuth";
 
 const EMAIL_FOOTER = `
   <hr style="border:none;border-top:1px solid #333;margin-top:32px;" />
@@ -1130,9 +1131,8 @@ export async function sendAdminPasswordReminder(payload: AdminPasswordResetPaylo
     return;
   }
 
-  const to = "udi@fdx.trading";
+  const to = getAllowedAdminEmails();
   const { requestedFromEmail } = payload;
-  const currentPassword = process.env.ADMIN_PASSWORD ?? "(not set)";
 
   const html = `<div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:32px 24px;">
 
@@ -1148,10 +1148,9 @@ export async function sendAdminPasswordReminder(payload: AdminPasswordResetPaylo
     Someone requested a password reminder for the FoodXchange admin login${requestedFromEmail ? ` (entered email: ${requestedFromEmail})` : ""}.
   </p>
 
-  <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:16px;margin-bottom:24px;">
-    <p style="color:#64748b;font-size:12px;margin:0 0 6px;text-transform:uppercase;letter-spacing:0.05em;">Current admin password</p>
-    <p style="color:#1e293b;font-size:16px;font-family:monospace;margin:0;">${currentPassword}</p>
-  </div>
+  <p style="color:#475569;font-size:15px;line-height:1.7;margin:0 0 24px;">
+    To change the admin password, update <code>ADMIN_PASSWORD</code> in the server environment (for example, <code>.env.local</code> or your hosting environment), then restart the app.
+  </p>
 
   <p style="color:#94a3b8;font-size:13px;line-height:1.6;margin:0 0 24px;">
     If you did not request this, you can ignore this email — no changes were made to your account.

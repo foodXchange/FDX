@@ -1,6 +1,7 @@
 // FILE: app/api/blog/editor/post/route.ts
 
 import { createClient } from "@supabase/supabase-js";
+import { requireAdminApiAuth } from "@/lib/adminAuth";
 
 function normalizeStatus(status: string) {
   const s = (status || "").toLowerCase().trim();
@@ -9,6 +10,9 @@ function normalizeStatus(status: string) {
 }
 
 export async function GET(req: Request) {
+  const authResponse = await requireAdminApiAuth();
+  if (authResponse) return authResponse;
+
   const url = new URL(req.url);
   const slug = (url.searchParams.get("slug") || "").trim();
 
@@ -32,6 +36,9 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
+  const authResponse = await requireAdminApiAuth();
+  if (authResponse) return authResponse;
+
   const body = await req.json().catch(() => ({}));
 
   const title = String(body.title || "").trim();
