@@ -61,7 +61,8 @@ export function getConfiguredGeminiTiers(primaryClient?: GoogleGenAI): GeminiKey
     { tier: "2ND_BACKUP", envVar: "GEMINI_API_KEY_3", key: process.env.GEMINI_API_KEY_3 },
     { tier: "3RD_BACKUP", envVar: "GEMINI_API_KEY_4", key: process.env.GEMINI_API_KEY_4 },
     { tier: "4TH_BACKUP", envVar: "GEMINI_API_KEY_5", key: process.env.GEMINI_API_KEY_5 },
-    { tier: "5TH_BACKUP", envVar: "GEMINI_API_KEY_BACKUP", key: process.env.GEMINI_API_KEY_BACKUP },
+    { tier: "5TH_BACKUP", envVar: "GEMINI_API_KEY_6", key: process.env.GEMINI_API_KEY_6 },
+    { tier: "6TH_BACKUP", envVar: "GEMINI_API_KEY_BACKUP", key: process.env.GEMINI_API_KEY_BACKUP },
   ];
 
   const seenKeys = new Set<string>();
@@ -228,6 +229,9 @@ export async function generateGeminiWithFallback(
       const is404 = msg.includes("404") || msg.includes("NOT_FOUND");
       const isAuthOrDisabled =
         msg.includes("401") ||
+        msg.includes("403") ||
+        msg.includes("suspended") ||
+        msg.includes("PERMISSION_DENIED") ||
         msg.includes("UNAUTHENTICATED") ||
         msg.includes("ACCOUNT_STATE_INVALID") ||
         msg.includes("deleted or disabled") ||
