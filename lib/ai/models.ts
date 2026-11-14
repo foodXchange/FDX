@@ -10,6 +10,7 @@ export const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-3.5-flash-lite";
 export const GEMINI_FALLBACK_MODELS = [
   "gemini-3.5-flash-lite",
   "gemini-3.5-flash",
+  "gemini-3.8-flash",
   "gemini-3.6-flash",
   "gemini-3-flash-preview",
   "gemini-3.1-flash-lite-preview",
@@ -18,13 +19,14 @@ export const GEMINI_FALLBACK_MODELS = [
 
 export const CLAUDE_MODEL = "claude-sonnet-4-5";
 export const CLAUDE_HAIKU_MODEL = "claude-haiku-4-5-20251001";
+export const XAI_DEFAULT_MODEL = process.env.XAI_MODEL || "grok-4.7";
 
 // Sticky index of the last healthy (clientIdx, model) pair so we never waste latency on exhausted models
 let stickyClientIdx = 0;
 let stickyModelIdx = 0;
 
 export interface GeminiKeyTier {
-  tier: "PRIMARY" | "1ST_BACKUP" | "2ND_BACKUP" | "3RD_BACKUP";
+  tier: string;
   envVar: string;
   maskedKey: string;
   client: GoogleGenAI;
@@ -50,14 +52,16 @@ function maskKey(k: string): string {
 
 export function getConfiguredGeminiTiers(primaryClient?: GoogleGenAI): GeminiKeyTier[] {
   const rawDefs: Array<{
-    tier: GeminiKeyTier["tier"];
+    tier: string;
     envVar: string;
     key: string | undefined;
   }> = [
     { tier: "PRIMARY", envVar: "GEMINI_API_KEY", key: process.env.GEMINI_API_KEY },
     { tier: "1ST_BACKUP", envVar: "GEMINI_API_KEY_2", key: process.env.GEMINI_API_KEY_2 },
-    { tier: "2ND_BACKUP", envVar: "GEMINI_API_KEY_BACKUP", key: process.env.GEMINI_API_KEY_BACKUP },
-    { tier: "3RD_BACKUP", envVar: "GEMINI_API_KEY_3", key: process.env.GEMINI_API_KEY_3 },
+    { tier: "2ND_BACKUP", envVar: "GEMINI_API_KEY_3", key: process.env.GEMINI_API_KEY_3 },
+    { tier: "3RD_BACKUP", envVar: "GEMINI_API_KEY_4", key: process.env.GEMINI_API_KEY_4 },
+    { tier: "4TH_BACKUP", envVar: "GEMINI_API_KEY_5", key: process.env.GEMINI_API_KEY_5 },
+    { tier: "5TH_BACKUP", envVar: "GEMINI_API_KEY_BACKUP", key: process.env.GEMINI_API_KEY_BACKUP },
   ];
 
   const seenKeys = new Set<string>();
@@ -222,6 +226,12 @@ export async function generateGeminiWithFallback(
       const msg = err?.message || String(err);
 
       const is404 = msg.includes("404") || msg.includes("NOT_FOUND");
+      const isAuthOrDisabled =
+        msg.includes("401") ||
+        msg.includes("UNAUTHENTICATED") ||
+        msg.includes("ACCOUNT_STATE_INVALID") ||
+        msg.includes("deleted or disabled") ||
+        msg.includes("API_KEY_INVALID");
       const isDailyOrPrepayDepleted =
         msg.includes("402") ||
         msg.includes("prepayment credits") ||
@@ -234,6 +244,26 @@ export async function generateGeminiWithFallback(
         msg.includes("UNAVAILABLE") ||
         msg.includes("RESOURCE_EXHAUSTED") ||
         msg.includes("quota");
+
+      if (isAuthOrDisabled) {
+        console.warn(
+          `⚡ [GEMINI ROTATION] Key tier ${tierObj.tier} (${tierObj.envVar}) unauthenticated/disabled: ${msg.slice(0, 100)}. Disabling tier.`
+        );
+        if (stats) {
+          stats.quotaHits++;
+          stats.lastError = "401 Service Account / Key Disabled";
+        }
+        for (const m of pool) {
+          pairCooldownUntil.set(`${tierObj.tier}:${m}`, {
+            until: Date.now() + 24 * 60 * 60 * 1000,
+            reason: "Service account deleted or disabled (401)",
+          });
+        }
+        if (cIdx === stickyClientIdx) {
+          stickyClientIdx = (stickyClientIdx + 1) % tiers.length;
+        }
+        continue;
+      }
 
       if (is404 || isDailyOrPrepayDepleted || isRateOrTransient) {
         if (stats) {
@@ -256,5 +286,110 @@ export async function generateGeminiWithFallback(
     }
   }
 
+  // Emergency Failover: If all Gemini keys/models in the pool are exhausted, try xAI Grok (Grok 4.7)
+  if (process.env.XAI_API_KEY) {
+    try {
+      const xaiModel = XAI_DEFAULT_MODEL;
+      const promptText = typeof params.contents === "string" ? params.contents : JSON.stringify(params.contents);
+      const messages: Array<{ role: "system" | "user"; content: string }> = [];
+      if (params.config?.systemInstruction) {
+        messages.push({ role: "system", content: String(params.config.systemInstruction) });
+      }
+      messages.push({ role: "user", content: promptText });
+
+      const requestBody: Record<string, any> = {
+        model: xaiModel,
+        messages,
+        temperature: params.config?.temperature ?? 0.1,
+        max_tokens: params.config?.maxOutputTokens ?? 4096,
+      };
+
+      if (params.config?.responseMimeType === "application/json") {
+        requestBody.response_format = { type: "json_object" };
+      }
+
+      const res = await fetch("https://api.x.ai/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${process.env.XAI_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(requestBody),
+      });
+
+      if (res.ok) {
+        const xaiData = await res.json();
+        const text = xaiData.choices?.[0]?.message?.content?.trim() || "";
+        console.log(`[Models] Gemini pool exhausted — smoothly recovered via xAI Grok (${xaiModel})`);
+        return {
+          text,
+          modelUsed: xaiModel,
+          tierUsed: "XAI_GROK_FAILOVER",
+        };
+      }
+    } catch (xaiErr) {
+      console.warn("[Models] xAI Grok failover also failed:", xaiErr);
+    }
+  }
+
   throw lastError || new Error("All Gemini models and backup API keys in failover pool exhausted");
+}
+
+/**
+ * Direct invocation helper for xAI Grok 4.7
+ */
+export async function generateGrokCompletion(params: {
+  contents: any;
+  systemInstruction?: string;
+  responseMimeType?: "application/json" | "text/plain";
+  temperature?: number;
+  maxOutputTokens?: number;
+  model?: string;
+}): Promise<{ text: string; modelUsed: string; usage?: any }> {
+  const apiKey = process.env.XAI_API_KEY;
+  if (!apiKey) {
+    throw new Error("XAI_API_KEY is not configured in environment");
+  }
+
+  const model = params.model || XAI_DEFAULT_MODEL;
+  const promptText = typeof params.contents === "string" ? params.contents : JSON.stringify(params.contents);
+  const messages: Array<{ role: "system" | "user"; content: string }> = [];
+
+  if (params.systemInstruction) {
+    messages.push({ role: "system", content: params.systemInstruction });
+  }
+  messages.push({ role: "user", content: promptText });
+
+  const requestBody: Record<string, any> = {
+    model,
+    messages,
+    temperature: params.temperature ?? 0.1,
+    max_tokens: params.maxOutputTokens ?? 4096,
+  };
+
+  if (params.responseMimeType === "application/json") {
+    requestBody.response_format = { type: "json_object" };
+  }
+
+  const res = await fetch("https://api.x.ai/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(requestBody),
+  });
+
+  if (!res.ok) {
+    const errText = await res.text();
+    throw new Error(`xAI Grok API error (${res.status}): ${errText}`);
+  }
+
+  const xaiData = await res.json();
+  const text = xaiData.choices?.[0]?.message?.content?.trim() || "";
+  return {
+    text,
+    modelUsed: model,
+    usage: xaiData.usage,
+  };
 }
